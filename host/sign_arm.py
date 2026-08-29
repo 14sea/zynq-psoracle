@@ -38,8 +38,14 @@ def main() -> int:
         if req.get("op", "sign") == "provision":
             execute = bool(req.get("execute"))
             if execute:
+                if not req.get("ruling"):
+                    raise sg.SignerRefusal(f"provisioning is a board action: no ruling {PROVISION_RULING_TEXT!r} given")
+                import board_session as bsn
                 import pcap_probe_runner as pr
-                pr.check_ruling(Path(req["ruling"]), text=PROVISION_RULING_TEXT)   # refuses without it
+                try:
+                    pr.check_ruling(Path(req["ruling"]), text=PROVISION_RULING_TEXT)
+                except bsn.SessionRefusal as exc:
+                    raise sg.SignerRefusal(f"ruling refused: {exc}") from None
             res = pk.run(holder._k, execute)
             json.dump({"provision": res, "key_id": holder.key_id}, sys.stdout)
             return 0 if res.get("rc", 0) == 0 else 1

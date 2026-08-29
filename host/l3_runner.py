@@ -398,7 +398,7 @@ def run_l3(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
             prov = cfg["signer"].provision(execute=cfg.get("provision_execute", False),
                                            ruling=cfg.get("provision_ruling"),
                                            alt_key_path=cfg.get("wrong_key_path") if neg == "wrong_key" else None)
-            summary["provisioning"] = {k: v for k, v in prov.items() if k != "prepared"}
+            summary["provisioning"] = prov
         st = Plane(session).read(po.STATUS)
         summary["key_loaded_observed"] = bool(st >> po.ST["key_loaded"] & 1)
         if neg != "unprovisioned" and not summary["key_loaded_observed"]:

@@ -72,7 +72,13 @@ a record that validates, is all-passed and < 6 h old** (`--boundary`, tested). O
 host before setup the verifier reports NOT ESTABLISHED (R2–R5), as it must.
 The signer is invoked as `sudo -n -u p3signer python3 host/sign_arm.py …`;
 provisioning uses `scripts/jtag_provision.cfg` (DAP + one `mem_ap` target, no Cortex-A
-targets, so nothing is halted). **Still not done:** running the setup (owner, sudo), any
+targets, so nothing is halted). **Setup run by the owner 2026-08-29; boundary verified as the runner with the pod attached:
+R1–R5 ALL PASSED** (`evidence/boundary/principal_boundary_2026-08-29.json`; signer answers
+`key_id b4c022a2…` = the moved K). First run found the signer could not traverse the 0750
+home directory — fixed in the script (`chmod o+x`). Live through the real principal: a sign
+request for the known answer succeeds, an unwritable verdict is refused, provisioning
+`prepare` writes nothing (the script with K exists only while openocd runs), execute
+without a `provisioning P3-K` ruling is a clean refusal. **Still not done:** any
 provisioning on the board, any ruling.
 
 **Stated limit — F2.** A console holder can replace the PL with a bitstream of their own

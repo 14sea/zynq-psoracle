@@ -134,6 +134,7 @@ revisions and neither may be silently substituted for the other.
 | `host/principal/setup_signer_principal.sh` |
 | `host/verify_principal_boundary.py` |
 | `tests/test_principal_boundary.py` |
+| `evidence/boundary/principal_boundary_2026-08-29.json` |
 
 ## Deliberately NOT imported
 

@@ -37,4 +37,6 @@ chmod 0440 /etc/sudoers.d/p3signer
 visudo -cf /etc/sudoers.d/p3signer
 # the signer must be able to read the repo (host/, validators/, scripts/) but not write it
 chmod -R o+rX "$REPO/host" "$REPO/validators" "$REPO/scripts" "$REPO/imported"
+# ...and must be able to TRAVERSE to it (a 0750 home directory blocks the signer: found on first run)
+chmod o+x "$(dirname "$REPO")" "$REPO"
 echo "done. verify as the runner:  python3 $REPO/host/verify_principal_boundary.py --out <record.json>"

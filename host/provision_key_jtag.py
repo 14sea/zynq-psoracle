@@ -43,16 +43,18 @@ def openocd_tcl(key: bytes) -> str:
 
 
 def run(key: bytes, execute: bool, cfg: Path = DEFAULT_CFG, speed_khz: int = 1000) -> dict:
+    """Without `execute` NOTHING is written anywhere: the script contains K and exists only for
+    the milliseconds openocd needs it, under the signer's umask, and is unlinked afterwards."""
     tcl = openocd_tcl(key)
+    if not execute:
+        return {"prepared": True, "executed": False, "words": 4, "cfg": str(cfg), "script_lines": tcl.count("\n")}
     with tempfile.NamedTemporaryFile("w", suffix=".tcl", delete=False, dir=tempfile.gettempdir()) as f:
         f.write(tcl); path = Path(f.name)
     path.chmod(0o600)
-    if not execute:
-        return {"prepared": str(path), "executed": False, "words": 4}
     try:
         p = subprocess.run(["openocd", "-f", str(cfg), "-c", f"adapter speed {speed_khz}", "-f", str(path)],
                            capture_output=True, text=True, timeout=60)
-        return {"prepared": str(path), "executed": True, "rc": p.returncode,
+        return {"prepared": True, "executed": True, "rc": p.returncode, "cfg": str(cfg),
                 "stderr_tail": p.stderr[-800:]}
     finally:
         path.unlink(missing_ok=True)
