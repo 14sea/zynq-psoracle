@@ -27,7 +27,7 @@ match bit anywhere that the host must take on trust.
 
 | rung | state |
 |---|---|
-| L0 host-only architecture | architecture basis ACCEPTED (§3 v0.2, `docs/l0_review_result.md`); **exit deliverables implemented at `afde303`** (import manifest with two-way closure, validators, fixtures, run-log rules, signer/principal model — 152 tests); **L0 not marked PASS: awaits the independent non-author L0 exit review** |
+| L0 host-only architecture | architecture basis ACCEPTED (§3 v0.2, `docs/l0_review_result.md`); **exit deliverables implemented at `afde303`** (import manifest with two-way closure, validators, fixtures, run-log rules, signer/principal model — 152 tests); L0 exit: **reviewed as passed** in the whole-line gate review (2026-08-29, `docs/whole_line_gate_review_result.md`; no separate L0 exit verdict document exists) |
 | L1 P3 carrier (Vivado) | **built**: RTL + fixture bench green; dummy-key build routed +7.8 ns, **keyed build +6.9 ns** (`manifests/keyed_b4c022a2.json`; bitstream held with the key), isolation target 6 / flush 0, ICAPE2 = 0, 12 target FARs blank — `docs/l1_design.md`; **L1 exit review pending** (D4 residual to rule) |
 | L2 = P2b counter-class non-perturbation | **host tooling written** (`host/l2_runner.py`, `docs/l2_spec.md`, fake-clock tests); first board stage; **no ruling, not authorised** |
 | L3 one gated candidate end-to-end | **host tooling written** (`host/l3_runner.py`, link-1 gate, host oracle pinned to fabricmap's silicon scores, out-of-process signer, on-board negative controls; `docs/l3_design.md`); **no ruling, not authorised** |
@@ -36,8 +36,11 @@ match bit anywhere that the host must take on trust.
 
 ## Gate review
 
-`docs/whole_line_gate_review.md` — the package for the non-author review that precedes any
-ruling (owner mandate 2026-08-29).
+`docs/whole_line_gate_review.md` — the package; **result 2026-08-29: HOLD**
+(`docs/whole_line_gate_review_result.md`) — blocker D4 (the signer and the runner are one
+OS user; the keyed bitstream is key material). Proposal: `docs/d4_principal_boundary.md`
+(recommended: runtime key provisioned by a separate signer user over JTAG; bitstream becomes
+public). **No ruling, no board contact until D4 is fixed and re-reviewed.**
 
 ## Provenance
 

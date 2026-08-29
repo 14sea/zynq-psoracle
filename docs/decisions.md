@@ -133,3 +133,13 @@ non-author review of v0.2 plus validators, fixtures and the import manifest.
 - Key custody as implemented (D4): `host/sign_arm.py` is the only reader of `K`; the
   runner never constructs a key holder (tested); separation is by process, same OS user —
   the residual stands.
+
+## Addendum 2026-08-29 (whole-line gate review) — D4 is the blocker; L0 exit synced
+
+- Verdict HOLD (`docs/whole_line_gate_review_result.md`). D4 as implemented is a process
+  convention, not a principal boundary; the keyed bitstream is key material readable by the
+  runner. Fix options and recommendation in `docs/d4_principal_boundary.md` (A: runtime key
+  provisioned over JTAG by a separate signer user, bitstream public; B: signer-owned board
+  service; C encrypted bitstream rejected — kills link 3). Owner to choose; re-review before
+  any ruling.
+- L0 exit: the review records it as passed; README synced. No separate verdict document.

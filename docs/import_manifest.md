@@ -126,6 +126,8 @@ revisions and neither may be silently substituted for the other.
 | `docs/l2_spec.md` |
 | `docs/l3_design.md` |
 | `docs/whole_line_gate_review.md` |
+| `docs/whole_line_gate_review_result.md` |
+| `docs/d4_principal_boundary.md` |
 | `manifests/keyed_b4c022a2.json` |
 | `manifests/keyed_b4c022a2_build.json` |
 | `manifests/keyed_b4c022a2_isolation.txt` |
