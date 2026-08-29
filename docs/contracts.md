@@ -95,6 +95,21 @@ configuration_valid: true|false    # the §3 predicate, recomputed by the valida
 transport_rereads: [...]
 ```
 
+### `lut_truth_table` — 1.0.0
+
+Bit order of a target LUT's 64-bit truth table relative to `INIT[63:0]`, which input is
+A1…A6, and the base values of the uncertified positions (they are part of the table the
+fabric will exhibit). Derived by the gate signer from the candidate's INIT bits through the
+certified map; identical function on the RTL side. Conformance fixture: fabricmap's
+`known_answer.json` LUT0 (`actual_init`, `target_init`, mutable mask).
+
+### `arm_mac` — 1.0.0
+
+SipHash-2-4, 128-bit key, message = `candidate_commit` (32 bytes) ‖ `expected_tables`
+(48 bytes) ‖ `nonce` (8 bytes); 128-bit tag. Fixtures: the published SipHash vectors plus
+three repository vectors (a known candidate, its replay with a different nonce, a
+one-bit-different table). Key: never in any artifact.
+
 ### `arm_record` — 1.0.0
 
 ```yaml
@@ -103,6 +118,11 @@ schema_version: "1.0.0"
 oracle_record_sha256: <hex>
 gate_verdict_sha256: <hex>
 epoch: 0                           # must equal both referenced records' epoch
+nonce: <hex64>                     # read from the PL in this session; consumed once
+candidate_commit: <hex256>         # the FULL candidate_sha256 (no truncation)
+expected_tables: [6 x hex64]       # lut_truth_table 1.0.0
+tag: <hex128>                      # arm_mac 1.0.0, produced by the gate signer ONLY
+signer: {principal: gate-signer, carrier_manifest_sha256: <hex>}   # which key it signed for
 axi_before: {status: <hex>, fault: <hex>}   # ¬recovery_required ∧ fault == 0 checked here
 armed_at: <time>
 ```
@@ -113,6 +133,9 @@ armed_at: <time>
 schema: score_record
 schema_version: "1.0.0"
 arm_record_sha256: <hex>
+configuration_valid_hw: true       # read from the PL; a score_record with false is invalid
+hw_candidate_commit: <hex256>      # the commit the PL exposes as the one it armed for
+functional_readout: [6 x hex64]    # the PL's sweep result, read-only
 scores: [uint32 x 6]               # the PL's per-LUT match counters, read over the pinned AXI words
 heartbeat: {before: <n>, after: <n>}
 host_prediction: [uint32 x 6]      # from the host oracle over the candidate's INIT values
@@ -122,11 +145,20 @@ match: true|false
 ### `run_log` — 1.0.0
 
 Ordered list of the records above for one session, plus the ruling's sha256, the summary's
-raw UART log reference, and `epoch_final`. **Validator rule (the interlock's teeth):** a
-`score_record` is valid only if its `arm_record`'s `oracle_record` has
-`configuration_valid == true` recomputed from its own fields, and all three share one
-epoch with the `gate_verdict`. A run log that violates this is not "flagged" — it is
-rejected, and the line's kill criterion 1 (`p3_architecture.md` §7) applies.
+raw UART log reference, and `epoch_final`. **Validator rules — evidence consistency, which
+never replaces the PL MAC gate:** a `score_record` is valid only if (i) its `arm_record`,
+`oracle_record` and `gate_verdict` share one epoch, (ii) `hw_candidate_commit ==
+candidate_commit == gate_verdict.candidate_sha256`, (iii) `functional_readout ==
+expected_tables`, (iv) the oracle's two hashes (staged stream, candidate frames — recorded
+separately) both match, (v) `configuration_valid_hw` is true. A run log that violates any
+of these is rejected, and the line's kill criterion 1 applies.
+
+### `carrier_manifest` additions (1.0.0)
+
+`axi.nonce` (read-once word), `axi.arm_payload` (24 write-only staging words + the ARM
+strobe), `axi.hw_candidate_commit` and `axi.functional_readout` (read-only), `mac:
+{algorithm: siphash-2-4-128, key_id: <sha256 of K, never K itself>}`, and the statement
+that no readable register or readback frame carries `K`.
 
 ## Import manifest
 

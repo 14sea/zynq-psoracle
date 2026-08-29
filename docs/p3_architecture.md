@@ -7,7 +7,7 @@
 > `configuration_valid` / identity / epoch, the schema contracts, D1, and kill criteria.
 > Everything else waits for cross-review and a separate ruling.
 
-Status: draft v0.1, 2026-08-29. Author: Claude (host/gate side). **L0 review 2026-08-29: REJECT — §3 as written is a bypass (no PL enforcement of the predicate); see `l0_review_result.md`. §3 is left as reviewed; the redesign is proposed in `p3_enforcement_proposal.md` and awaits the owner's ruling.**
+Status: **draft v0.2, 2026-08-29** — §3 rewritten on Option A′ after the L0 REJECT of v0.1 (`l0_review_result.md`) and the owner's conditional acceptance of A′ (`p3_enforcement_proposal.md`). Author: Claude. **Not reviewed; L0 stays not passed until an independent non-author review of v0.2.**
 
 ## 0. The one question P3 exists to answer
 
@@ -89,43 +89,112 @@ Contracts"; `zynq-autoehw/docs/workflow.md` rule 5).
    configuration in P3. It exposes a **heartbeat/eval counter** (§6 L2) so that "still
    computing" is observable.
 
-## 3. `configuration_valid`, redefined — a host judgement over PS observations
+## 3. `configuration_valid` — enforced in the PL, bound to the gate by a signed ARM (v0.2)
 
-In the carrier, `configuration_valid` was a **fabric** bit raised by the carrier's own
-readback compare, and the host had no channel into it (`claimb_findings.md` §3.4.1). That
-is what could not be closed. In P3:
+**History.** v0.1 made `configuration_valid` a host-computed predicate; the L0 review
+rejected it as a bypass, because the PL never consumed it and a runner could ARM around it
+(`l0_review_result.md`). Option A (a PL functional truth-table witness) closed
+"fabric == what the host claimed" but not "== what the gate approved"; the owner rejected
+it as it stood and conditionally accepted Option A′ as the basis of this rewrite
+(`p3_enforcement_proposal.md`). What follows is A′ with the owner's six conditions
+written in as **architecture requirements**, not notes.
 
-> **`configuration_valid` is a host-computed predicate**, true iff, within one session and
-> one epoch:
+### 3a. The property the hardware enforces
+
+> **`score ⇒ valid MAC_K(candidate_commit ‖ expected_tables ‖ nonce)
+>        ∧ functional_readout(six target LUTs) == expected_tables
+>        ∧ ¬recovery_required ∧ fault == 0`**,
 >
-> `gate_verdict.writable`
-> ∧ `sha256(staged_ddr_words) == candidate_sha256`     (link 2, PS oracle, before the DMA)
-> ∧ `write DMA completed with no error bit`
-> ∧ `sha256(pcap_readback_words) == candidate_sha256`   (link 3, PS oracle, after the DMA)
-> ∧ `¬recovery_required ∧ fault == 0`                  (PL, read over the pinned AXI words)
->
-> **and only then may the host issue ARM.**
+> latched by the PL as `configuration_valid_hw`, **the only condition on which the scorer
+> arms.** There is no other ARM path.
 
-Three things make this a *re-establishment* and not the "dressed-up bypass" §3.4 forbids:
+Because `K` is held only by the gate signer (§3c), a valid MAC exists only for a candidate
+the gate approved; because the fabric's behaviour is checked against the signed table, the
+score is bound to the candidate actually in the fabric. Hence
+`score ⇒ gate-approved candidate == actual LUT behaviour` — with the trust assumption
+confined to key custody (§3c) and its limits stated (§3f).
 
-- every link is checked by an instrument that **observed the actual bytes** — the host gate
-  parsed them, the oracle read them out of DDR and out of the fabric;
-- the PL still refuses to score without ARM and still carries its own fault/recovery
-  state, so a host that skips the predicate cannot obtain a score *silently*: the run log
-  records the predicate's inputs (all three hashes, the DMA status, the AXI words) with the
-  ARM, and a consumer re-derives it (`docs/contracts.md`, `oracle_record`);
-- the PL reports **no match bit**. There is nothing on the fabric side to be taken on
-  trust, because there is nothing on the fabric side that claims to verify.
+### 3b. The ARM transaction, in order
 
-What is *lost* relative to the carrier: the fabric no longer verifies itself. What is
-*gained*: the verification is done by an instrument that has actually returned non-blank
-content on this die, twice under independent confirmation. The trade is stated, not hidden.
+1. **Nonce.** The PL exposes a 64-bit `nonce` at a pinned read-only AXI word. It is
+   consumed once: the PL latches it at the first ARM verification of the session and
+   refuses any later ARM that presents it again (`F_ARM_REPLAY`). A new session load yields
+   a new nonce. The nonce is evidence, not a secret.
+2. **Gate signer.** On `gate_verdict.writable`, the gate signer — a separate principal from
+   the runner (§3c) — derives `expected_tables` (six 64-bit truth tables, `lut_truth_table`
+   contract) from the candidate's INIT bits through the certified map, and computes
+   `tag = MAC_K(candidate_commit ‖ expected_tables ‖ nonce)`.
+   `candidate_commit` is the **full 256-bit `candidate_sha256`** (eight words); a truncated
+   commitment is not used (owner condition; a 64-bit truncation's collision bound would
+   otherwise have to be argued and recorded).
+3. **ARM payload** = `candidate_commit` (8 words) ‖ `expected_tables` (12 words) ‖ `tag`
+   (4 words for a 128-bit tag; the MAC is `arm_mac` contract) — 24 AXI writes into
+   write-only staging registers, then one `ARM` strobe. The runner may write these; it
+   cannot produce `tag`.
+4. **PL verification, before anything else:** recompute the MAC over the staged payload and
+   its own latched nonce. Mismatch → `fault = F_ARM_AUTH`, no sweep, no score, `recovery_required`
+   set (a failed ARM is a fault of the same standing as a stream fault: only a reset clears
+   it). Match → proceed.
+5. **Functional sweep.** The PL drives all 64 input vectors of each target LUT and captures
+   the outputs as `functional_readout`; compares with `expected_tables` in hardware.
+6. **Latch.** `configuration_valid_hw ⟺ tag_ok ∧ readout == expected ∧ ¬recovery_required ∧
+   fault == 0`. The scorer arms on it and on nothing else.
+7. **Evidence, read-only:** the PL exposes the `candidate_commit` it armed for and the
+   `functional_readout`. The host's run-log validator checks that the exposed commit equals
+   the gate-approved `candidate_sha256` and that the readout equals the gate's expected
+   tables — **evidence consistency, which does not replace the PL MAC gate** (owner
+   condition).
 
-**Candidate hash domain.** `candidate_sha256` is over the FAR-ordered canonical frame set
-(the carrier's `run_log` domain), computed by the host gate from the bytes it accepted;
-the oracle's two hashes are over the same frames extracted from the staged stream and from
-the readback buffer respectively. The three are comparable because they are the same
-domain; the *stream* hash (`sequence_sha256`) is kept separately to pin what was sent.
+### 3c. Key custody and provisioning — an architecture requirement, not a note
+
+- **Principals.** `gate-signer` and `runner` are **different OS users** on the host. The
+  runner never holds `K`; the gate signer holds it and signs only after its own whitelist
+  verdict. The reviewer (owner) may be a third principal that provisions `K`.
+- **Provisioning.** `K` (128 bits) is generated by the owner from a CSPRNG at L1 build
+  time, embedded in the carrier bitstream as a constant that drives only the MAC core
+  (no AXI path reads it; the L1 testbench and OOC netlist review must show no readable
+  path), and written to `gate-signer`'s key file with mode `0400` owned by `gate-signer`.
+  The bitstream's SHA-256 in `carrier_manifest` therefore pins which key the fabric holds.
+- **Rotation.** A new key = a new carrier build = a new `carrier_manifest`; an old signed
+  ARM is invalid against a new carrier by construction.
+- **Failure behaviour.** Key file unreadable or absent → the gate signer refuses to sign
+  (no ARM is produced; the runner stops at "no signed ARM", a refusal, not a stop about
+  the die). Wrong key (stale file after rotation) → the PL answers `F_ARM_AUTH`; the run
+  stops; the fault is attributable to custody, and the run log records the
+  `carrier_manifest` sha the signer thought it was signing for.
+- **Non-readability checks.** L1 exit: `K` does not appear in any readable register or in
+  the readback path (the target columns are read back in L3; the MAC core is placed outside
+  them and the frames that hold it are not in any readable set — stated in the manifest).
+  Host: a test run *as the runner user* must fail to open the key file and must fail to
+  produce a tag the PL (model) accepts.
+
+### 3d. The MAC
+
+`arm_mac` 1.0.0: **SipHash-2-4** with a 128-bit key over the 20 payload words plus the
+8-byte nonce, output extended to 128 bits (two SipHash-2-4 evaluations with domain
+separation, or SipHash-128) so the tag is 4 words. Threat model: a runner bypassing
+process on the same host — not a cryptanalyst with the key. Published test vectors are
+the conformance fixture for both the Python signer and the RTL verifier.
+
+### 3e. What is enforced where
+
+| link | property | enforced by |
+|---|---|---|
+| 1 | candidate is permitted (whitelist, flush verbatim, ECC) | host gate (pure) — unchanged from the carrier's §3b |
+| binding | only a permitted candidate can be ARMed | **PL MAC gate**, key held by the gate signer |
+| 2 | bytes staged in DDR == candidate | PS oracle (`md.l` of the full staged stream **and** of the candidate frames, hashed separately — neither substitutes for the other) |
+| 3 | bytes in the fabric == candidate (non-LUT bits) | PS oracle PCAP readback |
+| 3′ | the six LUTs behave as the signed table | **PL functional sweep** |
+| evidence | hardware-exposed commit == gate-approved hash; readout == expected | run-log validator (second check, never the gate) |
+
+### 3f. What this does not claim
+
+- A host where the gate signer's principal, or root, is compromised is **outside the
+  threat model**; this is not an absolute-security claim, it is the carrier's original
+  "link 1 is the host's" assumption narrowed to one key file under one user.
+- The hardware witnesses the six target LUTs' behaviour, not flush frames or non-target
+  bits; those remain the PS oracle's and the gate's (rows 2–3 above).
+- A routing corruption that does not reach a LUT input is not seen by the sweep.
 
 ## 4. Identity and epoch
 
@@ -161,9 +230,9 @@ conformance fixture. Initial set: `carrier_manifest`, `candidate`, `gate_verdict
 | rung | what | PASS | HOLD | KILL |
 |---|---|---|---|---|
 | **L0** host-only architecture (this document, contracts, decisions) | **independent, non-author** review returns verdicts on the four questions in `decisions.md`; contracts have validators + fixtures; every imported artifact has a manifest row with sha256 and source commit | all four ruled and the validators/fixtures exist | a reviewer finds the predicate in §3 can be satisfied without an instrument observing bytes | a reviewer shows §3 is a bypass of the carrier's interlock rather than a re-establishment |
-| **L1** the P3 carrier, host-side | a Vivado build (separate authorisation) of: the reused scorer, a heartbeat/eval counter, the pinned AXI window, **no ICAPE2**, the same isolated target columns, identity of the frame table re-derived; OOC gate; `carrier_manifest` published | OOC clean, frame table digest reproduced, target columns blank in the base | resource/timing does not close | the design needs an ICAP writer to function |
+| **L1** the P3 carrier, host-side | a Vivado build (separate authorisation) of: the reused scorer, a heartbeat/eval counter, the pinned AXI window, **no ICAPE2**, the same isolated target columns, **the §3 MAC verifier, nonce, ARM staging registers, functional sweep and comparators**, frame table re-derived; OOC gate; `carrier_manifest` published | OOC clean; frame table digest reproduced; target columns blank in the base; **testbench negatives — wrong tag, replayed nonce, wrong commit, right tag with wrong table, unsigned ARM — none raise `armed`; no readable path to `K`**; L3's known answer pinned | resource/timing does not close | the design needs an ICAP writer, or `K` is reachable |
 | **L2 = P2b** counter-class non-perturbation (first board stage, own ruling) | P2's protocol on the P3 carrier with **two** invariants: the eight stable-state words equal the baseline (P2's rule, unchanged) **and** the one heartbeat word advances within a pinned envelope with **both** bounds (`carrier_manifest.axi.heartbeat`), during ten PCAP reads and one write, against a matched no-read control | both invariants held, control stable | control unstable (either observable non-discriminating) | attributable violation: PCAP activity stalls, perturbs or runs away the computing design |
-| **L3** one gated candidate, end-to-end (own ruling) | host gate → stage → oracle link 2 → PCAP write → oracle link 3 → `configuration_valid` → ARM → score; known-answer candidate (fabricmap's `known_answer.json` LUT0) | score equals the host oracle's prediction; all three hashes equal; run log replays | any hash unequal (a stop that says which link) | a score obtained with `configuration_valid` false — the interlock did not hold |
+| **L3** one gated candidate, end-to-end (own ruling) | host gate → signer → stage → oracle link 2 → PCAP write → oracle link 3 → signed ARM → PL MAC + sweep → `configuration_valid_hw` → score; known-answer candidate (fabricmap's LUT0, pinned at L1 exit); **on-board negative controls: unsigned ARM, replayed ARM, ARM signed for another candidate — each must yield `F_ARM_AUTH`/`F_ARM_REPLAY` and no score** | positive case scores as predicted; every negative control refused; hardware-exposed commit == gate hash; run log replays | any hash unequal (a stop that says which link) | a score obtained without `configuration_valid_hw`, or a negative control that scores — the interlock did not hold |
 | **L4** fault, restore, baseline (own ruling) | a deliberately illegal candidate refused by the gate (never sent); a legal candidate with a corrupted staged buffer refused at link 2 (never DMA'd); restore to base and baseline score after a stop | every refusal at the named link; restore verified by oracle link 3 | recovery requires power-cycle | a refused candidate reaches the fabric |
 | **L5** the loop (D1 live) | N candidates in one session/epoch without a host in the decision loop, per `zynq-ehw` Claim M1's runtime properties | — | — | — (specified after L4; not before) |
 

@@ -1,4 +1,6 @@
-# Proposal: a trusted enforcement point for `configuration_valid` — for ruling, not adopted
+# Proposal: a trusted enforcement point for `configuration_valid`
+
+**Status 2026-08-29: Option A′ conditionally accepted by the owner as the basis of §3 v0.2 (`p3_architecture.md`); this file is the record of how the mechanism was arrived at.**
 
 Status: proposal, 2026-08-29, written after the L0 REJECT (`l0_review_result.md`). Nothing
 here is in force. The owner rules whether §3 is redrafted along one of these lines.
