@@ -1,8 +1,8 @@
 # L1 — the P3 carrier: design record
 
-Status: RTL and host-only simulation, 2026-08-29, under the owner's continuous host-side
-mandate. **Not built in Vivado yet (this document precedes the OOC/implementation gate);
-no bitstream, no manifest, no board.** Change log at the end.
+Status: RTL, host-only simulation **and Vivado build**, 2026-08-29, under the owner's
+continuous host-side mandate. **Built (dummy key committed; keyed build private); no
+board; L1 exit review pending.** Change log at the end.
 
 ## What it is
 
@@ -86,8 +86,14 @@ cleared only by reset (`recovery_required` freezes the scorer, as in the carrier
 | frame table | — | 5,144 frames; **all 12 target FARs blank**; positive control `0x0040129C`, min Hamming 1148, unique; blank group 4,441 |
 
 `carrier_manifest` for the dummy build: `builds/dummy_key/carrier_manifest.json`
-(validated by `tests/test_manifest_artifacts.py`). The keyed build's manifest lives in
-`manifests/`; its bitstream does not (D4 residual).
+(validated by `tests/test_manifest_artifacts.py`). **Keyed build** (`key_id b4c022a2…`,
+nonce seed `0x450B1645340B7CF5`): routed at **+6.874 ns**, isolation target 6 / flush 0,
+bitstream sha `95bce129…`, positive control `0x0040131D` (the MAC constants change the
+frames, so each bitstream has its own manifest) — `manifests/keyed_b4c022a2.json` with its
+build and isolation records; the bitstream itself lives with the key (`keys/`, `0400`,
+gitignored; D4 residual). **fabricmap's `phenotype_manifest.json` transfers verbatim**: its
+15 pinned frames (12 target, 3 flush) are byte-identical in the P3 base, so link 1's
+whitelist, the flush rule and the LUT0 known answer apply unchanged.
 
 ## What L1 exit still needs (not done here)
 

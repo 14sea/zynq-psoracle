@@ -1,0 +1,123 @@
+{
+  "schema": "carrier_manifest",
+  "schema_version": "1.0.0",
+  "bitstream_sha256": "95bce1297a873e4c4c8862259a2c1067808fb35c78913256cc9fefae7f5610cf",
+  "bitstream_bytes": 2083858,
+  "frame_table_sha256": "ca85a457bf93e6d820921edbea759af417b03f6a53f4ea207d522a6c4c2cb5cb",
+  "frame_count": 5144,
+  "part": "xc7z010clg400-1",
+  "top": "p3_top",
+  "vivado": "2025.2",
+  "wns_ns": 6.874,
+  "cell_isolation": "passed",
+  "board_roles": {
+    "17A6": "verify"
+  },
+  "axi": {
+    "base": 1136656384,
+    "stable_state": [
+      8196,
+      8200,
+      8208,
+      8212,
+      8216,
+      8220,
+      8224,
+      8228
+    ],
+    "heartbeat": {
+      "offset": 8232,
+      "width_bits": 32,
+      "advances_per_s_min": null,
+      "advances_per_s_max": null,
+      "note": "bounds are pinned from the L2 no-read baseline before the L2 ruling"
+    },
+    "nonce": {
+      "lo": 8236,
+      "hi": 8240,
+      "steps_after_every_arm_attempt": true,
+      "generator": "xorshift64 (validators/nonce.py)"
+    },
+    "arm_payload": {
+      "first": 8448,
+      "words": 20,
+      "tag_first": 8528,
+      "tag_words": 4,
+      "strobe": {
+        "offset": 8192,
+        "bit": 6
+      },
+      "write_only": true
+    },
+    "hw_candidate_commit": {
+      "first": 8704,
+      "words": 8
+    },
+    "functional_readout": {
+      "first": 8768,
+      "words": 12
+    },
+    "status_reserved_mask": 4160749568,
+    "status_alive_bit": 8,
+    "fault_codes": {
+      "13": "F_ARM_AUTH",
+      "15": "F_ARM_TABLE"
+    },
+    "undecoded": "SLVERR on read and write"
+  },
+  "target_columns": [
+    "CLBLL_L_X2",
+    "CLBLM_L_X6"
+  ],
+  "target_fars": [
+    "0x00400a20",
+    "0x00400a21",
+    "0x00400a22",
+    "0x00400a23",
+    "0x00400c1a",
+    "0x00400c1b",
+    "0x00400c1c",
+    "0x00400c1d",
+    "0x00400c20",
+    "0x00400c21",
+    "0x00400c22",
+    "0x00400c23"
+  ],
+  "target_frames_nonzero_words": {
+    "0x00400a20": 0,
+    "0x00400a21": 0,
+    "0x00400a22": 0,
+    "0x00400a23": 0,
+    "0x00400c1a": 0,
+    "0x00400c1b": 0,
+    "0x00400c1c": 0,
+    "0x00400c1d": 0,
+    "0x00400c20": 0,
+    "0x00400c21": 0,
+    "0x00400c22": 0,
+    "0x00400c23": 0
+  },
+  "positive_control": {
+    "far": "0x0040131d",
+    "frame_sha256": "bc7d0241d2e2f3199b94f7974861b3e3790c34700a745f3a5874ce7d9bbe9758",
+    "min_hamming_to_neighbours": 1114,
+    "hamming": [
+      1114,
+      1124,
+      1366,
+      1430
+    ],
+    "globally_unique": true
+  },
+  "blank_far_group_size": 4487,
+  "no_icap": true,
+  "nonce_seed": "0x450B1645340B7CF5",
+  "mac": {
+    "algorithm": "siphash-2-4-128",
+    "key_id": "b4c022a27ff87ac2f98a39e5eaa1e23456251d3b95d16189f3130cb69905c307",
+    "key_note": "K is never recorded; key_id is sha256(K) (docs/decisions.md D4)"
+  },
+  "lut_truth_table": {
+    "bit_order": "INIT[i] = bit i; sweep vector[0] = I0 (LOCK_PINS I0:A1..I5:A6)"
+  }
+}

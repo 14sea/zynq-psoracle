@@ -113,6 +113,9 @@ revisions and neither may be silently substituted for the other.
 | `builds/dummy_key/timing_summary.txt` |
 | `builds/dummy_key/carrier_manifest.json` |
 | `tests/test_manifest_artifacts.py` |
+| `manifests/keyed_b4c022a2.json` |
+| `manifests/keyed_b4c022a2_build.json` |
+| `manifests/keyed_b4c022a2_isolation.txt` |
 
 ## Deliberately NOT imported
 
