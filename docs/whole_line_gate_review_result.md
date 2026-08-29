@@ -25,3 +25,15 @@ Verbatim (owner's relay):
 
 Standing after the verdict: L2/L3 tooling direction accepted; **D4 is the blocker**;
 proposal in `docs/d4_principal_boundary.md`; re-review required before any ruling.
+
+## Re-review result (2026-08-29, later — after D4 option A + host principal)
+
+Verdict (owner's relay, verbatim):
+
+> 逐項檢查結果：D4 principal boundary 已解除，整體可接受。
+> 已確認：/tmp 無殘留 provisioning script；runner 身分執行 R1–R5 全部通過；runner 端沒有 K.bin，只保留 nonce seed；signer 回傳的 key_id 與既有 manifest 一致；sudoers 僅允許執行 sign_arm.py；repo 乾淨、215 tests 通過、psmap 未修改。
+> sudoers 尾端的 * 是一項應收緊的防禦性改善，但目前不構成 D4 blocker：sign_arm.py 只接受 key path，KeyHolder 僅接受 16-byte/0400 檔案，輸出也不包含 K；即使 runner 指向其他檔案，也不能取得固定 PL key。仍建議在上板前把 wildcard 改成固定 signer key 路徑（必要時另列 control key），以縮小 signer service 的輸入面。這可納入 re-review delta，不需重新推翻目前 D4 結論。
+> 目前裁決：D4：PASS；L1 host/build/principal preparation：PASS；P3-L2/L3 ruling：尚未建立；板上操作：仍需新的 whole-of-probe ruling；在 ruling 建立前不要碰板。
+
+Standing: **D4 PASS, L1 preparation PASS.** Sudoers wildcard → fixed paths (setup script
+updated; the owner re-applies it with sudo before the board). No ruling exists; no board contact.

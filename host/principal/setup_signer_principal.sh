@@ -30,8 +30,10 @@ fi
 install -m 0644 "$REPO/host/principal/99-p3-signer-jtag.rules" /etc/udev/rules.d/99-p3-signer-jtag.rules
 udevadm control --reload && udevadm trigger --subsystem-match=usb
 # the runner may ask the signer for exactly one program, no shell, no other args prefix
+# fixed key paths only (re-review 2026-08-29: no trailing wildcard on the signer's input)
 cat > /etc/sudoers.d/p3signer <<SUDO
-$RUNNER_USER ALL=(p3signer) NOPASSWD: $(command -v python3) $REPO/host/sign_arm.py *
+$RUNNER_USER ALL=(p3signer) NOPASSWD: $(command -v python3) $REPO/host/sign_arm.py $STORE/K.bin
+$RUNNER_USER ALL=(p3signer) NOPASSWD: $(command -v python3) $REPO/host/sign_arm.py $STORE/K_control.bin
 SUDO
 chmod 0440 /etc/sudoers.d/p3signer
 visudo -cf /etc/sudoers.d/p3signer

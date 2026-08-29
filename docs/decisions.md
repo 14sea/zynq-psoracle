@@ -164,3 +164,10 @@ non-author review of v0.2 plus validators, fixtures and the import manifest.
   service; C encrypted bitstream rejected — kills link 3). Owner to choose; re-review before
   any ruling.
 - L0 exit: the review records it as passed; README synced. No separate verdict document.
+
+## Addendum 2026-08-29 (later) — D4 PASS
+
+Re-review verdict: D4 discharged (boundary verified as the runner, pod attached, R1–R5);
+L1 host/build/principal preparation PASS. Defensive tightening adopted: the sudoers line
+names the two fixed signer key paths instead of a trailing wildcard (setup script updated;
+re-apply with sudo). No ruling exists; the board is not touched until one does.
