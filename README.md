@@ -27,7 +27,7 @@ match bit anywhere that the host must take on trust.
 
 | rung | state |
 |---|---|
-| L0 host-only architecture | **drafted, not reviewed** — owner cross-review 2026-08-29 accepted the structure and asked for positions on the four `decisions.md` questions (done); PASS needs an independent non-author review plus validators/fixtures |
+| L0 host-only architecture | **KILL / not passed** — independent review 2026-08-29 (`docs/l0_review_result.md`): §3's host-computed `configuration_valid` is a **bypass**, not a re-establishment, because the PL never enforces it; the other three questions ACCEPTED. A trusted enforcement point is proposed in `docs/p3_enforcement_proposal.md` (Option A: PL functional truth-table witness), **not adopted** pending the owner's ruling |
 | L1 P3 carrier (Vivado) | not authorised |
 | L2 = P2b counter-class non-perturbation | not authorised; first board stage; own ruling |
 | L3 one gated candidate end-to-end | not authorised |

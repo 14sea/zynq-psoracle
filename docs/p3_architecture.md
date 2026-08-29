@@ -7,7 +7,7 @@
 > `configuration_valid` / identity / epoch, the schema contracts, D1, and kill criteria.
 > Everything else waits for cross-review and a separate ruling.
 
-Status: draft v0.1, 2026-08-29. Author: Claude (host/gate side). Not reviewed.
+Status: draft v0.1, 2026-08-29. Author: Claude (host/gate side). **L0 review 2026-08-29: REJECT — §3 as written is a bypass (no PL enforcement of the predicate); see `l0_review_result.md`. §3 is left as reviewed; the redesign is proposed in `p3_enforcement_proposal.md` and awaits the owner's ruling.**
 
 ## 0. The one question P3 exists to answer
 
