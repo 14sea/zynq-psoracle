@@ -4,4 +4,5 @@ rulings/
 runs/
 external/
 build/
-sim/
+sim/out/
+sim/*.vvp

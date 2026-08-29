@@ -24,6 +24,12 @@ and do not depend on D1.
 
 **Who decides:** the owner, after cross-review.
 
+**Decided under the owner's continuous host-side mandate (2026-08-29): standalone.** The
+L2–L4 runners stay U-Boot; L5's specification will carry the `app_identity` contract
+(IDCODE + a host-written session token in the same U-Boot epoch before `go`, app-side epoch
+invalidated by any reset). Recorded here as the working decision; the whole-line gate
+review before the first ruling may reopen it.
+
 ## D2 — the name and remote of this repository
 
 Working name `zynq-psoracle` (the PS as the oracle). No remote exists; creating one is the
@@ -47,6 +53,11 @@ Not by this document. L1 needs: the scorer RTL imported from `zynq-fabricmap` wi
 testbenches, a heartbeat counter added, ICAPE2 removed, the AXI window fixed as
 `carrier_manifest` says, an OOC gate, and the frame table re-derived. It is host-side but
 it is new hardware design and its own review.
+
+**Decided under the owner's continuous host-side mandate (2026-08-29): L1 design and
+build are authorised as host-side work** (RTL, simulation, Vivado synthesis/implementation,
+manifest); the L1 *exit* review and everything after it remain gated; no board contact
+before the whole-line gate review and a ruling. Record: `l1_design.md`.
 
 ## Kill criteria (line-wide; the per-rung ones are in the ladder)
 

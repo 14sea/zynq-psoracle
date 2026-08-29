@@ -66,7 +66,10 @@ class ArmPayload:
         out = [int.from_bytes(self.candidate_commit[i:i + 4], "big") for i in range(0, 32, 4)]
         for t in self.expected_tables:
             out += [(t >> 32) & 0xFFFFFFFF, t & 0xFFFFFFFF]
-        out += [int.from_bytes(self.tag[i:i + 4], "big") for i in range(0, 16, 4)]
+        # tag words: the two 64-bit LITTLE-endian integers (out0, out1) that the tag bytes
+        # encode, each split high word first — the PL compares {out0, out1} as integers.
+        t0 = int.from_bytes(self.tag[:8], "little"); t1 = int.from_bytes(self.tag[8:], "little")
+        out += [t0 >> 32, t0 & 0xFFFFFFFF, t1 >> 32, t1 & 0xFFFFFFFF]
         return out
 
 

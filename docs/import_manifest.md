@@ -92,6 +92,16 @@ revisions and neither may be silently substituted for the other.
 | `tb/gen_siphash_vectors.py` |
 | `tb/siphash_vectors.txt` |
 | `tb/tb_p3_siphash.v` |
+| `rtl/p3_arm_gate.v` |
+| `rtl/p3_axil.v` |
+| `rtl/p3_core.v` |
+| `rtl/p3_top.v` |
+| `tb/gen_arm_fixture.py` |
+| `tb/arm_fixture.vh` |
+| `tb/tb_p3_core.v` |
+| `tb/tb_dbg.v` |
+| `sim/run_all.sh` |
+| `docs/l1_design.md` |
 
 ## Deliberately NOT imported
 
