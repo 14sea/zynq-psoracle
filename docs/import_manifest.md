@@ -51,6 +51,15 @@ revisions and neither may be silently substituted for the other.
 | `imported/fabricmap/vivado/carrier/carrier_scorer.v` | `d3fdb3fb026e0f1c7676af54579d6ddb89901c22a36d98695329df127a6ce146` | 7279 | zynq-fabricmap | `vivado/carrier/carrier_scorer.v` |
 | `imported/fabricmap/vivado/carrier/tb_carrier_scorer.v` | `b9413ad61e0b7ba62b79bfb36d20d36a4a347f630886f6983b02f7a9cacf65f7` | 9321 | zynq-fabricmap | `vivado/carrier/tb_carrier_scorer.v` |
 | `imported/fabricmap/vivado/carrier/carrier_axil.v` | `12cf47ac1fa7d6f997ce24e1c922dcfe10ac8b3b141c1bda0ad7cc8367c1875b` | 12522 | zynq-fabricmap | `vivado/carrier/carrier_axil.v` |
+| `imported/fabricmap/vivado/carrier/carrier_axi3_lite.v` | `4a6c3bb8a13693ed3d6a1d5382aff83aa3b74ebedeae99df262343ce32448fdf` | 14356 | zynq-fabricmap | `vivado/carrier/carrier_axi3_lite.v` |
+| `imported/fabricmap/vivado/carrier/tb_carrier_axi3.v` | `51bc389725bec9f0b86c80082792d1ca2c918fb038117933bc346478f473ca77` | 17490 | zynq-fabricmap | `vivado/carrier/tb_carrier_axi3.v` |
+| `imported/fabricmap/vivado/carrier/carrier.xdc` | `3cdb8446701bfe0a027899a8b9269f496830d1b376f15bbfc322abf1e4fad4ec` | 3098 | zynq-fabricmap | `vivado/carrier/carrier.xdc` |
+| `imported/fabricmap/vivado/carrier/build_carrier.tcl` | `ac00e81eae37bcd7ccf3856709e16d965dc17eb863c509772ad028516c0e2aed` | 9276 | zynq-fabricmap | `vivado/carrier/build_carrier.tcl` |
+| `imported/fabricmap/vivado/carrier/isolation_checks.tcl` | `9cc79f567e5effeb0ca5ef2a1d6e510a38d6e93f83003c7cdf339d4aa2d8000f` | 11529 | zynq-fabricmap | `vivado/carrier/isolation_checks.tcl` |
+| `imported/fabricmap/vivado/carrier/generated/carrier_base_init.vh` | `e5c51727b40b42159dfefad0cc75a2f8b719fb004ec67ecadc4d7dc85d78fa0e` | 768 | zynq-fabricmap | `vivado/carrier/generated/carrier_base_init.vh` |
+| `imported/fabricmap/vivado/carrier/generated/carrier_targets.hex` | `1e093c6690b8f57fc53535ed716afd2a82f7ed884526fbee1a0d8eaa9dc5c649` | 420 | zynq-fabricmap | `vivado/carrier/generated/carrier_targets.hex` |
+| `imported/fabricmap/vivado/carrier/generated/carrier_vector_order.hex` | `ea308a8da8aee9bba523ac7f5615bb72eb460d5997ef7503a43c7d73daf02473` | 510 | zynq-fabricmap | `vivado/carrier/generated/carrier_vector_order.hex` |
+| `imported/fabricmap/vivado/carrier/generated/carrier_constants.json` | `48f79b876a0bfdb449f407692301b29987ef1218fa1adb1fd9a181068765d118` | 2210 | zynq-fabricmap | `vivado/carrier/generated/carrier_constants.json` |
 
 ## Files original to this repository
 
@@ -78,6 +87,11 @@ revisions and neither may be silently substituted for the other.
 | `tests/test_lut_table.py` |
 | `tests/test_signer_principals.py` |
 | `tests/test_runlog_validator.py` |
+| `validators/nonce.py` |
+| `rtl/p3_siphash.v` |
+| `tb/gen_siphash_vectors.py` |
+| `tb/siphash_vectors.txt` |
+| `tb/tb_p3_siphash.v` |
 
 ## Deliberately NOT imported
 
