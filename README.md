@@ -27,7 +27,7 @@ match bit anywhere that the host must take on trust.
 
 | rung | state |
 |---|---|
-| L0 host-only architecture | **not passed** — v0.1 REJECTED (`docs/l0_review_result.md`: §3 was a bypass); Option A ruled insufficient; **Option A′ conditionally accepted as the basis, and §3 is now rewritten as v0.2** (PL MAC gate over a gate-signed ARM: full-hash commitment, one-shot nonce, functional sweep; key custody D4). **v0.2 not reviewed** — needs an independent non-author L0 review, then validators/fixtures/manifest |
+| L0 host-only architecture | **architecture basis ACCEPTED (§3 v0.2, review 2026-08-29, all four questions ruled — `docs/l0_review_result.md`); L0 overall not passed** until validators, conformance fixtures and the import manifest exist (L0 exit — implementation awaits authorisation) |
 | L1 P3 carrier (Vivado) | not authorised |
 | L2 = P2b counter-class non-perturbation | not authorised; first board stage; own ruling |
 | L3 one gated candidate end-to-end | not authorised |

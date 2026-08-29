@@ -34,3 +34,32 @@ can stop the score" to software; §3.4 of `claimb_findings.md` had already said 
 with no hardware channel is a bypass however well it is logged. The redesign direction is
 proposed in `docs/p3_enforcement_proposal.md` and is **not adopted** until the owner rules
 on it; §3 of the architecture is not rewritten in this commit.
+
+---
+
+## Review of v0.2 (`3393895`), 2026-08-29: §3 **ACCEPTED as the L0 architecture basis** — L0 overall still not passed
+
+Four rulings, recorded in substance:
+
+1. **§3 is a re-establishment, not a bypass — ACCEPT, with a condition.** The PL's MAC
+   gate, one-shot nonce, truth-table sweep and `configuration_valid_hw` latch form a
+   hardware stop before any score; this differs from the host-predicate/validator scheme
+   of v0.1. **Condition: L1 must actually prove that every ARM entry point is behind the
+   MAC gate, and that the negative testbenches (unsigned, replayed nonce, wrong commit,
+   right tag with wrong table) never raise `armed`.**
+2. **Heartbeat envelope: both bounds — ACCEPT.** Lower bound against stalling, upper bound
+   against runaway/erroneous states; pinned by the L2 matched no-read control.
+3. **Link 2: full staged stream and candidate frames kept separately — ACCEPT.**
+   `sequence_sha256` and `candidate_sha256` never substitute for each other; the full
+   `md.l` observation remains the stronger evidence.
+4. **L3 known answer: fabricmap's LUT0 candidate — ACCEPT**, pinned only after L1
+   regenerates the frame table, scorer and manifest.
+
+§3c's key custody and threat model are judged honest enough; L1 must verify that `K` has
+no readable path and must measure that unsigned / replayed / wrong-commit / wrong-table
+ARMs produce no score.
+
+Standing: **§3 v0.2 passes as the architecture basis. L0 overall: not passed** —
+validators, conformance fixtures and the import manifest do not yet exist. L1 build, D1,
+D3, remote, board operations: not authorised. Next step available for authorisation:
+implementing the L0 exit (validators / fixtures / import manifest).

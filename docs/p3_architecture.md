@@ -7,7 +7,7 @@
 > `configuration_valid` / identity / epoch, the schema contracts, D1, and kill criteria.
 > Everything else waits for cross-review and a separate ruling.
 
-Status: **draft v0.2, 2026-08-29** — §3 rewritten on Option A′ after the L0 REJECT of v0.1 (`l0_review_result.md`) and the owner's conditional acceptance of A′ (`p3_enforcement_proposal.md`). Author: Claude. **Not reviewed; L0 stays not passed until an independent non-author review of v0.2.**
+Status: **draft v0.2, 2026-08-29** — §3 rewritten on Option A′ after the L0 REJECT of v0.1 (`l0_review_result.md`) and the owner's conditional acceptance of A′ (`p3_enforcement_proposal.md`). Author: Claude. **Reviewed 2026-08-29: §3 v0.2 ACCEPTED as the L0 architecture basis, all four questions ruled (`l0_review_result.md`); L0 overall not passed until the exit deliverables exist. L1 condition: every ARM entry point behind the MAC gate, negative testbenches never `armed`, no readable path to `K`.**
 
 ## 0. The one question P3 exists to answer
 
