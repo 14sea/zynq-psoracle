@@ -1,9 +1,8 @@
 // P3 carrier — top level. PS7 (GP0) -> AXI3->AXI4-Lite shim (imported, unchanged)
 // -> p3_core (register file, ARM gate, heartbeat, scorer) -> six evolvable LUT6.
-// No ICAPE2. No board IO. KEY and NONCE_SEED are build-time constants.
+// No ICAPE2. No board IO. NONCE_SEED is a build-time constant; the MAC key is provisioned at runtime (D4 option A).
 `default_nettype none
 module p3_top #(
-    parameter [127:0] KEY        = 128'h0,
     parameter [63:0]  NONCE_SEED = 64'h9E3779B97F4A7C15,
     parameter integer LUTS       = 6
 ) ();
@@ -51,7 +50,7 @@ module p3_top #(
         .m_rdata(m_rdata), .m_rresp(m_rresp), .m_rvalid(m_rvalid), .m_rready(m_rready));
 
     wire [5:0] vector; wire [LUTS-1:0] lut_q;
-    p3_core #(.KEY(KEY), .NONCE_SEED(NONCE_SEED), .LUTS(LUTS)) core (
+    p3_core #(.NONCE_SEED(NONCE_SEED), .LUTS(LUTS)) core (
         .clk(clk), .rst_n(rst_n),
         .s_awaddr(m_awaddr), .s_awvalid(m_awvalid), .s_awready(m_awready),
         .s_wdata(m_wdata), .s_wstrb(m_wstrb), .s_wvalid(m_wvalid), .s_wready(m_wready),

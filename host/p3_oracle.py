@@ -40,9 +40,12 @@ READABLE = frozenset({STATUS, FAULT, HEARTBEAT, NONCE_LO, NONCE_HI} | set(SCORES
 WRITABLE = frozenset({CTRL} | set(PAYLOAD) | set(TAG))
 ARM_STROBE, MODE_HOLDOUT = 1 << 6, 1 << 7
 ST = {"gate_busy": 0, "fault": 1, "cfg_valid_hw": 2, "scorer_busy": 3, "scorer_done": 4, "scorer_armed": 5,
-      "tag_ok": 6, "recovery_required": 7, "alive": 8, "sweep_done": 9, "tables_match": 10}
+      "tag_ok": 6, "recovery_required": 7, "alive": 8, "sweep_done": 9, "tables_match": 10, "key_loaded": 11}
 ST_RESERVED = 0xF8000000
-F_ARM_AUTH, F_ARM_TABLE = 13, 15
+F_ARM_NOKEY, F_ARM_AUTH, F_ARM_TABLE = 12, 13, 15
+FAULT_NAMES = {F_ARM_NOKEY: "F_ARM_NOKEY", F_ARM_AUTH: "F_ARM_AUTH", F_ARM_TABLE: "F_ARM_TABLE"}
+KEY = tuple(0x2160 + 4 * i for i in range(4))     # write-only, write-once; NOT in WRITABLE: only the signer's JTAG path writes it
+KEY_COMMIT = 1 << 8
 
 
 def axi(off: int) -> int:

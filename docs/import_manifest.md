@@ -106,12 +106,12 @@ revisions and neither may be silently substituted for the other.
 | `vivado/p3/build_p3.tcl` |
 | `host/provision_key.py` |
 | `host/gen_carrier_manifest.py` |
-| `builds/dummy_key/p3.bit` |
-| `builds/dummy_key/p3_build.json` |
-| `builds/dummy_key/isolation.txt` |
-| `builds/dummy_key/utilization_summary.txt` |
-| `builds/dummy_key/timing_summary.txt` |
-| `builds/dummy_key/carrier_manifest.json` |
+| `builds/p3/p3.bit` |
+| `builds/p3/p3_build.json` |
+| `builds/p3/isolation.txt` |
+| `builds/p3/utilization_summary.txt` |
+| `builds/p3/timing_summary.txt` |
+| `builds/p3/carrier_manifest.json` |
 | `tests/test_manifest_artifacts.py` |
 | `host/p3_gate.py` |
 | `host/p3_oracle.py` |
@@ -128,9 +128,7 @@ revisions and neither may be silently substituted for the other.
 | `docs/whole_line_gate_review.md` |
 | `docs/whole_line_gate_review_result.md` |
 | `docs/d4_principal_boundary.md` |
-| `manifests/keyed_b4c022a2.json` |
-| `manifests/keyed_b4c022a2_build.json` |
-| `manifests/keyed_b4c022a2_isolation.txt` |
+| `host/provision_key_jtag.py` |
 
 ## Deliberately NOT imported
 

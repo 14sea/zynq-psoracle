@@ -23,14 +23,17 @@ REQUIRED = {
     "oracle_record": ("session", "candidate_sha256", "staged_sha256", "staged_stream_sha256", "write",
                       "readback_sha256", "configuration_valid_hw_expected"),
     "arm_record": ("oracle_record_sha256", "gate_verdict_sha256", "epoch", "nonce", "candidate_commit",
-                   "expected_tables", "tag", "signer", "axi_before"),
+                   "expected_tables", "tag", "signer", "axi_before", "key_loaded_observed"),
     "score_record": ("arm_record_sha256", "configuration_valid_hw", "hw_candidate_commit",
                      "functional_readout", "scores", "host_prediction"),
     "run_log": ("ruling_sha256", "records", "epoch_final"),
     "negative_control": ("kind", "arm_record_sha256", "nonce", "configuration_valid_hw", "fault", "scored", "refused_as_expected"),
 }
-NEGATIVE_KINDS = ("unsigned", "replay", "other_candidate", "wrong_table")
-EXPECTED_FAULT = {"unsigned": 13, "replay": 13, "other_candidate": 13, "wrong_table": 15}
+NEGATIVE_KINDS = ("unsigned", "replay", "other_candidate", "wrong_table", "unprovisioned", "wrong_key")
+EXPECTED_FAULT = {"unsigned": 13, "replay": 13, "other_candidate": 13, "wrong_table": 15,
+                  "unprovisioned": 12, "wrong_key": 13}
+# controls that must come BEFORE any valid ARM (the positive attempt itself is expected to be refused)
+PRE_CONTROLS = ("unprovisioned", "wrong_key")
 HEX64 = 64
 
 
@@ -95,6 +98,8 @@ def _check_arm_record(r):
         raise RecordError("expected_tables must have six entries")
     if r["signer"].get("principal") != "gate-signer":
         raise RecordError("arm_record must be signed by the gate-signer principal")
+    if not isinstance(r["key_loaded_observed"], bool):
+        raise RecordError("key_loaded_observed must be the bool read from STATUS bit 11 before the ARM")
 
 
 def _check_score_record(r):
@@ -148,6 +153,8 @@ def validate_run_log(log: dict) -> dict:
         # (v) the hardware latch was true
         if score["configuration_valid_hw"] is not True:
             raise RecordError("(v) configuration_valid_hw is not true")
+        if arm["key_loaded_observed"] is not True:
+            raise RecordError("(v) a score with key_loaded_observed false: the PL could not have verified a tag")
         verdicts[canonical_sha256(score)] = {"gate": gate["candidate_sha256"], "epoch": arm["epoch"]}
     # (vi) every on-board negative control in the log was refused by the PL with the expected fault
     for neg in (r for r in log["records"] if r["schema"] == "negative_control"):

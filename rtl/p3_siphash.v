@@ -6,15 +6,15 @@
 // (`validators/siphash.py`) consumes the same byte stream, so the two agree by
 // construction and the testbench proves it against vectors the reference generated.
 //
-// The key is a parameter: it is a constant in the bitstream and reaches nothing but the
+// The key is a runtime input from the write-once, write-only key register (D4, option A);
 // initial state of v0..v3. There is no port that carries it.
 `default_nettype none
 module p3_siphash #(
-    parameter [127:0] KEY       = 128'h0,
     parameter integer MSG_WORDS = 20          // 8 commit + 12 table words; the tag is not part of the message
 ) (
     input  wire         clk,
     input  wire         rst_n,
+    input  wire [127:0] key,                  // provisioned at runtime (write-once register); never a constant
     input  wire         start,                // one-shot; ignored while busy
     input  wire [MSG_WORDS*32-1:0] msg,       // word 0 in the top bits (big-endian stream)
     input  wire [63:0]  nonce,                // appended after msg, as 8 LE bytes
@@ -64,8 +64,8 @@ module p3_siphash #(
         end
     endfunction
 
-    localparam [63:0] K0 = KEY[63:0];     // key bytes 0..7 as LE = low 64 bits of the parameter
-    localparam [63:0] K1 = KEY[127:64];
+    wire [63:0] K0 = key[63:0];           // key bytes 0..7 as LE = low 64 bits of the register value
+    wire [63:0] K1 = key[127:64];
 
     reg [255:0] v;
     reg [63:0]  m;

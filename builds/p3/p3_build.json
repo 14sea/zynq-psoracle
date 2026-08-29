@@ -1,0 +1,4 @@
+{"schema": "p3_build", "schema_version": "1.0.0", "part": "xc7z010clg400-1", "top": "p3_top",
+ "vivado": "2025.2", "routed": true, "cell_isolation": "passed", "wns_ns": 7.580,
+ "bitstream": "p3.bit", "bitstream_sha256": "956379fa8d23f8a6f1e0c80fe18b8c4aee68e76cc650499911a4bdb7807e610a", "nonce_seed": "0x9E3779B97F4A7C15",
+ "key": "runtime-provisioned, write-once register (docs/decisions.md D4 option A); not in this bitstream"}

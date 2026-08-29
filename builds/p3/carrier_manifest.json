@@ -1,14 +1,14 @@
 {
   "schema": "carrier_manifest",
   "schema_version": "1.0.0",
-  "bitstream_sha256": "870c894993cb3d7e533a0884776ad1643ba42917fba6c362ce63ca131641a968",
+  "bitstream_sha256": "956379fa8d23f8a6f1e0c80fe18b8c4aee68e76cc650499911a4bdb7807e610a",
   "bitstream_bytes": 2083858,
-  "frame_table_sha256": "38e29a8725d05f26bd5bacb43b92d1a0dba2adf936ce17b2f1b9dea1f9a227ae",
+  "frame_table_sha256": "4e873a336349c93bc14ae7aa53bd9c338ff65e3c9a31355c45a2344048eab10a",
   "frame_count": 5144,
   "part": "xc7z010clg400-1",
   "top": "p3_top",
   "vivado": "2025.2",
-  "wns_ns": 7.812,
+  "wns_ns": 7.58,
   "cell_isolation": "passed",
   "board_roles": {
     "17A6": "verify"
@@ -98,24 +98,26 @@
     "0x00400c23": 0
   },
   "positive_control": {
-    "far": "0x0040129c",
-    "frame_sha256": "e37cae97b282327b19e20ed79b5d2fb531cf37bd7ab856b4b292abc0881f286b",
-    "min_hamming_to_neighbours": 1148,
+    "far": "0x0040129d",
+    "frame_sha256": "92289866099a9c419e47ecfd41e1bdd17eb1b794e9e901694face9be1c873d5e",
+    "min_hamming_to_neighbours": 1168,
     "hamming": [
-      1148,
-      1304,
-      1292,
-      1508
+      1172,
+      1168,
+      1452,
+      1490
     ],
     "globally_unique": true
   },
-  "blank_far_group_size": 4441,
+  "blank_far_group_size": 4326,
   "no_icap": true,
   "nonce_seed": "0x9E3779B97F4A7C15",
   "mac": {
     "algorithm": "siphash-2-4-128",
-    "key_id": "be45cb2605bf36bebde684841a28f0fd43c69850a3dce5fedba69928ee3a8991",
-    "key_note": "K is never recorded; key_id is sha256(K) (docs/decisions.md D4)"
+    "key": "runtime-provisioned into a write-once, write-only register (0x2160-0x216C + CTRL bit 8) over the DAP mem-AP by the gate-signer principal; not in this bitstream",
+    "key_loaded_status_bit": 11,
+    "fault_nokey": 12,
+    "key_id_note": "key_id = sha256(K) is recorded per session in arm_record.signer.key_id (docs/decisions.md D4 option A)"
   },
   "lut_truth_table": {
     "bit_order": "INIT[i] = bit i; sweep vector[0] = I0 (LOCK_PINS I0:A1..I5:A6)"

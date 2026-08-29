@@ -1,10 +1,9 @@
 # P3 carrier build: synth -> pblock -> place/route -> isolation checks -> bitstream -> provenance.
-# Usage: vivado -mode batch -source build_p3.tcl -tclargs <outdir> <KEY as 32 hex> <NONCE_SEED as 16 hex>
-# The key is a build generic and appears in no source file; a build with the dummy key is the
-# committed, reproducible artifact, the keyed build is key material (docs/decisions.md D4).
+# Usage: vivado -mode batch -source build_p3.tcl -tclargs <outdir> <NONCE_SEED as 16 hex>
+# There is no key generic: the MAC key is provisioned at runtime into a write-once register
+# (docs/decisions.md D4, option A), so the bitstream is public and reproducible.
 set outdir [lindex $argv 0]
-set keyhex [lindex $argv 1]
-set seedhex [lindex $argv 2]
+set seedhex [lindex $argv 1]
 set part   xc7z010clg400-1
 set here   [file dirname [file normalize [info script]]]
 set repo   [file dirname [file dirname $here]]
@@ -17,7 +16,7 @@ add_files -norecurse $srcs
 set_property include_dirs [list $fm/generated] [current_fileset]
 add_files -fileset constrs_1 -norecurse $fm/carrier.xdc
 synth_design -top p3_top -part $part -flatten_hierarchy none -include_dirs $fm/generated \
-    -generic "KEY=128'h$keyhex" -generic "NONCE_SEED=64'h$seedhex"
+    -generic "NONCE_SEED=64'h$seedhex"
 write_checkpoint -force $outdir/post_synth.dcp
 report_utilization -file $outdir/post_synth_util.rpt
 opt_design
@@ -46,6 +45,6 @@ set fh [open $outdir/p3_build.json w]
 puts $fh "{\"schema\": \"p3_build\", \"schema_version\": \"1.0.0\", \"part\": \"$part\", \"top\": \"p3_top\","
 puts $fh " \"vivado\": \"[version -short]\", \"routed\": true, \"cell_isolation\": \"passed\", \"wns_ns\": $wns,"
 puts $fh " \"bitstream\": \"p3.bit\", \"bitstream_sha256\": \"$bit_sha\", \"nonce_seed\": \"0x$seedhex\","
-puts $fh " \"key_id_note\": \"the key is not recorded here; docs/decisions.md D4\"}"
+puts $fh " \"key\": \"runtime-provisioned, write-once register (docs/decisions.md D4 option A); not in this bitstream\"}"
 close $fh
 puts "P3 BUILD OK -> $outdir/p3.bit ($bit_sha) WNS=$wns"

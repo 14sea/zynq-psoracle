@@ -1,4 +1,0 @@
-{"schema": "p3_build", "schema_version": "1.0.0", "part": "xc7z010clg400-1", "top": "p3_top",
- "vivado": "2025.2", "routed": true, "cell_isolation": "passed", "wns_ns": 6.874,
- "bitstream": "p3.bit", "bitstream_sha256": "95bce1297a873e4c4c8862259a2c1067808fb35c78913256cc9fefae7f5610cf", "nonce_seed": "0x450B1645340B7CF5",
- "key_id_note": "the key is not recorded here; docs/decisions.md D4"}

@@ -10,11 +10,11 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 from validators.records import validate  # noqa: E402
 
-DUMMY = REPO / "builds/dummy_key"
+DUMMY = REPO / "builds/p3"
 
 
 class DummyKeyBuild(unittest.TestCase):
-    """The reproducible reference build (public dummy key) — never the keyed one."""
+    """The public build: the bitstream carries no key (D4 option A)."""
 
     def test_manifest_validates_and_matches_the_bitstream(self):
         m = json.loads((DUMMY / "carrier_manifest.json").read_text())
@@ -47,8 +47,14 @@ class DummyKeyBuild(unittest.TestCase):
         self.assertIn("target cells: 6", iso)
         self.assertIn("flush cells:  0", iso)
 
+    def test_manifest_says_the_key_is_runtime_provisioned(self):
+        m = json.loads((DUMMY / "carrier_manifest.json").read_text())
+        self.assertNotIn("key_id", m["mac"]); self.assertIn("runtime-provisioned", m["mac"]["key"])
+        self.assertEqual(m["mac"]["key_loaded_status_bit"], 11); self.assertEqual(m["mac"]["fault_nokey"], 12)
+        self.assertNotIn("KEY=", (REPO / "vivado/p3/build_p3.tcl").read_text())
+
     def test_key_is_not_in_any_committed_file(self):
-        """The dummy key is public; a real key file must never be tracked."""
+        """A real key file must never be tracked."""
         tracked = (REPO / "docs/import_manifest.md").read_text()
         self.assertNotIn("keys/K.bin", tracked)
         self.assertFalse((REPO / "keys/K.bin").exists() and "keys/" not in (REPO / ".gitignore").read_text())

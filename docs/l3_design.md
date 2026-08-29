@@ -13,9 +13,10 @@ the board is not touched.** Ruling text: `whole-of-probe P3-L3`. 198 tests.
 | link 2 PS oracle | same | `md.l` re-read of the whole buffer must equal the stream **before any DMA**; frames hash over the re-read = `staged_sha256`; stream hash = `staged_stream_sha256` (two domains, never coincide) |
 | write | `execute_write` | P1's executor loop, same gates and step names (CTRL masked before/after, INT_STS cleared and verified, D_P_DONE wait, error bits → STOP), DMA `(WR_BUF|1, PCAP, 534, 0)` |
 | link 3 PS oracle | `readback_frame` → psmap `execute_plan` | pinned two-DMA readback of **each of the 12 target frames**; `readback_sha256` must equal the gate's hash, else STOP — **no ARM** |
+| provision | `SubprocessSigner.provision` → `sign_arm.py provision` → `provision_key_jtag.py` | the signer principal writes `K` into the write-once register over the DAP mem-AP (never the console); executes only with the `provisioning P3-K` ruling; the runner then reads STATUS `key_loaded` and STOPs (`KEY_NOT_LOADED`) if 0 — no ARM |
 | ARM | `arm_and_score` | AXI precondition (alive, no fault, idle); nonce read from the PL; tag from the **gate signer subprocess** (`host/sign_arm.py`, the only program that opens `K`); 24 words staged; strobe; poll until settled; nonce must have stepped |
 | score | same | only if `configuration_valid_hw` = 1: `HW_COMMIT` (8), `FUNCTIONAL_READOUT` (12), `SCORE0‥5`, heartbeat before/after; host prediction from `p3_oracle` |
-| negative control | `negative_control` | one per session after the positive case (a fault is sticky until reset): `unsigned` (zero tag), `replay` (the positive payload; the nonce has stepped), `other_candidate` (valid tag for the blank candidate, positive commit staged) → each must give `F_ARM_AUTH`; `wrong_table` (blank candidate correctly signed; fabric differs) → `F_ARM_TABLE`. A control that validates or scores is **KILL** |
+| negative control | `negative_control` | one per session (a fault is sticky until reset). After the positive case: `unsigned` (zero tag), `replay` (the positive payload; the nonce has stepped), `other_candidate` (valid tag for the blank candidate, positive commit staged) → each must give `F_ARM_AUTH`; `wrong_table` (blank candidate correctly signed; fabric differs) → `F_ARM_TABLE`. **Pre-positive** (the positive attempt itself is the control): `unprovisioned` (no provisioning) → `F_ARM_NOKEY`; `wrong_key` (signer provisions a second key) → `F_ARM_AUTH`. A control that validates or scores is **KILL** |
 | records | `validators/records.py` | candidate, gate_verdict (+epoch), oracle_record, arm_record, score_record, negative_control, run_log; rules (i)–(vi) checked before the run log is written; a rejected log turns the outcome into KILL |
 
 Every AXI access goes through `Plane`, which refuses any offset outside the L1 map
@@ -41,7 +42,8 @@ reads, and the P3 PL modelled with a fixture `KeyHolder`. It proves the runner's
 sequencing and stops: known answer PASS with the published scores and `HW_COMMIT` = gate
 hash; holdout mode; link 2 tamper → STOP with **zero DMAs**; dropped write → link 3 STOP
 with **zero ARMs**; wrong signer key → `F_ARM_AUTH`, no score, nonce consumed; the four
-negative controls refused with the expected faults; a PL that accepts an unsigned ARM →
+post-positive and two pre-positive negative controls refused with the expected faults;
+`key_loaded` = 0 after a silent provisioning → STOP with zero ARMs; a PL that accepts an unsigned ARM →
 KILL; a forged score rejected by the validator; gate refusal never reaches the board; the
 AXI allowlist; the runner source constructs no `KeyHolder`.
 
@@ -52,11 +54,14 @@ an independent scorer model.
 
 ## 4. Residuals for the whole-line gate review
 
-- **Three rulings for the three negative controls** (sticky fault): L3 = one positive +
-  `unsigned`, one positive + `replay`, one positive + `other_candidate`; `wrong_table` is a
-  bonus fourth.
-- **Signer separation is by process, not by user** (D4 residual): `sign_arm.py` is the only
-  reader of `K`, but the same OS user runs both; the keyed bitstream is key material.
+- **Five L3 sessions** (sticky fault): positive + `unsigned` / `replay` / `other_candidate`,
+  plus the pre-positive `unprovisioned` and `wrong_key`; `wrong_table` optional sixth. Each
+  needs its own `whole-of-probe P3-L3` ruling **and** (except `unprovisioned`) a
+  `provisioning P3-K` ruling for the signer's JTAG write.
+- **D4 option A implemented host-side**: the runner never sees or writes the key (tested:
+  no console line names `0x2160‥216C`; `po.KEY` is in neither AXI map); the real principal
+  boundary (separate OS user, pod ownership) is host setup the owner performs — until then
+  the fakes model the JTAG path and `sign_arm.py` is the only key reader.
 - **Staging cost**: 3 × 534 `mw.l` lines + 3 × 534-word `md.l` re-reads per candidate
   (~1,600 console commands); acceptable for L3/L4, not for L5.
 - **Heartbeat bounds** in `carrier_manifest` are `null` until L2 measures them.

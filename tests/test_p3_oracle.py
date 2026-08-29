@@ -43,7 +43,7 @@ class Oracle(unittest.TestCase):
             po._key("SLICE_X4Y25", "A6LUT")
 
     def test_axi_map_matches_the_dummy_manifest(self):
-        m = json.load(open(REPO / "builds/dummy_key/carrier_manifest.json"))["axi"]
+        m = json.load(open(REPO / "builds/p3/carrier_manifest.json"))["axi"]
         self.assertEqual(m["stable_state"], [po.STATUS, po.FAULT, *po.SCORES])
         self.assertEqual(m["arm_payload"]["first"], po.PAYLOAD[0]); self.assertEqual(m["arm_payload"]["tag_first"], po.TAG[0])
         self.assertEqual(m["hw_candidate_commit"]["first"], po.HW_COMMIT[0]); self.assertEqual(m["functional_readout"]["first"], po.READOUT[0])

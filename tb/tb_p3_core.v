@@ -13,7 +13,7 @@ module tb_p3_core;
     reg [63:0] init0, init1, init2, init3, init4, init5;
     assign lut_q = {init5[vector], init4[vector], init3[vector], init2[vector], init1[vector], init0[vector]};
 
-    p3_core #(.KEY(KEY_A), .NONCE_SEED(SEED)) dut (
+    p3_core #(.NONCE_SEED(SEED)) dut (
         .clk(clk), .rst_n(rst_n),
         .s_awaddr(awaddr), .s_awvalid(awvalid), .s_awready(awready),
         .s_wdata(wdata), .s_wstrb(4'hF), .s_wvalid(wvalid), .s_wready(wready),
@@ -46,6 +46,12 @@ module tb_p3_core;
         for (i = 0; i < 24; i = i + 1) wr(16'h2100 + 4*i, p[(23-i)*32 +: 32]);
     end endtask
     task arm; begin wr(16'h2000, 32'h40); end endtask
+    // the signer principal's provisioning, as the JTAG mem-AP path would do it: four
+    // write-only words (word 0 = key[127:96]) then CTRL bit 8 (key_commit)
+    task provision(input [127:0] k); integer j; begin
+        for (j = 0; j < 4; j = j + 1) wr(16'h2160 + 4*j, k[(3-j)*32 +: 32]);
+        wr(16'h2000, 32'h100);
+    end endtask
     task wait_gate; begin repeat (5) @(negedge clk); rd(16'h2004); while (last_rdata[0]) rd(16'h2004); end endtask
     task wait_scorer; begin rd(16'h2004); while (last_rdata[3]) rd(16'h2004); end endtask
     task reset; begin
@@ -72,6 +78,16 @@ module tb_p3_core;
         rd(16'h2100); check(last_rresp == 2'b10, "staging is write-only");
         wr(16'h2010, 32'h1); check(last_bresp == 2'b10, "score regs not writable");
         expect_nonce(N0, "nonce = seed after reset");
+        // 0. the key register: unprovisioned ARM is F_ARM_NOKEY (nonce consumed, sticky)
+        rd(16'h2004); check(last_rdata[11] == 0, "key_loaded = 0 after reset");
+        stage(VALID1); arm; wait_gate; expect_status(0, 1, 0, 1, 12, "unprovisioned -> F_ARM_NOKEY");
+        expect_nonce(N1, "nonce consumed by the unprovisioned attempt");
+        rd(16'h2160); check(last_rresp == 2'b10, "key words are not readable");
+        reset; provision(KEY_A);
+        rd(16'h2004); check(last_rdata[11] == 1, "key_loaded after commit");
+        wr(16'h2160, 32'hDEADBEEF); check(last_bresp == 2'b10, "key is write-once: rewrite is SLVERR");
+        wr(16'h2000, 32'h100); rd(16'h2004); check(last_rdata[11] == 1, "second commit ignored, still loaded");
+        rd(16'h2160); check(last_rresp == 2'b10, "key words still not readable");
         // 1. VALID1: verifies, sweeps, arms, scores TRAIN_COUNT for every LUT
         stage(VALID1); arm; wait_gate; expect_status(1, 0, 1, 0, 0, "VALID1 armed");
         rd(16'h2200); check(last_rdata == C1[255:224], "hw_commit = C1");
@@ -86,20 +102,25 @@ module tb_p3_core;
         stage(VALID2); arm; wait_gate; expect_status(0, 1, 0, 1, 13, "ARM after fault refused");
         expect_nonce(N2, "nonce not consumed by a refused ARM");
         // 4. fresh reset: VALID1 then VALID2 (second candidate on n1)
-        reset; stage(VALID1); arm; wait_gate; wait_scorer; expect_status(1, 0, 1, 0, 0, "VALID1 again");
+        reset; provision(KEY_A); stage(VALID1); arm; wait_gate; wait_scorer; expect_status(1, 0, 1, 0, 0, "VALID1 again");
         stage(VALID2); arm; wait_gate; expect_status(1, 0, 1, 0, 0, "VALID2 on stepped nonce armed");
         rd(16'h2200); check(last_rdata == C2[255:224], "hw_commit = C2");
         wait_scorer;
         // 5. UNSIGNED (tag zero) -> AUTH
-        reset; stage(UNSIGNED); arm; wait_gate; expect_status(0, 1, 0, 1, 13, "unsigned -> F_ARM_AUTH");
+        reset; provision(KEY_A); stage(UNSIGNED); arm; wait_gate; expect_status(0, 1, 0, 1, 13, "unsigned -> F_ARM_AUTH");
         // 6. WRONG_COMMIT (tag for another candidate) -> AUTH
-        reset; stage(WRONG_COMMIT); arm; wait_gate; expect_status(0, 1, 0, 1, 13, "wrong commit -> F_ARM_AUTH");
+        reset; provision(KEY_A); stage(WRONG_COMMIT); arm; wait_gate; expect_status(0, 1, 0, 1, 13, "wrong commit -> F_ARM_AUTH");
         // 7. WRONG_TABLE (correctly signed, fabric differs) -> tag_ok but F_ARM_TABLE, never armed
-        reset; stage(WRONG_TABLE); arm; wait_gate; expect_status(0, 1, 1, 1, 15, "wrong table -> F_ARM_TABLE");
+        reset; provision(KEY_A); stage(WRONG_TABLE); arm; wait_gate; expect_status(0, 1, 1, 1, 15, "wrong table -> F_ARM_TABLE");
         rd(16'h2004); check(last_rdata[5] == 0 && last_rdata[4] == 0, "no score after table mismatch");
         // 8. a fabric that differs from the base (candidate never landed) with a valid signature
-        reset; init0 = INIT0 ^ 64'h4; stage(VALID1); arm; wait_gate; expect_status(0, 1, 1, 1, 15, "candidate not in fabric -> F_ARM_TABLE");
+        reset; provision(KEY_A); init0 = INIT0 ^ 64'h4; stage(VALID1); arm; wait_gate; expect_status(0, 1, 1, 1, 15, "candidate not in fabric -> F_ARM_TABLE");
         init0 = INIT0;
+        // 9. WRONG KEY provisioned: a payload signed under KEY_A -> F_ARM_AUTH
+        reset; provision(KEY_B); rd(16'h2004); check(last_rdata[11] == 1, "KEY_B loaded");
+        stage(VALID1); arm; wait_gate; expect_status(0, 1, 0, 1, 13, "wrong key -> F_ARM_AUTH");
+        // 10. reset clears key_loaded (only reconfiguration/reset restores the unprovisioned state)
+        reset; rd(16'h2004); check(last_rdata[11] == 0, "key_loaded cleared by reset");
         if (fails == 0) $display("TB_PASS"); else $display("TB_FAIL (%0d)", fails);
         $finish;
     end

@@ -16,7 +16,7 @@ cell names, so the carrier's `LOC` / `LOCK_PINS` constraints apply verbatim.
 |---|---|---|
 | `p3_axil.v` | AXI4-Lite register file: P2's eight stable-state words at their offsets, heartbeat, nonce (read-only), 24 write-only ARM staging words, read-only `HW_COMMIT` and `FUNCTIONAL_READOUT`; **SLVERR on anything else** | new |
 | `p3_arm_gate.v` | the enforcement point (§3): SipHash verify → sweep → compare → `configuration_valid_hw` latch → the **only** `scorer.arm`; xorshift nonce stepped after every attempt; sticky faults `F_ARM_AUTH` (13) / `F_ARM_TABLE` (15) with `recovery_required` | new |
-| `p3_siphash.v` | SipHash-2-4-128, one round per clock, key = parameter with no port | new |
+| `p3_siphash.v` | SipHash-2-4-128, one round per clock, key = input from the write-once register (v0.3; was a parameter) | new |
 | `carrier_scorer.v` | per-LUT match counters over the frozen vector order; its `configuration_valid` input **is** the gate's latch, its `arm` input **is** the gate's pulse | imported, unchanged |
 | heartbeat | 32-bit free-running counter at `0x2028` | new (in `p3_core`) |
 
@@ -27,14 +27,15 @@ ICAPE2. The PL never writes configuration.
 
 | offset | name | access | contents |
 |---|---|---|---|
-| `0x2000` | CTRL | W | bit 6 `arm_strobe`, bit 7 `mode_holdout` |
+| `0x2000` | CTRL | W | bit 6 `arm_strobe`, bit 7 `mode_holdout`, bit 8 `key_commit` (write-once) |
 | `0x2004` | STATUS | R | 0 gate_busy, 1 fault, 2 `configuration_valid_hw`, 3 scorer_busy, 4 scorer_done, 5 scorer_armed, 6 tag_ok, 7 recovery_required, **8 alive = 1**, 9 sweep_done, 10 tables_match; 31:27 zero |
-| `0x2008` | FAULT | R | 0 none, 13 `F_ARM_AUTH`, 15 `F_ARM_TABLE` |
+| `0x2008` | FAULT | R | 0 none, **12 `F_ARM_NOKEY`**, 13 `F_ARM_AUTH`, 15 `F_ARM_TABLE` |
 | `0x2010‥24` | SCORE0‥5 | R | 8-bit match counts |
 | `0x2028` | HEARTBEAT | R | counter |
 | `0x202C`, `0x2030` | NONCE_LO/HI | R | current nonce (steps after every ARM attempt) |
 | `0x2100‥214C` | ARM payload | W-only | commit[8] ‖ tables[12] (word 0 first) |
 | `0x2150‥215C` | ARM tag | W-only | `{out0, out1}` as two 64-bit LE integers, high word first |
+| `0x2160‥216C` | KEY | W-only, **write-once** (JTAG mem-AP by the signer only) | `K[127:96]` first; read → SLVERR; rewrite after `key_loaded` → SLVERR |
 | `0x2200‥221C` | HW_COMMIT | R | the commit the gate verified (latched on `tag_ok`) |
 | `0x2240‥226C` | FUNCTIONAL_READOUT | R | six 64-bit tables, table t at `0x2240 + 8t` (hi, lo) |
 
@@ -75,25 +76,23 @@ cleared only by reset (`recovery_required` freezes the scorer, as in the carrier
 
 ## Build results (2026-08-29, Vivado 2025.2, `vivado/p3/build_p3.tcl`)
 
-| | OOC (`p3_core`) | implemented (`p3_top`, dummy key) |
+| | OOC (`p3_core`, v0.2) | implemented (`p3_top`, **public build, v0.3 runtime key**) |
 |---|---|---|
-| LUTs / FFs | 2,843 / 2,142 | 2,969 / 2,188 (+6 evolvable) |
-| WNS @ 50 MHz | +9.919 ns | **+7.812 ns**, 0 failing endpoints |
+| LUTs / FFs | 2,843 / 2,142 | 3,107 LUTs (+6 evolvable) |
+| WNS @ 50 MHz | +9.919 ns | **+7.580 ns**, 0 failing endpoints |
 | ICAPE2 | — | **0** |
 | isolation (imported `isolation_checks.tcl`) | — | **target cells 6, flush cells 0**; route inventory recorded as evidence (erratum-001 stance) |
-| logic pblock | — | carrier's `SLICE_X0-1`, `X6-7` plus `SLICE_X14Y0:SLICE_X25Y99` (the P3 logic is ~2× the carrier's) |
-| bitstream | — | `builds/dummy_key/p3.bit`, 2,083,858 B, sha `870c8949…` |
-| frame table | — | 5,144 frames; **all 12 target FARs blank**; positive control `0x0040129C`, min Hamming 1148, unique; blank group 4,441 |
+| logic pblock | — | carrier's `SLICE_X0-1`, `X6-7` plus `SLICE_X14Y0:SLICE_X25Y99` |
+| bitstream | — | `builds/p3/p3.bit`, sha `956379fa…` — **public; carries no key** |
+| frame table | — | 5,144 frames; **all 12 target FARs blank**; positive control `0x0040129D` |
 
-`carrier_manifest` for the dummy build: `builds/dummy_key/carrier_manifest.json`
-(validated by `tests/test_manifest_artifacts.py`). **Keyed build** (`key_id b4c022a2…`,
-nonce seed `0x450B1645340B7CF5`): routed at **+6.874 ns**, isolation target 6 / flush 0,
-bitstream sha `95bce129…`, positive control `0x0040131D` (the MAC constants change the
-frames, so each bitstream has its own manifest) — `manifests/keyed_b4c022a2.json` with its
-build and isolation records; the bitstream itself lives with the key (`keys/`, `0400`,
-gitignored; D4 residual). **fabricmap's `phenotype_manifest.json` transfers verbatim**: its
-15 pinned frames (12 target, 3 flush) are byte-identical in the P3 base, so link 1's
-whitelist, the flush rule and the LUT0 known answer apply unchanged.
+`carrier_manifest`: `builds/p3/carrier_manifest.json` (validated by
+`tests/test_manifest_artifacts.py`; `mac.key` states runtime provisioning, no `key_id`).
+Earlier v0.2 builds (dummy-key +7.812 ns, keyed +6.874 ns) are superseded; the keyed
+bitstream and its manifest were withdrawn as obsolete key material. **fabricmap's
+`phenotype_manifest.json` transfers verbatim**: its 15 pinned frames (12 target, 3 flush)
+are byte-identical in the P3 base, so link 1's whitelist, the flush rule and the LUT0 known
+answer apply unchanged.
 
 ## What L1 exit still needs (not done here)
 
@@ -115,3 +114,11 @@ re-running `gate_candidate` against a P3 `phenotype_manifest`); the L1 exit revi
   Fixture-driven core bench. Fixed: tag word packing in the signer (LE integers, high word
   first); readout/expected table order (table 0 at the top on both sides); bench LUT model
   (continuous assigns, not an `always @*` over a memory array).
+
+- 2026-08-29 (D4 option A): the key is no longer a synthesis constant. Write-once/write-only
+  key register `0x2160‥216C` + `key_commit` (CTRL bit 8) + `key_loaded` (STATUS bit 11);
+  `F_ARM_NOKEY` (12, sticky, nonce consumed) until provisioned; SipHash takes the key as an
+  input. Bench additions: unprovisioned → 12; key read → SLVERR; rewrite → SLVERR; second
+  commit ignored; wrong key provisioned → 13; reset clears `key_loaded`. Build script has no
+  `KEY` generic; one public build (`builds/p3/`); the keyed build and its manifest are
+  withdrawn (obsolete key material deleted from `keys/`, `build/keyed/`).

@@ -24,7 +24,8 @@ def chain(epoch=0):
     arm = {"schema": "arm_record", "schema_version": "1.0.0",
            "oracle_record_sha256": canonical_sha256(oracle), "gate_verdict_sha256": canonical_sha256(gate),
            "epoch": epoch, "nonce": "0123456789abcdef", "candidate_commit": C, "expected_tables": TABLES,
-           "tag": "dd" * 16, "signer": {"principal": "gate-signer"}, "axi_before": {"status": "0x80", "fault": "0x0"}}
+           "tag": "dd" * 16, "signer": {"principal": "gate-signer"}, "axi_before": {"status": "0x80", "fault": "0x0"},
+           "key_loaded_observed": True}
     score = {"schema": "score_record", "schema_version": "1.0.0", "arm_record_sha256": canonical_sha256(arm),
              "configuration_valid_hw": True, "hw_candidate_commit": C, "functional_readout": TABLES,
              "scores": [1, 2, 3, 4, 5, 6], "host_prediction": [1, 2, 3, 4, 5, 6]}

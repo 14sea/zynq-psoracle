@@ -12,9 +12,10 @@
 //
 // Every failure is a sticky fault (recovery_required) that only a reset clears, and the
 // nonce steps after EVERY attempt, so a replayed payload can never verify twice.
+// The key is NOT a constant: it arrives from the write-once key register (p3_axil) that the
+// signer principal provisions after configuration; an ARM before that is F_ARM_NOKEY.
 `default_nettype none
 module p3_arm_gate #(
-    parameter [127:0] KEY        = 128'h0,
     parameter [63:0]  NONCE_SEED = 64'h9E3779B97F4A7C15,
     parameter integer LUTS       = 6
 ) (
@@ -24,6 +25,8 @@ module p3_arm_gate #(
     input  wire [639:0] payload,          // 20 words: commit[8] ‖ tables[12], word 0 at the top
     input  wire [127:0] tag_in,           // 4 words
     input  wire         arm_strobe,       // CTRL bit 6 write
+    input  wire [127:0] key,              // from the write-once key register
+    input  wire         key_loaded,       // ARM is refused (F_ARM_NOKEY) until the signer provisioned the key
     input  wire         mode_holdout,
     // the LUTs
     output reg  [5:0]   sweep_vector,
@@ -44,14 +47,14 @@ module p3_arm_gate #(
     output reg          recovery_required,
     output reg  [3:0]   fault_code
 );
-    localparam [3:0] F_NONE = 4'd0, F_ARM_AUTH = 4'd13, F_ARM_TABLE = 4'd15;
+    localparam [3:0] F_NONE = 4'd0, F_ARM_NOKEY = 4'd12, F_ARM_AUTH = 4'd13, F_ARM_TABLE = 4'd15;
 
     // ------------------------------------------------------------------ SipHash
     reg          sh_start;
     wire         sh_busy, sh_done;
     wire [127:0] sh_tag;
-    p3_siphash #(.KEY(KEY), .MSG_WORDS(20)) siphash (
-        .clk(clk), .rst_n(rst_n), .start(sh_start), .msg(payload), .nonce(nonce),
+    p3_siphash #(.MSG_WORDS(20)) siphash (
+        .clk(clk), .rst_n(rst_n), .key(key), .start(sh_start), .msg(payload), .nonce(nonce),
         .busy(sh_busy), .done(sh_done), .tag(sh_tag));
 
     function [63:0] xorshift;
@@ -87,7 +90,11 @@ module p3_arm_gate #(
             scorer_arm <= 1'b0;
             case (state)
             3'd0: begin
-                if (arm_strobe && !busy && !recovery_required && !scorer_busy) begin
+                if (arm_strobe && !busy && !recovery_required && !scorer_busy && !key_loaded) begin
+                    // no key: the attempt is refused, consumes the nonce, and is a sticky fault
+                    nonce <= xorshift(nonce);
+                    fault_code <= F_ARM_NOKEY; recovery_required <= 1'b1; valid_latch <= 1'b0;
+                end else if (arm_strobe && !busy && !recovery_required && !scorer_busy) begin
                     busy <= 1'b1; tag_ok <= 1'b0; sweep_done <= 1'b0; tables_match <= 1'b0;
                     valid_latch <= 1'b0;
                     sh_start <= 1'b1;

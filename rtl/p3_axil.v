@@ -4,7 +4,7 @@
 //   0x2004  STATUS    R: bit0 gate_busy  bit1 fault  bit2 configuration_valid_hw
 //                        bit3 scorer_busy bit4 scorer_done bit5 scorer_armed bit6 tag_ok
 //                        bit7 recovery_required bit8 alive(=1) bit9 sweep_done
-//                        bit10 tables_match ; bits 31:27 RESERVED read zero
+//                        bit10 tables_match bit11 key_loaded ; bits 31:27 RESERVED read zero
 //   0x2008  FAULT     R: bits3:0 fault code (13 ARM_AUTH, 15 ARM_TABLE)
 //   0x2010..0x2024  SCORE0..5  R          ─┐ zynq-psmap P2's eight stable-state words keep
 //   (STATUS, FAULT, SCORE0..5 = the eight) ─┘ their offsets
@@ -12,6 +12,10 @@
 //   0x202C  NONCE_LO  R   0x2030 NONCE_HI R
 //   0x2100..0x214C  ARM payload staging, 20 words W (commit[8] then tables[12])
 //   0x2150..0x215C  ARM tag, 4 words W
+//   0x2160..0x216C  KEY, 4 words W-ONLY, WRITE-ONCE: accepted only while key_loaded == 0;
+//                   CTRL bit 8 (key_commit) sets key_loaded; afterwards a key-word write is
+//                   SLVERR and key_commit is ignored. Reads are SLVERR (undecoded). Only a
+//                   reconfiguration clears key_loaded. STATUS bit 11 = key_loaded.
 //   0x2200..0x221C  HW_COMMIT R (8)      0x2240..0x226C FUNCTIONAL_READOUT R (12)
 //   any other address: SLVERR on read and on write (the P2 allowlist rule stands: an
 //   undecoded read is a data abort on this board's U-Boot).
@@ -37,6 +41,8 @@ module p3_axil #(
     output reg  [127:0] tag,
     output reg          arm_strobe,
     output reg          mode_holdout,
+    output reg  [127:0] key,
+    output reg          key_loaded,
     // from the gate / scorer
     input  wire         gate_busy, tag_ok, sweep_done, tables_match, recovery_required,
     input  wire         configuration_valid_hw,
@@ -57,11 +63,13 @@ module p3_axil #(
     wire wr_ctrl    = (wa == 16'h2000);
     wire wr_payload = (wa >= 16'h2100) && (wa < 16'h2150) && (wa[1:0] == 2'b00);
     wire wr_tag     = (wa >= 16'h2150) && (wa < 16'h2160) && (wa[1:0] == 2'b00);
+    wire wr_key     = (wa >= 16'h2160) && (wa < 16'h2170) && (wa[1:0] == 2'b00);
     integer k;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             aw_seen <= 0; w_seen <= 0; aw_addr <= 0; w_data <= 0; s_bvalid <= 0; s_bresp <= 0;
             payload <= 640'd0; tag <= 128'd0; arm_strobe <= 0; mode_holdout <= 0;
+            key <= 128'd0; key_loaded <= 1'b0;
         end else begin
             arm_strobe <= 1'b0;
             if (s_awvalid && s_awready) begin aw_seen <= 1; aw_addr <= s_awaddr; end
@@ -72,6 +80,11 @@ module p3_axil #(
                 if (wr_ctrl) begin
                     arm_strobe   <= w_data[6];
                     mode_holdout <= w_data[7];
+                    if (w_data[8] && !key_loaded) key_loaded <= 1'b1;   // write-once commit
+                end else if (wr_key) begin
+                    k = (wa - 16'h2160) >> 2;              // 0..3, word 0 at the top
+                    if (key_loaded) s_bresp <= 2'b10;      // SLVERR: the key is write-once
+                    else key[(3 - k)*32 +: 32] <= w_data;
                 end else if (wr_payload) begin
                     k = (wa - 16'h2100) >> 2;              // 0..19
                     payload[(19 - k)*32 +: 32] <= w_data;  // word 0 at the top
@@ -90,7 +103,7 @@ module p3_axil #(
     // ---------------------------------------------------------------- read channel
     assign s_arready = !s_rvalid;
     wire [15:0] ra = s_araddr;
-    wire [31:0] status = {5'd0, 16'd0, tables_match, sweep_done, 1'b1, recovery_required,
+    wire [31:0] status = {5'd0, 15'd0, key_loaded, tables_match, sweep_done, 1'b1, recovery_required,
                           tag_ok, scorer_armed, scorer_done, scorer_busy,
                           configuration_valid_hw, (fault_code != 4'd0), gate_busy};
     integer j;

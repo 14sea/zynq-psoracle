@@ -28,7 +28,7 @@ import p3_oracle as po  # noqa: E402
 from validators import signer as sg, nonce as nn, records  # noqa: E402
 from test_s0b_runner import FakeUBoot, FakeTransport, PROMPT  # noqa: E402
 
-DUMMY = REPO / "builds/dummy_key"
+DUMMY = REPO / "builds/p3"
 MANIFEST = json.load(open(DUMMY / "carrier_manifest.json"))
 PHEN = g.load_manifest()
 CONSTS = po.load_constants()
@@ -45,7 +45,8 @@ class FakeP3Board(FakeUBoot):
         super().__init__(deliver=lambda far: [0] * 101 + self.fabric[far], **kw)
         self.fabric = {far: list(w) for far, w in TABLE["frames"].items()}
         self.reported_size = (DUMMY / "p3.bit").stat().st_size
-        self.holder = sg.KeyHolder(key_path)
+        self.holder = None                      # unprovisioned after configuration
+        self.key_loaded = False
         self.nonce = int(MANIFEST["nonce_seed"], 16)
         self.staging = [0] * 24
         self.fault, self.cfg_valid, self.armed, self.done = 0, 0, 0, 0
@@ -54,6 +55,12 @@ class FakeP3Board(FakeUBoot):
         self.write_dmas, self.arm_attempts = 0, 0
         self.drop_write = False          # the write DMA "completes" but the fabric is untouched
         self.tamper_word = None          # (index, xor) applied to the staged DDR word
+
+    # ---- the signer's JTAG mem-AP path (never the console): four write-once words + commit
+    def provision(self, key_path: Path):
+        if self.key_loaded:
+            raise AssertionError("key register is write-once: a second provisioning is SLVERR on the AHB")
+        self.holder = sg.KeyHolder(key_path); self.key_loaded = True
 
     # ---- devcfg
     def queue_dma(self, src, dst, src_len, dst_len):
@@ -73,7 +80,7 @@ class FakeP3Board(FakeUBoot):
         busy = 0
         return (busy | (1 if self.fault else 0) << 1 | self.cfg_valid << 2 | self.done << 4 | self.armed << 5
                 | (1 if self.hw_commit != [0] * 8 else 0) << 6 | (1 if self.fault else 0) << 7 | 1 << 8
-                | self.done << 9 | self.cfg_valid << 10)
+                | self.done << 9 | self.cfg_valid << 10 | (1 if self.key_loaded else 0) << 11)
 
     def word(self, addr):
         if po.AXI_BASE <= addr < po.AXI_BASE + 0x10000:
@@ -113,6 +120,8 @@ class FakeP3Board(FakeUBoot):
     def arm(self, holdout):
         self.arm_attempts += 1
         if self.fault: return                      # refused; nonce not consumed
+        if not self.key_loaded:
+            self.nonce = nn.step(self.nonce); self.fault = po.F_ARM_NOKEY; return
         w = self.staging
         commit = b"".join(x.to_bytes(4, "big") for x in w[:8])
         tables = [(w[8 + 2 * t] << 32) | w[9 + 2 * t] for t in range(6)]
@@ -129,6 +138,19 @@ class FakeP3Board(FakeUBoot):
         self.scores = po.predict_scores(self.readout, CONSTS, holdout)
 
 
+class FixtureSigner(l3.SubprocessSigner):
+    """The real sign_arm.py for signing; provisioning modelled as the JTAG mem-AP write into the
+    fake PL (a path the console — and so the runner — never has)."""
+    def __init__(self, key_path, board):
+        super().__init__(key_path); self.board = board; self.provisions = []
+    def provision(self, execute=False, ruling=None, alt_key_path=None):
+        kp = alt_key_path or self.key_path
+        self.provisions.append(str(kp))
+        self.board.provision(kp)
+        self.key_id = sg.KeyHolder(kp).key_id
+        return {"executed": True, "modelled": "jtag-mem-ap"}
+
+
 class Harness(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); root = Path(self.tmp.name)
@@ -143,8 +165,8 @@ class Harness(unittest.TestCase):
     def run_chain(self, board: FakeP3Board, key=None, holdout=False, candidate=None, negative=None):
         session = bsn.BoardSession(FakeTransport(board))
         cfg = {"manifest": MANIFEST, "bitstream": DUMMY / "p3.bit", "candidate": candidate or g.known_answer_candidate(PHEN),
-               "signer": l3.SubprocessSigner(key or self.key), "holdout": holdout, "consts": CONSTS, "table": TABLE,
-               "negative": negative}
+               "signer": FixtureSigner(key or self.key, board), "holdout": holdout, "consts": CONSTS, "table": TABLE,
+               "negative": negative, "wrong_key_path": self.other_key}
         summary = l3.run_l3(session, self.out, self.ruling, cfg)
         log = json.load(open(self.out / "run_log.json"))
         return summary, log, board
@@ -189,7 +211,14 @@ class Chain(Harness):
         self.assertTrue(s["outcome"].split(":")[1].strip().startswith("0x00400a20"))
 
     def test_wrong_signer_key_is_refused_by_the_pl_and_yields_no_score(self):
-        s, log, b = self.run_chain(FakeP3Board(self.key), key=self.other_key)
+        board = FakeP3Board(self.key)
+        class Mismatch(FixtureSigner):
+            def provision(self, execute=False, ruling=None, alt_key_path=None):
+                return super().provision(execute, ruling, alt_key_path or Path(self.key_path).with_name("K.bin"))
+        session = bsn.BoardSession(FakeTransport(board))
+        cfg = {"manifest": MANIFEST, "bitstream": DUMMY / "p3.bit", "candidate": g.known_answer_candidate(PHEN),
+               "signer": Mismatch(self.other_key, board), "holdout": False, "consts": CONSTS, "table": TABLE, "negative": None}
+        s = l3.run_l3(session, self.out, self.ruling, cfg); log = json.load(open(self.out / "run_log.json")); b = board
         self.assertTrue(s["outcome"].startswith(f"STOP {l3.STOP_ARM}"), s["outcome"])
         self.assertEqual(b.arm_attempts, 1); self.assertEqual(b.fault, po.F_ARM_AUTH)
         arm = log["records"][-1]; self.assertEqual(arm["schema"], "arm_record")
@@ -198,8 +227,8 @@ class Chain(Harness):
         self.assertNotEqual(arm["axi_after"]["nonce"], arm["nonce"], "the nonce is consumed by a refused ARM")
 
     def test_a_forged_score_is_rejected_by_the_run_log_validator(self):
-        s, log, b = self.run_chain(FakeP3Board(self.key), key=self.other_key)
-        arm = log["records"][-1]
+        s, log, b = self.run_chain(FakeP3Board(self.key), negative="unsigned")
+        arm = next(r for r in log["records"] if r["schema"] == "arm_record")
         forged = {"schema": "score_record", "schema_version": "1.0.0", "arm_record_sha256": records.canonical_sha256(arm),
                   "configuration_valid_hw": True, "hw_candidate_commit": arm["candidate_commit"],
                   "functional_readout": arm["expected_tables"], "scores": [40] * 6, "host_prediction": [40] * 6}
@@ -240,10 +269,45 @@ class NegativeControls(Harness):
     def test_other_candidate(self): self.check("other_candidate", po.F_ARM_AUTH)
     def test_wrong_table(self): self.check("wrong_table", po.F_ARM_TABLE)
 
+    def test_unprovisioned_is_a_pre_control_with_no_provisioning_and_no_score(self):
+        s, log, b = self.run_chain(FakeP3Board(self.key), negative="unprovisioned")
+        self.assertEqual(s["outcome"], "PASS", s["outcome"])
+        self.assertFalse(b.key_loaded); self.assertEqual(b.fault, po.F_ARM_NOKEY)
+        self.assertFalse(s["key_loaded_observed"])
+        kinds = [r["schema"] for r in log["records"]]
+        self.assertNotIn("score_record", kinds); self.assertEqual(kinds[-1], "negative_control")
+        neg = log["records"][-1]; self.assertEqual(neg["fault"], 12); self.assertTrue(neg["refused_as_expected"])
+        arm = log["records"][-2]; self.assertFalse(arm["key_loaded_observed"])
+
+    def test_wrong_key_is_a_pre_control(self):
+        s, log, b = self.run_chain(FakeP3Board(self.key), negative="wrong_key")
+        self.assertEqual(s["outcome"], "PASS", s["outcome"])
+        self.assertEqual(b.fault, po.F_ARM_AUTH)
+        self.assertEqual(log["records"][-1]["kind"], "wrong_key")
+        self.assertNotIn("score_record", [r["schema"] for r in log["records"]])
+
+    def test_key_not_loaded_after_provisioning_stops_before_any_arm(self):
+        board = FakeP3Board(self.key)
+        class Silent(FixtureSigner):
+            def provision(self, execute=False, ruling=None, alt_key_path=None): return {"executed": False}
+        session = bsn.BoardSession(FakeTransport(board))
+        cfg = {"manifest": MANIFEST, "bitstream": DUMMY / "p3.bit", "candidate": g.known_answer_candidate(PHEN),
+               "signer": Silent(self.key, board), "holdout": False, "consts": CONSTS, "table": TABLE, "negative": None}
+        s = l3.run_l3(session, self.out, self.ruling, cfg)
+        self.assertTrue(s["outcome"].startswith("STOP KEY_NOT_LOADED"), s["outcome"]); self.assertEqual(board.arm_attempts, 0)
+
+    def test_runner_never_writes_or_reads_the_key_register(self):
+        s, log, b = self.run_chain(FakeP3Board(self.key))
+        self.assertEqual(s["outcome"], "PASS")
+        for line in b.sent:
+            for off in po.KEY:
+                self.assertNotIn(f"{po.axi(off):#010x}", line)
+        self.assertTrue(po.READABLE.isdisjoint(po.KEY) and po.WRITABLE.isdisjoint(po.KEY))
+
     def test_a_pl_that_accepts_an_unsigned_arm_is_a_kill(self):
         class Broken(FakeP3Board):
             def arm(self, holdout):
-                self.arm_attempts += 1; self.nonce = nn.step(self.nonce)
+                self.arm_attempts += 1; self.nonce = nn.step(self.nonce); self.key_loaded = True
                 self.hw_commit = list(self.staging[:8]); self.cfg_valid = self.armed = self.done = 1
                 self.scores = po.predict_scores(po.expected_tables({int(h, 16): self.fabric[int(h, 16)] for h in MANIFEST["target_fars"]}, CONSTS), CONSTS)
         s, log, b = self.run_chain(Broken(self.key), negative="unsigned")

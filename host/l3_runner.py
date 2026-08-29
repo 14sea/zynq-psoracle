@@ -73,14 +73,24 @@ class SubprocessSigner:
     def __init__(self, key_path: Path, script: Path = R / "host/sign_arm.py"):
         self.key_path, self.script = key_path, script
 
-    def sign(self, gate_verdict: dict, commit: bytes, tables: list[int], nonce: bytes) -> sg.ArmPayload:
-        req = {"gate_verdict": gate_verdict, "candidate_commit": commit.hex(),
-               "expected_tables": [f"{t:#018x}" for t in tables], "nonce": nonce.hex()}
-        p = subprocess.run([sys.executable, str(self.script), str(self.key_path)], input=json.dumps(req),
-                           capture_output=True, text=True, timeout=30)
+    def _ask(self, req: dict, key_path: Path | None = None) -> dict:
+        p = subprocess.run([sys.executable, str(self.script), str(key_path or self.key_path)], input=json.dumps(req),
+                           capture_output=True, text=True, timeout=120)
         if p.returncode != 0:
             raise Stop(STOP_ARM, f"the gate signer refused: {p.stderr.strip()}")
-        ans = json.loads(p.stdout)
+        return json.loads(p.stdout)
+
+    def provision(self, execute: bool = False, ruling: Path | None = None, alt_key_path: Path | None = None) -> dict:
+        """Ask the signer to write K into the PL's write-once register over JTAG. The runner
+        never sees the words. `execute` is a board action and needs the provisioning ruling."""
+        ans = self._ask({"op": "provision", "execute": execute, "ruling": str(ruling) if ruling else None}, alt_key_path)
+        self.key_id = ans["key_id"]
+        return ans["provision"]
+
+    def sign(self, gate_verdict: dict, commit: bytes, tables: list[int], nonce: bytes) -> sg.ArmPayload:
+        req = {"op": "sign", "gate_verdict": gate_verdict, "candidate_commit": commit.hex(),
+               "expected_tables": [f"{t:#018x}" for t in tables], "nonce": nonce.hex()}
+        ans = self._ask(req)
         payload = sg.ArmPayload(commit, tuple(tables), nonce, bytes.fromhex(ans["tag"]))
         if payload.words() != ans["words"]:
             raise Stop(STOP_ARM, "signer words do not re-derive from its tag")
@@ -243,6 +253,7 @@ def arm_and_score(plane: Plane, signer, gate_verdict: dict, tables: list[int], h
         problems.append("gate or scorer busy before ARM")
     if problems:
         raise Stop(STOP_AXI, "; ".join(problems))
+    key_loaded = bool(status >> po.ST["key_loaded"] & 1)
     nonce_int = plane.read(po.NONCE_LO) | plane.read(po.NONCE_HI) << 32
     nonce = nonce_int.to_bytes(8, "little")
     commit = bytes.fromhex(gate_verdict["candidate_sha256"])
@@ -258,6 +269,7 @@ def arm_and_score(plane: Plane, signer, gate_verdict: dict, tables: list[int], h
                   "expected_tables": [f"{t:016x}" for t in tables], "tag": payload.tag.hex(),
                   "signer": {"principal": "gate-signer", "key_id": getattr(signer, "key_id", None)},
                   "axi_before": {"status": f"{status:#010x}", "fault": f"{fault:#x}"},
+                  "key_loaded_observed": key_loaded,
                   "mode_holdout": holdout, "armed_at": time.time(), "_payload": payload}
     plane.write(po.CTRL, po.ARM_STROBE | (po.MODE_HOLDOUT if holdout else 0))
     deadline = time.monotonic() + ARM_TIMEOUT_S
@@ -276,7 +288,7 @@ def arm_and_score(plane: Plane, signer, gate_verdict: dict, tables: list[int], h
         raise Stop(STOP_ARM, "the nonce did not step: the PL did not consume this ARM", arm_record)
     valid = bool(st >> po.ST["cfg_valid_hw"] & 1)
     if not valid:
-        arm_record["pl_refusal"] = {"fault": fault_after, "name": {po.F_ARM_AUTH: "F_ARM_AUTH", po.F_ARM_TABLE: "F_ARM_TABLE"}.get(fault_after, "?")}
+        arm_record["pl_refusal"] = {"fault": fault_after, "name": po.FAULT_NAMES.get(fault_after, "?")}
         return arm_record, None
     hw_commit = plane.read_many(po.HW_COMMIT[0], 8)
     readout = po.readout_words_to_tables(plane.read_many(po.READOUT[0], 12))
@@ -378,6 +390,17 @@ def run_l3(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
                                                      manifest["bitstream_sha256"], out_dir / "ymodem.log")
         verdict = dict(verdict, epoch=session.epoch)
         recs += [candidate, verdict]
+        # ---- key provisioning by the signer principal (JTAG mem-AP; never through this console)
+        neg = cfg.get("negative")
+        if neg != "unprovisioned":
+            prov = cfg["signer"].provision(execute=cfg.get("provision_execute", False),
+                                           ruling=cfg.get("provision_ruling"),
+                                           alt_key_path=cfg.get("wrong_key_path") if neg == "wrong_key" else None)
+            summary["provisioning"] = {k: v for k, v in prov.items() if k != "prepared"}
+        st = Plane(session).read(po.STATUS)
+        summary["key_loaded_observed"] = bool(st >> po.ST["key_loaded"] & 1)
+        if neg != "unprovisioned" and not summary["key_loaded_observed"]:
+            raise Stop("KEY_NOT_LOADED", f"STATUS {st:#010x}: key_loaded is 0 after provisioning; no ARM")
         # ---- stage, link 2, write — per envelope
         far_sets = {e["far_set"] for e in g.envelopes(phen)}
         staged: dict[int, list[int]] = {}
@@ -426,6 +449,21 @@ def run_l3(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
                    gate_verdict_sha256=records.canonical_sha256(verdict), epoch=session.epoch)
         records.validate(arm); recs.append(arm)
         summary["stages"]["L3_arm"] = "ARMED" if score else f"REFUSED_BY_PL {arm.get('pl_refusal')}"
+        if neg in records.PRE_CONTROLS:
+            # the positive attempt IS the control: it must have been refused with the kind's fault
+            if score is not None:
+                raise Stop("KILL", f"pre-positive control {neg!r} armed and scored — the interlock did not hold")
+            fault_seen = arm["pl_refusal"]["fault"]
+            ctl = {"schema": "negative_control", "schema_version": "1.0.0", "kind": neg,
+                   "arm_record_sha256": records.canonical_sha256(arm), "nonce": arm["nonce"],
+                   "nonce_after": arm["axi_after"]["nonce"], "status": arm["axi_after"]["status"],
+                   "configuration_valid_hw": False, "fault": fault_seen, "scored": False,
+                   "refused_as_expected": fault_seen == records.EXPECTED_FAULT[neg]}
+            records.validate(ctl); recs.append(ctl)
+            summary["stages"][f"L3_negative_{neg}"] = "REFUSED" if ctl["refused_as_expected"] else "NOT_REFUSED_AS_EXPECTED"
+            summary["outcome"] = ("PASS" if ctl["refused_as_expected"]
+                                  else f"HOLD: control {neg} fault {fault_seen} != expected {records.EXPECTED_FAULT[neg]}")
+            return summary
         if score is None:
             raise Stop(STOP_ARM, f"the PL refused the ARM: {arm['pl_refusal']}")
         score.update(arm_record_sha256=records.canonical_sha256(arm),
@@ -478,7 +516,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--candidate", type=Path, default=None, help="candidate JSON (frames); default: the known answer")
     ap.add_argument("--holdout", action="store_true")
     ap.add_argument("--negative", choices=records.NEGATIVE_KINDS, default=None,
-                    help="one on-board negative control after the positive case (a fault is sticky until reset)")
+                    help="one on-board negative control per session (a fault is sticky until reset); "
+                         "unprovisioned/wrong_key run INSTEAD of the positive ARM")
+    ap.add_argument("--provision-ruling", type=Path, default=None,
+                    help="ruling 'provisioning P3-K' handed to the signer; without it provisioning is only prepared")
+    ap.add_argument("--wrong-key", type=Path, default=None, help="signer-owned second key file for --negative wrong_key")
     ap.add_argument("--port", default=bsn.PORT)
     args = ap.parse_args(argv)
     try:
@@ -494,7 +536,10 @@ def main(argv: list[str] | None = None) -> int:
             int(f["far"], 16): [int(w, 16) for w in f["words"]] for f in json.loads(args.candidate.read_text())["frames"]}
         cfg = {"manifest": manifest, "bitstream": args.bitstream, "candidate": cand,
                "signer": SubprocessSigner(args.key), "holdout": args.holdout, "consts": po.load_constants(),
-               "negative": args.negative}
+               "negative": args.negative, "provision_execute": args.provision_ruling is not None,
+               "provision_ruling": args.provision_ruling, "wrong_key_path": args.wrong_key}
+        if args.negative == "wrong_key" and args.wrong_key is None:
+            raise bsn.SessionRefusal("--negative wrong_key needs --wrong-key")
         cfg["table"] = load_p3_table(args.bitstream, manifest)
         if not g.gate(g.build_streams(cand, phen), phen)["writable"]:
             raise bsn.SessionRefusal("the gate refuses this candidate; nothing is sent")

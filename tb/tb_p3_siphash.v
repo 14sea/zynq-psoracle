@@ -11,9 +11,9 @@ module tb_p3_siphash;
     localparam [127:0] KEY_A = 128'h0f0e0d0c0b0a09080706050403020100;   // bytes 00..0f LE
     localparam [127:0] KEY_B = 128'h1f1e1d1c1b1a19181716151413121110;   // bytes 10..1f LE
     reg start_a = 0, start_b = 0; wire busy_a, done_a, busy_b, done_b; wire [127:0] tag_a, tag_b;
-    p3_siphash #(.KEY(KEY_A), .MSG_WORDS(20)) dut_a (.clk(clk), .rst_n(rst_n), .start(start_a),
+    p3_siphash #(.MSG_WORDS(20)) dut_a (.clk(clk), .rst_n(rst_n), .key(KEY_A), .start(start_a),
         .msg(msg), .nonce(nonce), .busy(busy_a), .done(done_a), .tag(tag_a));
-    p3_siphash #(.KEY(KEY_B), .MSG_WORDS(20)) dut_b (.clk(clk), .rst_n(rst_n), .start(start_b),
+    p3_siphash #(.MSG_WORDS(20)) dut_b (.clk(clk), .rst_n(rst_n), .key(KEY_B), .start(start_b),
         .msg(msg), .nonce(nonce), .busy(busy_b), .done(done_b), .tag(tag_b));
     initial begin
         pass = 0; fail = 0;

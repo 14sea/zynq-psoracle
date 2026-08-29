@@ -123,7 +123,8 @@ nonce: <hex64>                     # read from the PL in this session; consumed 
 candidate_commit: <hex256>         # the FULL candidate_sha256 (no truncation)
 expected_tables: [6 x hex64]       # lut_truth_table 1.0.0
 tag: <hex128>                      # arm_mac 1.0.0, produced by the gate signer ONLY
-signer: {principal: gate-signer, carrier_manifest_sha256: <hex>}   # which key it signed for
+signer: {principal: gate-signer, key_id: <hex>}   # key_id = sha256(K) of the key provisioned this session
+key_loaded_observed: true          # STATUS bit 11 as read before the ARM; a score needs it true (rule v)
 axi_before: {status: <hex>, fault: <hex>}   # ¬recovery_required ∧ fault == 0 checked here
 armed_at: <time>
 ```
@@ -148,11 +149,11 @@ match: true|false
 ```yaml
 schema: negative_control
 schema_version: "1.0.0"
-kind: unsigned | replay | other_candidate | wrong_table
+kind: unsigned | replay | other_candidate | wrong_table | unprovisioned | wrong_key
 arm_record_sha256: <hex>           # the positive arm_record of the same session (the fabric holds its candidate)
 nonce: <hex64>                     # the PL nonce this control consumed
 configuration_valid_hw: false      # anything else is a KILL, not a record
-fault: 13|15                       # F_ARM_AUTH expected for unsigned/replay/other_candidate; F_ARM_TABLE for wrong_table
+fault: 12|13|15                    # F_ARM_NOKEY for unprovisioned; F_ARM_AUTH for unsigned/replay/other_candidate/wrong_key; F_ARM_TABLE for wrong_table
 scored: false
 refused_as_expected: true|false    # fault == the kind's expected fault
 ```
@@ -172,6 +173,18 @@ candidate_commit == gate_verdict.candidate_sha256`, (iii) `functional_readout ==
 expected_tables`, (iv) the oracle's two hashes (staged stream, candidate frames — recorded
 separately) both match, (v) `configuration_valid_hw` is true. A run log that violates any
 of these is rejected, and the line's kill criterion 1 applies.
+
+### key register and provisioning (D4 option A)
+
+`0x2160‥216C` four key words (word 0 = `K[127:96]` of the key as a 128-bit little-endian
+integer), write-only, accepted only while `key_loaded == 0`; CTRL bit 8 `key_commit` sets
+`key_loaded` (STATUS bit 11); afterwards a key write is SLVERR and `key_commit` is ignored;
+reads are SLVERR; only reconfiguration clears `key_loaded`. Written **only** over the DAP
+mem-AP by the signer principal (`host/provision_key_jtag.py`); these offsets are in neither
+the runner's readable nor writable AXI map. `arm_record.key_loaded_observed` (required) is
+the runner's reading of bit 11 before the ARM; rule (v) rejects a score whose arm record
+has it false. Negative kinds `unprovisioned` (expected fault 12) and `wrong_key` (13) are
+**pre-positive** controls: the positive attempt itself is the refused ARM.
 
 ### `carrier_manifest` additions (1.0.0)
 

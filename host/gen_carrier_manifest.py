@@ -3,7 +3,7 @@
 
 Everything in the manifest is read from the artifacts — the bitstream's frame table, the
 build record, the register map the RTL implements — not typed. The key never appears; only
-its key_id (sha256 of K), and only when the caller supplies it. The heartbeat envelope is
+any key id: the key is provisioned at runtime (D4 option A) and its id is per session. The heartbeat envelope is
 `null` until the L2 no-read baseline measures it (`p3_architecture.md` §6 L2).
 
 usage: gen_carrier_manifest.py <p3.bit> <p3_build.json> <out.json> [--key-id HEX] [--nonce-seed HEX]
@@ -48,7 +48,7 @@ AXI = {
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("bit", type=Path); ap.add_argument("build_json", type=Path); ap.add_argument("out", type=Path)
-    ap.add_argument("--key-id", default=None); ap.add_argument("--nonce-seed", default=None)
+    ap.add_argument("--nonce-seed", default=None)
     a = ap.parse_args()
     data = a.bit.read_bytes()
     build = json.loads(a.build_json.read_text())
@@ -79,8 +79,11 @@ def main() -> int:
         "blank_far_group_size": len(reverse.get(ds.frame_sha256([0] * 101), [])),
         "no_icap": True,
         "nonce_seed": a.nonce_seed or build.get("nonce_seed"),
-        "mac": {"algorithm": "siphash-2-4-128", "key_id": a.key_id,
-                "key_note": "K is never recorded; key_id is sha256(K) (docs/decisions.md D4)"},
+        "mac": {"algorithm": "siphash-2-4-128",
+                "key": "runtime-provisioned into a write-once, write-only register (0x2160-0x216C + CTRL bit 8) "
+                       "over the DAP mem-AP by the gate-signer principal; not in this bitstream",
+                "key_loaded_status_bit": 11, "fault_nokey": 12,
+                "key_id_note": "key_id = sha256(K) is recorded per session in arm_record.signer.key_id (docs/decisions.md D4 option A)"},
         "lut_truth_table": {"bit_order": "INIT[i] = bit i; sweep vector[0] = I0 (LOCK_PINS I0:A1..I5:A6)"},
     }
     validate(m)
