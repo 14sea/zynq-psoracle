@@ -129,6 +129,11 @@ revisions and neither may be silently substituted for the other.
 | `docs/whole_line_gate_review_result.md` |
 | `docs/d4_principal_boundary.md` |
 | `host/provision_key_jtag.py` |
+| `scripts/jtag_provision.cfg` |
+| `host/principal/99-p3-signer-jtag.rules` |
+| `host/principal/setup_signer_principal.sh` |
+| `host/verify_principal_boundary.py` |
+| `tests/test_principal_boundary.py` |
 
 ## Deliberately NOT imported
 

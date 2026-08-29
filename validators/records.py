@@ -14,7 +14,7 @@ from .schema import SchemaError, check_envelope
 SUPPORTED = {
     "carrier_manifest": "1.0.0", "candidate": "1.0.0", "gate_verdict": "1.0.0",
     "oracle_record": "1.0.0", "arm_record": "1.0.0", "score_record": "1.0.0",
-    "run_log": "1.0.0", "negative_control": "1.0.0",
+    "run_log": "1.0.0", "negative_control": "1.0.0", "principal_boundary": "1.0.0",
 }
 REQUIRED = {
     "carrier_manifest": ("bitstream_sha256", "frame_table_sha256", "part", "axi", "target_fars", "no_icap"),
@@ -27,6 +27,7 @@ REQUIRED = {
     "score_record": ("arm_record_sha256", "configuration_valid_hw", "hw_candidate_commit",
                      "functional_readout", "scores", "host_prediction"),
     "run_log": ("ruling_sha256", "records", "epoch_final"),
+    "principal_boundary": ("runner_user", "signer_user", "pod_group", "key_store", "checks", "all_passed", "at"),
     "negative_control": ("kind", "arm_record_sha256", "nonce", "configuration_valid_hw", "fault", "scored", "refused_as_expected"),
 }
 NEGATIVE_KINDS = ("unsigned", "replay", "other_candidate", "wrong_table", "unprovisioned", "wrong_key")
@@ -106,6 +107,31 @@ def _check_score_record(r):
     _hex(r["hw_candidate_commit"], HEX64, "hw_candidate_commit")
     if len(r["functional_readout"]) != 6 or len(r["scores"]) != 6 or len(r["host_prediction"]) != 6:
         raise RecordError("six LUTs: readout, scores and prediction must each have six entries")
+
+
+BOUNDARY_CHECKS = ("R1_runner_is_not_signer", "R2_runner_cannot_read_key", "R3_runner_cannot_open_pod",
+                   "R4_signer_reachable_and_holds_key", "R5_signer_in_pod_group")
+BOUNDARY_MAX_AGE_S = 6 * 3600
+
+
+def _check_principal_boundary(r):
+    names = [c["check"] for c in r["checks"]]
+    if names != list(BOUNDARY_CHECKS):
+        raise RecordError(f"principal_boundary checks must be exactly {BOUNDARY_CHECKS}, got {names}")
+    if r["runner_user"] == r["signer_user"]:
+        raise RecordError("runner and signer are the same user: no boundary")
+    if r["all_passed"] is not all(c["passed"] for c in r["checks"]):
+        raise RecordError("all_passed disagrees with the checks")
+
+
+def boundary_established(r: dict, now: float) -> None:
+    """What the L3 runner requires before it forms a single line: validated, all passed, fresh."""
+    validate(r)
+    if not r["all_passed"]:
+        raise RecordError("principal boundary NOT established: " + "; ".join(
+            f"{c['check']}: {c['detail']}" for c in r["checks"] if not c["passed"]))
+    if now - r["at"] > BOUNDARY_MAX_AGE_S:
+        raise RecordError("principal_boundary record is older than 6 h; re-run the verifier")
 
 
 def _check_negative_control(r):

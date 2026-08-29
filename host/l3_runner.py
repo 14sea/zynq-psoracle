@@ -70,12 +70,14 @@ class Stop(Exception):
 class SubprocessSigner:
     """Asks `sign_arm.py` (the gate-signer principal) for a tag. Holds no key."""
 
-    def __init__(self, key_path: Path, script: Path = R / "host/sign_arm.py"):
-        self.key_path, self.script = key_path, script
+    def __init__(self, key_path: Path, script: Path = R / "host/sign_arm.py", signer_user: str | None = None):
+        self.key_path, self.script, self.signer_user = key_path, script, signer_user
 
     def _ask(self, req: dict, key_path: Path | None = None) -> dict:
-        p = subprocess.run([sys.executable, str(self.script), str(key_path or self.key_path)], input=json.dumps(req),
-                           capture_output=True, text=True, timeout=120)
+        cmd = [sys.executable, str(self.script), str(key_path or self.key_path)]
+        if self.signer_user:                       # the boundary: a different OS user, via the one sudoers line
+            cmd = ["sudo", "-n", "-u", self.signer_user] + cmd
+        p = subprocess.run(cmd, input=json.dumps(req), capture_output=True, text=True, timeout=120)
         if p.returncode != 0:
             raise Stop(STOP_ARM, f"the gate signer refused: {p.stderr.strip()}")
         return json.loads(p.stdout)
@@ -512,7 +514,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--manifest", type=Path, required=True)
     ap.add_argument("--bitstream", type=Path, required=True)
-    ap.add_argument("--key", type=Path, required=True, help="passed to the signer subprocess; never read here")
+    ap.add_argument("--key", type=Path, default=Path("/var/lib/p3signer/keys/K.bin"),
+                    help="the signer's key path, passed through to the signer subprocess; unreadable by this user")
     ap.add_argument("--candidate", type=Path, default=None, help="candidate JSON (frames); default: the known answer")
     ap.add_argument("--holdout", action="store_true")
     ap.add_argument("--negative", choices=records.NEGATIVE_KINDS, default=None,
@@ -521,6 +524,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--provision-ruling", type=Path, default=None,
                     help="ruling 'provisioning P3-K' handed to the signer; without it provisioning is only prepared")
     ap.add_argument("--wrong-key", type=Path, default=None, help="signer-owned second key file for --negative wrong_key")
+    ap.add_argument("--boundary", type=Path, required=True,
+                    help="principal_boundary record from host/verify_principal_boundary.py (run as the runner user); "
+                         "must be all-passed and < 6 h old, or the runner refuses to start")
+    ap.add_argument("--signer-user", default="p3signer")
     ap.add_argument("--port", default=bsn.PORT)
     args = ap.parse_args(argv)
     try:
@@ -531,11 +538,15 @@ def main(argv: list[str] | None = None) -> int:
             raise bsn.SessionRefusal("`sb` is not installed")
         manifest = json.loads(args.manifest.read_text())
         records.validate(manifest)
+        boundary = json.loads(args.boundary.read_text())
+        records.boundary_established(boundary, time.time())
+        if boundary["signer_user"] != args.signer_user:
+            raise bsn.SessionRefusal(f"boundary record is for signer {boundary['signer_user']!r}, not {args.signer_user!r}")
         phen = g.load_manifest()
         cand = g.known_answer_candidate(phen) if args.candidate is None else {
             int(f["far"], 16): [int(w, 16) for w in f["words"]] for f in json.loads(args.candidate.read_text())["frames"]}
         cfg = {"manifest": manifest, "bitstream": args.bitstream, "candidate": cand,
-               "signer": SubprocessSigner(args.key), "holdout": args.holdout, "consts": po.load_constants(),
+               "signer": SubprocessSigner(args.key, signer_user=args.signer_user), "holdout": args.holdout, "consts": po.load_constants(),
                "negative": args.negative, "provision_execute": args.provision_ruling is not None,
                "provision_ruling": args.provision_ruling, "wrong_key_path": args.wrong_key}
         if args.negative == "wrong_key" and args.wrong_key is None:

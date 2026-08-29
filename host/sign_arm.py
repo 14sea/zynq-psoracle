@@ -32,6 +32,9 @@ def main() -> int:
     req = json.load(sys.stdin)
     try:
         holder = sg.KeyHolder(Path(sys.argv[1]))
+        if req.get("op") == "probe":            # boundary verifier: proves the signer holds the key; answers key_id only
+            json.dump({"key_id": holder.key_id, "user": __import__("getpass").getuser()}, sys.stdout)
+            return 0
         if req.get("op", "sign") == "provision":
             execute = bool(req.get("execute"))
             if execute:

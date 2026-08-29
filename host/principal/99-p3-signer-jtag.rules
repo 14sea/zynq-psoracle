@@ -1,0 +1,7 @@
+# P3 key-provisioning boundary (docs/decisions.md D4 option A): the JTAG pod is owned by the
+# signer's group. The runner user is NOT a member, so the only path that can write the PL's
+# write-once key register is closed to it. Install: /etc/udev/rules.d/99-p3-signer-jtag.rules
+# FT4232H pod on the EBAZ4203 17A6 (scripts/jtag_provision.cfg)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6011", GROUP="p3jtag", MODE="0660"
+# Digilent HS3 (FT232H) on the 4205 workspace, same policy
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6014", GROUP="p3jtag", MODE="0660"

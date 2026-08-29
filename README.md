@@ -43,7 +43,10 @@ OS user; the keyed bitstream is key material). Proposal: `docs/d4_principal_boun
 public). **Owner chose A (2026-08-29); implemented host-only** — runtime write-once key register,
 `F_ARM_NOKEY`, JTAG provisioning tool (prepare-only without a `provisioning P3-K` ruling),
 runner provisioning step + `key_loaded_observed`, pre-positive controls, public build.
-**Awaiting re-review; no ruling, no board contact, no OS-user/sudo setup.**
+Re-review 2026-08-29: **A's preparation accepted; D4 still HOLD until the real OS principal
+exists.** Prepared for the owner: `host/principal/setup_signer_principal.sh` (sudo, once),
+`host/verify_principal_boundary.py` (run as the runner; the L3 runner refuses to start
+without its all-passed record). **No ruling, no board contact.**
 
 ## Provenance
 

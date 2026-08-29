@@ -22,7 +22,7 @@ KEY_BASE = 0x43C02160
 CTRL = 0x43C02000
 KEY_COMMIT = 1 << 8
 STATUS = 0x43C02004
-DEFAULT_CFG = R / "scripts/jtag_config_only.cfg"
+DEFAULT_CFG = R / "scripts/jtag_provision.cfg"   # mem-AP only; jtag_config_only.cfg has no DAP
 
 
 def key_words(key: bytes) -> list[int]:
@@ -33,7 +33,7 @@ def key_words(key: bytes) -> list[int]:
 
 
 def openocd_tcl(key: bytes) -> str:
-    lines = ["target create zynq.ahb mem_ap -dap zynq.dap -ap-num 0", "init"]
+    lines = ["init"]                       # the mem_ap target is declared by jtag_provision.cfg
     for i, w in enumerate(key_words(key)):
         lines.append(f"zynq.ahb mww {KEY_BASE + 4 * i:#010x} {w:#010x}")
     lines.append(f"zynq.ahb mww {CTRL:#010x} {KEY_COMMIT:#010x}")

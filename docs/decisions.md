@@ -58,8 +58,22 @@ its own ruling text `provisioning P3-K`.
 `host/provision_key_jtag.py` (prepare/execute), `sign_arm.py` `provision` op (executes
 only with the ruling), runner provisioning step + `key_loaded_observed` + pre-positive
 controls `unprovisioned` / `wrong_key`, validators (rule (v) extended: no score with
-`key_loaded_observed` false), public build. **Not done, by the owner's limits:** OS user /
-udev / sudo setup, any provisioning on the board, any ruling.
+`key_loaded_observed` false), public build. **Host principal setup — prepared, owner-run (re-review 2026-08-29 kept D4 on HOLD until
+it exists):** `host/principal/setup_signer_principal.sh` (sudo, once: user `p3signer`
+no-login, group `p3jtag`, key store `/var/lib/p3signer/keys` 0700 with `K.bin` moved and
+the runner's copy shredded, `K_control.bin` for `wrong_key`, udev rule
+`99-p3-signer-jtag.rules` giving the FT4232H/HS3 pods to `p3jtag`, one sudoers line
+letting the runner run exactly `host/sign_arm.py` as `p3signer`), and
+`host/verify_principal_boundary.py` — run **as the runner user**, it observes R1–R5
+(not the signer / not in the pod group; cannot open the key; cannot open the pod node;
+signer reachable via sudo and holds the key, answering `key_id` only; signer in the pod
+group) and writes a `principal_boundary` record. **The L3 runner refuses to start without
+a record that validates, is all-passed and < 6 h old** (`--boundary`, tested). On this
+host before setup the verifier reports NOT ESTABLISHED (R2–R5), as it must.
+The signer is invoked as `sudo -n -u p3signer python3 host/sign_arm.py …`;
+provisioning uses `scripts/jtag_provision.cfg` (DAP + one `mem_ap` target, no Cortex-A
+targets, so nothing is halted). **Still not done:** running the setup (owner, sudo), any
+provisioning on the board, any ruling.
 
 **Stated limit — F2.** A console holder can replace the PL with a bitstream of their own
 (and its own key). A does not address this; it remains excluded by the threat model
