@@ -1,0 +1,7 @@
+zynq-psoracle
+Copyright 2026 14sea
+
+Original content of this project is licensed under the Apache License, Version 2.0
+(see LICENSE). Nothing has been imported yet; when artifacts from zynq-psmap or
+zynq-fabricmap are copied in, they will be listed byte-for-byte, with the source
+commit, in docs/import_manifest.md, and any non-original licence retained.
