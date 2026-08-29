@@ -6,3 +6,5 @@ external/
 build/
 sim/out/
 sim/*.vvp
+keys/
+build/

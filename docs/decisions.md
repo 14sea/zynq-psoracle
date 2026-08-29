@@ -47,6 +47,23 @@ build time and embedded in the carrier as a constant with no readable path, key 
 non-readability evidence at L1 exit. **Stated limit:** compromise of `gate-signer` or root
 is outside the threat model.
 
+**Residual found at L1 (2026-08-29), stated for the gate review:** `K` is a synthesis
+constant, so **the keyed bitstream file is key material** — a party who can read the
+bitstream and knows the design can recover the 128-bit constant from the MAC core's
+LUT/FF initial values (non-trivial, but prjxray makes it feasible). Consequences adopted
+here: (1) the keyed bitstream is held with the key (`keys/`, gitignored, `0400`,
+gate-signer) and **never committed**; the committed, reproducible artifact is the
+**dummy-key build** (`builds/dummy_key/`, key = bytes `00..0f`, public by construction),
+whose sha differs from the keyed one; (2) the `carrier_manifest` for the keyed build is
+committed (it carries the bitstream sha256 and `key_id`, not `K`); (3) **the setup load
+needs the runner's session to read the keyed bitstream** — the same host, the same file.
+This is the honest residual of the two-principal model on one host: the runner principal
+could recover `K` from the file it loads. Mitigations available to the gate review: have
+the gate-signer principal perform the setup load through the shared session (a
+capability the session already separates: `SETUP_LOAD_CAPABILITY`), or accept the
+residual under the stated threat model ("a runner bypassing process, not reverse-
+engineering the bitstream"). Not decided here.
+
 ## D3 — whether L1 (a Vivado build of the P3 carrier) is authorised
 
 Not by this document. L1 needs: the scorer RTL imported from `zynq-fabricmap` with its

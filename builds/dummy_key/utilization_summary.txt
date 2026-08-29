@@ -1,0 +1,6 @@
+| Slice LUTs              | 2969 |     6 |          0 |     17600 | 16.87 |
+| Slice Registers         | 2188 |     0 |          0 |     35200 |  6.22 |
+| F7 Muxes                |    8 |     0 |          0 |      8800 |  0.09 |
+| Slice Registers                            | 2188 |     0 |          0 |     35200 |  6.22 |
+| Block RAM Tile |    0 |     0 |          0 |        60 |  0.00 |
+| DSPs      |    0 |     0 |          0 |        80 |  0.00 |

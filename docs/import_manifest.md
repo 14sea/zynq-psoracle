@@ -102,6 +102,17 @@ revisions and neither may be silently substituted for the other.
 | `tb/tb_dbg.v` |
 | `sim/run_all.sh` |
 | `docs/l1_design.md` |
+| `vivado/p3/ooc_synth.tcl` |
+| `vivado/p3/build_p3.tcl` |
+| `host/provision_key.py` |
+| `host/gen_carrier_manifest.py` |
+| `builds/dummy_key/p3.bit` |
+| `builds/dummy_key/p3_build.json` |
+| `builds/dummy_key/isolation.txt` |
+| `builds/dummy_key/utilization_summary.txt` |
+| `builds/dummy_key/timing_summary.txt` |
+| `builds/dummy_key/carrier_manifest.json` |
+| `tests/test_manifest_artifacts.py` |
 
 ## Deliberately NOT imported
 

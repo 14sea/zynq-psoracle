@@ -28,7 +28,7 @@ match bit anywhere that the host must take on trust.
 | rung | state |
 |---|---|
 | L0 host-only architecture | architecture basis ACCEPTED (§3 v0.2, `docs/l0_review_result.md`); **exit deliverables implemented at `afde303`** (import manifest with two-way closure, validators, fixtures, run-log rules, signer/principal model — 152 tests); **L0 not marked PASS: awaits the independent non-author L0 exit review** |
-| L1 P3 carrier (Vivado) | not authorised |
+| L1 P3 carrier (Vivado) | **built** (continuous mandate 2026-08-29): RTL + fixture bench green; OOC +9.9 ns; implemented dummy-key build routed at +7.8 ns, isolation target 6 / flush 0, ICAPE2 = 0, 12 target FARs blank — `docs/l1_design.md`, `builds/dummy_key/`; **L1 exit review pending** (D4 residual to rule) |
 | L2 = P2b counter-class non-perturbation | not authorised; first board stage; own ruling |
 | L3 one gated candidate end-to-end | not authorised |
 | L4 fault / restore / baseline | not authorised |

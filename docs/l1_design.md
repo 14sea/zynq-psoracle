@@ -73,18 +73,38 @@ cleared only by reset (`recovery_required` freezes the scorer, as in the carrier
   Every negative the ladder's L1 exit gate names is exercised, and `armed`/score never
   appear in any of them.
 
+## Build results (2026-08-29, Vivado 2025.2, `vivado/p3/build_p3.tcl`)
+
+| | OOC (`p3_core`) | implemented (`p3_top`, dummy key) |
+|---|---|---|
+| LUTs / FFs | 2,843 / 2,142 | 2,969 / 2,188 (+6 evolvable) |
+| WNS @ 50 MHz | +9.919 ns | **+7.812 ns**, 0 failing endpoints |
+| ICAPE2 | — | **0** |
+| isolation (imported `isolation_checks.tcl`) | — | **target cells 6, flush cells 0**; route inventory recorded as evidence (erratum-001 stance) |
+| logic pblock | — | carrier's `SLICE_X0-1`, `X6-7` plus `SLICE_X14Y0:SLICE_X25Y99` (the P3 logic is ~2× the carrier's) |
+| bitstream | — | `builds/dummy_key/p3.bit`, 2,083,858 B, sha `870c8949…` |
+| frame table | — | 5,144 frames; **all 12 target FARs blank**; positive control `0x0040129C`, min Hamming 1148, unique; blank group 4,441 |
+
+`carrier_manifest` for the dummy build: `builds/dummy_key/carrier_manifest.json`
+(validated by `tests/test_manifest_artifacts.py`). The keyed build's manifest lives in
+`manifests/`; its bitstream does not (D4 residual).
+
 ## What L1 exit still needs (not done here)
 
-Vivado: OOC synthesis and resource/timing gate; implementation with the carrier's pblock
-and isolation checks (`imported/fabricmap/vivado/carrier/build_carrier.tcl`,
-`isolation_checks.tcl`) adapted to the P3 sources; **proof that no readable register or
-readback frame carries `K`** (the MAC core is placed in the logic pblock, outside the
-target columns; the key constant reaches only the SipHash initial state); frame table
-re-derived from the built bitstream; `carrier_manifest` published; L3's known answer
-pinned. Then the L1 exit review.
+Done above: OOC gate, implementation with pblock and isolation checks, frame table,
+manifest. **Still open for the L1 exit review:** the non-readability argument for `K`
+(no AXI-readable register holds it — by construction, `p3_axil.v` has no such address;
+the MAC core sits in `pb_logic`, outside the target columns whose frames are read back;
+but the bitstream-file residual in D4 is real and needs the owner's ruling); L3's known
+answer pinned against the P3 frame table (fabricmap's LUT0 candidate targets the same
+four blank FARs `0x00400A20‥23`, so it transfers unchanged — to be confirmed by
+re-running `gate_candidate` against a P3 `phenotype_manifest`); the L1 exit review itself.
 
 ## Change log
 
+- 2026-08-29 (later): OOC synth, full build with dummy key (routed, isolation passed),
+  `gen_carrier_manifest.py`, dummy manifest validated; key provisioned (gitignored) and
+  keyed build started; D4 residual (bitstream as key material) recorded.
 - 2026-08-29: SipHash core (40/40 vectors). ARM gate, register file, core, top.
   Fixture-driven core bench. Fixed: tag word packing in the signer (LE integers, high word
   first); readout/expected table order (table 0 at the top on both sides); bench LUT model
