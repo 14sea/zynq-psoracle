@@ -27,7 +27,7 @@ match bit anywhere that the host must take on trust.
 
 | rung | state |
 |---|---|
-| L0 host-only architecture | **architecture basis ACCEPTED (§3 v0.2, review 2026-08-29, all four questions ruled — `docs/l0_review_result.md`); L0 overall not passed** until validators, conformance fixtures and the import manifest exist (L0 exit — implementation awaits authorisation) |
+| L0 host-only architecture | architecture basis ACCEPTED (§3 v0.2, `docs/l0_review_result.md`); **exit deliverables implemented at `afde303`** (import manifest with two-way closure, validators, fixtures, run-log rules, signer/principal model — 152 tests); **L0 not marked PASS: awaits the independent non-author L0 exit review** |
 | L1 P3 carrier (Vivado) | not authorised |
 | L2 = P2b counter-class non-perturbation | not authorised; first board stage; own ruling |
 | L3 one gated candidate end-to-end | not authorised |
@@ -36,8 +36,10 @@ match bit anywhere that the host must take on trust.
 
 ## Provenance
 
-No files have been imported yet. When they are, `docs/import_manifest.md` will list each
-byte-for-byte with its sha256 and source commit, in `zynq-psmap`'s form.
+`docs/import_manifest.md`: 19 files from `zynq-psmap` `191ab058…` and 11 from
+`zynq-fabricmap` `71666b02…`, byte-for-byte, each with sha256, size, origin and source
+path; two-way closure over `git ls-files` is a test. The removed authority modules and the
+ICAPE2 stream engine are listed as deliberately not imported.
 
 ## Licence
 
