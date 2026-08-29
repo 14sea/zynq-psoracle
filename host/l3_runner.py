@@ -150,12 +150,16 @@ def load_p3_table(bit_path: Path, manifest: dict) -> dict:
 # ---------------------------------------------------------------- stage + link 2
 
 
-def stage_and_reread(session: bsn.BoardSession, stream: list[int], far_sets: set[int]) -> tuple[int, list[list[int]], list[int]]:
+def stage_and_reread(session: bsn.BoardSession, stream: list[int], far_sets: set[int],
+                     tick=None, tick_every: int = 0) -> tuple[int, list[list[int]], list[int]]:
     """mw.l every word, then md.l the whole buffer back (link 2). Returns (far_set, five
-    frames, the re-read words). A re-read that is not the stream is a STOP, before any DMA."""
+    frames, the re-read words). A re-read that is not the stream is a STOP, before any DMA.
+    `tick(i)` is called every `tick_every` words (L2's heartbeat sub-samples; staging takes ~2 min)."""
     session.authorise(bsn.CONFIG_READ_CAPABILITY)
     for i, w in enumerate(stream):
         session.command(f"mw.l {WR_BUF + 4 * i:#010x} {w:#010x} 1")
+        if tick and tick_every and (i + 1) % tick_every == 0:
+            tick(i + 1)
     reread = session.read_words(WR_BUF, len(stream))
     if reread != stream:
         first = next(i for i, (a, b) in enumerate(zip(reread, stream)) if a != b)
@@ -487,6 +491,10 @@ def run_l3(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         summary["outcome"] = (f"KILL {stop.detail}" if stop.verdict == "KILL" else f"STOP {stop.verdict}: {stop.detail}")
     except bsn.SessionRefusal as refusal:
         summary["outcome"] = f"REFUSED: {refusal}"
+    except Exception as exc:
+        import traceback
+        summary["outcome"] = f"CRASHED host-side: {type(exc).__name__}: {exc}"
+        summary["traceback"] = traceback.format_exc()
     finally:
         log = {"schema": "run_log", "schema_version": "1.0.0", "tool": TOOL_VERSION,
                "ruling_sha256": hashlib.sha256(json.dumps(ruling, sort_keys=True).encode()).hexdigest(),

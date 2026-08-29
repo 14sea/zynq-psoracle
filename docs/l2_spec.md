@@ -1,8 +1,9 @@
 # L2 = P2b — counter-class non-perturbation on the P3 carrier (specification)
 
-Status: host-only, 2026-08-29. Runner `host/l2_runner.py`, adjudicator
-`host/l2_heartbeat.py`, fake-board tests `tests/test_l2_runner.py`. **No ruling exists;
-the board is not touched.** Ruling text: `whole-of-probe P3-L2`.
+Status: **v1.1, 2026-08-29** — amended after run #2 (`docs/l2_findings.md`). Runner
+`host/l2_runner.py`, adjudicator `host/l2_heartbeat.py`, fake-board tests
+`tests/test_l2_runner.py`. Ruling text: `whole-of-probe P3-L2`. Runs #1 and #2 on 17A6
+were both host-instrument outcomes (no board finding); run #3 needs this v1.1 reviewed.
 
 ## 1. What L2 asks
 
@@ -34,6 +35,16 @@ allowlist is these nine `md.l` lines and the four FCLK register reads; nothing e
    f = decoded FCLK0, Δt = host time between the two heartbeat replies, J = 50 ms host/UART
    jitter allowance, T = 2 % — **both bounds, derived, not measured**. Δt > 60 s is refused
    (2³² / 50 MHz = 85.9 s wrap), never disambiguated.
+
+**v1.1 — sub-samples across long phases.** The counter wraps every 85.9 s and the
+protocol's own phases are longer (run #2: post-wait 189 s, staging 113 s), so a heartbeat
+difference across such a phase is undecidable *by construction*, not merely out of
+envelope. Every wait is therefore taken in ≤ 20 s chunks with a heartbeat-only sub-sample
+(`<step>_wait_k`) after each, and the staging of the envelope takes a sub-sample every 100
+words (`L2_5_stage_n`). Sub-samples enter the heartbeat invariant only; the state invariant
+still uses the named samples. The control's heartbeat verdict is over its sub-intervals.
+Any remaining interval > 60 s is still refused (never disambiguated) — with v1.1 that can
+only happen if the console stalls, which is itself a finding.
 
 Verdicts: control interval fails either invariant → **HOLD CONTROL_UNSTABLE** (the
 observable is non-discriminating; P2's R5); a later interval fails with a stable control

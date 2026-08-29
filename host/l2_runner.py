@@ -33,6 +33,8 @@ TOOL_VERSION = "l2_runner.py/0.1.0"
 RULING_TEXT = "whole-of-probe P3-L2"
 N_READS = 10
 T_CONTROL_DERIVED_S = 30.0
+TICK_S = 20.0              # heartbeat sub-sample spacing: any phase longer than this gets sub-samples
+                           # (2^32 / 50 MHz = 85.9 s wrap; run #2's post-wait was 189 s, staging 113 s)
 HEARTBEAT_ADDR = po.axi(po.HEARTBEAT)
 OBSERVE_COMMANDS = tuple(ob.OBSERVE_COMMANDS) + (f"md.l {HEARTBEAT_ADDR:#010x} 1",)
 
@@ -74,6 +76,19 @@ def run_l2(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict,
     state_samples: list[tuple[str, dict[int, int]]] = []
     hb_samples: list[tuple[str, float, int]] = []
 
+    def tick(name: str):
+        """heartbeat-only sub-sample (one md.l), for the heartbeat invariant across long phases"""
+        h = obs.word(f"md.l {HEARTBEAT_ADDR:#010x} 1", HEARTBEAT_ADDR)
+        hb_samples.append((name, clock(), h))
+        summary["samples"].append({"step": name, "heartbeat": f"{h:#010x}", "t_host": clock(), "sub": True})
+
+    def wait(total_s: float, name: str):
+        """sleep in TICK_S chunks, ticking after each chunk"""
+        k, left = 0, total_s
+        while left > 0:
+            step = min(TICK_S, left); sleep(step); left -= step; k += 1
+            tick(f"{name}_wait_{k}")
+
     def take(name: str):
         session.check_plmark()
         words, t, h = obs.sample()
@@ -101,10 +116,12 @@ def run_l2(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict,
         fhz = f["mhz"] * 1e6
         baseline = take("L2_1_baseline")
         finish({"stage": "L2_1_baseline", "verdict": "OK", "words": _fmt(baseline)}, "L2_1_baseline")
-        sleep(T_CONTROL_DERIVED_S)
+        wait(T_CONTROL_DERIVED_S, "L2_2_control")
         ctrl = take("L2_2_control")
         d = ob.compare(baseline, ctrl)
-        hv = hb.interval_verdict(fhz, hb_samples[0][1], hb_samples[0][2], hb_samples[1][1], hb_samples[1][2])
+        # the control's heartbeat verdict = every sub-interval of the control wait
+        hv = hb.adjudicate(fhz, [hb_samples[0], ("L2_2_control", hb_samples[1][1], hb_samples[1][2])] + hb_samples[2:])
+        hv["ok"] = hv["verdict"] == "PASS"
         finish({"stage": "L2_2_control", "verdict": "OK" if not d and hv["ok"] else "CONTROL_UNSTABLE",
                 "wait_s": T_CONTROL_DERIVED_S, "diff": d, "heartbeat": hv}, "L2_2_control")
         if d or not hv["ok"]:
@@ -118,7 +135,7 @@ def run_l2(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict,
                                   pr.frame_sha256(table["frames"][positive_control]), f"L2_3_read_{i}")
             s = take(f"L2_3_read_{i}")
             rec["observable_diff"] = ob.compare(baseline, s); finish(rec, f"L2_3_read_{i}")
-        sleep(max(0.5, clock() - t0))
+        wait(max(0.5, clock() - t0), "L2_4_post")
         post = take("L2_4_post")
         finish({"stage": "L2_4_post", "verdict": "OK", "diff": ob.compare(baseline, post)}, "L2_4_post")
         # one envelope write: the known answer's envelope 0 (gate-passed at link 1)
@@ -127,7 +144,8 @@ def run_l2(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict,
         if not g.gate(streams, phen)["writable"]:
             raise pr.ProbeStop(pr.PRECONDITION, "the known answer is not writable")
         far_sets = {e["far_set"] for e in g.envelopes(phen)}
-        l3.stage_and_reread(session, streams[0]["words"], far_sets)
+        l3.stage_and_reread(session, streams[0]["words"], far_sets,
+                            tick=lambda i: tick(f"L2_5_stage_{i}"), tick_every=100)
         wrec = l3.execute_write(session, "L2_5_write")
         s = take("L2_5_write"); wrec["observable_diff"] = ob.compare(baseline, s); finish(wrec, "L2_5_write")
         rec = l3.readback_frame(session, table, 0x00400A20, cand[0x00400A20], "L2_6_readback")
@@ -149,6 +167,10 @@ def run_l2(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict,
         summary["outcome"] = f"STOP {stop.verdict}: {stop.detail}"
     except bsn.SessionRefusal as refusal:
         summary["outcome"] = f"REFUSED: {refusal}"
+    except Exception as exc:                      # a host defect is still an outcome (run #2: adjudicator raised)
+        import traceback
+        summary["outcome"] = f"CRASHED host-side: {type(exc).__name__}: {exc}"
+        summary["traceback"] = traceback.format_exc()
     finally:
         summary["uart_log"] = session.log; summary["disruptions"] = session.disruptions
         summary["transport_rereads"] = session.rereads; summary["epoch_final"] = session.epoch

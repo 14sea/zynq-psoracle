@@ -30,15 +30,15 @@ class Clock:
 
 class TimedBoard(FakeP3Board):
     """heartbeat = ticks of the fake clock; each console reply costs 20 ms of fake time."""
-    def __init__(self, key, clock: Clock, rate=F, stall_after=None, **kw):
+    def __init__(self, key, clock: Clock, rate=F, stall_after=None, reply_cost=0.020, **kw):
         super().__init__(key, **kw)
-        self.clock, self.rate, self.stall_after = clock, rate, stall_after
+        self.clock, self.rate, self.stall_after, self.reply_cost = clock, rate, stall_after, reply_cost
         self.stalled_at = None
         # PLL decode for FCLK0 = 1600 MHz / 8 / 4 = 50 MHz (FPGA0_CLK_CTRL 0x00400800 is in the base fake)
         self.mem[0xF8000108] = 48 << 12; self.mem[0xF8000100] = 40 << 12; self.mem[0xF8000104] = 32 << 12
 
     def reply(self, line):
-        self.clock.t += 0.020
+        self.clock.t += self.reply_cost
         return super().reply(line)
 
     def word(self, addr):
@@ -71,10 +71,31 @@ class L2(Harness):
         self.assertEqual(s["outcome"], "PASS", s["outcome"])
         self.assertEqual(s["continuity"]["state"]["verdict"], "PASS")
         self.assertEqual(s["continuity"]["heartbeat"]["verdict"], "PASS")
-        self.assertEqual(len(s["continuity"]["heartbeat"]["intervals"]), 14)   # 15 samples
+        self.assertGreaterEqual(len(s["continuity"]["heartbeat"]["intervals"]), 14)   # 15 named samples + sub-samples
         self.assertEqual(b.write_dmas, 1)
         self.assertTrue(0.95 * F <= s["measured_envelope"]["ticks_per_s_min"] <= s["measured_envelope"]["ticks_per_s_max"] <= 1.05 * F)
         self.assertEqual(len(list(self.out.glob("L2_3_read_*.json"))), 10)
+
+    def test_phases_longer_than_the_wrap_are_covered_by_sub_samples(self):
+        """run #2 on 17A6: post-wait 189 s and staging 113 s exceed 2^32/50 MHz = 85.9 s. With a
+        0.2 s console (staging = 534 x 0.2 = 107 s, reads ~ 0.2 x ~60 lines) every interval must
+        stay under TICK_S + one command and the run must PASS."""
+        s, b = self.run_l2(TimedBoard(self.key, self.clock, reply_cost=0.2))
+        self.assertEqual(s["outcome"], "PASS", s["outcome"])
+        iv = s["continuity"]["heartbeat"]["intervals"]
+        self.assertTrue(all(v["dt_s"] <= l2.TICK_S + 5 for v in iv), max(v["dt_s"] for v in iv))
+        self.assertTrue(any("L2_5_stage_" in v["to"] for v in iv) and any("L2_4_post_wait_" in v["to"] for v in iv))
+        self.assertGreater(len(iv), 14)
+
+    def test_a_host_exception_is_still_an_outcome(self):
+        board = TimedBoard(self.key, self.clock)
+        orig = l2.hb.adjudicate
+        l2.hb.adjudicate = lambda *a, **k: (_ for _ in ()).throw(ValueError("boom"))
+        try:
+            s, b = self.run_l2(board)
+        finally:
+            l2.hb.adjudicate = orig
+        self.assertTrue(s["outcome"].startswith("CRASHED host-side: ValueError"), s["outcome"]); self.assertIn("traceback", s)
 
     def test_heartbeat_stall_after_the_write_is_an_attributable_stop(self):
         s, b = self.run_l2(TimedBoard(self.key, self.clock, stall_after=1))
