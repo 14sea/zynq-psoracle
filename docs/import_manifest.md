@@ -123,6 +123,9 @@ revisions and neither may be silently substituted for the other.
 | `host/l2_heartbeat.py` |
 | `host/l2_runner.py` |
 | `tests/test_l2_runner.py` |
+| `docs/l2_spec.md` |
+| `docs/l3_design.md` |
+| `docs/whole_line_gate_review.md` |
 | `manifests/keyed_b4c022a2.json` |
 | `manifests/keyed_b4c022a2_build.json` |
 | `manifests/keyed_b4c022a2_isolation.txt` |

@@ -28,11 +28,16 @@ match bit anywhere that the host must take on trust.
 | rung | state |
 |---|---|
 | L0 host-only architecture | architecture basis ACCEPTED (§3 v0.2, `docs/l0_review_result.md`); **exit deliverables implemented at `afde303`** (import manifest with two-way closure, validators, fixtures, run-log rules, signer/principal model — 152 tests); **L0 not marked PASS: awaits the independent non-author L0 exit review** |
-| L1 P3 carrier (Vivado) | **built** (continuous mandate 2026-08-29): RTL + fixture bench green; OOC +9.9 ns; implemented dummy-key build routed at +7.8 ns, isolation target 6 / flush 0, ICAPE2 = 0, 12 target FARs blank — `docs/l1_design.md`, `builds/dummy_key/`; **L1 exit review pending** (D4 residual to rule) |
-| L2 = P2b counter-class non-perturbation | not authorised; first board stage; own ruling |
-| L3 one gated candidate end-to-end | not authorised |
-| L4 fault / restore / baseline | not authorised |
+| L1 P3 carrier (Vivado) | **built**: RTL + fixture bench green; dummy-key build routed +7.8 ns, **keyed build +6.9 ns** (`manifests/keyed_b4c022a2.json`; bitstream held with the key), isolation target 6 / flush 0, ICAPE2 = 0, 12 target FARs blank — `docs/l1_design.md`; **L1 exit review pending** (D4 residual to rule) |
+| L2 = P2b counter-class non-perturbation | **host tooling written** (`host/l2_runner.py`, `docs/l2_spec.md`, fake-clock tests); first board stage; **no ruling, not authorised** |
+| L3 one gated candidate end-to-end | **host tooling written** (`host/l3_runner.py`, link-1 gate, host oracle pinned to fabricmap's silicon scores, out-of-process signer, on-board negative controls; `docs/l3_design.md`); **no ruling, not authorised** |
+| L4 fault / restore / baseline | not authorised (the link-2 refusal and gate refusal are already exercised on the fake) |
 | L5 the loop | not specified (D1 first) |
+
+## Gate review
+
+`docs/whole_line_gate_review.md` — the package for the non-author review that precedes any
+ruling (owner mandate 2026-08-29).
 
 ## Provenance
 

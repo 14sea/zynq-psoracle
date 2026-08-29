@@ -119,3 +119,17 @@ defined; full-hash commitment; PL verifier, one-shot nonce and the four negative
 as L1 exit gate; run-log validator as evidence consistency only; root/signer compromise
 outside the threat model). **v0.2 is not reviewed.** L0 exit still requires an independent
 non-author review of v0.2 plus validators, fixtures and the import manifest.
+
+
+## Addendum 2026-08-29 (continuous mandate) — ruling texts and the negative-control count
+
+- Ruling texts, psmap's model (claimed O_EXCL, consumed by any outcome): `whole-of-probe
+  P3-L2` (`host/l2_runner.py`), `whole-of-probe P3-L3` (`host/l3_runner.py`). None exists.
+- L3's three on-board negative controls need **three sessions** because an ARM fault is
+  sticky until reset (L1, deliberate: no retry-guessing against the MAC). Each L3 ruling =
+  the positive known answer + one control (`--negative unsigned|replay|other_candidate`;
+  `wrong_table` optional). Alternative for the reviewer: an RTL change to a non-sticky auth
+  fault — not recommended.
+- Key custody as implemented (D4): `host/sign_arm.py` is the only reader of `K`; the
+  runner never constructs a key holder (tested); separation is by process, same OS user —
+  the residual stands.
