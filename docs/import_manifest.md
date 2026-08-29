@@ -120,6 +120,9 @@ revisions and neither may be silently substituted for the other.
 | `tests/test_p3_gate.py` |
 | `tests/test_p3_oracle.py` |
 | `tests/test_l3_runner.py` |
+| `host/l2_heartbeat.py` |
+| `host/l2_runner.py` |
+| `tests/test_l2_runner.py` |
 | `manifests/keyed_b4c022a2.json` |
 | `manifests/keyed_b4c022a2_build.json` |
 | `manifests/keyed_b4c022a2_isolation.txt` |
