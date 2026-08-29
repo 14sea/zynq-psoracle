@@ -258,7 +258,7 @@ def arm_and_score(plane: Plane, signer, gate_verdict: dict, tables: list[int], h
                   "expected_tables": [f"{t:016x}" for t in tables], "tag": payload.tag.hex(),
                   "signer": {"principal": "gate-signer", "key_id": getattr(signer, "key_id", None)},
                   "axi_before": {"status": f"{status:#010x}", "fault": f"{fault:#x}"},
-                  "mode_holdout": holdout, "armed_at": time.time()}
+                  "mode_holdout": holdout, "armed_at": time.time(), "_payload": payload}
     plane.write(po.CTRL, po.ARM_STROBE | (po.MODE_HOLDOUT if holdout else 0))
     deadline = time.monotonic() + ARM_TIMEOUT_S
     while True:
@@ -288,6 +288,62 @@ def arm_and_score(plane: Plane, signer, gate_verdict: dict, tables: list[int], h
              "heartbeat": {"before": hb_before, "after": hb_after}, "mode_holdout": holdout,
              "status": f"{st:#010x}"}
     return arm_record, score
+
+
+# ---------------------------------------------------------------- on-board negative controls (§6 L3)
+
+
+def negative_control(plane: Plane, kind: str, signer, positive: sg.ArmPayload, phen: dict, consts: dict,
+                     arm_record_sha: str) -> dict:
+    """After the positive case, one control per session (a fault is sticky until reset).
+    unsigned: zero tag; replay: the positive payload again (nonce has stepped); other_candidate:
+    a valid tag for the blank candidate with the positive commit staged (tag for X, payload says Y);
+    wrong_table: the blank candidate correctly signed — tag_ok, fabric differs → F_ARM_TABLE."""
+    if kind not in records.NEGATIVE_KINDS:
+        raise Stop(STOP_ARM, f"unknown negative control {kind!r}")
+    nonce_int = plane.read(po.NONCE_LO) | plane.read(po.NONCE_HI) << 32
+    nonce = nonce_int.to_bytes(8, "little")
+    if kind == "unsigned":
+        payload = sg.ArmPayload(positive.candidate_commit, positive.expected_tables, nonce, bytes(16))
+    elif kind == "replay":
+        payload = positive
+    else:
+        base, roles = g.gc.pinned_frames(phen)
+        blank = {far: list(base[far]) for far, r in roles.items() if r == "target"}
+        bv = g.gate(g.build_streams(blank, phen), phen)
+        tables = po.expected_tables(blank, consts)
+        signed = signer.sign(bv, bytes.fromhex(bv["candidate_sha256"]), tables, nonce)
+        payload = signed if kind == "wrong_table" else \
+            sg.ArmPayload(positive.candidate_commit, signed.expected_tables, nonce, signed.tag)
+    words = payload.words()
+    for off, w in zip(po.PAYLOAD, words[:20]):
+        plane.write(off, w)
+    for off, w in zip(po.TAG, words[20:]):
+        plane.write(off, w)
+    plane.write(po.CTRL, po.ARM_STROBE)
+    deadline = time.monotonic() + ARM_TIMEOUT_S
+    while True:
+        st = plane.read(po.STATUS)
+        busy = st >> po.ST["gate_busy"] & 1 or st >> po.ST["scorer_busy"] & 1
+        if not busy and ((st >> po.ST["fault"] & 1) or (st >> po.ST["scorer_done"] & 1) or (st >> po.ST["cfg_valid_hw"] & 1)):
+            break
+        if time.monotonic() > deadline:
+            raise Stop(STOP_ARM, f"negative control {kind}: the PL did not settle (STATUS {st:#010x})")
+    fault = plane.read(po.FAULT)
+    nonce_after = plane.read(po.NONCE_LO) | plane.read(po.NONCE_HI) << 32
+    valid = bool(st >> po.ST["cfg_valid_hw"] & 1)
+    scored = bool(st >> po.ST["scorer_armed"] & 1)
+    rec = {"schema": "negative_control", "schema_version": "1.0.0", "kind": kind,
+           "arm_record_sha256": arm_record_sha, "nonce": f"{nonce_int:016x}",
+           "nonce_after": f"{nonce_after:016x}", "status": f"{st:#010x}",
+           "configuration_valid_hw": valid, "fault": fault, "scored": scored,
+           "refused_as_expected": (not valid) and (not scored) and fault == records.EXPECTED_FAULT[kind]}
+    if valid or scored:
+        raise Stop("KILL", f"negative control {kind!r} validated/scored (STATUS {st:#010x}) — the interlock did not hold", rec)
+    if nonce_after == nonce_int:
+        rec["refused_as_expected"] = False
+        rec["note"] = "nonce not consumed"
+    return rec
 
 
 # ---------------------------------------------------------------- the chain
@@ -365,6 +421,7 @@ def run_l3(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         # ---- arm + score
         plane = Plane(session)
         arm, score = arm_and_score(plane, cfg["signer"], verdict, tables, cfg.get("holdout", False))
+        arm_payload = arm.pop("_payload")
         arm.update(oracle_record_sha256=records.canonical_sha256(oracle),
                    gate_verdict_sha256=records.canonical_sha256(verdict), epoch=session.epoch)
         records.validate(arm); recs.append(arm)
@@ -377,10 +434,17 @@ def run_l3(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         records.validate(score); recs.append(score)
         summary["stages"]["L3_score"] = "SCORED"
         summary["outcome"] = "PASS" if score["match"] else "HOLD: PL scores differ from the host prediction"
+        if cfg.get("negative"):
+            neg = negative_control(plane, cfg["negative"], cfg["signer"], arm_payload, phen, consts,
+                                   records.canonical_sha256(arm))
+            records.validate(neg); recs.append(neg)
+            summary["stages"][f"L3_negative_{cfg['negative']}"] = "REFUSED" if neg["refused_as_expected"] else "NOT_REFUSED_AS_EXPECTED"
+            if not neg["refused_as_expected"]:
+                summary["outcome"] = f"HOLD: negative control {cfg['negative']} fault {neg['fault']} != expected {records.EXPECTED_FAULT[cfg['negative']]}"
     except Stop as stop:
         if stop.record is not None:
             pr.write_record(out_dir, "stop", stop.record)
-        summary["outcome"] = f"STOP {stop.verdict}: {stop.detail}"
+        summary["outcome"] = (f"KILL {stop.detail}" if stop.verdict == "KILL" else f"STOP {stop.verdict}: {stop.detail}")
     except bsn.SessionRefusal as refusal:
         summary["outcome"] = f"REFUSED: {refusal}"
     finally:
@@ -413,6 +477,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--key", type=Path, required=True, help="passed to the signer subprocess; never read here")
     ap.add_argument("--candidate", type=Path, default=None, help="candidate JSON (frames); default: the known answer")
     ap.add_argument("--holdout", action="store_true")
+    ap.add_argument("--negative", choices=records.NEGATIVE_KINDS, default=None,
+                    help="one on-board negative control after the positive case (a fault is sticky until reset)")
     ap.add_argument("--port", default=bsn.PORT)
     args = ap.parse_args(argv)
     try:
@@ -427,7 +493,8 @@ def main(argv: list[str] | None = None) -> int:
         cand = g.known_answer_candidate(phen) if args.candidate is None else {
             int(f["far"], 16): [int(w, 16) for w in f["words"]] for f in json.loads(args.candidate.read_text())["frames"]}
         cfg = {"manifest": manifest, "bitstream": args.bitstream, "candidate": cand,
-               "signer": SubprocessSigner(args.key), "holdout": args.holdout, "consts": po.load_constants()}
+               "signer": SubprocessSigner(args.key), "holdout": args.holdout, "consts": po.load_constants(),
+               "negative": args.negative}
         cfg["table"] = load_p3_table(args.bitstream, manifest)
         if not g.gate(g.build_streams(cand, phen), phen)["writable"]:
             raise bsn.SessionRefusal("the gate refuses this candidate; nothing is sent")

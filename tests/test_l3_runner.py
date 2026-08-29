@@ -140,10 +140,11 @@ class Harness(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_chain(self, board: FakeP3Board, key=None, holdout=False, candidate=None):
+    def run_chain(self, board: FakeP3Board, key=None, holdout=False, candidate=None, negative=None):
         session = bsn.BoardSession(FakeTransport(board))
         cfg = {"manifest": MANIFEST, "bitstream": DUMMY / "p3.bit", "candidate": candidate or g.known_answer_candidate(PHEN),
-               "signer": l3.SubprocessSigner(key or self.key), "holdout": holdout, "consts": CONSTS, "table": TABLE}
+               "signer": l3.SubprocessSigner(key or self.key), "holdout": holdout, "consts": CONSTS, "table": TABLE,
+               "negative": negative}
         summary = l3.run_l3(session, self.out, self.ruling, cfg)
         log = json.load(open(self.out / "run_log.json"))
         return summary, log, board
@@ -220,6 +221,40 @@ class Chain(Harness):
     def test_bitstream_not_the_manifests_is_refused(self):
         with self.assertRaises(bsn.SessionRefusal):
             l3.load_p3_table(l3.pr.CARRIER_BIT, MANIFEST)
+
+
+class NegativeControls(Harness):
+    def check(self, kind, fault):
+        s, log, b = self.run_chain(FakeP3Board(self.key), negative=kind)
+        self.assertEqual(s["outcome"], "PASS", s["outcome"])
+        neg = log["records"][-1]
+        self.assertEqual(neg["schema"], "negative_control"); self.assertEqual(neg["kind"], kind)
+        self.assertEqual(neg["fault"], fault); self.assertFalse(neg["configuration_valid_hw"]); self.assertFalse(neg["scored"])
+        self.assertTrue(neg["refused_as_expected"]); self.assertNotEqual(neg["nonce"], neg["nonce_after"])
+        self.assertEqual(b.arm_attempts, 2)
+        self.assertEqual(b.fault, fault)
+        self.assertIsInstance(s["run_log_validation"], dict)
+
+    def test_unsigned(self): self.check("unsigned", po.F_ARM_AUTH)
+    def test_replay(self): self.check("replay", po.F_ARM_AUTH)
+    def test_other_candidate(self): self.check("other_candidate", po.F_ARM_AUTH)
+    def test_wrong_table(self): self.check("wrong_table", po.F_ARM_TABLE)
+
+    def test_a_pl_that_accepts_an_unsigned_arm_is_a_kill(self):
+        class Broken(FakeP3Board):
+            def arm(self, holdout):
+                self.arm_attempts += 1; self.nonce = nn.step(self.nonce)
+                self.hw_commit = list(self.staging[:8]); self.cfg_valid = self.armed = self.done = 1
+                self.scores = po.predict_scores(po.expected_tables({int(h, 16): self.fabric[int(h, 16)] for h in MANIFEST["target_fars"]}, CONSTS), CONSTS)
+        s, log, b = self.run_chain(Broken(self.key), negative="unsigned")
+        self.assertTrue(s["outcome"].startswith("KILL"), s["outcome"])
+        self.assertNotIn("negative_control", [r["schema"] for r in log["records"]])
+
+    def test_validator_rejects_a_negative_control_that_validated(self):
+        with self.assertRaises(records.RecordError):
+            records.validate({"schema": "negative_control", "schema_version": "1.0.0", "kind": "unsigned",
+                              "arm_record_sha256": "0" * 64, "nonce": "0" * 16, "configuration_valid_hw": True,
+                              "fault": 0, "scored": False, "refused_as_expected": False})
 
 
 class Allowlist(unittest.TestCase):

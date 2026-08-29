@@ -143,6 +143,25 @@ host_prediction: [uint32 x 6]      # from the host oracle over the candidate's I
 match: true|false
 ```
 
+### `negative_control` — 1.0.0 (L3's on-board negative controls)
+
+```yaml
+schema: negative_control
+schema_version: "1.0.0"
+kind: unsigned | replay | other_candidate | wrong_table
+arm_record_sha256: <hex>           # the positive arm_record of the same session (the fabric holds its candidate)
+nonce: <hex64>                     # the PL nonce this control consumed
+configuration_valid_hw: false      # anything else is a KILL, not a record
+fault: 13|15                       # F_ARM_AUTH expected for unsigned/replay/other_candidate; F_ARM_TABLE for wrong_table
+scored: false
+refused_as_expected: true|false    # fault == the kind's expected fault
+```
+
+A fault is sticky until reset (L1), so one session carries the positive case and **one**
+negative control; the three the ladder names take three rulings. Rule (vi) in the run-log
+validator: every `negative_control` must reference an `arm_record` in the log and be
+`refused_as_expected`.
+
 ### `run_log` — 1.0.0
 
 Ordered list of the records above for one session, plus the ruling's sha256, the summary's

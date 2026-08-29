@@ -14,7 +14,7 @@ from .schema import SchemaError, check_envelope
 SUPPORTED = {
     "carrier_manifest": "1.0.0", "candidate": "1.0.0", "gate_verdict": "1.0.0",
     "oracle_record": "1.0.0", "arm_record": "1.0.0", "score_record": "1.0.0",
-    "run_log": "1.0.0",
+    "run_log": "1.0.0", "negative_control": "1.0.0",
 }
 REQUIRED = {
     "carrier_manifest": ("bitstream_sha256", "frame_table_sha256", "part", "axi", "target_fars", "no_icap"),
@@ -27,7 +27,10 @@ REQUIRED = {
     "score_record": ("arm_record_sha256", "configuration_valid_hw", "hw_candidate_commit",
                      "functional_readout", "scores", "host_prediction"),
     "run_log": ("ruling_sha256", "records", "epoch_final"),
+    "negative_control": ("kind", "arm_record_sha256", "nonce", "configuration_valid_hw", "fault", "scored", "refused_as_expected"),
 }
+NEGATIVE_KINDS = ("unsigned", "replay", "other_candidate", "wrong_table")
+EXPECTED_FAULT = {"unsigned": 13, "replay": 13, "other_candidate": 13, "wrong_table": 15}
 HEX64 = 64
 
 
@@ -100,7 +103,17 @@ def _check_score_record(r):
         raise RecordError("six LUTs: readout, scores and prediction must each have six entries")
 
 
-# ------------------------------------------------------------------ run_log rules (i)–(v)
+def _check_negative_control(r):
+    if r["kind"] not in NEGATIVE_KINDS:
+        raise RecordError(f"negative_control kind {r['kind']!r} is not one of {NEGATIVE_KINDS}")
+    _hex(r["nonce"], 16, "nonce")
+    if r["configuration_valid_hw"] is not False or r["scored"] is not False:
+        raise RecordError("a negative control that validated or scored is a KILL, never a record that passes")
+    if r["refused_as_expected"] is not (r["fault"] == EXPECTED_FAULT[r["kind"]]):
+        raise RecordError(f"refused_as_expected disagrees with fault {r['fault']} for kind {r['kind']}")
+
+
+# ------------------------------------------------------------------ run_log rules (i)–(vi)
 
 
 def validate_run_log(log: dict) -> dict:
@@ -136,4 +149,10 @@ def validate_run_log(log: dict) -> dict:
         if score["configuration_valid_hw"] is not True:
             raise RecordError("(v) configuration_valid_hw is not true")
         verdicts[canonical_sha256(score)] = {"gate": gate["candidate_sha256"], "epoch": arm["epoch"]}
+    # (vi) every on-board negative control in the log was refused by the PL with the expected fault
+    for neg in (r for r in log["records"] if r["schema"] == "negative_control"):
+        if neg["arm_record_sha256"] not in by_sha:
+            raise RecordError("(vi) negative_control references no arm_record in this log")
+        if not neg["refused_as_expected"]:
+            raise RecordError(f"(vi) negative control {neg['kind']!r} was not refused with fault {EXPECTED_FAULT[neg['kind']]}")
     return verdicts
