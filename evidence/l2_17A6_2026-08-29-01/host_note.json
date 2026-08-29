@@ -1,0 +1,4 @@
+{
+  "note": "run #1 ended by SIGTERM from the operator's shell timeout (600 s) at ~22:29; the ymodem setup load alone took ~3.5 min (2,083,968 B @ ~10.5 kB/s). Records present: L2_0..L2_3_read_9 (all OK/PASS). Absent: L2_4_post, L2_5_write, L2_6_readback, summary. Whether the envelope write DMA had started cannot be determined from these records. Not a board finding; not a spec finding. Fix: runners now turn SIGTERM into a session refusal so the summary and the ruling outcome are always written; the next run is launched in the background without a shell timeout.",
+  "at": 1788039029.469716
+}

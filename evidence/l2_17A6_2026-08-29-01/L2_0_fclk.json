@@ -1,0 +1,15 @@
+{
+  "stage": "L2_0_fclk",
+  "verdict": "OK",
+  "mhz": 50.0,
+  "pll_mhz": 1600.0,
+  "div0": 8,
+  "div1": 4,
+  "raw": {
+    "IO_PLL_CTRL": "0x00030008",
+    "ARM_PLL_CTRL": "0x00028008",
+    "DDR_PLL_CTRL": "0x00020008",
+    "FPGA0_CLK_CTRL": "0x00400800"
+  },
+  "ok": true
+}

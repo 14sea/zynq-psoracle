@@ -508,6 +508,16 @@ def run_l3(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
 # ---------------------------------------------------------------- entry
 
 
+def _install_sigterm():
+    """A SIGTERM (a shell timeout, a killed terminal) must still write the summary and the
+    ruling outcome: it becomes a SessionRefusal inside the chain (L2 run #1, 2026-08-29)."""
+    import signal
+
+    def _h(signum, frame):
+        raise bsn.SessionRefusal(f"signal {signum} received by the runner (host-side kill)")
+    signal.signal(signal.SIGTERM, _h); signal.signal(signal.SIGHUP, _h)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--ruling", type=Path, required=True, help=f"ruling text must be {RULING_TEXT!r}")
@@ -559,6 +569,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     consumed = pr.claim_ruling(args.ruling)
     args.out.mkdir(parents=True)
+    _install_sigterm()
     outcome = "CRASHED before a summary was written"
     try:
         transport = bsn.SerialTransport(args.port)

@@ -1,0 +1,15 @@
+{
+  "stage": "L2_2_control",
+  "verdict": "OK",
+  "wait_s": 30.0,
+  "diff": [],
+  "heartbeat": {
+    "dt_s": 32.022609,
+    "ticks": 1599812111,
+    "lo": 1566657839,
+    "hi": 1635703058,
+    "ok": true,
+    "stalled": false,
+    "runaway": false
+  }
+}

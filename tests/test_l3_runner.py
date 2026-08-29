@@ -342,7 +342,11 @@ class Allowlist(unittest.TestCase):
 
     def test_ruling_text_is_the_l3_one_and_none_exists(self):
         self.assertEqual(l3.RULING_TEXT, "whole-of-probe P3-L3")
-        self.assertFalse(list((REPO / "rulings").glob("*.json")) if (REPO / "rulings").exists() else [])
+        # no UNCONSUMED ruling may lie around: every ruling file has its .consumed record
+        rd = REPO / "rulings"
+        if rd.exists():
+            for r in rd.glob("*.json"):
+                self.assertTrue(r.with_name(r.name + ".consumed").exists(), f"unconsumed ruling {r.name}")
 
 
 if __name__ == "__main__":

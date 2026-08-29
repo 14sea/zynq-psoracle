@@ -136,6 +136,21 @@ revisions and neither may be silently substituted for the other.
 | `tests/test_principal_boundary.py` |
 | `evidence/boundary/principal_boundary_2026-08-29.json` |
 | `evidence/boundary/principal_boundary_2026-08-29-02.json` |
+| `evidence/l2_17A6_2026-08-29-01/host_note.json` |
+| `evidence/l2_17A6_2026-08-29-01/ymodem.log` |
+| `evidence/l2_17A6_2026-08-29-01/L2_0_fclk.json` |
+| `evidence/l2_17A6_2026-08-29-01/L2_1_baseline.json` |
+| `evidence/l2_17A6_2026-08-29-01/L2_2_control.json` |
+| `evidence/l2_17A6_2026-08-29-01/L2_3_read_0.json` |
+| `evidence/l2_17A6_2026-08-29-01/L2_3_read_1.json` |
+| `evidence/l2_17A6_2026-08-29-01/L2_3_read_2.json` |
+| `evidence/l2_17A6_2026-08-29-01/L2_3_read_3.json` |
+| `evidence/l2_17A6_2026-08-29-01/L2_3_read_4.json` |
+| `evidence/l2_17A6_2026-08-29-01/L2_3_read_5.json` |
+| `evidence/l2_17A6_2026-08-29-01/L2_3_read_6.json` |
+| `evidence/l2_17A6_2026-08-29-01/L2_3_read_7.json` |
+| `evidence/l2_17A6_2026-08-29-01/L2_3_read_8.json` |
+| `evidence/l2_17A6_2026-08-29-01/L2_3_read_9.json` |
 
 ## Deliberately NOT imported
 
