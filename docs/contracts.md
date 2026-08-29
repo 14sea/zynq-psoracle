@@ -87,11 +87,12 @@ schema: oracle_record
 schema_version: "1.0.0"
 session: {boardid: "17A6", epoch: 0, plmark: <hex>, identity_sha256: <hex>}
 candidate_sha256: <hex>
-staged_sha256: <hex>               # link 2: md.l of the staged DDR stream's frames, BEFORE the DMA
+staged_sha256: <hex>               # link 2: the candidate FRAMES extracted from the md.l re-read of the staged DDR stream, BEFORE the DMA (candidate_sha256 domain)
+staged_stream_sha256: <hex>        # link 2: the WHOLE staged stream as re-read (sequence_sha256 domain) — never substitutes for staged_sha256, nor vice versa
 write: {dma: [src, dst, src_len, dst_len], int_sts_after: <hex>, error_bits: [], ctrl_before: <hex>, ctrl_after: <hex>}
 readback_sha256: <hex>             # link 3: pinned PCAP read of each candidate frame
 readback_records: [stage_record...]
-configuration_valid: true|false    # the §3 predicate, recomputed by the validator from the fields above
+configuration_valid_hw_expected: true|false   # the host's own prediction of the PL latch; evidence, not the gate
 transport_rereads: [...]
 ```
 

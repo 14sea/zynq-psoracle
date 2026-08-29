@@ -1,0 +1,88 @@
+# Import manifest
+
+Every non-original file in this repository, byte-for-byte, with its sha256, size, origin and
+source commit. `tests/test_import_manifest.py` checks each row against the file and requires the
+union of this table and the "original" table to equal `git ls-files` exactly (two-way closure).
+
+## Frozen sources
+
+| repository | commit |
+|---|---|
+| github.com/14sea/zynq-psmap | `191ab0585332e75ac6f15179dc80eeec2d29f9f9` |
+| github.com/14sea/zynq-fabricmap | `71666b02d526a6f2c641f1e0aebc15dac0417d4f` |
+
+`zynq-psmap` files keep their original relative paths so that their own `REPO_ROOT`-relative
+lookups (`gate_runs/…`, `data/prjxray/…`) resolve unchanged; `zynq-fabricmap` files live under
+`imported/fabricmap/` with their original relative paths beneath it, and carry their own
+`bitstream_frames.py` / `frame_ecc.py` because the two repositories' copies are different
+revisions and neither may be silently substituted for the other.
+
+## Imported files
+
+| path | sha256 | bytes | origin | source path |
+|---|---|---|---|---|
+| `scripts/board_session.py` | `45e5b1d7c3195fe566987462b787f3149266ddf82c6b530f46d021bbca36f089` | 22830 | zynq-psmap | `scripts/board_session.py` |
+| `scripts/pcap_probe_plan.py` | `2820312d9322203e816e239dc858ef077bfc20b5cf5ba15653d167e46f447b7b` | 33569 | zynq-psmap | `scripts/pcap_probe_plan.py` |
+| `scripts/pcap_probe_runner.py` | `8de4bfe496e693ec4858a4c14ecda3f3062b57a3ab6ed14e6232c30f255d60c9` | 25150 | zynq-psmap | `scripts/pcap_probe_runner.py` |
+| `scripts/pcap_write_plan.py` | `8e547fc48e35b2d287ad5d6ea4183c8a92f70c01084a117d0d70490c951e1a7b` | 16874 | zynq-psmap | `scripts/pcap_write_plan.py` |
+| `scripts/p1_runner.py` | `5ea0a19145dd673bbf603b2a1c599b372d915c580bd50ef51c8e720d85d9824e` | 14471 | zynq-psmap | `scripts/p1_runner.py` |
+| `scripts/p2_runner.py` | `fd1833157a45646d71b20339d8a8b3a9f525248203a8754f5d9aea7b912a2518` | 8979 | zynq-psmap | `scripts/p2_runner.py` |
+| `scripts/p2_observe.py` | `12ad4b7bd0f2e10da3414de1de216bd04706ec7a65f69d46466a61213a2aefb2` | 4912 | zynq-psmap | `scripts/p2_observe.py` |
+| `scripts/frame_ecc.py` | `e595c8e0467fd46de90d6f526792cedf09a4eafa1599b2c2c04a3bbcbb78a646` | 6441 | zynq-psmap | `scripts/frame_ecc.py` |
+| `scripts/bitstream_frames.py` | `a55246e68e082cbb7d15833e6da134388059ffdb0497c29634a9b740eb9091b3` | 14956 | zynq-psmap | `scripts/bitstream_frames.py` |
+| `scripts/diag_pcap_target_select.py` | `d9b7f0a5af18c2cc9ce0578d589e115fba67b3acc2f308e569d6b9523f9021ef` | 7754 | zynq-psmap | `scripts/diag_pcap_target_select.py` |
+| `scripts/probe_jtag_config_read.py` | `c3e79a0856ccc821ca35f6a2daa637258075f92b573cf6247d9b745dac1f1122` | 18877 | zynq-psmap | `scripts/probe_jtag_config_read.py` |
+| `scripts/jtag_config_only.cfg` | `06e542043996643358e5606d226d9585b1c239325b54e6afb4856d2c6a1b99fa` | 1148 | zynq-psmap | `scripts/jtag_config_only.cfg` |
+| `tests/test_s0b_runner.py` | `466723a1a369370472a4f571c627ec8b1ecf1a6264692925b32a77cde4810dd2` | 45353 | zynq-psmap | `tests/test_s0b_runner.py` |
+| `tests/test_p1.py` | `5687e45fa243416eae7033d9c9155d292f029e6c223865f1839eafbe24197bb3` | 16890 | zynq-psmap | `tests/test_p1.py` |
+| `tests/test_p2.py` | `0b8234eece5bff309e18328edcc51411f5f9a644df84db378fc8db72ce735f80` | 9685 | zynq-psmap | `tests/test_p2.py` |
+| `gate_runs/claimb_round1_carrier_2026_08_13_erratum006/carrier.bit` | `8c3369e8e4755da5aceeb7844690d5e132b2e65647004c0a46c0e868e34f0b8a` | 2083863 | zynq-psmap | `gate_runs/claimb_round1_carrier_2026_08_13_erratum006/carrier.bit` |
+| `data/prjxray/LICENSE` | `a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499` | 7048 | zynq-psmap | `data/prjxray/LICENSE` |
+| `data/prjxray/zynq7/xc7z010/tilegrid.json` | `db16874f2827fc05248ad4a7ef5769deaa8e70158a60c8dd40194c48713479ee` | 4351137 | zynq-psmap | `data/prjxray/zynq7/xc7z010/tilegrid.json` |
+| `data/prjxray/zynq7/xc7z010clg400-1/part.yaml` | `43a136f26603c51bd97e9489d223bbc80f278fcc234225ed9fde404402f22683` | 11766 | zynq-psmap | `data/prjxray/zynq7/xc7z010clg400-1/part.yaml` |
+| `imported/fabricmap/scripts/gate_candidate.py` | `2d8b15303450fa062836f98ebf1c7b4ab1134c3a680fb20e01a56182be6fc144` | 15277 | zynq-fabricmap | `scripts/gate_candidate.py` |
+| `imported/fabricmap/scripts/icap_sequence.py` | `3bb5959b09fa8f73e5d1a3056cb37571c173cabce8a1c3bda5381ec437516564` | 11231 | zynq-fabricmap | `scripts/icap_sequence.py` |
+| `imported/fabricmap/scripts/run_log.py` | `6c58e3d1fa95eb5031f20acbbb707151dfd5a3cf96f6a1a6dd1940f12af57092` | 10090 | zynq-fabricmap | `scripts/run_log.py` |
+| `imported/fabricmap/scripts/bitstream_frames.py` | `a55246e68e082cbb7d15833e6da134388059ffdb0497c29634a9b740eb9091b3` | 14956 | zynq-fabricmap | `scripts/bitstream_frames.py` |
+| `imported/fabricmap/scripts/frame_ecc.py` | `e595c8e0467fd46de90d6f526792cedf09a4eafa1599b2c2c04a3bbcbb78a646` | 6441 | zynq-fabricmap | `scripts/frame_ecc.py` |
+| `imported/fabricmap/gate_runs/claimb_round1_carrier_2026_08_13_erratum006/phenotype_manifest.json` | `e45f466d082ccd6f227e6f9be4ce75a4e98c4caa708808c09a77ed32331c10ef` | 74334 | zynq-fabricmap | `gate_runs/claimb_round1_carrier_2026_08_13_erratum006/phenotype_manifest.json` |
+| `imported/fabricmap/gate_runs/claimb_round1_carrier_2026_08_13_erratum006/local_map.json` | `56f2b9e81e180eee2540286e4fde797e0d4820a49d10624c10844c38e99d87cb` | 120521 | zynq-fabricmap | `gate_runs/claimb_round1_carrier_2026_08_13_erratum006/local_map.json` |
+| `imported/fabricmap/gate_runs/claimb_round1_known_answer_2026_08_14/known_answer.json` | `b115e6be3c44b1500aaf0281bd7f480afa61654a12b1083a778fb9d9cb2f5ef1` | 34941 | zynq-fabricmap | `gate_runs/claimb_round1_known_answer_2026_08_14/known_answer.json` |
+| `imported/fabricmap/vivado/carrier/carrier_scorer.v` | `d3fdb3fb026e0f1c7676af54579d6ddb89901c22a36d98695329df127a6ce146` | 7279 | zynq-fabricmap | `vivado/carrier/carrier_scorer.v` |
+| `imported/fabricmap/vivado/carrier/tb_carrier_scorer.v` | `b9413ad61e0b7ba62b79bfb36d20d36a4a347f630886f6983b02f7a9cacf65f7` | 9321 | zynq-fabricmap | `vivado/carrier/tb_carrier_scorer.v` |
+| `imported/fabricmap/vivado/carrier/carrier_axil.v` | `12cf47ac1fa7d6f997ce24e1c922dcfe10ac8b3b141c1bda0ad7cc8367c1875b` | 12522 | zynq-fabricmap | `vivado/carrier/carrier_axil.v` |
+
+## Files original to this repository
+
+| path |
+|---|
+| `.gitignore` |
+| `LICENSE` |
+| `NOTICE` |
+| `README.md` |
+| `docs/p3_architecture.md` |
+| `docs/contracts.md` |
+| `docs/decisions.md` |
+| `docs/l0_review_result.md` |
+| `docs/p3_enforcement_proposal.md` |
+| `docs/import_manifest.md` |
+| `tests/test_import_manifest.py` |
+| `validators/__init__.py` |
+| `validators/siphash.py` |
+| `validators/schema.py` |
+| `validators/lut_table.py` |
+| `validators/signer.py` |
+| `validators/records.py` |
+| `tests/test_siphash.py` |
+| `tests/test_schema_policy.py` |
+| `tests/test_lut_table.py` |
+| `tests/test_signer_principals.py` |
+| `tests/test_runlog_validator.py` |
+
+## Deliberately NOT imported
+
+| file | why |
+|---|---|
+| `zynq-fabricmap/scripts/gate_board_identity.py`, `board_uboot_axi.py`, `board_carrier_guard.py`, `board_carrier_exec.py`, `board_uboot_fpga_load.py`, `precheck_fresh_power.py` | the carrier-era authority and ICAPE2 write path; P3 has no ICAP writer and takes its session from `zynq-psmap` |
+| `zynq-fabricmap/vivado/carrier/carrier_stream.v`, `carrier_crc32.v`, `icape2_model.v`, `carrier_top.v` | the ICAPE2 stream engine and its model — the part of the carrier P3 removes |
+| any `evidence/` of either repository | evidence stays where it was produced; P3 cites it by commit |
