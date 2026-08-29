@@ -113,6 +113,13 @@ revisions and neither may be silently substituted for the other.
 | `builds/dummy_key/timing_summary.txt` |
 | `builds/dummy_key/carrier_manifest.json` |
 | `tests/test_manifest_artifacts.py` |
+| `host/p3_gate.py` |
+| `host/p3_oracle.py` |
+| `host/sign_arm.py` |
+| `host/l3_runner.py` |
+| `tests/test_p3_gate.py` |
+| `tests/test_p3_oracle.py` |
+| `tests/test_l3_runner.py` |
 | `manifests/keyed_b4c022a2.json` |
 | `manifests/keyed_b4c022a2_build.json` |
 | `manifests/keyed_b4c022a2_isolation.txt` |

@@ -1,0 +1,250 @@
+"""L3 runner against a fake P3 board (the console/devcfg fake from zynq-psmap's S0b tests,
+extended with a fabric that PCAP writes and reads, and the P3 PL modelled on the host).
+
+What the fake proves: the runner's sequencing and its STOPs — link 2 halts before any DMA,
+link 3 halts before any ARM, a PL refusal yields no score_record, the AXI allowlist refuses
+host-side, the run log validator rejects a forged score. What it cannot prove: the PL
+itself (that is `sim/run_all.sh` on the RTL) and the transport (psmap's board runs).
+The fake's PL uses the same `p3_oracle` predictor as the runner for its scores, so the
+score comparison here is a plumbing check, not an independent scorer model.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "scripts")); sys.path.insert(0, str(REPO / "host")); sys.path.insert(0, str(REPO / "tests")); sys.path.insert(0, str(REPO))
+import board_session as bsn  # noqa: E402
+import pcap_probe_plan as pp  # noqa: E402
+import l3_runner as l3  # noqa: E402
+import p3_gate as g  # noqa: E402
+import p3_oracle as po  # noqa: E402
+from validators import signer as sg, nonce as nn, records  # noqa: E402
+from test_s0b_runner import FakeUBoot, FakeTransport, PROMPT  # noqa: E402
+
+DUMMY = REPO / "builds/dummy_key"
+MANIFEST = json.load(open(DUMMY / "carrier_manifest.json"))
+PHEN = g.load_manifest()
+CONSTS = po.load_constants()
+TABLE = l3.load_p3_table(DUMMY / "p3.bit", MANIFEST)
+FAR_SETS = {e["far_set"] for e in g.envelopes(PHEN)}
+KA = json.load(open(REPO / "imported/fabricmap/gate_runs/claimb_round1_known_answer_2026_08_14/known_answer.json"))
+
+
+class FakeP3Board(FakeUBoot):
+    """devcfg write DMA applies envelopes to `fabric`; readback DMA reads from it; the AXI
+    window is the L1 register file with the gate modelled on a fixture KeyHolder."""
+
+    def __init__(self, key_path: Path, **kw):
+        super().__init__(deliver=lambda far: [0] * 101 + self.fabric[far], **kw)
+        self.fabric = {far: list(w) for far, w in TABLE["frames"].items()}
+        self.reported_size = (DUMMY / "p3.bit").stat().st_size
+        self.holder = sg.KeyHolder(key_path)
+        self.nonce = int(MANIFEST["nonce_seed"], 16)
+        self.staging = [0] * 24
+        self.fault, self.cfg_valid, self.armed, self.done = 0, 0, 0, 0
+        self.hw_commit, self.readout, self.scores = [0] * 8, [0] * 6, [0] * 6
+        self.heartbeat = 1000
+        self.write_dmas, self.arm_attempts = 0, 0
+        self.drop_write = False          # the write DMA "completes" but the fabric is untouched
+        self.tamper_word = None          # (index, xor) applied to the staged DDR word
+
+    # ---- devcfg
+    def queue_dma(self, src, dst, src_len, dst_len):
+        if src == l3.WR_BUF | pp.DMA_HOLD_TAG and dst == pp.PCAP_ENDPOINT:
+            self.write_dmas += 1
+            words = [self.mem.get(l3.WR_BUF + 4 * i, 0) for i in range(src_len)]
+            far, frames = g.parse_stream(words, FAR_SETS)
+            env = next(e for e in g.envelopes(PHEN) if e["far_set"] == far)
+            if not self.drop_write:
+                for k, f in enumerate(env["targets"]):
+                    self.fabric[f] = list(frames[k])
+                self.fabric[env["flush"]] = list(frames[4])
+        super().queue_dma(src, dst, src_len, dst_len)
+
+    # ---- AXI
+    def status(self):
+        busy = 0
+        return (busy | (1 if self.fault else 0) << 1 | self.cfg_valid << 2 | self.done << 4 | self.armed << 5
+                | (1 if self.hw_commit != [0] * 8 else 0) << 6 | (1 if self.fault else 0) << 7 | 1 << 8
+                | self.done << 9 | self.cfg_valid << 10)
+
+    def word(self, addr):
+        if po.AXI_BASE <= addr < po.AXI_BASE + 0x10000:
+            off = addr - po.AXI_BASE
+            if off == po.STATUS: return self.status()
+            if off == po.FAULT: return self.fault
+            if off in po.SCORES: return self.scores[po.SCORES.index(off)]
+            if off == po.HEARTBEAT: self.heartbeat += 7; return self.heartbeat
+            if off == po.NONCE_LO: return self.nonce & 0xFFFFFFFF
+            if off == po.NONCE_HI: return self.nonce >> 32
+            if off in po.HW_COMMIT: return self.hw_commit[po.HW_COMMIT.index(off)]
+            if off in po.READOUT:
+                j = po.READOUT.index(off); t = self.readout[j >> 1]
+                return (t >> 32) & 0xFFFFFFFF if j % 2 == 0 else t & 0xFFFFFFFF
+            raise AssertionError(f"SLVERR read at {off:#x}: a data abort, the board would reset")
+        return super().word(addr)
+
+    def reply(self, line: str) -> bytes:
+        parts = line.split()
+        if parts[0] == "mw.l":
+            addr, value = int(parts[1], 16), int(parts[2], 16)
+            if po.AXI_BASE <= addr < po.AXI_BASE + 0x10000:
+                self.sent.append(line)
+                off = addr - po.AXI_BASE
+                if off in po.PAYLOAD: self.staging[po.PAYLOAD.index(off)] = value
+                elif off in po.TAG: self.staging[20 + po.TAG.index(off)] = value
+                elif off == po.CTRL:
+                    if value & po.ARM_STROBE: self.arm(bool(value & po.MODE_HOLDOUT))
+                else: raise AssertionError(f"SLVERR write at {off:#x}")
+                return line.encode() + b"\r\n" + self.prompt
+            if l3.WR_BUF <= addr < l3.WR_BUF + 4 * l3.STREAM_WORDS and self.tamper_word:
+                i, x = self.tamper_word
+                if addr == l3.WR_BUF + 4 * i:
+                    line = f"mw.l {addr:#010x} {value ^ x:#010x} 1"     # DDR holds something else
+        return super().reply(line)
+
+    def arm(self, holdout):
+        self.arm_attempts += 1
+        if self.fault: return                      # refused; nonce not consumed
+        w = self.staging
+        commit = b"".join(x.to_bytes(4, "big") for x in w[:8])
+        tables = [(w[8 + 2 * t] << 32) | w[9 + 2 * t] for t in range(6)]
+        t0, t1 = (w[20] << 32) | w[21], (w[22] << 32) | w[23]
+        tag = t0.to_bytes(8, "little") + t1.to_bytes(8, "little")
+        ok = self.holder._sign(sg.arm_message(commit, tables, self.nonce.to_bytes(8, "little"))) == tag
+        self.nonce = nn.step(self.nonce)
+        self.cfg_valid = self.armed = 0
+        if not ok: self.fault = po.F_ARM_AUTH; return
+        self.hw_commit = list(w[:8])
+        self.readout = po.expected_tables({f: self.fabric[f] for f in map(lambda h: int(h, 16), MANIFEST["target_fars"])}, CONSTS)
+        if self.readout != tables: self.fault = po.F_ARM_TABLE; return
+        self.cfg_valid = self.armed = self.done = 1
+        self.scores = po.predict_scores(self.readout, CONSTS, holdout)
+
+
+class Harness(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(); root = Path(self.tmp.name)
+        self.key = root / "K.bin"; self.key.write_bytes(bytes(range(16))); os.chmod(self.key, 0o400)
+        self.other_key = root / "K2.bin"; self.other_key.write_bytes(bytes(range(16, 32))); os.chmod(self.other_key, 0o400)
+        self.out = root / "evidence"; self.out.mkdir()
+        self.ruling = {"ruling": l3.RULING_TEXT, "boardid": "17A6", "date": "fixture"}
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_chain(self, board: FakeP3Board, key=None, holdout=False, candidate=None):
+        session = bsn.BoardSession(FakeTransport(board))
+        cfg = {"manifest": MANIFEST, "bitstream": DUMMY / "p3.bit", "candidate": candidate or g.known_answer_candidate(PHEN),
+               "signer": l3.SubprocessSigner(key or self.key), "holdout": holdout, "consts": CONSTS, "table": TABLE}
+        summary = l3.run_l3(session, self.out, self.ruling, cfg)
+        log = json.load(open(self.out / "run_log.json"))
+        return summary, log, board
+
+
+class Chain(Harness):
+    def test_known_answer_passes_end_to_end(self):
+        s, log, b = self.run_chain(FakeP3Board(self.key))
+        self.assertEqual(s["outcome"], "PASS", s["outcome"])
+        kinds = [r["schema"] for r in log["records"]]
+        self.assertEqual(kinds, ["candidate", "gate_verdict", "oracle_record", "arm_record", "score_record"])
+        score = log["records"][-1]
+        self.assertEqual(score["scores"], KA["scores"]["candidate"]["train"])
+        self.assertEqual(score["hw_candidate_commit"], log["records"][1]["candidate_sha256"])
+        self.assertTrue(score["configuration_valid_hw"])
+        self.assertEqual(b.write_dmas, 3)
+        self.assertEqual(b.arm_attempts, 1)
+        self.assertIsInstance(s["run_log_validation"], dict)
+        self.assertEqual(len(s["run_log_validation"]), 1)
+        self.assertGreater(score["heartbeat"]["after"], score["heartbeat"]["before"])
+        self.assertEqual(log["records"][2]["readback_sha256"], log["records"][1]["candidate_sha256"])
+        self.assertEqual(len(list(self.out.glob("L3_read_*.json"))), 12)
+
+    def test_holdout_mode_scores_the_holdout_slice(self):
+        s, log, b = self.run_chain(FakeP3Board(self.key), holdout=True)
+        self.assertEqual(s["outcome"], "PASS")
+        self.assertEqual(log["records"][-1]["scores"], KA["scores"]["candidate"]["holdout"])
+
+    def test_link2_mismatch_stops_before_any_dma(self):
+        b = FakeP3Board(self.key); b.tamper_word = (23 + 51, 0x8000)     # word 51 of the first target frame
+        s, log, b = self.run_chain(b)
+        self.assertTrue(s["outcome"].startswith(f"STOP {l3.STOP_LINK2}"), s["outcome"])
+        self.assertEqual(b.write_dmas, 0); self.assertEqual(b.arm_attempts, 0)
+        self.assertEqual([r["schema"] for r in log["records"]], ["candidate", "gate_verdict"])
+
+    def test_link3_mismatch_stops_before_any_arm(self):
+        b = FakeP3Board(self.key); b.drop_write = True
+        s, log, b = self.run_chain(b)
+        self.assertTrue(s["outcome"].startswith(f"STOP {l3.STOP_LINK3}"), s["outcome"])
+        self.assertEqual(b.write_dmas, 3); self.assertEqual(b.arm_attempts, 0)
+        self.assertNotIn("arm_record", [r["schema"] for r in log["records"]])
+        self.assertTrue(s["outcome"].split(":")[1].strip().startswith("0x00400a20"))
+
+    def test_wrong_signer_key_is_refused_by_the_pl_and_yields_no_score(self):
+        s, log, b = self.run_chain(FakeP3Board(self.key), key=self.other_key)
+        self.assertTrue(s["outcome"].startswith(f"STOP {l3.STOP_ARM}"), s["outcome"])
+        self.assertEqual(b.arm_attempts, 1); self.assertEqual(b.fault, po.F_ARM_AUTH)
+        arm = log["records"][-1]; self.assertEqual(arm["schema"], "arm_record")
+        self.assertEqual(arm["pl_refusal"]["name"], "F_ARM_AUTH")
+        self.assertNotIn("score_record", [r["schema"] for r in log["records"]])
+        self.assertNotEqual(arm["axi_after"]["nonce"], arm["nonce"], "the nonce is consumed by a refused ARM")
+
+    def test_a_forged_score_is_rejected_by_the_run_log_validator(self):
+        s, log, b = self.run_chain(FakeP3Board(self.key), key=self.other_key)
+        arm = log["records"][-1]
+        forged = {"schema": "score_record", "schema_version": "1.0.0", "arm_record_sha256": records.canonical_sha256(arm),
+                  "configuration_valid_hw": True, "hw_candidate_commit": arm["candidate_commit"],
+                  "functional_readout": arm["expected_tables"], "scores": [40] * 6, "host_prediction": [40] * 6}
+        log["records"].append(forged)
+        # rule (v) with the truthful latch value; the forged 'true' passes (i)-(v) only because the
+        # forger also lied about the latch — that is exactly the line's residual, which is why
+        # the PL's own HW_COMMIT/latch are the authority, not this validator
+        forged["configuration_valid_hw"] = False
+        with self.assertRaises(records.RecordError) as cm:
+            records.validate_run_log(log)
+        self.assertIn("(v)", str(cm.exception))
+
+    def test_gate_refusal_never_reaches_the_board(self):
+        cand = g.known_answer_candidate(PHEN); cand[0x00400A20] = list(cand[0x00400A20]); cand[0x00400A20][3] ^= 1
+        s, log, b = self.run_chain(FakeP3Board(self.key), candidate=cand)
+        self.assertTrue(s["outcome"].startswith("STOP GATE_REFUSED"))
+        self.assertEqual(b.sent, [])
+
+    def test_bitstream_not_the_manifests_is_refused(self):
+        with self.assertRaises(bsn.SessionRefusal):
+            l3.load_p3_table(l3.pr.CARRIER_BIT, MANIFEST)
+
+
+class Allowlist(unittest.TestCase):
+    def test_axi_reads_and_writes_outside_the_map_are_refused_host_side(self):
+        class Never:
+            def read_words(self, *a): raise AssertionError("a line was formed")
+            def command(self, *a): raise AssertionError("a line was formed")
+        p = l3.Plane(Never())
+        for off in (po.PAYLOAD[0], po.TAG[0], po.CTRL, 0x2034, 0x0000):
+            with self.assertRaises(bsn.SessionRefusal): p.read(off)
+        with self.assertRaises(bsn.SessionRefusal): p.read_many(po.HW_COMMIT[0], 9)
+        for off in (po.STATUS, po.HW_COMMIT[0], po.READOUT[0], 0x2034):
+            with self.assertRaises(bsn.SessionRefusal): p.write(off, 0)
+
+    def test_runner_never_holds_the_key(self):
+        src = (REPO / "host/l3_runner.py").read_text()
+        code = "\n".join(l.split("#")[0] for l in src.splitlines() if not l.lstrip().startswith(("#", '"""')))
+        self.assertNotIn("KeyHolder(", code); self.assertNotIn("sg.KeyHolder", code)
+        self.assertNotIn("_sign(", code)
+        self.assertNotIn("key_path.read", code); self.assertNotIn("args.key.read", code)
+
+    def test_ruling_text_is_the_l3_one_and_none_exists(self):
+        self.assertEqual(l3.RULING_TEXT, "whole-of-probe P3-L3")
+        self.assertFalse(list((REPO / "rulings").glob("*.json")) if (REPO / "rulings").exists() else [])
+
+
+if __name__ == "__main__":
+    unittest.main()
