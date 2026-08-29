@@ -27,7 +27,7 @@ match bit anywhere that the host must take on trust.
 
 | rung | state |
 |---|---|
-| L0 host-only architecture | **drafted, not reviewed** |
+| L0 host-only architecture | **drafted, not reviewed** — owner cross-review 2026-08-29 accepted the structure and asked for positions on the four `decisions.md` questions (done); PASS needs an independent non-author review plus validators/fixtures |
 | L1 P3 carrier (Vivado) | not authorised |
 | L2 = P2b counter-class non-perturbation | not authorised; first board stage; own ruling |
 | L3 one gated candidate end-to-end | not authorised |

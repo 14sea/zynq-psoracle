@@ -35,9 +35,17 @@ part: xc7z010clg400-1
 board_roles: {"17A6": verify}      # identity requirements the session enforces
 axi:
   base: 0x43C00000
-  readable: [0x2004, 0x2008, 0x2010, 0x2014, 0x2018, 0x201C, 0x2020, 0x2024, 0x2028]
+  # Two classes, never conflated (owner review 2026-08-29):
+  #   stable_state — the EIGHT words zynq-psmap P2 pinned (STATUS, FAULT, SCORE0..5);
+  #                  the P2 equality invariant applies to these and only these.
+  #   heartbeat    — the ONE word P3 adds; the L2 envelope invariant applies to it alone.
+  stable_state: [0x2004, 0x2008, 0x2010, 0x2014, 0x2018, 0x201C, 0x2020, 0x2024]   # 8
+  heartbeat: {offset: 0x2028, width_bits: 32,                                      # +1
+              advances_per_s_min: <n>, advances_per_s_max: <n>}   # BOTH bounds, pinned
+                                                                  # from a measured
+                                                                  # no-read baseline before
+                                                                  # the L2 ruling
   status_reserved_mask: 0xF8000000 # bits that read zero when the carrier answers
-  heartbeat: {offset: 0x2028, width_bits: 32, advances_per_s_min: <n>, advances_per_s_max: <n>}
   arm: {offset: 0x2000, bit: 6}    # the ONLY host→PL write; carries no data
 target_columns: [CLBLL_L_X2, CLBLM_L_X6]
 target_fars: [0x00400A20, ...]     # blank in the base by design
