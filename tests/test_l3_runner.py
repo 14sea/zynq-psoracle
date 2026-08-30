@@ -151,6 +151,27 @@ class FixtureSigner(l3.SubprocessSigner):
         return {"executed": True, "modelled": "jtag-mem-ap"}
 
 
+class CachedBoard(FakeP3Board):
+    """U-Boot with the D-cache ON at boot: `mw.l` lands in the cache, `md.l` reads the cache,
+    the DMA reads DDR only; `dcache off` flushes. Reproduces 17A6 2026-08-30 (L3 #1, diag)."""
+    def __init__(self, key, **kw):
+        super().__init__(key, **kw); self.cache = {}; self.cache_on = True; self.dcache_reply = b"Data (writethrough) Cache is ON"
+    def reply(self, line):
+        parts = line.split()
+        if parts[0] == "dcache" and len(parts) == 2 and parts[1] == "off":
+            self.mem.update(self.cache); self.cache = {}; self.cache_on = False; self.dcache_reply = b"Data (writethrough) Cache is OFF"
+            self.sent.append(line); return line.encode() + b"\r\n" + self.prompt
+        if parts[0] == "mw.l" and self.cache_on:
+            addr, value = int(parts[1], 16), int(parts[2], 16)
+            if l3.WR_BUF <= addr < l3.WR_BUF + 4 * l3.STREAM_WORDS:
+                self.sent.append(line); self.cache[addr] = value      # not in DDR yet
+                return line.encode() + b"\r\n" + self.prompt
+        return super().reply(line)
+    def word(self, addr):
+        if self.cache_on and addr in self.cache: return self.cache[addr]
+        return super().word(addr)
+
+
 class Harness(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); root = Path(self.tmp.name)
@@ -189,6 +210,23 @@ class Chain(Harness):
         self.assertGreater(score["heartbeat"]["after"], score["heartbeat"]["before"])
         self.assertEqual(log["records"][2]["readback_sha256"], log["records"][1]["candidate_sha256"])
         self.assertEqual(len(list(self.out.glob("L3_read_*.json"))), 12)
+
+    def test_cache_on_at_boot_is_handled_by_the_write_path(self):
+        """With the cache on, staging without `dcache off` would pass link 2 and write nothing
+        (the 2026-08-30 defect). The write path must turn it off, verified, before staging."""
+        s, log, b = self.run_chain(CachedBoard(self.key))
+        self.assertEqual(s["outcome"], "PASS", s["outcome"])
+        first_stage = next(i for i, l in enumerate(b.sent) if l.startswith(f"mw.l {l3.WR_BUF:#010x}"))
+        self.assertIn("dcache off", b.sent[:first_stage]); self.assertIn("dcache", b.sent[:first_stage])
+        self.assertFalse(b.cache_on)
+
+    def test_cache_that_will_not_turn_off_is_a_precondition_stop(self):
+        class Stuck(CachedBoard):
+            def reply(self, line):
+                if line == "dcache off": self.sent.append(line); return line.encode() + b"\r\n" + self.prompt   # ignored
+                return super().reply(line)
+        s, log, b = self.run_chain(Stuck(self.key))
+        self.assertTrue(s["outcome"].startswith("STOP PRECONDITION"), s["outcome"]); self.assertEqual(b.write_dmas, 0)
 
     def test_holdout_mode_scores_the_holdout_slice(self):
         s, log, b = self.run_chain(FakeP3Board(self.key), holdout=True)

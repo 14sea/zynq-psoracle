@@ -1,0 +1,5 @@
+{
+  "verdict": "NO_RECORD",
+  "rc": 1,
+  "stderr": "sudo: a password is required\n"
+}

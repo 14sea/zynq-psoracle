@@ -82,8 +82,12 @@ class Diag(unittest.TestCase):
 
     def test_jtag_phase_refuses_without_seal_or_twice(self):
         self.assertEqual(dg.main(["--out", str(self.out), "--manifest", str(DUMMY / "carrier_manifest.json"), "--jtag"]), 2)
-        (self.out / "sealed.json").write_text("{}"); (self.out / "summary_pcap.json").write_text("{}"); (self.out / "jtag.json").write_text("{}")
+        (self.out / "sealed.json").write_text("{}"); (self.out / "summary_pcap.json").write_text("{}"); (self.out / "jtag.json").write_text('{"verdict": "READ"}')
         self.assertEqual(dg.main(["--out", str(self.out), "--manifest", str(DUMMY / "carrier_manifest.json"), "--jtag"]), 2)
+
+    def test_request_passes_an_absolute_evidence_path(self):
+        import inspect
+        self.assertIn("out_dir.resolve()", inspect.getsource(dg.request_jtag))
 
 
 if __name__ == "__main__":

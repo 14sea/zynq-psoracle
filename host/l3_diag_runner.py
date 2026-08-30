@@ -113,7 +113,8 @@ def run_pcap_phase(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: 
 
 
 def request_jtag(out_dir: Path, signer_user: str = "p3signer") -> dict:
-    p = subprocess.run(["sudo", "-n", "-u", signer_user, sys.executable, str(R / "host/l3_diag_jtag.py"), str(out_dir)],
+    # absolute path: the sudoers line matches the evidence-directory prefix literally
+    p = subprocess.run(["sudo", "-n", "-u", signer_user, sys.executable, str(R / "host/l3_diag_jtag.py"), str(out_dir.resolve())],
                        capture_output=True, text=True, timeout=1000)
     try:
         rec = json.loads(p.stdout)
@@ -170,7 +171,10 @@ def main(argv=None) -> int:
         if not (a.out / "sealed.json").exists():
             print("REFUSED: no sealed PCAP phase in", a.out, file=sys.stderr); return 2
         if (a.out / "jtag.json").exists():
-            print("REFUSED: jtag.json exists; the terminal read is done once", file=sys.stderr); return 2
+            prev = json.loads((a.out / "jtag.json").read_text())
+            if prev.get("verdict") != "NO_RECORD":       # a NO_RECORD never reached the pod: retry is not a second read
+                print("REFUSED: jtag.json exists; the terminal read is done once", file=sys.stderr); return 2
+            (a.out / "jtag.json").rename(a.out / f"jtag_norecord_{int(time.time())}.json")
         summary = json.loads((a.out / "summary_pcap.json").read_text())
         jt = request_jtag(a.out, a.signer_user)
         verdict = adjudicate(summary, jt)

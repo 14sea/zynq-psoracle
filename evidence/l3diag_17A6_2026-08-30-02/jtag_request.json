@@ -1,0 +1,9 @@
+{
+  "fars": [
+    "0x00400a20",
+    "0x00400c1a",
+    "0x00400c20"
+  ],
+  "seal_sha256": "235eff8ad8ce5edf7ba2ff76ff379169663eec0374dc151f1dfadb44a5a7ee38",
+  "note": "terminal JTAG read by the signer principal; nothing touches the board after it"
+}

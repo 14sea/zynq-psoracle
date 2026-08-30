@@ -1,0 +1,37 @@
+{
+  "verdict": "FABRIC_BLANK",
+  "per_far": {
+    "0x00400a20": {
+      "expected": "15cb05e68adbff6c",
+      "pcap": [
+        "BLANK",
+        "0441772f66559a1c"
+      ],
+      "jtag": "0441772f66559a1c",
+      "kind": "FABRIC_BLANK"
+    },
+    "0x00400c1a": {
+      "expected": "0441772f66559a1c",
+      "pcap": [
+        "PASS",
+        "0441772f66559a1c"
+      ],
+      "jtag": "0441772f66559a1c",
+      "kind": "CONSISTENT"
+    },
+    "0x00400c20": {
+      "expected": "0441772f66559a1c",
+      "pcap": [
+        "PASS",
+        "0441772f66559a1c"
+      ],
+      "jtag": "0441772f66559a1c",
+      "kind": "CONSISTENT"
+    }
+  },
+  "config_status": "0x46107ffc",
+  "crc_error": false,
+  "kinds": [
+    "FABRIC_BLANK"
+  ]
+}

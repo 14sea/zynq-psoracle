@@ -38,3 +38,39 @@ readback blank". Either outcome is a real finding for the write path this line d
 
 Scope: this STOP is a **negative observation about the multi-envelope write/readback
 path**, not about the ARM gate (never reached) and not about `unprovisioned` (not exercised).
+
+## Diagnostic session (ruling `whole-of-probe P3-L3-diag` `2026-08-30-02`) — FABRIC_BLANK; root cause: host instrument (D-cache)
+
+PCAP phase (`evidence/l3diag_17A6_2026-08-30-02/`): setup load → env0 write **WRITTEN** →
+read `A20` **BLANK** — the mismatch reproduced at **phase 0, after a single envelope**, so
+the multi-envelope hypothesis is dead. Per the stop semantics no further writes; closing
+reads: `A20` BLANK, `C1A` PASS (base), `C20` PASS (base). Seal, then the terminal JTAG read
+by the signer principal (first run refused by sudo because the runner passed a relative
+evidence path — never reached the pod; fixed, retried under the same ruling):
+`A20` = blank, `C1A` = base, `C20` = base, `STAT 0x46107ffc`, `CRC_ERROR = 0`.
+Adjudication: **FABRIC_BLANK** — the write never landed in the fabric; PCAP readback told
+the truth.
+
+Root cause, established from the UART logs of the three runs (order of commands):
+
+| run | first `dcache off` | first staged word (`mw.l 0x10400000`) | result |
+|---|---|---|---|
+| L2 run #3 | #44 (inside the first readback plan) | #953 | write landed, readback bit-exact |
+| L3 session #1 | #1654 (first readback, after the writes) | #18 | BLANK |
+| diagnostic | #563 (after the write) | #17 | BLANK |
+
+The L3 write path staged the stream with the **D-cache on**: `mw.l` landed in L1/L2, the
+devcfg DMA read stale DDR (a fresh boot: no SYNC word → the configuration logic ignored
+the transfer, `D_P_DONE` set, no error bits), and the link-2 `md.l` re-read went through
+the cache and "confirmed" a stream the DMA never saw. psmap's *read* plan carries a
+verified `dcache off` step; its *write* plan does not, and every earlier write on this line
+(P1, P2, L2) happened to follow a read. Two lessons, recorded: (1) link 2 is only evidence
+of what the DMA sees if the cache is off — a verified `dcache off` is now a precondition of
+staging (`l3_runner.ensure_dcache_off`, used by L2/L3/L4; the fake models the cache and
+reproduces the defect); (2) "WRITTEN" from devcfg (`D_P_DONE`, no error) says nothing
+about whether configuration happened — only link 3 does, which is why the runner never
+armed. zynq-psmap's write plan has the same latent gap; it is noted here, not changed there.
+
+Scope: session #1's STOP and this diagnostic are **host-instrument outcomes**; no board
+or fabric fault is indicated (JTAG: CRC_ERROR 0, frames as expected for an unconfigured
+write). The `unprovisioned` control has still not been exercised.

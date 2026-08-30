@@ -80,6 +80,7 @@ def run_l4(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         # ---- 1. corrupted staged buffer → link 2 STOP, no DMA
         ka = g.build_streams(g.known_answer_candidate(phen), phen)[0]["words"]
         session.authorise(bsn.CONFIG_READ_CAPABILITY)
+        l3.ensure_dcache_off(session)
         session.command(f"mw.l {pp.REG['INT_STS']:#010x} {pp.INT_STS_CLEAR_MASK:#010x} 1")
         before = session.read_word(pp.REG["INT_STS"])
         for i, w in enumerate(ka):

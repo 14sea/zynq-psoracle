@@ -150,12 +150,27 @@ def load_p3_table(bit_path: Path, manifest: dict) -> dict:
 # ---------------------------------------------------------------- stage + link 2
 
 
+def ensure_dcache_off(session: bsn.BoardSession) -> str:
+    """The D-cache MUST be off before anything is staged for a DMA: with it on, `mw.l` lands
+    in L1/L2, the DMA reads stale DDR, and the `md.l` re-read (link 2) reads the cache — so
+    link 2 "confirms" a stream the DMA never saw. Found on 17A6 2026-08-30 (L3 session #1 and
+    the diagnostic: BLANK readback after WRITTEN; L2 had passed only because its read plan
+    had already turned the cache off). psmap's read plan carries this step; the write path
+    did not. Verified by content of the `dcache` reply, never assumed."""
+    session.command("dcache off")
+    reply = session.command("dcache").decode("ascii", "replace")
+    if "Cache is OFF" not in reply:
+        raise Stop(pr.PRECONDITION, f"D-cache is not off before staging: {reply.strip()!r}")
+    return reply
+
+
 def stage_and_reread(session: bsn.BoardSession, stream: list[int], far_sets: set[int],
                      tick=None, tick_every: int = 0) -> tuple[int, list[list[int]], list[int]]:
-    """mw.l every word, then md.l the whole buffer back (link 2). Returns (far_set, five
-    frames, the re-read words). A re-read that is not the stream is a STOP, before any DMA.
-    `tick(i)` is called every `tick_every` words (L2's heartbeat sub-samples; staging takes ~2 min)."""
+    """dcache off (verified) → mw.l every word → md.l the whole buffer back (link 2).
+    Returns (far_set, five frames, the re-read words). A re-read that is not the stream is a
+    STOP, before any DMA. `tick(i)` is called every `tick_every` words (L2's sub-samples)."""
     session.authorise(bsn.CONFIG_READ_CAPABILITY)
+    ensure_dcache_off(session)
     for i, w in enumerate(stream):
         session.command(f"mw.l {WR_BUF + 4 * i:#010x} {w:#010x} 1")
         if tick and tick_every and (i + 1) % tick_every == 0:
