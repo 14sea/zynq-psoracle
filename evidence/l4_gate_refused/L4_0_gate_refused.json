@@ -1,0 +1,40 @@
+{
+  "stage": "L4_0_gate_refused",
+  "verdict": "REFUSED_AT_LINK_1",
+  "gate_verdict": {
+    "schema": "gate_verdict",
+    "schema_version": "1.0.0",
+    "candidate_sha256": "28a38df39f9c4be12d36897743aaeef1ef254509142ed4e008f937c3a71e78cc",
+    "sequence_sha256": "d7c0b2d11eb69c4b18fd6ca31cdd0a8064a77f8b10e8a9c070179f01686add07",
+    "writable": false,
+    "findings": [
+      {
+        "kind": "target_frame",
+        "message": "0x00400a20: 1 bit(s) differ outside the whitelist",
+        "far": "0x00400a20",
+        "bits": [
+          "3/0"
+        ],
+        "count": 1
+      },
+      {
+        "kind": "ecc",
+        "message": "0x00400a20: ECC 0x100e is not the recomputation 0x138e",
+        "far": "0x00400a20",
+        "stored": "0x100e",
+        "recomputed": "0x138e"
+      }
+    ],
+    "gate_tool": {
+      "name": "host/p3_gate.py",
+      "frame_rules": "zynq-fabricmap gate_candidate.py",
+      "source_commit": "71666b02d526a6f2c641f1e0aebc15dac0417d4f"
+    },
+    "manifest_sha256": "e45f466d082ccd6f227e6f9be4ce75a4e98c4caa708808c09a77ed32331c10ef"
+  },
+  "kinds": [
+    "ecc",
+    "target_frame"
+  ],
+  "board_action": "NONE"
+}

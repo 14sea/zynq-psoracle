@@ -115,6 +115,30 @@ class L2(Harness):
         with self.assertRaises(bsn.SessionRefusal): o.word("md.l 0x43c02028 2", po.axi(po.HEARTBEAT))
 
 
+class PinnedBounds(unittest.TestCase):
+    def test_manifest_bounds_are_applied_and_reported(self):
+        c = Clock(); s, b = L2Harness_run(c, TimedBoard)
+        self.assertEqual(s["outcome"], "PASS"); self.assertTrue(s["continuity"]["pinned_bounds"]["ok"])
+        self.assertEqual(s["continuity"]["pinned_bounds"]["lo_hz"], 49.5e6)
+
+    def test_a_rate_outside_the_pinned_bounds_is_a_violation(self):
+        c = Clock(); s, b = L2Harness_run(c, lambda key, clock: TimedBoard(key, clock, rate=F * 1.015))   # inside ±2 % derived, outside ±1 % pinned
+        self.assertTrue(s["outcome"].startswith("STOP CONTINUITY_VIOLATION"), s["outcome"])
+        self.assertEqual(s["continuity"]["heartbeat"]["kind"], "OUTSIDE_PINNED_BOUNDS")
+
+
+def L2Harness_run(clock, make_board):
+    tmp = tempfile.TemporaryDirectory(); root = Path(tmp.name)
+    key = root / "K.bin"; key.write_bytes(bytes(range(16))); os.chmod(key, 0o400)
+    out = root / "ev"; out.mkdir()
+    board = make_board(key, clock)
+    session = bsn.BoardSession(FakeTransport(board))
+    cfg = {"manifest": MANIFEST, "bitstream": DUMMY / "p3.bit", "table": TABLE}
+    s = l2.run_l2(session, out, {"ruling": l2.RULING_TEXT}, cfg, sleep=clock.sleep, clock=clock.now)
+    tmp.cleanup()
+    return s, board
+
+
 class Envelope(unittest.TestCase):
     def test_bounds_and_wrap(self):
         lo, hi = hb.envelope(F, 1.0)

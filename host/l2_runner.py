@@ -153,7 +153,14 @@ def run_l2(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict,
         # p2_observe (imported, unchanged) names the control "P2_2_control"; L2's step is L2_2_control
         state = ob.adjudicate(baseline, [("P2_2_control", state_samples[1][1])] + state_samples[2:])
         beat = hb.adjudicate(fhz, hb_samples)
-        summary["continuity"] = {"state": state, "heartbeat": beat}
+        hbm = manifest["axi"]["heartbeat"]
+        pinned = None
+        if hbm.get("advances_per_s_min") is not None and beat["verdict"] == "PASS":
+            pinned = hb.pinned_bounds_verdict(beat["intervals"], hbm["advances_per_s_min"], hbm["advances_per_s_max"])
+            if not pinned["ok"]:
+                beat = dict(beat, verdict="CONTINUITY_VIOLATION", kind="OUTSIDE_PINNED_BOUNDS",
+                            at=pinned["violations"][0]["to"], detail="rate outside the manifest's pinned envelope")
+        summary["continuity"] = {"state": state, "heartbeat": beat, "pinned_bounds": pinned}
         if state["verdict"] == "PASS" and beat["verdict"] == "PASS":
             summary["outcome"] = "PASS"
             summary["measured_envelope"] = {"ticks_per_s_min": min(v["ticks"] / v["dt_s"] for v in beat["intervals"]),

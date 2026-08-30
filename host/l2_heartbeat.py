@@ -43,6 +43,14 @@ def interval_verdict(fclk0_hz: float, t0: float, hb0: int, t1: float, hb1: int) 
             "ok": lo <= d <= hi, "stalled": d == 0, "runaway": d > hi}
 
 
+def pinned_bounds_verdict(intervals: list[dict], lo_hz: float, hi_hz: float) -> dict:
+    """The owner-pinned manifest envelope (ticks/s), applied to every decidable interval on top
+    of the derived envelope. Intervals shorter than 2 s are skipped (host jitter dominates)."""
+    bad = [v for v in intervals if v["dt_s"] >= 2.0 and not (lo_hz <= v["ticks"] / v["dt_s"] <= hi_hz)]
+    return {"lo_hz": lo_hz, "hi_hz": hi_hz, "checked": sum(1 for v in intervals if v["dt_s"] >= 2.0),
+            "violations": [{"to": v["to"], "rate_hz": v["ticks"] / v["dt_s"]} for v in bad], "ok": not bad}
+
+
 def adjudicate(fclk0_hz: float, samples: list[tuple[str, float, int]]) -> dict:
     """samples = [(step, t_host, heartbeat)] in order; samples[0] is the baseline, samples[1]
     the no-read control. HOLD if the control interval fails; STOP naming the first later

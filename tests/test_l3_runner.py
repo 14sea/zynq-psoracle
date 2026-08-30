@@ -321,6 +321,49 @@ class NegativeControls(Harness):
                               "fault": 0, "scored": False, "refused_as_expected": False})
 
 
+class LiveSignerRehearsal(unittest.TestCase):
+    """Fake board, REAL signer principal: signing crosses the sudo boundary to p3signer
+    (provisioning is modelled, the JTAG path being a board action). Skipped where the
+    principal does not exist."""
+    def test_known_answer_through_the_real_signer(self):
+        import pwd
+        try: pwd.getpwnam("p3signer")
+        except KeyError: self.skipTest("no p3signer principal on this host")
+        key = Path("/var/lib/p3signer/keys/K.bin")
+        with tempfile.TemporaryDirectory() as d:
+            board = FakeP3Board(REPO / "tests" / "__nokey__")  # placeholder; provision below sets the holder
+            class RealSign(l3.SubprocessSigner):
+                def provision(self, execute=False, ruling=None, alt_key_path=None):
+                    # the fake PL must verify with the SAME K the real signer holds: obtain nothing
+                    # from the runner's side — instead ask the signer to sign a probe and model the PL
+                    # as "accepting the signer's tags" by delegating verification to the signer process.
+                    board.key_loaded = True; board.verify_via_signer = self; return {"executed": True, "modelled": "jtag-mem-ap"}
+            signer = RealSign(key, signer_user="p3signer")
+            def arm_with_signer(holdout):
+                board.arm_attempts += 1
+                if board.fault: return
+                w = board.staging
+                commit = b"".join(x.to_bytes(4, "big") for x in w[:8]); tables = [(w[8 + 2 * t] << 32) | w[9 + 2 * t] for t in range(6)]
+                t0, t1 = (w[20] << 32) | w[21], (w[22] << 32) | w[23]
+                tag = t0.to_bytes(8, "little") + t1.to_bytes(8, "little")
+                nonce = board.nonce.to_bytes(8, "little")
+                # PL verification modelled by re-signing through the real principal and comparing tags
+                ref = signer.sign({"writable": True, "candidate_sha256": commit.hex()}, commit, tables, nonce)
+                board.nonce = nn.step(board.nonce); board.cfg_valid = board.armed = 0
+                if ref.tag != tag: board.fault = po.F_ARM_AUTH; return
+                board.hw_commit = list(w[:8])
+                board.readout = po.expected_tables({int(h, 16): board.fabric[int(h, 16)] for h in MANIFEST["target_fars"]}, CONSTS)
+                if board.readout != tables: board.fault = po.F_ARM_TABLE; return
+                board.cfg_valid = board.armed = board.done = 1; board.scores = po.predict_scores(board.readout, CONSTS, holdout)
+            board.arm = arm_with_signer
+            session = bsn.BoardSession(FakeTransport(board))
+            cfg = {"manifest": MANIFEST, "bitstream": DUMMY / "p3.bit", "candidate": g.known_answer_candidate(PHEN),
+                   "signer": signer, "holdout": False, "consts": CONSTS, "table": TABLE, "negative": None}
+            s = l3.run_l3(session, Path(d), {"ruling": l3.RULING_TEXT}, cfg)
+            self.assertEqual(s["outcome"], "PASS", s["outcome"])
+            self.assertEqual(signer.key_id[:8], "b4c022a2")
+
+
 class Allowlist(unittest.TestCase):
     def test_axi_reads_and_writes_outside_the_map_are_refused_host_side(self):
         class Never:

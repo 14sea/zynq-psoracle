@@ -175,6 +175,10 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l2_17A6_2026-08-30-03/L2_4_post.json` |
 | `evidence/l2_17A6_2026-08-30-03/L2_5_write.json` |
 | `evidence/l2_17A6_2026-08-30-03/L2_6_readback.json` |
+| `host/l4_runner.py` |
+| `tests/test_l4_runner.py` |
+| `docs/l3_l4_runbook.md` |
+| `evidence/l4_gate_refused/L4_0_gate_refused.json` |
 | `evidence/l2_17A6_2026-08-29-01/L2_0_fclk.json` |
 | `evidence/l2_17A6_2026-08-29-01/L2_1_baseline.json` |
 | `evidence/l2_17A6_2026-08-29-01/L2_2_control.json` |
