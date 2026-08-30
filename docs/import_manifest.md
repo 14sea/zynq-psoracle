@@ -179,6 +179,12 @@ revisions and neither may be silently substituted for the other.
 | `tests/test_l4_runner.py` |
 | `docs/l3_l4_runbook.md` |
 | `evidence/l4_gate_refused/L4_0_gate_refused.json` |
+| `docs/l3_findings.md` |
+| `evidence/boundary/principal_boundary_2026-08-30-l3-01.json` |
+| `evidence/l3_17A6_2026-08-30-01/summary.json` |
+| `evidence/l3_17A6_2026-08-30-01/run_log.json` |
+| `evidence/l3_17A6_2026-08-30-01/stop.json` |
+| `evidence/l3_17A6_2026-08-30-01/ymodem.log` |
 | `evidence/l2_17A6_2026-08-29-01/L2_0_fclk.json` |
 | `evidence/l2_17A6_2026-08-29-01/L2_1_baseline.json` |
 | `evidence/l2_17A6_2026-08-29-01/L2_2_control.json` |

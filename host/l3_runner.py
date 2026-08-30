@@ -420,20 +420,31 @@ def run_l3(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
             reread_all += reread
             wrec = execute_write(session, f"L3_write_{s['index']}")
             writes.append(wrec)
+            pr.write_record(out_dir, wrec["stage"], wrec)
             summary["stages"][wrec["stage"]] = wrec["verdict"]
         staged_sha = rl.frames_hash(staged)
         if staged_sha != verdict["candidate_sha256"]:
             raise Stop(STOP_LINK2, "the frames re-read from DDR are not the gate's candidate")
         # ---- link 3
+        # link 3 reads ALL twelve frames before judging (reads are non-destructive): a stop then
+        # names every frame that did not read back as the candidate — session #1 (2026-08-30)
+        # stopped at the first BLANK and left the other eleven unobserved.
         read_frames: dict[int, list[int]] = {}
         readbacks = []
+        mismatches = []
         for far in sorted(cfg["candidate"]):
-            rec = readback_frame(session, table, far, cfg["candidate"][far], f"L3_read_{far:#010x}")
+            try:
+                rec = readback_frame(session, table, far, cfg["candidate"][far], f"L3_read_{far:#010x}")
+            except Stop as stop:
+                rec = stop.record or {"stage": f"L3_read_{far:#010x}", "verdict": "NO_RECORD", "detail": stop.detail}
+                mismatches.append(f"{far:#010x}: {rec.get('verdict')}")
             pr.write_record(out_dir, rec["stage"], rec)
             summary["stages"][rec["stage"]] = rec["verdict"]
-            read_frames[far] = [int(w, 16) for w in rec["readout"]][pp.FRAME_WORDS:2 * pp.FRAME_WORDS]
-            readbacks.append({"far": f"{far:#010x}", "frame_sha256": rec["frame_sha256"], "verdict": rec["verdict"]})
-        readback_sha = rl.frames_hash(read_frames)
+            if rec.get("readout"):
+                read_frames[far] = [int(w, 16) for w in rec["readout"]][pp.FRAME_WORDS:2 * pp.FRAME_WORDS]
+            readbacks.append({"far": f"{far:#010x}", "frame_sha256": rec.get("frame_sha256"), "verdict": rec.get("verdict"),
+                              "matched_far": rec.get("matched_far")})
+        readback_sha = rl.frames_hash(read_frames) if len(read_frames) == 12 else "00" * 32
         oracle = {"schema": "oracle_record", "schema_version": "1.0.0",
                   "session": {"boardid": summary["identity"]["parsed"]["boardid"], "epoch": session.epoch,
                               "plmark": session.plmark, "identity_sha256": hashlib.sha256(json.dumps(summary["identity"], sort_keys=True, default=str).encode()).hexdigest()},
@@ -446,7 +457,7 @@ def run_l3(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
                   "transport_rereads": list(session.rereads)}
         records.validate(oracle); recs.append(oracle)
         if readback_sha != verdict["candidate_sha256"]:
-            raise Stop(STOP_LINK3, "the frames read back over PCAP are not the candidate; no ARM")
+            raise Stop(STOP_LINK3, f"{len(mismatches)}/12 frames did not read back as the candidate ({'; '.join(mismatches)}); no ARM")
         # ---- arm + score
         plane = Plane(session)
         arm, score = arm_and_score(plane, cfg["signer"], verdict, tables, cfg.get("holdout", False))

@@ -208,7 +208,9 @@ class Chain(Harness):
         self.assertTrue(s["outcome"].startswith(f"STOP {l3.STOP_LINK3}"), s["outcome"])
         self.assertEqual(b.write_dmas, 3); self.assertEqual(b.arm_attempts, 0)
         self.assertNotIn("arm_record", [r["schema"] for r in log["records"]])
-        self.assertTrue(s["outcome"].split(":")[1].strip().startswith("0x00400a20"))
+        self.assertIn("4/12 frames", s["outcome"])   # the known answer differs from base in four frames
+        self.assertEqual(len(list(self.out.glob("L3_read_*.json"))), 12, "all twelve frames are read before the stop")
+        self.assertEqual(len(list(self.out.glob("L3_write_*.json"))), 3)
 
     def test_wrong_signer_key_is_refused_by_the_pl_and_yields_no_score(self):
         board = FakeP3Board(self.key)
