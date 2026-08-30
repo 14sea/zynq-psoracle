@@ -90,3 +90,25 @@ three-envelope PCAP write lands frame-exact in the fabric, PCAP readback after e
 envelope reports it faithfully, and later envelopes do not disturb earlier ones. The root
 cause of session #1 and diagnostic #1 was the host instrument and is fixed and
 board-verified. Session #1 (`unprovisioned`) can be re-run under a new `P3-L3` ruling.
+
+## Session #1 re-run (ruling `whole-of-probe P3-L3` `2026-08-30-03`, `--negative unprovisioned`) — PASS
+
+`evidence/l3_17A6_2026-08-30-03/`, 12 min 21 s, zero disruptions, zero re-reads. Boundary
+R1–R5 PASS beforehand. No provisioning (as ruled); `key_loaded_observed = false`.
+
+- link 1: known answer writable; `candidate_sha256 4f14db96…`.
+- stage / link 2 / write: three envelopes, each `dcache off` (verified) → staged → re-read
+  equal → **WRITTEN**.
+- link 3: **all twelve target frames read back as the candidate** — `readback_sha256` =
+  `staged_sha256` = `candidate_sha256` = `4f14db96…` (rule (iv) holds).
+- ARM: STATUS before `0x100` (alive, idle, no key), FAULT 0; after the strobe STATUS
+  `0x182` (fault, recovery_required, alive), FAULT **12 = F_ARM_NOKEY**;
+  `configuration_valid_hw` 0, no score; **nonce consumed**: `9e3779b97f4a7c15` →
+  `dc1b77ae0bf34dad`, which equals the host xorshift model's successor (`validators/nonce.py`)
+  — the PL's nonce generator matches the model on silicon.
+- negative_control `unprovisioned`: `refused_as_expected = true`; run log validates
+  (rules (i)–(vi); no score_record, as required).
+
+Scope (as ruled): only the `unprovisioned` control on this carrier/board; nothing about
+the positive case or the other controls. What it also shows, as observation: the full
+gate → stage → link 2 → write → link 3 chain over all twelve frames on 17A6.
