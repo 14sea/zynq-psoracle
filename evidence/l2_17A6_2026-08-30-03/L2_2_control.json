@@ -1,0 +1,46 @@
+{
+  "stage": "L2_2_control",
+  "verdict": "OK",
+  "wait_s": 30.0,
+  "diff": [],
+  "heartbeat": {
+    "verdict": "PASS",
+    "intervals": [
+      {
+        "dt_s": 20.201819,
+        "ticks": 1008371651,
+        "lo": 987439117,
+        "hi": 1032842755,
+        "ok": true,
+        "stalled": false,
+        "runaway": false,
+        "from": "L2_1_baseline",
+        "to": "L2_2_control"
+      },
+      {
+        "dt_s": 10.201262,
+        "ticks": 509908984,
+        "lo": 497411838,
+        "hi": 522814364,
+        "ok": true,
+        "stalled": false,
+        "runaway": false,
+        "from": "L2_2_control",
+        "to": "L2_2_control_wait_2"
+      },
+      {
+        "dt_s": 2.011989,
+        "ticks": 100627686,
+        "lo": 96137441,
+        "hi": 105161420,
+        "ok": true,
+        "stalled": false,
+        "runaway": false,
+        "from": "L2_2_control_wait_2",
+        "to": "L2_2_control"
+      }
+    ],
+    "compared": 3,
+    "ok": true
+  }
+}

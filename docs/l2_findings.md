@@ -37,3 +37,28 @@ Scope: nothing above is a PASS. What the two runs do show, as observations: the 
 carrier's stable-state words did not move across 10 reads + 1 envelope write + 1 readback
 in either run, the write landed bit-exact, and every decidable heartbeat interval was
 within 0.2 % of 50 MHz. Run #3 under spec v1.1, after the owner's review, decides L2.
+
+## Run #3 (ruling `2026-08-30-03`, spec v1.1) — PASS
+
+`evidence/l2_17A6_2026-08-30-03/summary.json`: outcome **PASS**, 12 min 20 s from claim to
+verdict. FCLK0 50.0 MHz → baseline → control OK → **10/10 PCAP reads PASS** → post →
+**envelope write WRITTEN** (D_P_DONE 0.20 s, CTRL `0x4e00e07f` unchanged, INT_STS
+`0x50033004`, no error bits) → **readback PASS, bit-exact** (`15cb05e6…` = the known
+answer's `0x00400A20`). Zero disruptions, zero re-reads.
+
+| invariant | result |
+|---|---|
+| state (8 words, 15 named samples) | **PASS** — every sample equals the baseline |
+| heartbeat (31 intervals over 15 named + 17 sub-samples, max Δt 20.34 s) | **PASS** — every interval inside its envelope; rate 49.8605–50.0901 MHz |
+
+Measured heartbeat envelope for the owner to pin into `carrier_manifest.axi.heartbeat`
+(`advances_per_s_min/max`, currently `null`): observed 49.86–50.09 MHz ticks/s over 31
+intervals; a pin of **[49.5 MHz, 50.5 MHz]** (±1 %, tighter than the derived ±2 % + jitter
+envelope) would have held on every interval of runs #2 (decidable ones) and #3. Not applied
+here — the manifest is the owner's.
+
+**Scope of this PASS** (as ruled before the run): the P3 carrier at sha `956379fa…` on
+17A6 under U-Boot; the nine observed words; ten pinned PCAP reads + one envelope write +
+one readback did not perturb the eight stable-state words and did not stall, perturb or
+run away the heartbeat counter. It is not a statement about general computational
+correctness of a PL design under PCAP activity, and it is not L3.
