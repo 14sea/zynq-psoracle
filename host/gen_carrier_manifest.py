@@ -49,6 +49,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("bit", type=Path); ap.add_argument("build_json", type=Path); ap.add_argument("out", type=Path)
     ap.add_argument("--nonce-seed", default=None)
+    ap.add_argument("--heartbeat-bounds", nargs=2, type=float, metavar=("MIN_HZ", "MAX_HZ"), default=None,
+                    help="owner-ruled L2 envelope (ticks/s); null until L2 PASS")
     a = ap.parse_args()
     data = a.bit.read_bytes()
     build = json.loads(a.build_json.read_text())
@@ -62,6 +64,12 @@ def main() -> int:
         sys.exit(f"target frames are not blank in this base: {blank}")
     target, min_h, dist = ds.select_target(frames, ds.MIN_NONZERO)
     reverse = ds.reverse_index(frames)
+    axi = json.loads(json.dumps(AXI))
+    if a.heartbeat_bounds:
+        lo, hi = a.heartbeat_bounds
+        axi["heartbeat"].update(advances_per_s_min=lo, advances_per_s_max=hi,
+                                note="pinned by the owner from L2 evidence (docs/l2_findings.md run #3, 2026-08-30-03); "
+                                     "the L2 heartbeat contract of this carrier/clock path, not a computational-correctness guarantee")
     m = {
         "schema": "carrier_manifest", "schema_version": "1.0.0",
         "bitstream_sha256": sha, "bitstream_bytes": len(data),
@@ -69,7 +77,7 @@ def main() -> int:
         "part": build["part"], "top": build["top"], "vivado": build["vivado"],
         "wns_ns": build["wns_ns"], "cell_isolation": build["cell_isolation"],
         "board_roles": {"17A6": "verify"},
-        "axi": AXI,
+        "axi": axi,
         "target_columns": ["CLBLL_L_X2", "CLBLM_L_X6"],
         "target_fars": [f"{f:#010x}" for f in TARGET_FARS],
         "target_frames_nonzero_words": blank,

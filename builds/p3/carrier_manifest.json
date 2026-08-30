@@ -28,9 +28,9 @@
     "heartbeat": {
       "offset": 8232,
       "width_bits": 32,
-      "advances_per_s_min": null,
-      "advances_per_s_max": null,
-      "note": "bounds are pinned from the L2 no-read baseline before the L2 ruling"
+      "advances_per_s_min": 49500000.0,
+      "advances_per_s_max": 50500000.0,
+      "note": "pinned by the owner from L2 evidence (docs/l2_findings.md run #3, 2026-08-30-03); the L2 heartbeat contract of this carrier/clock path, not a computational-correctness guarantee"
     },
     "nonce": {
       "lo": 8236,

@@ -36,7 +36,9 @@ class DummyKeyBuild(unittest.TestCase):
         axi = m["axi"]
         self.assertEqual(axi["stable_state"], [0x2004, 0x2008, 0x2010, 0x2014, 0x2018, 0x201C, 0x2020, 0x2024])
         self.assertEqual(axi["heartbeat"]["offset"], 0x2028)
-        self.assertIsNone(axi["heartbeat"]["advances_per_s_min"], "bounds are pinned only at L2")
+        # pinned by the owner after L2 run #3 (2026-08-30): ticks/s envelope of this carrier
+        self.assertEqual((axi["heartbeat"]["advances_per_s_min"], axi["heartbeat"]["advances_per_s_max"]), (49.5e6, 50.5e6))
+        self.assertIn("L2", axi["heartbeat"]["note"])
         self.assertEqual(axi["arm_payload"]["first"], 0x2100); self.assertTrue(axi["arm_payload"]["write_only"])
         rtl = (REPO / "rtl/p3_axil.v").read_text()
         for off in ("2004", "2008", "2028", "202C", "2030", "2100", "2150", "2200", "2240"):
