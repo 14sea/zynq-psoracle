@@ -1,0 +1,22 @@
+{
+  "stage": "D_2_write_env2",
+  "epoch": 0,
+  "plmark": "18d0863c6531d21c",
+  "dma": [
+    "0x10400001",
+    "0xffffffff",
+    "0x00000216",
+    "0x00000000"
+  ],
+  "observations": {
+    "ctrl_before": "0x4e00e07f",
+    "int_sts_after_clear": "0x50030004",
+    "ctrl_after": "0x4e00e07f"
+  },
+  "wait": {
+    "int_sts": "0x50033004",
+    "polls": 1,
+    "elapsed_s": 0.201565
+  },
+  "verdict": "WRITTEN"
+}

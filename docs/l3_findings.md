@@ -74,3 +74,19 @@ armed. zynq-psmap's write plan has the same latent gap; it is noted here, not ch
 Scope: session #1's STOP and this diagnostic are **host-instrument outcomes**; no board
 or fabric fault is indicated (JTAG: CRC_ERROR 0, frames as expected for an unconfigured
 write). The `unprovisioned` control has still not been exercised.
+
+## Diagnostic run #2 (ruling `whole-of-probe P3-L3-diag` `2026-08-30-03`, with the fix) — NO_REPRODUCTION
+
+Same sequence with `ensure_dcache_off` before every staging
+(`evidence/l3diag_17A6_2026-08-30-03/`): phase 0 env0 WRITTEN → `A20` **PASS**
+(`15cb05e6…`, 2 non-zero words); phase 1 env1 WRITTEN → `A20` PASS, `C1A` PASS; phase 2
+env2 WRITTEN → `A20`, `C1A`, `C20` all PASS. Zero disruptions, zero re-reads. Terminal JTAG
+(signer principal): `A20` = `15cb05e6…`, `C1A`/`C20` = base, `STAT 0x46107ffc`,
+`CRC_ERROR = 0`. Adjudication **NO_REPRODUCTION** — every FAR CONSISTENT across PCAP
+readback and JTAG.
+
+What this establishes (scoped to 17A6, this carrier, U-Boot): with the D-cache off, a
+three-envelope PCAP write lands frame-exact in the fabric, PCAP readback after each
+envelope reports it faithfully, and later envelopes do not disturb earlier ones. The root
+cause of session #1 and diagnostic #1 was the host instrument and is fixed and
+board-verified. Session #1 (`unprovisioned`) can be re-run under a new `P3-L3` ruling.
