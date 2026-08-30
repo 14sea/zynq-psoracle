@@ -34,6 +34,7 @@ udevadm control --reload && udevadm trigger --subsystem-match=usb
 cat > /etc/sudoers.d/p3signer <<SUDO
 $RUNNER_USER ALL=(p3signer) NOPASSWD: $(command -v python3) $REPO/host/sign_arm.py $STORE/K.bin
 $RUNNER_USER ALL=(p3signer) NOPASSWD: $(command -v python3) $REPO/host/sign_arm.py $STORE/K_control.bin
+$RUNNER_USER ALL=(p3signer) NOPASSWD: $(command -v python3) $REPO/host/l3_diag_jtag.py $REPO/evidence/*
 SUDO
 chmod 0440 /etc/sudoers.d/p3signer
 visudo -cf /etc/sudoers.d/p3signer
