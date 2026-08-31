@@ -308,6 +308,27 @@ class WireWiring(unittest.TestCase):
         self.assertLess(body.index('send_payload("AUDIT"'), body.index("S.audit_served = 1;"),
                         "the mark must be set after the words are sent, not before")
 
+    def test_every_candidate_that_staged_is_auditable(self):
+        """The audit policy in the source: a candidate that staged gets its words served
+        before its record — including the link-2 refusal, whose whole claim is about the
+        staged words. A gate refusal staged nothing and is exempt (see check_audit_policy)."""
+        run = APP[APP.index("static int run_candidate"):]
+        link2_stop = run.index('emit_record(&rec, "STOP_LINK2")')
+        self.assertLess(run.index("serve_audit(0)"), link2_stop,
+                        "the link-2 refusal must serve its staged words before its record")
+        for outcome in ("STOP_LINK3", "REFUSED_BY_PL", "SCORED"):
+            self.assertLess(run.index("serve_audit(1)"),
+                            run.index(f'emit_record(&rec, "{outcome}")'),
+                            f"{outcome} must be audited before its record is emitted")
+
+    def test_a_short_audit_cannot_be_served_as_a_full_one(self):
+        """A link-2 refusal has no readback frames; serving stale ones would be worse than
+        serving none, so the span is explicit and the totals differ."""
+        serve = APP[APP.index("static void serve_audit"):]
+        body = serve[:serve.index("\n}\n")]
+        self.assertIn('span = with_readback ? "streams+readback" : "streams"', body)
+        self.assertIn("total = with_readback ? (uint32_t)P3_AUDIT_WORDS", body)
+
     def test_the_hardware_witness_is_read_not_echoed(self):
         """Rules (ii)/(iii) compare the PL's own registers with the signed values; echoing
         the signed values back would make both comparisons vacuous."""

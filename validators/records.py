@@ -454,3 +454,40 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int) -
         raise RecordError("(ix) audit total != number of loop records")
     return {"scored": sum(1 for r in records if r["outcome"] == "SCORED"),
             "audited": audited, "chain_length": attempts}
+
+
+# Candidates whose record makes no oracle self-report: there are no raw words behind them,
+# so "audit them" is not a thing that can be done. A gate refusal staged nothing and is
+# corroborated by the notary_log itself (rule vii); STOP_AXI never reached staging.
+NO_SELF_REPORT_OUTCOMES = ("REFUSED_BY_GATE", "STOP_AXI")
+
+
+def check_audit_policy(log: dict, policy: str = "all-self-reporting") -> dict:
+    """The session-1 audit condition, machine-checked instead of asserted in prose.
+
+    The preregistration used to say "every candidate is audited". That is not a condition
+    any implementation can meet: a candidate refused by the gate never stages anything, so
+    no raw words exist for it. The condition that IS meaningful, and that this checks, is
+    that every candidate which made a claim the host cannot otherwise verify -- i.e. every
+    record carrying an `app_oracle_record`, and every candidate that staged and then
+    refused itself at link 2 -- was backed by raw words the application actually served.
+
+    Returns the accounting; raises RecordError naming the offenders.
+    """
+    if policy != "all-self-reporting":
+        raise RecordError(f"unknown audit policy {policy!r}")
+    must, exempt, offenders = [], [], []
+    for r in log["loop_records"]:
+        self_reporting = ("app_oracle_record" in r.get("evidence", {})
+                          or r["outcome"] == "STOP_LINK2")
+        if r["outcome"] in NO_SELF_REPORT_OUTCOMES or not self_reporting:
+            exempt.append(r["seq"])
+            continue
+        must.append(r["seq"])
+        if r["verified"] != "audited":
+            offenders.append(r["seq"])
+    if offenders:
+        raise RecordError(
+            f"audit policy {policy!r}: candidates {offenders} made a self-report the host "
+            f"cannot otherwise check but were not audited")
+    return {"policy": policy, "audited": must, "exempt_no_self_report": exempt}

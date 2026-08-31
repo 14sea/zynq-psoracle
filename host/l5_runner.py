@@ -214,6 +214,9 @@ def run_l5(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         try:
             summary["run_log_validation"] = records.validate_standalone_run_log(
                 log, blank_commit, cfg["seed_nonce"])
+            if cfg["audit_all"]:
+                # the session-1 audit condition, checked rather than asserted in prose
+                summary["audit_policy"] = records.check_audit_policy(log)
             summary["outcome"] = ("PASS" if collector.epoch_end["kind"] == "COMPLETED"
                                   else f"HOLD {collector.epoch_end['kind']}: "
                                        f"{collector.epoch_end.get('reason')}")

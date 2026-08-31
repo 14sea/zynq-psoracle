@@ -13,8 +13,9 @@ application's framed output had never been checked against the host validator th
 it (the rehearsal exercised the *Python* reference loop), so the image could not have
 produced a session the host could adjudicate.
 
-**Image `7540239f…` is WITHDRAWN. The pinned image is `b279459c…`** (byte-identical across
-clean rebuilds; `build.sh` now emits the `.bin` itself).
+**Pinned image: `d3828a8c…`.** `7540239f…` and `b279459c…` are withdrawn — see
+`docs/l5_wire_findings.md` §7 for why each was replaced. Round 4 also corrected the audit
+condition, which round 3 showed was unimplementable as written.
 
 What to review, in order:
 

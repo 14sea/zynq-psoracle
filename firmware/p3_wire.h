@@ -114,8 +114,12 @@ size_t p3_wire_loop_record(const p3_wire_record_in *in, char *out, size_t max);
  * reassembles `chunk`/`chunks`, recomputes both link-2 hashes and the link-3 hash, and
  * compares them with the compact record it already holds (spec 4.7). `words_b64` is
  * base64url of the chunk's words, big-endian, 4 bytes each. */
+/* `span` names WHICH raw words this audit covers, because a candidate that ended at link 2
+ * has staging streams but no readback frames: "streams" or "streams+readback". The host
+ * must not silently treat a short audit as a full one. */
 size_t p3_wire_audit(uint32_t seq, uint32_t chunk, uint32_t chunks, uint32_t word_offset,
-                     uint32_t word_count, const char *words_b64, char *out, size_t max);
+                     uint32_t word_count, uint32_t total_words, const char *span,
+                     const char *words_b64, char *out, size_t max);
 
 /* ------------------------------------------------------------------ closing control - */
 

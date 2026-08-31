@@ -668,14 +668,21 @@ static uint32_t audit_word(uint32_t i)
     return S.readback[i / P3_FRAME_WORDS][i % P3_FRAME_WORDS];
 }
 
-static void serve_audit(void)
+/* `with_readback` is 0 for a candidate that ended at link 2: its staging streams exist but
+ * its readback frames do not, and serving stale frames as if they were this candidate's
+ * would be worse than serving none. The `span` field says which it is, so a short audit is
+ * never mistaken for a full one. */
+static void serve_audit(int with_readback)
 {
-    uint32_t chunks = (P3_AUDIT_WORDS + P3_AUDIT_CHUNK - 1) / P3_AUDIT_CHUNK;
+    uint32_t total = with_readback ? (uint32_t)P3_AUDIT_WORDS
+                                   : (uint32_t)P3_AUDIT_STREAM_WORDS;
+    const char *span = with_readback ? "streams+readback" : "streams";
+    uint32_t chunks = (total + P3_AUDIT_CHUNK - 1) / P3_AUDIT_CHUNK;
     uint32_t c;
 
     for (c = 0; c < chunks && S.kind == P3_RUNNING; c++) {
         uint32_t off = c * (uint32_t)P3_AUDIT_CHUNK;
-        uint32_t count = (uint32_t)P3_AUDIT_WORDS - off;
+        uint32_t count = total - off;
         uint32_t i;
         size_t b64n;
 
@@ -694,7 +701,7 @@ static void serve_audit(void)
             return;
         }
         send_payload("AUDIT", S.seq,
-                     p3_wire_audit(S.seq, c, chunks, off, count, g_words_b64,
+                     p3_wire_audit(S.seq, c, chunks, off, count, total, span, g_words_b64,
                                    g_payload, sizeof(g_payload)));
     }
     if (S.kind == P3_RUNNING) {
@@ -768,7 +775,11 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
         S.audit_requested = 1;
     }
     if (!strcmp(type, "SIGNREF")) {
-        /* a gate refusal is DATA, not a channel failure (§3c): the session continues */
+        /* a gate refusal is DATA, not a channel failure (§3c): the session continues.
+         * NOT audited, and deliberately so: nothing was staged, so no raw words exist, and
+         * this record makes no oracle self-report to check. Its evidence is the notary's
+         * OWN refusal, which the host already holds and rule (vii) cross-checks — a
+         * stronger corroboration than an audit, not a weaker one. */
         static const char *const refused_kind[] = {"gate_refusal"};
         S.refused++;
         rec.have_sign_refusal = 1;
@@ -807,6 +818,11 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
         return -1;
     if (strcmp(staged, commit) != 0) { /* the binding, BEFORE any DMA */
         p3_stop(P3_STOPPED, "STOP_LINK2: staged frames are not the signed commit");
+        /* The staging streams exist, so this refusal is auditable and IS audited: the
+         * application is asserting `staged != commit` and the host would otherwise have to
+         * take that on trust. The readback frames do not exist, hence a "streams" span. */
+        if (S.audit_requested)
+            serve_audit(0);
         emit_record(&rec, "STOP_LINK2");
         return -1;
     }
@@ -829,7 +845,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
      * record that will claim it — including on the STOP_LINK3 path, where the raw words
      * are exactly what a reviewer would want */
     if (S.audit_requested)
-        serve_audit();
+        serve_audit(1);
     if (strcmp(readback, commit) != 0) {
         p3_stop(P3_STOPPED, "STOP_LINK3: the fabric did not read back as the candidate");
         emit_record(&rec, "STOP_LINK3");

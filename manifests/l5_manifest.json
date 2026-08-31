@@ -71,10 +71,10 @@
     "boundary_record_max_age_h": 6
   },
   "pinned_at_build": {
-    "app_image_sha256": "b279459cf0c1df0aa14a3c63906d33fdc9aca82e6c819a286898e43f06424caf",
+    "app_image_sha256": "d3828a8c0ab8a0df0793f26ec9eb1210ce8c1a3a6de271f3932d5bc9947abdce",
     "app_image": "firmware/bsp/out/p3_app.bin (raw binary, 81940 bytes, loaded at 0x02000000, `go`)",
-    "app_image_final_because": "REBUILT 2026-08-31 after the wire-protocol fix. The previous image (7540239f\u2026) is WITHDRAWN: its framed output could not satisfy the validator (no IDENT, no HB, no audit, flat loop_records, CLOSING_CONTROL as an outcome), so it could never have produced a session the host could adjudicate. This hash is reproducible: two clean builds are byte-identical, and firmware/bsp/build.sh now emits the .bin itself.",
-    "elf_sha256": "a362fa1315ea74a6cc913e09e9e8455f40358cf390546533e01356da092d16e4",
+    "app_image_final_because": "REBUILT 2026-08-31 (round 4) after the audit-timing correction: a candidate that ends at link 2 now has its staged words served before its record, and the audit span is explicit so a short audit cannot pass as a full one. Two clean builds are byte-identical; firmware/bsp/build.sh emits the .bin itself.",
+    "elf_sha256": "3feba8443d2bbc7808c539df8ac9f88032a22d7ad03cbf60abbf4653731ce83f",
     "toolchain": {
       "name": "xpack-dev-tools/arm-none-eabi-gcc",
       "version": "14.2.1-1.1",
@@ -127,8 +127,17 @@
       {
         "sha256": "7540239fbba07e6a8a19d9081f8e21220f0fdac2f3ba7b48e88f34767da8005e",
         "why": "wire protocol incompatible with validate_standalone_run_log; see docs/l5_wire_findings.md"
+      },
+      {
+        "sha256": "b279459cf0c1df0aa14a3c63906d33fdc9aca82e6c819a286898e43f06424caf",
+        "why": "superseded by the audit-timing correction (a link-2 refusal was unauditable); no defect in what it did emit \u2014 see docs/l5_wire_findings.md \u00a77"
       }
-    ]
+    ],
+    "audit_policy": {
+      "policy": "all-self-reporting",
+      "checked_by": "validators.records.check_audit_policy, called by host/l5_runner.py",
+      "note": "every candidate that staged is audited (including a link-2 refusal, whose claim is about the staged words). A gate refusal staged nothing, so no raw words exist and it is exempt; its corroboration is the notary_log's own refusal under rule (vii). 'Every candidate is audited' was not implementable and is no longer the condition."
+    }
   },
   "provenance": {
     "phenotype_manifest_sha256": "e45f466d082ccd6f227e6f9be4ce75a4e98c4caa708808c09a77ed32331c10ef",

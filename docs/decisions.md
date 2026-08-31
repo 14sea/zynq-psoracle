@@ -315,3 +315,30 @@ to emit an adjudicable session is.
 
 Standing unchanged and still the owner's: nothing pushed, no `P3-L5`/`P3-K` ruling, no board
 contact, and no test result here is evidence that the firmware has run — it never has.
+
+## 2026-08-31 — round 3 HOLD: the audit condition was not implementable
+
+Review round 3 held the batch on a spec/implementation contradiction: the preregistration
+required "session 1 audits every candidate", which no implementation can meet.
+
+One correction to the finding's premise, checked against the source before acting: the
+*current* candidate **is** audited — the request arrives during the notary exchange, before
+staging, and is served after link 3 and before the record (`p3_app.c` serve_audit call
+sites). The conclusion stood for a different reason: **candidates that end before staging
+have no raw words at all**, so no timing can audit them.
+
+Both halves of the reviewer's choice were taken. *Protocol:* a candidate that staged and
+then refused itself at link 2 now serves its staged words before its record — its whole
+claim is `staged != commit`, which the host otherwise had to take on trust — and the audit
+carries `span`/`total_words` so a short audit (streams only) can never be read as a full
+one. *Preregistration:* the condition is now `all-self-reporting` — every candidate that
+staged is audited; a gate refusal staged nothing, is exempt, and is **recorded as exempt**,
+corroborated instead by the notary log's own refusal under rule (vii).
+
+It is machine-checked (`validators.records.check_audit_policy`, called by
+`host/l5_runner.py`): a PASS cannot be reported if a self-reporting candidate went
+unaudited. Marking a gate refusal `audited` would have been a false claim and was refused.
+
+Image `b279459c…` withdrawn in favour of `d3828a8c…` (no defect in what it emitted; the
+link-2 refusal was simply unauditable). 373 tests / 0 skipped. Not pushed, no ruling, no
+board contact; the firmware has still never run.

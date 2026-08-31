@@ -63,16 +63,36 @@ sent (`test_the_audited_mark_means_words_were_served`).
 `functional_readout` come from `HW_COMMIT0`/`READOUT0`. Echoing the signed values back would
 have made validator rules (ii) and (iii) vacuous.
 
-### An honest limitation of the audit
+### The audit's timing, and what it can and cannot cover (round 4)
 
-The audit request is attached to the notary exchange **before** the candidate is staged, so
-the words it will be asked for do not exist yet and cannot be fabricated to fit a record;
-they are served before the record, which is why `verified` can be truthful at emission. But
-because the request arrives in advance, this is **weaker than a surprise post-hoc audit** at
-rates below 100 %. Session 1 audits every candidate, so every record it emits is backed by
-served words and the gap does not bite here. A surprise audit of an *earlier* candidate needs
-the W-deep ring, and a way to record the result without the collector rewriting the
-application's own self-report; that is not built and is not claimed.
+The request is attached to the notary exchange **before** the candidate is staged, so the
+words it will be asked for do not exist yet and cannot be fabricated to fit a record; they
+are served after the words exist and **before** the record that claims them, which is why
+`verified` can be truthful at emission.
+
+Review round 3 flagged that "session 1 audits every candidate" was incompatible with this
+timing. The premise needed one correction — the *current* candidate is audited, not only
+earlier ones — but the conclusion was right for a different reason: **candidates that end
+before staging have no raw words at all**, so no timing can audit them. The fix is both
+halves of the reviewer's choice:
+
+- *protocol* — a candidate that staged and then refused itself at **link 2** now serves its
+  staged words before its record. Its whole claim is `staged != commit`, which the host
+  otherwise had to take on trust; it is now checkable. The audit carries `span` and
+  `total_words` so a short audit (streams only, no readback frames) can never be read as a
+  full one.
+- *preregistration* — the condition is now `all-self-reporting`: every candidate that
+  staged is audited; a **gate** refusal staged nothing and is exempt **and recorded as
+  exempt**, corroborated instead by the notary log's own refusal under rule (vii). It is
+  machine-checked by `validators.records.check_audit_policy`, which `host/l5_runner.py`
+  calls, so a `PASS` cannot be reported if a self-reporting candidate went unaudited.
+
+Still true and still a limitation: because the request arrives in advance, this is **weaker
+than a surprise post-hoc audit** at rates below 100 %. At this session's rate every
+self-reporting candidate is audited, so the gap does not bite here. A surprise audit of an
+*earlier* candidate needs the W-deep ring plus a way to record the result without the
+collector rewriting the application's own self-report; that is not built and is not
+claimed.
 
 ## 3. `fclk0_hz_decoded`
 
@@ -101,7 +121,7 @@ the *reason*, because a refusal for an earlier cause would prove nothing.
 
 ## 5. The image
 
-`app_image_sha256` = **`b279459c…`** (81 940 bytes). Two clean builds are byte-identical, and
+`app_image_sha256` = **`d3828a8c…`** (see §7 for the history). Two clean builds are byte-identical, and
 `firmware/bsp/build.sh` now emits the `.bin` itself — it previously produced only the ELF, so
 the pinned hash was not reproducible from the script alone.
 
@@ -117,3 +137,11 @@ those are **static** source-audit checks (`tests/test_firmware_audit.py`, class
 `WireWiring`), and they are named as static so a green run is not read as the board having
 run. The application has still **never been executed on hardware**. Nothing here is evidence
 about the PL, the transport, or timing.
+
+## 7. Image history
+
+| image | standing |
+|---|---|
+| `7540239f…` | **withdrawn** — could never have produced an adjudicable session (§1) |
+| `b279459c…` | **withdrawn** — no defect in what it emitted, but a link-2 refusal was unauditable |
+| `d3828a8c…` | **pinned** — byte-identical across clean rebuilds |

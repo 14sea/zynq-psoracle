@@ -204,11 +204,59 @@ class WireContract(unittest.TestCase):
         import base64
         b64 = base64.urlsafe_b64encode(words).decode()
         line, = self.twin(f"audit token={TOKEN} seq=2 chunk=0 chunks=4 word_offset=0 "
-                          f"word_count=16 words={b64}")
+                          f"word_count=16 total_words=2814 span=streams+readback words={b64}")
         payload = n.decode_payload(n.parse_line(line)["payload"])
         self.assertEqual(payload["schema"], "app_audit_chunk")
         self.assertEqual((payload["chunks"], payload["word_count"]), (4, 16))
         self.assertEqual(base64.urlsafe_b64decode(payload["words"]), words)
+
+    def test_a_short_audit_says_so_and_cannot_pass_as_a_full_one(self):
+        """A candidate that ended at link 2 has staging streams but no readback frames;
+        `span` and `total_words` keep the host from treating that as a full audit."""
+        short, = self.twin(f"audit token={TOKEN} seq=3 chunk=0 chunks=5 word_offset=0 "
+                           f"word_count=384 total_words=1602 span=streams words=AAAA")
+        full, = self.twin(f"audit token={TOKEN} seq=4 chunk=0 chunks=8 word_offset=0 "
+                          f"word_count=384 total_words=2814 span=streams+readback words=AAAA")
+        s = n.decode_payload(n.parse_line(short)["payload"])
+        f = n.decode_payload(n.parse_line(full)["payload"])
+        self.assertEqual(s["span"], "streams")
+        self.assertEqual(f["span"], "streams+readback")
+        self.assertLess(s["total_words"], f["total_words"])
+
+    # -- the audit policy the preregistration can actually require ---------------------
+
+    def test_the_audit_policy_holds_for_a_session_of_c_emitted_records(self):
+        log = self._session([gn.corpus_genome(2, self.manifest)])
+        out = records.check_audit_policy(log)
+        self.assertEqual(len(out["audited"]), 3)
+        self.assertEqual(out["exempt_no_self_report"], [])
+
+    def test_a_gate_refusal_is_exempt_because_it_staged_nothing(self):
+        """Nothing was staged, so no raw words exist; the notary_log's own refusal is the
+        corroboration (rule vii). Marking it 'audited' would be a lie."""
+        log = {"loop_records": [
+            {"seq": 1, "outcome": "SCORED", "verified": "audited",
+             "evidence": {"app_oracle_record": {}}},
+            {"seq": 2, "outcome": "REFUSED_BY_GATE", "verified": "replayed-only",
+             "evidence": {"sign_refusal": {}}}]}
+        self.assertEqual(records.check_audit_policy(log)["exempt_no_self_report"], [2])
+
+    def test_an_unaudited_self_report_is_refused(self):
+        """Discrimination: the policy must reject exactly what it exists to catch."""
+        log = {"loop_records": [
+            {"seq": 1, "outcome": "SCORED", "verified": "replayed-only",
+             "evidence": {"app_oracle_record": {}}}]}
+        with self.assertRaises(records.RecordError):
+            records.check_audit_policy(log)
+
+    def test_a_link2_refusal_must_be_audited_because_it_staged(self):
+        """STOP_LINK2 asserts `staged != commit`; the host cannot check that claim without
+        the staged words, so it is NOT exempt."""
+        log = {"loop_records": [
+            {"seq": 1, "outcome": "STOP_LINK2", "verified": "replayed-only",
+             "evidence": {"sign_reply": {}}}]}
+        with self.assertRaises(records.RecordError):
+            records.check_audit_policy(log)
 
     def test_every_c_line_survives_the_real_frame_parser(self):
         log_lines = self.twin(

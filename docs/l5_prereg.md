@@ -59,10 +59,33 @@ search candidates, closing baseline (= restore), closing unsigned ARM.
 the loop, the taxonomy, the brackets and the evidence chain behave as specified, not that
 the board can run for hours. A long run is a later prereg with its own ruling.
 
-**Audit rate: every candidate.** For N = 8 the raw-word upload (≈ 16 KiB ≈ 1.5 s each) is
-affordable, so the first session audits **all** of them and the bounded-guarantee caveat
-(non-claim 5) is, for this session, discharged completely. The 1/16 sampling rate in
-`docs/l5_design.md` §1 belongs to the long-run prereg, not to this one.
+**Audit rate: every candidate that has raw words — policy `all-self-reporting`.** For N = 8
+the raw-word upload (≈ 16 KiB ≈ 1.5 s each) is affordable, so this session audits every
+candidate it *can*. The 1/16 sampling rate in `docs/l5_design.md` §1 belongs to the long-run
+prereg, not to this one.
+
+This clause used to read "the first session audits **all** of them". That was not a
+condition any implementation could meet, and saying it while shipping something weaker
+would have been the worst of the options. A candidate refused by the **gate** never stages
+anything: no raw words exist for it, so there is nothing to audit, and its record makes no
+oracle self-report. Its corroboration is the notary log's own refusal, which the host wrote
+itself and which rule (vii) cross-checks — stronger than an audit, not weaker.
+
+The condition, exactly:
+
+- every candidate that **staged** is audited before its own record is emitted. That
+  includes a **link-2 refusal**, whose entire claim is `staged != commit` and which the
+  host could not otherwise check; its audit carries the staging streams and says so
+  (`span: "streams"`, no readback frames exist yet).
+- a candidate refused by the gate, or stopped before staging (`STOP_AXI`), is **exempt and
+  recorded as exempt**; marking it `audited` would be a false claim.
+- `verified: "audited"` continues to mean the words were **served**, never that auditing
+  was configured.
+
+This is checked, not asserted: `validators.records.check_audit_policy` recomputes it from
+the log and `host/l5_runner.py` calls it, so a session that quietly failed to audit a
+self-reporting candidate cannot be reported as a pass. **A `PASS` requires
+`check_audit_policy` to return without raising.**
 
 **Rulings.** One `whole-of-probe P3-L5` and one `provisioning P3-K`, both created by the
 owner, consumed by any outcome. Before the runner starts: power cycle, and
@@ -149,7 +172,7 @@ session pass: a change to any of them invalidates this preregistration and requi
 one.
 
 Also fixed: the application image itself. The build is done and its hash is pinned
-(`manifests/l5_manifest.json` `pinned_at_build.app_image_sha256` = `b279459c…`).
+(`manifests/l5_manifest.json` `pinned_at_build.app_image_sha256` = `d3828a8c…`).
 
 **Image change on record (2026-08-31).** The earlier image `7540239f…` is **withdrawn**. It
 was not superseded by a preference: its framed output could not satisfy this

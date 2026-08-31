@@ -243,7 +243,8 @@ static void cmd_audit(void)
     emit("AUDIT", (uint32_t)kv_u("seq", 1), kv_or("token", ""),
          p3_wire_audit((uint32_t)kv_u("seq", 1), (uint32_t)kv_u("chunk", 0),
                        (uint32_t)kv_u("chunks", 1), (uint32_t)kv_u("word_offset", 0),
-                       (uint32_t)kv_u("word_count", 0), kv_or("words", ""),
+                       (uint32_t)kv_u("word_count", 0), (uint32_t)kv_u("total_words", 0),
+                       kv_or("span", "streams+readback"), kv_or("words", ""),
                        g_plain, sizeof(g_plain)));
 }
 

@@ -257,16 +257,19 @@ size_t p3_wire_loop_record(const p3_wire_record_in *in, char *out, size_t max)
 /* ------------------------------------------------------------------ audit ----------- */
 
 size_t p3_wire_audit(uint32_t seq, uint32_t chunk, uint32_t chunks, uint32_t word_offset,
-                     uint32_t word_count, const char *words_b64, char *out, size_t max)
+                     uint32_t word_count, uint32_t total_words, const char *span,
+                     const char *words_b64, char *out, size_t max)
 {
     p3_w w;
 
     w_init(&w, out, max);
     w_fmt(&w, "{\"chunk\":%lu,\"chunks\":%lu,\"schema\":\"app_audit_chunk\","
-              "\"schema_version\":\"1.0.0\",\"seq\":%lu,\"word_count\":%lu,"
-              "\"word_offset\":%lu,\"words\":",
-          (unsigned long)chunk, (unsigned long)chunks, (unsigned long)seq,
-          (unsigned long)word_count, (unsigned long)word_offset);
+              "\"schema_version\":\"1.0.0\",\"seq\":%lu,\"span\":",
+          (unsigned long)chunk, (unsigned long)chunks, (unsigned long)seq);
+    w_str(&w, span);
+    w_fmt(&w, ",\"total_words\":%lu,\"word_count\":%lu,\"word_offset\":%lu,\"words\":",
+          (unsigned long)total_words, (unsigned long)word_count,
+          (unsigned long)word_offset);
     w_str(&w, words_b64);
     w_fmt(&w, "}");
     return w_done(&w);
