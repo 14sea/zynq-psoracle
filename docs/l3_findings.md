@@ -214,3 +214,9 @@ predicted; every negative control refused; hardware-exposed commit == gate hash;
 replays" — are met on the evidence above; the adjudication is the owner's. Scope: 17A6,
 this carrier (`956379fa…`), U-Boot, the fabricmap LUT0 known answer; `wrong_table` was
 not run (optional).
+
+**Owner's adjudication (2026-08-31): L3 PASS (scoped).** All ladder §6 L3 conditions met
+(positive reproduced in #2/#3/#4 with scores = prediction; links 1–3 bit-exact over 12
+frames; HW_COMMIT = gate hash; unsigned/replay/other-candidate/wrong-key refused in the PL;
+no score without `configuration_valid_hw`; nonce consumed per attempt and = model; run
+logs replay; rulings consumed). `wrong_table` optional, not run. Scope as stated above.
