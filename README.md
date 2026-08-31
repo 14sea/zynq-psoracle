@@ -26,8 +26,8 @@ match bit anywhere that the host must take on trust.
 ## Status
 
 **Canonical status table: [`docs/status.md`](docs/status.md)** — L0, D4, L1, L2, L3 (scoped), L4 all
-**PASS** on EBAZ4203 `17A6` as of 2026-08-31; the L0–L4 overall review is pending its re-review;
-L5 is not specified (D1 first). The per-rung rows below are a summary; where they and
+**PASS** on EBAZ4203 `17A6` as of 2026-08-31, and the **L0–L4 overall review is PASS (scoped)**;
+L5 is not specified (D1 host-only specification is next). The per-rung rows below are a summary; where they and
 `docs/status.md` disagree, `docs/status.md` wins.
 
 | rung | state |

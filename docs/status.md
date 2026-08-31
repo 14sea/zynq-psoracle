@@ -13,8 +13,8 @@ and the other text is historical. Updated with every adjudication.
 | L2 = P2b non-perturbation | **PASS** on 17A6 | owner 2026-08-30, run #3 (ruling `2026-08-30-03`) | `evidence/l2_17A6_2026-08-30-03/`, `docs/l2_findings.md`; heartbeat pinned [49.5, 50.5] MHz |
 | L3 one gated candidate | **PASS (scoped)** on 17A6 | owner 2026-08-31, five sessions | `evidence/l3_17A6_2026-08-30-03/`, `…2026-08-31-0{2,3,4,5}/`, `docs/l3_findings.md` |
 | L4 fault / restore / baseline | **PASS** on 17A6 | owner 2026-08-31 (this table records the adjudication the owner gave in the L0–L4 review; see below) | `evidence/l4_17A6_2026-08-31-06/`, `docs/l4_findings.md` |
-| L0–L4 overall review | **HOLD → pending re-review** (2026-08-31): documentation drift (fixed by this table + historical banners) and a test-environment caveat (below) | owner | this file |
-| L5 the loop | not specified; **D1** (standalone) to be specified first | — | `docs/decisions.md` D1 |
+| L0–L4 overall review | **PASS (scoped)** — 2026-08-31, after two HOLDs (documentation drift → this table + historical banners; test-evidence plumbing → fail-closed `host/test_report.py`) | owner | this file; `evidence/tests/test_report_2026-08-31T15350{1,7}Z.json` |
+| L5 the loop | not specified; **D1** (standalone / bare-metal loop) host-only specification is the next authorised work — **no L5 build, no board contact** | — | `docs/decisions.md` D1 |
 
 Board: EBAZ4203 `17A6`, U-Boot control plane, carrier `builds/p3/p3.bit` (`956379fa…`).
 Sessions: 2 L2 instrument outcomes + 1 PASS; L3 session #1 STOP (instrument) + diagnostic ×2
