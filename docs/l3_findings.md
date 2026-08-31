@@ -181,3 +181,36 @@ candidate's commit words: FAULT **13 = F_ARM_AUTH**, STATUS `0x982` (fault,
 recovery_required, alive, key_loaded), cfg_valid 0, no score, nonce consumed (= model). A
 valid signature is bound to the commit it was made for: swapping the commit breaks it in
 the PL, not in a host check. Run log validates; both rulings consumed.
+
+## Session #5 (rulings `P3-L3 2026-08-31-05` + `P3-K 2026-08-31-05`, `--negative wrong_key`, pre-positive) — PASS
+
+`evidence/l3_17A6_2026-08-31-05/`, 13 min 9 s, zero disruptions; one readback `md.l` dropped
+line re-read (§2b, counted). The signer provisioned **`K_control.bin`** (key_id `924dd930…`,
+rc 0, `key_loaded` observed); 12/12 readback; the positive ARM, signed under **`K`**
+(`b4c022a2…`): FAULT **13 = F_ARM_AUTH**, STATUS `0x982`, cfg_valid 0, **no score_record**,
+nonce consumed (= model). The PL's key is the one that counts; a tag under any other key is
+refused in hardware. (Instrument note: this session's `arm_record.signer` recorded only the
+signing key's id; `provisioned_key_id` is now recorded alongside, host-only fix after the
+run — the evidence's `summary.provisioning`/`key_id` and the signer's marker identify the
+control key unambiguously.)
+
+## L3 — all five sessions on 17A6 (for the owner's overall adjudication)
+
+| # | control | rulings | provisioned key | positive | control result | run log |
+|---|---|---|---|---|---|---|
+| 1 | `unprovisioned` (pre) | L3 `08-30-03` | none | (ARM refused) | `F_ARM_NOKEY` 12, nonce consumed | PASS |
+| 2 | `unsigned` | L3+K `08-31-02` | K | scores `[35,22,20,20,20,18]`, `HW_COMMIT` = gate | `F_ARM_AUTH` 13 | PASS |
+| 3 | `replay` | L3+K `08-31-03` | K | reproduced | `F_ARM_AUTH` 13 | PASS |
+| 4 | `other_candidate` | L3+K `08-31-04` | K | reproduced | `F_ARM_AUTH` 13 | PASS |
+| 5 | `wrong_key` (pre) | L3+K `08-31-05` | K_control | (ARM refused) | `F_ARM_AUTH` 13 | PASS |
+
+Invariants held in every session: links 1–3 bit-exact over all twelve frames; no score
+without `configuration_valid_hw`; every negative control refused with its expected fault
+and consumed the nonce; every nonce value equals the host xorshift model; zero transport
+disruptions (three §2b re-reads in total). Instrument outcomes on the way (not board
+findings): session #1 attempt 1 and diagnostic #1 (D-cache), session #2 attempt 1
+(pre-claimed P3-K ruling). Ladder §6 L3 PASS criteria — "positive case scores as
+predicted; every negative control refused; hardware-exposed commit == gate hash; run log
+replays" — are met on the evidence above; the adjudication is the owner's. Scope: 17A6,
+this carrier (`956379fa…`), U-Boot, the fabricmap LUT0 known answer; `wrong_table` was
+not run (optional).

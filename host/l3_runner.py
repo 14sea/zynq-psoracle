@@ -263,7 +263,8 @@ def readback_frame(session: bsn.BoardSession, table: dict, far: int, expected: l
 # ---------------------------------------------------------------- the ARM transaction
 
 
-def arm_and_score(plane: Plane, signer, gate_verdict: dict, tables: list[int], holdout: bool) -> tuple[dict, dict | None]:
+def arm_and_score(plane: Plane, signer, gate_verdict: dict, tables: list[int], holdout: bool,
+                  provisioned_key_id: str | None = None) -> tuple[dict, dict | None]:
     status, fault = plane.read(po.STATUS), plane.read(po.FAULT)
     problems = []
     if status & po.ST_RESERVED or not status >> po.ST["alive"] & 1:
@@ -288,7 +289,8 @@ def arm_and_score(plane: Plane, signer, gate_verdict: dict, tables: list[int], h
     arm_record = {"schema": "arm_record", "schema_version": "1.0.0",
                   "nonce": f"{nonce_int:016x}", "candidate_commit": commit.hex(),
                   "expected_tables": [f"{t:016x}" for t in tables], "tag": payload.tag.hex(),
-                  "signer": {"principal": "gate-signer", "key_id": getattr(signer, "key_id", None)},
+                  "signer": {"principal": "gate-signer", "key_id": getattr(signer, "key_id", None),
+                             "provisioned_key_id": provisioned_key_id},   # the key the PL holds; == key_id except in the wrong_key control
                   "axi_before": {"status": f"{status:#010x}", "fault": f"{fault:#x}"},
                   "key_loaded_observed": key_loaded,
                   "mode_holdout": holdout, "armed_at": time.time(), "_payload": payload}
@@ -418,6 +420,7 @@ def run_l3(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
                                            ruling=cfg.get("provision_ruling"),
                                            alt_key_path=cfg.get("wrong_key_path") if neg == "wrong_key" else None)
             summary["provisioning"] = prov
+            summary["provisioned_key_id"] = getattr(cfg["signer"], "key_id", None)   # may differ from the signing key (wrong_key)
         st = Plane(session).read(po.STATUS)
         summary["key_loaded_observed"] = bool(st >> po.ST["key_loaded"] & 1)
         if neg != "unprovisioned" and not summary["key_loaded_observed"]:
@@ -475,7 +478,8 @@ def run_l3(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
             raise Stop(STOP_LINK3, f"{len(mismatches)}/12 frames did not read back as the candidate ({'; '.join(mismatches)}); no ARM")
         # ---- arm + score
         plane = Plane(session)
-        arm, score = arm_and_score(plane, cfg["signer"], verdict, tables, cfg.get("holdout", False))
+        arm, score = arm_and_score(plane, cfg["signer"], verdict, tables, cfg.get("holdout", False),
+                                   provisioned_key_id=summary.get("provisioned_key_id"))
         arm_payload = arm.pop("_payload")
         arm.update(oracle_record_sha256=records.canonical_sha256(oracle),
                    gate_verdict_sha256=records.canonical_sha256(verdict), epoch=session.epoch)

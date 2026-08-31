@@ -324,6 +324,8 @@ class NegativeControls(Harness):
         self.assertEqual(s["outcome"], "PASS", s["outcome"])
         self.assertEqual(b.fault, po.F_ARM_AUTH)
         self.assertEqual(log["records"][-1]["kind"], "wrong_key")
+        arm = next(r for r in log["records"] if r["schema"] == "arm_record")
+        self.assertNotEqual(arm["signer"]["provisioned_key_id"], arm["signer"]["key_id"], "the PL holds the control key, the tag is under K")
         self.assertNotIn("score_record", [r["schema"] for r in log["records"]])
 
     def test_key_not_loaded_after_provisioning_stops_before_any_arm(self):
