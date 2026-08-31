@@ -213,6 +213,8 @@ def main(argv=None) -> int:
         outcome = f"REFUSED: {exc}"
     finally:
         pr.record_outcome(consumed, outcome)
+        if a.provision_ruling:            # the P3-K ruling: the signer consumed it at execution; record the session outcome beside it
+            l3._record_pk(a.provision_ruling, outcome)
     print(outcome, file=sys.stderr if outcome != "PASS" else sys.stdout)
     return 0 if outcome == "PASS" else 1
 

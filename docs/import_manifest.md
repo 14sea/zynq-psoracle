@@ -237,6 +237,10 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l3_17A6_2026-08-30-03/run_log.json` |
 | `evidence/l3_17A6_2026-08-30-03/summary.json` |
 | `evidence/l3_17A6_2026-08-30-03/ymodem.log` |
+| `evidence/boundary/principal_boundary_2026-08-31-l3-02.json` |
+| `evidence/l3_17A6_2026-08-31-01/run_log.json` |
+| `evidence/l3_17A6_2026-08-31-01/summary.json` |
+| `evidence/l3_17A6_2026-08-31-01/ymodem.log` |
 | `evidence/l2_17A6_2026-08-29-01/L2_0_fclk.json` |
 | `evidence/l2_17A6_2026-08-29-01/L2_1_baseline.json` |
 | `evidence/l2_17A6_2026-08-29-01/L2_2_control.json` |

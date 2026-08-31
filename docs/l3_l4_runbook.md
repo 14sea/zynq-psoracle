@@ -24,6 +24,10 @@ python3 host/verify_principal_boundary.py --out evidence/boundary/principal_boun
 
 Host-only, no ruling: `python3 host/l4_runner.py --gate-refused-only --out evidence/l4_gate_refused --manifest builds/p3/carrier_manifest.json`.
 
+**Do not pre-claim the `provisioning P3-K` ruling**: the signer consumes it itself at
+execution time (its own O_EXCL marker); the runner records the outcome beside it afterwards.
+Pass it with an absolute path (`--provision-ruling /home/test/zynq_psoracle/rulings/<k>.json`).
+
 Ruling JSON shape (psmap's): `{"ruling": "<text>", "boardid": "17A6", "granted_by": "…", "date": "<unique>"}`;
 the runner claims it O_EXCL and records the outcome whatever happens.
 

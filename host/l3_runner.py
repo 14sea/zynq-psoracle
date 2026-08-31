@@ -542,6 +542,17 @@ def run_l3(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
 # ---------------------------------------------------------------- entry
 
 
+def _record_pk(pk_ruling: Path, outcome: str) -> None:
+    """Never BEFORE the run (attempt 1 of session #2 pre-claimed and the signer refused)."""
+    try:
+        pk_consumed = Path(str(pk_ruling) + ".consumed")
+        if not pk_consumed.exists():
+            pr.claim_ruling(Path(pk_ruling))
+        pr.record_outcome(pk_consumed, f"provisioning session outcome: {outcome}")
+    except OSError:
+        pass
+
+
 def _install_sigterm():
     """A SIGTERM (a shell timeout, a killed terminal) must still write the summary and the
     ruling outcome: it becomes a SessionRefusal inside the chain (L2 run #1, 2026-08-29)."""
@@ -616,6 +627,8 @@ def main(argv: list[str] | None = None) -> int:
         outcome = f"REFUSED: {exc}"
     finally:
         pr.record_outcome(consumed, outcome)
+        if args.provision_ruling:            # the P3-K ruling: the signer consumed it at execution; record the session outcome beside it
+            _record_pk(args.provision_ruling, outcome)
     print(outcome, file=sys.stderr if outcome != "PASS" else sys.stdout)
     return 0 if outcome == "PASS" else 1
 

@@ -22,7 +22,8 @@ KEY_BASE = 0x43C02160
 CTRL = 0x43C02000
 KEY_COMMIT = 1 << 8
 STATUS = 0x43C02004
-DEFAULT_CFG = R / "scripts/jtag_provision.cfg"   # mem-AP only; jtag_config_only.cfg has no DAP
+import os
+DEFAULT_CFG = Path(os.environ.get("P3_PROVISION_CFG", R / "scripts/jtag_provision.cfg"))   # env override: tests point it at a dummy-adapter cfg so no pod is ever touched
 
 
 def key_words(key: bytes) -> list[int]:

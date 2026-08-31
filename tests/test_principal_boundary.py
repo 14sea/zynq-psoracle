@@ -88,6 +88,12 @@ class SignerProvisionOp(unittest.TestCase):
 
     def tearDown(self): self.tmp.cleanup()
 
+    def dummy_cfg(self):
+        """the provisioning cfg with the dummy adapter: openocd runs, no pod is ever opened"""
+        src = (REPO / "scripts/jtag_provision.cfg").read_text().replace("adapter driver ftdi", "adapter driver dummy")
+        src = "\n".join(l for l in src.splitlines() if not l.startswith("ftdi "))
+        p = self.d / "dummy.cfg"; p.write_text(src + "\n"); return p
+
     def ask(self, req):
         return subprocess.run([sys.executable, str(REPO / "host/sign_arm.py"), str(self.key)], input=json.dumps(req),
                               capture_output=True, text=True, timeout=60)
@@ -104,6 +110,25 @@ class SignerProvisionOp(unittest.TestCase):
     def test_execute_without_ruling_is_a_clean_refusal(self):
         p = self.ask({"op": "provision", "execute": True})
         self.assertEqual(p.returncode, 1); self.assertIn("no ruling", p.stderr); self.assertNotIn("Traceback", p.stderr)
+
+    def test_signer_consumes_a_provisioning_ruling_itself_once(self):
+        """Not executed for real (no pod as this user): the marker logic is exercised by asking
+        twice with a valid P3-K ruling and a state dir under our control; the first attempt
+        proceeds past the ruling check (fails later at openocd/pod), the second is refused as used."""
+        r = self.d / "k.json"; r.write_text(json.dumps({"ruling": "provisioning P3-K", "boardid": "17A6", "granted_by": "x", "date": "x"}))
+        env = dict(os.environ, P3_SIGNER_STATE_DIR=str(self.d / "state"), P3_PROVISION_CFG=str(self.dummy_cfg()))
+        run = lambda: subprocess.run([sys.executable, str(REPO / "host/sign_arm.py"), str(self.key)], input=json.dumps({"op": "provision", "execute": True, "ruling": str(r)}),
+                                     capture_output=True, text=True, timeout=120, env=env)
+        p1 = run(); self.assertNotIn("already used", p1.stderr); self.assertEqual(len(list((self.d / "state").glob("*.consumed"))), 1)
+        p2 = run(); self.assertEqual(p2.returncode, 1); self.assertIn("already used", p2.stderr)
+
+    def test_a_preclaimed_ruling_in_rulings_dir_does_not_block_the_signer(self):
+        r = self.d / "k.json"; r.write_text(json.dumps({"ruling": "provisioning P3-K", "boardid": "17A6", "granted_by": "x", "date": "x"}))
+        (self.d / "k.json.consumed").write_text("claimed by the runner side\n")
+        env = dict(os.environ, P3_SIGNER_STATE_DIR=str(self.d / "state"), P3_PROVISION_CFG=str(self.dummy_cfg()))
+        p = subprocess.run([sys.executable, str(REPO / "host/sign_arm.py"), str(self.key)], input=json.dumps({"op": "provision", "execute": True, "ruling": str(r)}),
+                           capture_output=True, text=True, timeout=120, env=env)
+        self.assertNotIn("was consumed", p.stderr)
 
     def test_execute_with_a_ruling_of_another_text_is_refused(self):
         r = self.d / "r.json"; r.write_text(json.dumps({"ruling": "whole-of-probe P3-L3", "boardid": "17A6", "granted_by": "x", "date": "x"}))

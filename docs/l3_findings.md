@@ -112,3 +112,18 @@ R1–R5 PASS beforehand. No provisioning (as ruled); `key_loaded_observed = fals
 Scope (as ruled): only the `unprovisioned` control on this carrier/board; nothing about
 the positive case or the other controls. What it also shows, as observation: the full
 gate → stage → link 2 → write → link 3 chain over all twelve frames on 17A6.
+
+## Session #2 attempt 1 (rulings `P3-L3 2026-08-31-01` + `P3-K 2026-08-31-01`) — STOP before staging: host instrument (ruling consumption model)
+
+The operator pre-claimed the `provisioning P3-K` ruling in `rulings/` before launching;
+the signer's ruling check treats a `.consumed` companion as "already used" and refused to
+provision → the runner stopped after the setup load, **before any staging, write, ARM or
+pod contact**. Both rulings are consumed (`evidence/l3_17A6_2026-08-31-01/`, 3 min 23 s,
+zero disruptions). No board finding.
+
+Fix: a `provisioning P3-K` ruling is consumed **by the signer itself** at execution time
+(an O_EXCL marker in `/var/lib/p3signer/consumed/`, keyed by the ruling file's sha256; a
+second execution with the same ruling is refused as "already used"); the runner records the
+session outcome beside the ruling only **after** the run (`_record_pk`), never before. The
+runbook is corrected accordingly. Tests exercise the marker with a dummy-adapter cfg
+(`P3_PROVISION_CFG`) so no test can ever open the pod.
