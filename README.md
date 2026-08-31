@@ -2,8 +2,17 @@
 
 **P3 of the PS line: re-establish the write-integrity interlock around a PS-side oracle.**
 
-Draft v0.1, 2026-08-29. Host-only. Nothing in this repository touches a board, creates a
-ruling, builds hardware, or modifies `zynq-psmap` / `zynq-fabricmap`.
+**Standing — what this is.** The interlock under test is the author's own design, running on
+the author's own board: a MAC-gated ARM transaction whose 128-bit key is provisioned over
+JTAG into a write-once register the application has no path to read. The board sessions
+named `unsigned`, `replay`, `other_candidate`, `wrong_key` and `wrong_table` are **negative
+controls** — they exist to demonstrate that the interlock *refuses* those cases, and a score
+from any of them is a declared kill criterion, not a goal. Nothing here targets third-party
+hardware, software or services.
+
+Current state is the canonical table in [`docs/status.md`](docs/status.md): L0–L4 PASS (L3
+scoped), L5's firmware built host-side. Statements of state elsewhere in this file and in the
+design documents are historical records of when they were written.
 
 | document | what |
 |---|---|
