@@ -1,13 +1,16 @@
 {
   "schema": "l5_manifest",
   "schema_version": "1.0.0",
-  "status": "BUILD COMPLETE — host-only. `pinned_at_build` is filled: the toolchain, the console UART and the application image hash are pinned, and the watchdog is off for session 1 by the owner's ruling. This manifest still authorises nothing: the rulings (`whole-of-probe P3-L5`, `provisioning P3-K`) and board contact remain the owner's, after the post-build package is reviewed.",
+  "status": "BUILD COMPLETE (rebuilt after the wire-protocol fix) \u2014 host-only. The image is pinned again and the C wire serialisation is now checked against the real validator (tests/test_firmware_wire_contract.py). This manifest still authorises nothing: the rulings and board contact remain the owner's, after the new post-build package is reviewed.",
   "carrier": {
     "bitstream": "builds/p3/p3.bit",
     "bitstream_sha256": "956379fa",
     "note": "the short form is the one used in prose; the authoritative full hash is builds/p3/carrier_manifest.json",
     "nonce_seed": "9e3779b97f4a7c15",
-    "heartbeat_bounds_ticks_per_s": [49500000, 50500000]
+    "heartbeat_bounds_ticks_per_s": [
+      49500000,
+      50500000
+    ]
   },
   "board": {
     "boardid": "17A6",
@@ -38,7 +41,7 @@
     "attributes": "every instrument buffer is mapped strongly-ordered, non-cacheable by the application before first touch; no per-operation cache maintenance"
   },
   "protocol": {
-    "transport": "T1 — console (UART) with the runner as relay",
+    "transport": "T1 \u2014 console (UART) with the runner as relay",
     "frame": "P3L5 <type> <seq> <token(32 hex)> <payload(base64url)> <crc32>",
     "token_bits": 128,
     "heartbeat_s": 10,
@@ -46,17 +49,32 @@
     "crc_drop_budget_per_session": 16
   },
   "session": {
-    "brackets": "opening baseline (blank candidate) → candidates → closing baseline (= restore) → closing unsigned ARM",
-    "baseline_train_scores": [18, 22, 20, 20, 20, 18],
-    "epoch_end_kinds": ["COMPLETED", "STOPPED", "PROTOCOL", "CRASHED"],
-    "rulings_required": ["whole-of-probe P3-L5", "provisioning P3-K"],
+    "brackets": "opening baseline (blank candidate) \u2192 candidates \u2192 closing baseline (= restore) \u2192 closing unsigned ARM",
+    "baseline_train_scores": [
+      18,
+      22,
+      20,
+      20,
+      20,
+      18
+    ],
+    "epoch_end_kinds": [
+      "COMPLETED",
+      "STOPPED",
+      "PROTOCOL",
+      "CRASHED"
+    ],
+    "rulings_required": [
+      "whole-of-probe P3-L5",
+      "provisioning P3-K"
+    ],
     "boundary_record_max_age_h": 6
   },
   "pinned_at_build": {
-    "app_image_sha256": "7540239fbba07e6a8a19d9081f8e21220f0fdac2f3ba7b48e88f34767da8005e",
+    "app_image_sha256": "b279459cf0c1df0aa14a3c63906d33fdc9aca82e6c819a286898e43f06424caf",
     "app_image": "firmware/bsp/out/p3_app.bin (raw binary, 81940 bytes, loaded at 0x02000000, `go`)",
-    "app_image_final_because": "the owner's watchdog ruling (option 2, watchdog-off) required no firmware change; the image was rebuilt after the ruling and is byte-identical, so this hash is final rather than provisional",
-    "elf_sha256": "cd935b0aa8d316787934272c59a6a13472f78945feda6133f9b5326a9c0d0dbe",
+    "app_image_final_because": "REBUILT 2026-08-31 after the wire-protocol fix. The previous image (7540239f\u2026) is WITHDRAWN: its framed output could not satisfy the validator (no IDENT, no HB, no audit, flat loop_records, CLOSING_CONTROL as an outcome), so it could never have produced a session the host could adjudicate. This hash is reproducible: two clean builds are byte-identical, and firmware/bsp/build.sh now emits the .bin itself.",
+    "elf_sha256": "a362fa1315ea74a6cc913e09e9e8455f40358cf390546533e01356da092d16e4",
     "toolchain": {
       "name": "xpack-dev-tools/arm-none-eabi-gcc",
       "version": "14.2.1-1.1",
@@ -74,12 +92,15 @@
       "manifest": "manifests/l5_bsp_inputs.json",
       "generator": "host/gen_bsp_input_manifest.py",
       "count": 65,
-      "packages": ["standalone_v9_4", "scuwdt_v2_6"],
+      "packages": [
+        "standalone_v9_4",
+        "scuwdt_v2_6"
+      ],
       "note": "the exact third-party Xilinx embeddedsw files build.sh compiles into the image (sources + header closure, from the pinned toolchain's own gcc -M). These are referenced in place, not vendored; app_image_sha256 is reproducible against this identified input set (checked by sha256) plus the pinned toolchain, not merely against 'this host's embeddedsw tree'. tests/test_bsp_inputs_manifest.py re-hashes them."
     },
     "watchdog_enabled": false,
     "watchdog_load_value": null,
-    "watchdog_status": "NOT USED — session 1 runs watchdog-off (owner's ruling on D-c, 2026-08-31). P3_WDT_LOAD is 0 in the image and unreachable: the firmware gates both the arm and the kick on identity_page flags.bit1, which this session writes as 0.",
+    "watchdog_status": "NOT USED \u2014 session 1 runs watchdog-off (owner's ruling on D-c, 2026-08-31). P3_WDT_LOAD is 0 in the image and unreachable: the firmware gates both the arm and the kick on identity_page flags.bit1, which this session writes as 0.",
     "identity_page_flags": {
       "bit0_holdout_mode": 0,
       "bit1_watchdog_enabled": 0,
@@ -88,15 +109,26 @@
     },
     "watchdog_finding": {
       "resolved": "option 2 (watchdog off for session 1), owner 2026-08-31",
-      "why_it_could_not_be_30_s": "the 32-bit A9 private watchdog at PERIPHCLK=333.33 MHz with prescaler 0 tops out at 12.88 s; p3_app.c programs no prescaler and the driver exposes no SetPrescaler. See docs/l5_findings.md §4.",
+      "why_it_could_not_be_30_s": "the 32-bit A9 private watchdog at PERIPHCLK=333.33 MHz with prescaler 0 tops out at 12.88 s; p3_app.c programs no prescaler and the driver exposes no SetPrescaler. See docs/l5_findings.md \u00a74.",
       "peripheral_clock_hz": 333333343,
-      "peripheral_clock_note": "= CPU_6x4x/2; CPU_6x4x assumes the standard 6:2:1 ratio — ARM PLL 1333.33 MHz is board-confirmed, CPU_CLK_CTRL (0xF8000120) was never captured. Pre-board preflight, not a build blocker: nothing in a watchdog-off session depends on it.",
-      "if_ever_enabled": {"prescaler": 7, "load_value": 1250000035, "interval_s": 30.0, "requires": "a p3_app.c control-register write, a new build, a new prereg and a new ruling"}
+      "peripheral_clock_note": "= CPU_6x4x/2; CPU_6x4x assumes the standard 6:2:1 ratio \u2014 ARM PLL 1333.33 MHz is board-confirmed, CPU_CLK_CTRL (0xF8000120) was never captured. Pre-board preflight, not a build blocker: nothing in a watchdog-off session depends on it.",
+      "if_ever_enabled": {
+        "prescaler": 7,
+        "load_value": 1250000035,
+        "interval_s": 30.0,
+        "requires": "a p3_app.c control-register write, a new build, a new prereg and a new ruling"
+      }
     },
     "preflight_before_board": [
       "md.l 0xF8000120 1 (CPU_CLK_CTRL) once at first power-on, stored with the session evidence; until then CPU_6x4x/PERIPHCLK are assumed, and no timing conversion derived from them may be reported as verified fact"
     ],
-    "note": "COMPLETE. toolchain, console_uart, the embeddedsw BSP input set (manifests/l5_bsp_inputs.json) and app_image_sha256 are pinned; the watchdog is deliberately off for session 1 and its load value is therefore not used rather than unset. Host recovery for a watchdog-off session is fixed in docs/l5_prereg.md §4."
+    "note": "COMPLETE. toolchain, console_uart, the embeddedsw BSP input set (manifests/l5_bsp_inputs.json) and app_image_sha256 are pinned; the watchdog is deliberately off for session 1 and its load value is therefore not used rather than unset. Host recovery for a watchdog-off session is fixed in docs/l5_prereg.md \u00a74.",
+    "withdrawn_images": [
+      {
+        "sha256": "7540239fbba07e6a8a19d9081f8e21220f0fdac2f3ba7b48e88f34767da8005e",
+        "why": "wire protocol incompatible with validate_standalone_run_log; see docs/l5_wire_findings.md"
+      }
+    ]
   },
   "provenance": {
     "phenotype_manifest_sha256": "e45f466d082ccd6f227e6f9be4ce75a4e98c4caa708808c09a77ed32331c10ef",

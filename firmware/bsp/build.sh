@@ -44,7 +44,7 @@ for s in $WDT_SRCS; do o="$OUT/wd_$s.o"; "$CC" $BSP_CFLAGS -c "$WD/$s" -o "$o"; 
 
 # --- glue + application -----------------------------------------------------------------
 "$CC" $BSP_CFLAGS -c "$BSP/src/console.c" -o "$OUT/console.o"; OBJS+=("$OUT/console.o")
-for s in p3_app.c p3_derive.c p3_search.c; do
+for s in p3_app.c p3_derive.c p3_search.c p3_wire.c; do
   "$CC" $APP_CFLAGS -c "$REPO/firmware/$s" -o "$OUT/$s.o"; OBJS+=("$OUT/$s.o")
 done
 
@@ -61,3 +61,10 @@ CRTN=$("$CC" $ARCH -print-file-name=crtn.o)
       -Wl,--start-group -lgcc -lc -lm -Wl,--end-group "$CRTEND" "$CRTN"
 echo "LINK OK -> $OUT/p3_app.elf"
 "$TC/bin/arm-none-eabi-size" "$OUT/p3_app.elf"
+
+# The shippable artefact is the raw binary the manifest pins and U-Boot loads at 0x02000000
+# (`loady` then `go`). It used to be produced by hand, which meant the pinned
+# app_image_sha256 was not reproducible from this script alone.
+"$TC/bin/arm-none-eabi-objcopy" -O binary "$OUT/p3_app.elf" "$OUT/p3_app.bin"
+echo "IMAGE  -> $OUT/p3_app.bin"
+sha256sum "$OUT/p3_app.bin"

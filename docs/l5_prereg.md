@@ -149,8 +149,19 @@ session pass: a change to any of them invalidates this preregistration and requi
 one.
 
 Also fixed: the application image itself. The build is done and its hash is pinned
-(`manifests/l5_manifest.json` `pinned_at_build.app_image_sha256`); the watchdog-off decision
-required **no** firmware change, which is why that hash is final rather than provisional.
+(`manifests/l5_manifest.json` `pinned_at_build.app_image_sha256` = `b279459c…`).
+
+**Image change on record (2026-08-31).** The earlier image `7540239f…` is **withdrawn**. It
+was not superseded by a preference: its framed output could not satisfy this
+preregistration's own validator — no `IDENT` although `app_identity` is required, no
+heartbeat although 30 s of silence is a `CRASHED` end, no audit although §5 says the first
+session audits every candidate, `loop_record`s with no `seq`/`verified`/`evidence`, and the
+closing control emitted as an outcome that is not a `LOOP_OUTCOME`. `docs/l5_wire_findings.md`
+records the finding and the fix. Nothing this preregistration says a session will DO has
+changed: the same brackets, the same N, the same PASS/HOLD/KILL conditions, the same
+stop-loss. What changed is that the application can now emit a session the host can
+adjudicate at all, and that the C serialisation is checked against the real validator
+(`tests/test_firmware_wire_contract.py`) instead of a Python model of it.
 One test was *added* to the firmware source audit with that decision — the watchdog-gating
 check described in §4. It is a strengthening (a property that was previously only read is now
 checked) made **before** any session, not a relaxation to let one pass.

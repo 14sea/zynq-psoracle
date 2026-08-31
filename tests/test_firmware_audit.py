@@ -218,8 +218,15 @@ class StateMachine(unittest.TestCase):
         self.assertLess(i_link2, i_write, "the staged==commit binding must precede the DMA")
 
     def test_all_twelve_frames_are_read_before_judging(self):
-        self.assertIn("for (i = 0; i < P3_TARGET_FRAMES; i++) /* all twelve read before judging",
-                      APP)
+        """L3 #1's lesson. Structural rather than a substring match on one line: the loop
+        must be bounded by P3_TARGET_FRAMES and every frame must be read before the hash
+        that judges them, whatever else the body gains."""
+        witness = APP[APP.index("static int link3_witness"):]
+        loop = witness.index("for (i = 0; i < P3_TARGET_FRAMES; i++)")
+        self.assertLess(loop, witness.index("readback_frame(i)"),
+                        "the readback must happen inside the twelve-frame loop")
+        self.assertLess(witness.index("readback_frame(i)"), witness.index("p3_frames_hash"),
+                        "all twelve frames must be read before the hash that judges them")
 
     def test_no_arm_after_a_stop_only_a_restore_write(self):
         tail = APP[APP.index("the mandatory finally"):]
@@ -243,6 +250,72 @@ class StateMachine(unittest.TestCase):
         compiled host-side (docs/l5_findings.md) but has never been run on the board."""
         self.assertIn("COMPILED, NOT BOARD-RUN", APP)
         self.assertIn("NEVER been run on the board", APP)
+
+
+class WireWiring(unittest.TestCase):
+    """How p3_app.c USES the wire unit.
+
+    tests/test_firmware_wire_contract.py proves `p3_wire.c` emits bytes the real validator
+    accepts; it cannot prove this file populates it correctly, because p3_app.c is MMIO- and
+    BSP-bound and does not compile on the host. These are therefore STATIC checks of the
+    wiring — weaker than execution, and named that way so a green run is not mistaken for
+    the board having run."""
+
+    def test_no_payload_is_hand_built_any_more(self):
+        """Every framed payload goes through p3_wire; a hand-rolled schema string here is
+        how the wire format drifted away from the validator in the first place."""
+        for marker in ('"schema\\":\\"loop_record', '"schema\\":\\"session_summary',
+                       '"schema\\":\\"app_identity', '"schema\\":\\"sign_request'):
+            self.assertNotIn(marker, APP,
+                             f"{marker} is built by hand again instead of by p3_wire")
+
+    def test_identity_is_transmitted(self):
+        """validate_standalone_run_log requires app_identity; the first attempt never sent
+        one. It must also be sent when identity is REFUSED — that is still evidence."""
+        self.assertIn('send_payload("IDENT"', APP)
+        ident = APP.index('send_payload("IDENT"')
+        self.assertLess(ident, APP.index('p3_stop(P3_STOPPED, "identity refused")'),
+                        "the identity frame must be sent before the refusal stops the epoch")
+
+    def test_heartbeats_are_emitted_in_the_long_silent_stretches(self):
+        """The collector calls three heartbeat intervals of silence a CRASH."""
+        self.assertIn('send_frame("HB"', APP)
+        witness = APP[APP.index("static int link3_witness"):]
+        self.assertIn("heartbeat();", witness[:witness.index("p3_frames_hash")])
+        envelopes = APP[APP.index("static int write_envelopes"):]
+        self.assertIn("heartbeat();", envelopes[:envelopes.index("return 0;")])
+
+    def test_the_closing_control_is_not_a_loop_record(self):
+        """CLOSING_CONTROL is not a LOOP_OUTCOME and never was: it travels as CLOSE."""
+        self.assertIn('send_payload("CLOSE"', APP)
+        # CODE is comment-stripped: a comment explaining why the token is gone must not
+        # trip its own guard (the "no SHUTDOWN here" trap, already learned once)
+        self.assertNotIn("CLOSING_CONTROL", APP_CODE)
+
+    def test_every_emitted_outcome_is_a_real_loop_outcome(self):
+        outcomes = set(re.findall(r'emit_record\(&rec, "([A-Z_]+)"\)', APP))
+        self.assertTrue(outcomes, "no records are emitted at all")
+        self.assertLessEqual(outcomes, {"SCORED", "REFUSED_BY_GATE", "STOP_LINK2",
+                                        "STOP_LINK3", "REFUSED_BY_PL", "STOP_AXI"})
+
+    def test_the_audited_mark_means_words_were_served(self):
+        """Rule (ix): `verified: audited` must mean the raw words were actually served for
+        THAT candidate, never merely that auditing was configured."""
+        self.assertIn("rec->audited = (S.audit_served && S.audit_served_seq == rec->seq)", APP)
+        serve = APP[APP.index("static void serve_audit"):]
+        body = serve[:serve.index("\n}\n")]
+        self.assertIn("S.audit_served = 1;", body)
+        self.assertLess(body.index('send_payload("AUDIT"'), body.index("S.audit_served = 1;"),
+                        "the mark must be set after the words are sent, not before")
+
+    def test_the_hardware_witness_is_read_not_echoed(self):
+        """Rules (ii)/(iii) compare the PL's own registers with the signed values; echoing
+        the signed values back would make both comparisons vacuous."""
+        scored = APP[APP.index("rec.have_score = 1;"):]
+        block = scored[:scored.index('emit_record(&rec, "SCORED")')]
+        self.assertIn("axi_read(P3_HW_COMMIT0", block)
+        self.assertIn("axi_read(P3_READOUT0", block)
+        self.assertNotIn("rec.hw_candidate_commit = commit", block)
 
 
 if __name__ == "__main__":

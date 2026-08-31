@@ -72,6 +72,7 @@ APP = [
     os.path.join(REPO, "firmware", "p3_app.c"),
     os.path.join(REPO, "firmware", "p3_derive.c"),
     os.path.join(REPO, "firmware", "p3_search.c"),
+    os.path.join(REPO, "firmware", "p3_wire.c"),
     os.path.join(BSP, "src", "console.c"),
 ]
 

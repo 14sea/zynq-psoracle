@@ -102,6 +102,14 @@ typedef struct {
     uint32_t seed;
     uint32_t budget;
     uint32_t flags;
+    /* Word 22, previously reserved. HOST-SUPPLIED and merely echoed by the application in
+     * app_identity.fclk0_hz_decoded: the application cannot measure it, because the source
+     * audit permits exactly one SLCR symbol (the IDCODE read) and that guard is not being
+     * weakened to add a field. The host verifies FCLK0 itself before handing over, and
+     * that verification — not this echo — is the evidence. The identity's real weight is
+     * carried by the values the application does observe: IDCODE, STATUS, key_loaded and
+     * the nonce echo. */
+    uint32_t fclk0_hz;
 } p3_identity_page;
 
 /* 0 on success; -1 on magic/layout/checksum refusal */

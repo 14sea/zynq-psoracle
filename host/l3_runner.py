@@ -89,6 +89,12 @@ class SubprocessSigner:
         self.key_id = ans["key_id"]
         return ans["provision"]
 
+    def sign_genome(self, req: dict) -> dict:
+        """The L5 notary round-trip: the relay hands over the application's sign_request and
+        the signer does its OWN derive + gate + tables + tag. A gate refusal comes back as
+        {"refused": …} and the session continues — it is data, not a channel failure."""
+        return self._ask({"op": "sign_genome", "genome": req["genome"], "nonce": req["nonce"]})
+
     def sign(self, gate_verdict: dict, commit: bytes, tables: list[int], nonce: bytes) -> sg.ArmPayload:
         req = {"op": "sign", "gate_verdict": gate_verdict, "candidate_commit": commit.hex(),
                "expected_tables": [f"{t:#018x}" for t in tables], "nonce": nonce.hex()}

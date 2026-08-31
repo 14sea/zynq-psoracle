@@ -1,3 +1,42 @@
+# L5 post-build review package — RESUBMITTED 2026-08-31 (round 3)
+
+> **Read this first.** The sections below are the round-2 package and are **historical**.
+> The canonical status table is `docs/status.md`.
+
+## Round 3: what changed since the package you passed
+
+The round-2 package passed and authorised push + rulings + board contact. Before acting on
+that authorisation I checked its last step and found it had no executable; that search then
+surfaced a defect in the pinned image itself. Five findings, evidence and fix are in
+**`docs/l5_wire_findings.md`** — read that as the round-3 package. In short: the C
+application's framed output had never been checked against the host validator that consumes
+it (the rehearsal exercised the *Python* reference loop), so the image could not have
+produced a session the host could adjudicate.
+
+**Image `7540239f…` is WITHDRAWN. The pinned image is `b279459c…`** (byte-identical across
+clean rebuilds; `build.sh` now emits the `.bin` itself).
+
+What to review, in order:
+
+| # | artefact | what it is |
+|---|---|---|
+| 1 | `docs/l5_wire_findings.md` | the findings, the fix, the honest limitations (§2 audit, §3 fclk0, §6 what this does NOT establish) |
+| 2 | `firmware/p3_wire.{c,h}` | the serialisation as a pure unit |
+| 3 | `tests/test_firmware_wire_contract.py` | the C bytes judged by the REAL validator, with two discrimination tests |
+| 4 | `firmware/p3_app.c` | IDENT / HB / AUDIT / CLOSE; records with `seq`/`verified`/nested `evidence`; HW witness read not echoed |
+| 5 | `host/l5_runner.py` + `tests/test_l5_runner.py` | the board runner that did not exist |
+| 6 | `manifests/l5_manifest.json` | new `app_image_sha256`, `withdrawn_images`, BSP inputs |
+| 7 | `docs/l5_prereg.md` §7 | the image change on record; the board procedure is unchanged |
+
+**Unchanged by this batch:** the session's brackets, N = 8, the audit-all policy, the
+PASS/HOLD/KILL conditions, the stop-loss, and the blocking `CPU_CLK_CTRL` preflight.
+
+**Standing:** 366 tests / 0 skipped, fail-closed report in `evidence/tests/`; post-build
+evidence in `evidence/l5_build/`. Nothing pushed, no `P3-L5`/`P3-K` ruling, no board contact.
+**The firmware has still never run on hardware** — every green result here is host-side.
+
+---
+
 # L5 batch review package (D5 step 2) — everything host-only is done; the board is next
 
 > **What this asks for.** Under `decisions.md` **D5**, host-only work runs continuously and

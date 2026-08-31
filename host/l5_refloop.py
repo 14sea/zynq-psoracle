@@ -53,11 +53,14 @@ def _hex_words(hx: str) -> list[int]:
 
 def build_identity_page(token: str, uboot_epoch: int, app_image_sha_lo32: int,
                         carrier_sha256: str, nonce_seen: int, status_seen: int,
-                        seed: int, budget: int, flags: int) -> list[int]:
+                        seed: int, budget: int, flags: int,
+                        fclk0_hz: int = 0) -> list[int]:
+    """Word 22 carries FCLK0: host-supplied, echoed by the application (see p3_derive.h —
+    the application may not read SLCR beyond the IDCODE, and that audit guard stands)."""
     words = ([PAGE_MAGIC, PAGE_LAYOUT] + _hex_words(token) + [uboot_epoch, app_image_sha_lo32]
              + _hex_words(carrier_sha256)
              + [nonce_seen & 0xFFFFFFFF, (nonce_seen >> 32) & 0xFFFFFFFF]
-             + [status_seen, seed, budget, flags, 0])
+             + [status_seen, seed, budget, flags, fclk0_hz])
     checksum = 0
     for w in words:
         checksum ^= w
@@ -77,7 +80,7 @@ def parse_identity_page(words: list[int]) -> dict:
             "carrier_sha256": "".join(f"{w:08x}" for w in words[8:16]),
             "nonce_seen": words[16] | words[17] << 32,
             "status_seen": words[18], "seed": words[19], "budget": words[20],
-            "flags": words[21]}
+            "flags": words[21], "fclk0_hz": words[22]}
 
 
 # ------------------------------------------------------------------------ the reference

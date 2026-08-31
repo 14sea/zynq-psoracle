@@ -290,3 +290,28 @@ byte-identical (`7540239f…`); no firmware source changed. Host-only; **not pus
 
 Unchanged and still the owner's, in order: re-review the updated package, then rule the push,
 `whole-of-probe P3-L5` + `provisioning P3-K`, and the first N = 8 session.
+
+## 2026-08-31 — the L5 wire-protocol defect: image withdrawn, contract test added
+
+The post-build re-review passed and authorised push + rulings + board. Checking the
+authorised sequence before acting found that its last step had no executable, and that
+search surfaced a defect in the image itself: the C application's framed output had never
+been checked against the host validator that consumes it. Five findings (A–E) with their
+evidence are in `docs/l5_wire_findings.md`; the root cause is that the "end-to-end
+rehearsal" exercised the Python reference loop, so both ends of the chain were verified and
+the join between them was empty.
+
+Decided and done, host-only, under the owner's authorisation of a single fix batch:
+the serialisation moved into a pure unit (`firmware/p3_wire.{c,h}`) that a host contract
+test compiles and feeds to the **real** validator; `p3_app.c` now sends `IDENT`, `HB`,
+`AUDIT` chunks and `CLOSE`, and emits `loop_record`s with `seq`/`verified`/nested
+`evidence`; `host/l5_runner.py` exists. `verified: audited` means the raw words were served,
+not that auditing was configured. The PL's `HW_COMMIT`/`READOUT` are read, never echoed.
+
+**Image `7540239f…` is WITHDRAWN** (manifest `withdrawn_images`); the pinned image is
+`b279459c…`, byte-identical across clean rebuilds, and `build.sh` now emits the `.bin`
+itself. The preregistration's board procedure is unchanged — only the application's ability
+to emit an adjudicable session is.
+
+Standing unchanged and still the owner's: nothing pushed, no `P3-L5`/`P3-K` ruling, no board
+contact, and no test result here is evidence that the firmware has run — it never has.

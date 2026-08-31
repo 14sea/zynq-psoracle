@@ -24,6 +24,10 @@
 
 #include "p3_data.h"
 #include "p3_derive.h"
+/* The wire serialisation lives in its own pure unit so the host contract test can compile
+ * it and feed the bytes this application emits to the real validator
+ * (tests/test_firmware_wire_contract.py). Nothing below builds a payload by hand. */
+#include "p3_wire.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +51,7 @@ extern char inbyte(void);
 #define P3_PAGE_ADDR 0x10440000u /* identity page, 24 words                 */
 #define P3_RING_ADDR 0x10800000u /* evidence ring, W entries                */
 #define P3_RING_W 512
+#define P3_DROP_BUDGET 16 /* manifests/l5_manifest.json protocol.crc_drop_budget_per_session */
 
 #define P3_MB (1024u * 1024u)
 #define P3_NONCACHEABLE 0x14de2u /* Xil_SetTlbAttributes: strongly-ordered, non-cacheable */
@@ -134,6 +139,11 @@ static struct {
     uint32_t frames[P3_TARGET_FRAMES][P3_FRAME_WORDS];
     uint32_t readback[P3_TARGET_FRAMES][P3_FRAME_WORDS];
     uint32_t scored, refused, audited;
+    int audit_requested;       /* an AUDITREQ arrived in this candidate's exchange */
+    int audit_served;          /* the host asked and we served raw words for … */
+    uint32_t audit_served_seq; /* … this candidate (rule ix: the mark means served) */
+    uint32_t crc_dropped;
+    uint32_t envelope_int_sts[P3_ENVELOPE_COUNT];
     int closing_restore, closing_baseline, closing_unsigned;
     int have_last_reply;
     char last_commit[65];
@@ -227,21 +237,41 @@ static void kick_watchdog(void)
         XScuWdt_RestartWdt(&S.wdt); /* main loop only, after a framed line (§6a) */
 }
 
-/* `P3L5 <type> <seq> <token(32 hex)> <payload> <crc32>` — the FULL token in every line. */
+/* `P3L5 <type> <seq> <token(32 hex)> <payload> <crc32>` — the FULL token in every line.
+ * The framing itself is p3_wire's, so the host contract test judges these exact bytes. */
 static void send_frame(const char *type, uint32_t seq, const char *payload)
 {
-    char tail[16];
-    int n = snprintf(g_body, sizeof(g_body), "P3L5 %s %lu %s %s", type, (unsigned long)seq,
-                     S.page.token, payload);
-    if (n <= 0 || (size_t)n >= sizeof(g_body)) {
+    size_t n = p3_wire_line(type, seq, S.page.token, payload, g_body, sizeof(g_body));
+
+    if (n == 0u) {
         p3_stop(P3_PROTOCOL, "PROTOCOL_FRAME: outbound line too long");
         return;
     }
-    snprintf(tail, sizeof(tail), " %08lx\n",
-             (unsigned long)p3_crc32((const uint8_t *)g_body, (size_t)n));
     put_str(g_body);
-    put_str(tail);
     kick_watchdog();
+}
+
+/* Encodes `plain_len` bytes of g_payload and sends them as one frame. A builder that
+ * overflowed returns 0 and we refuse to emit a truncated line rather than call it evidence. */
+static void send_payload(const char *type, uint32_t seq, size_t plain_len)
+{
+    if (plain_len == 0u) {
+        p3_stop(P3_PROTOCOL, "PROTOCOL_FRAME: payload builder overflowed");
+        return;
+    }
+    p3_base64url((const uint8_t *)g_payload, plain_len, g_encoded);
+    send_frame(type, seq, g_encoded);
+}
+
+/* A liveness beat at every progress point of a candidate. The collector calls three
+ * heartbeat intervals of silence a CRASH (§3c), and a candidate is otherwise silent from
+ * the sign reply until its record. This is deliberately driven by PROGRESS, not by a
+ * clock: the global timer's rate follows CPU_6x4x, which is still an assumption until the
+ * pre-board CPU_CLK_CTRL read, and liveness must not depend on an unverified constant. */
+static void heartbeat(void)
+{
+    if (S.kind == P3_RUNNING)
+        send_frame("HB", S.seq, "-");
 }
 
 static int recv_line(char *out, size_t max)
@@ -392,27 +422,45 @@ static int establish_identity(void)
         p3_stop(P3_STOPPED, "identity page magic/layout/checksum refused");
         return -1;
     }
-    if ((Xil_In32(SLCR_PSS_IDCODE) & P3_IDCODE_MASK) != (P3_IDCODE & P3_IDCODE_MASK)) {
-        p3_stop(P3_STOPPED, "identity refused: PSS_IDCODE is not this part");
-        return -1;
-    }
-    st = axi_read(P3_STATUS);
-    if ((st & P3_ST_RESERVED) || !((st >> P3_ST_ALIVE) & 1u)) {
-        p3_stop(P3_STOPPED, "identity refused: not the P3 carrier answering");
-        return -1;
-    }
-    if (!((st >> P3_ST_KEY_LOADED) & 1u)) {
-        p3_stop(P3_STOPPED, "identity refused: key_loaded is 0");
-        return -1;
-    }
-    if (((st >> P3_ST_FAULT) & 1u) || ((st >> P3_ST_RECOVERY) & 1u)) {
-        p3_stop(P3_STOPPED, "identity refused: fault/recovery before start");
-        return -1;
-    }
-    /* the nonce echo: a reconfiguration since the host's last look would have reset it */
-    if (pl_nonce() != S.page.nonce_seen) {
-        p3_stop(P3_STOPPED, "identity refused: the nonce is not the host's last observation");
-        return -1;
+    /* Every check is evaluated and reported, then the epoch stops if any of them fired.
+     * The refused identity is still evidence, so IDENT is emitted either way — and it is
+     * emitted at all, which the first L5 attempt could not do: validate_standalone_run_log
+     * requires app_identity and this application never sent one. */
+    {
+        p3_wire_identity_in in;
+        const char *findings[5];
+        uint64_t nonce = pl_nonce();
+        int nf = 0;
+        uint32_t idcode = Xil_In32(SLCR_PSS_IDCODE);
+
+        st = axi_read(P3_STATUS);
+        if ((idcode & P3_IDCODE_MASK) != (P3_IDCODE & P3_IDCODE_MASK))
+            findings[nf++] = "PSS_IDCODE is not this part";
+        if ((st & P3_ST_RESERVED) || !((st >> P3_ST_ALIVE) & 1u))
+            findings[nf++] = "STATUS is not the P3 carrier answering";
+        if (!((st >> P3_ST_KEY_LOADED) & 1u))
+            findings[nf++] = "key_loaded is 0: not the provisioned carrier instance";
+        if (((st >> P3_ST_FAULT) & 1u) || ((st >> P3_ST_RECOVERY) & 1u))
+            findings[nf++] = "fault/recovery before start";
+        /* the nonce echo: a reconfiguration since the host's last look would have reset it */
+        if (nonce != S.page.nonce_seen)
+            findings[nf++] = "the nonce is not the host's last observation";
+
+        memset(&in, 0, sizeof(in));
+        in.pss_idcode = idcode;
+        in.token = S.page.token;
+        in.uboot_epoch = S.page.uboot_epoch;
+        in.carrier_sha256 = S.page.carrier_sha256;
+        in.nonce_at_start = nonce;
+        in.status_at_start = st;
+        in.fclk0_hz_decoded = S.page.fclk0_hz;   /* host-supplied, echoed (p3_derive.h) */
+        in.app_epoch = 0;
+        in.findings = nf ? findings : NULL;
+        in.findings_n = nf;
+        send_payload("IDENT", 0, p3_wire_identity(&in, g_payload, sizeof(g_payload)));
+
+        if (nf)
+            p3_stop(P3_STOPPED, "identity refused");
     }
     return S.kind == P3_RUNNING ? 0 : -1;
 }
@@ -487,10 +535,14 @@ static int link2_witness(char *staged_hex, char *stream_hex)
 static int write_envelopes(void)
 {
     int e;
-    for (e = 0; e < P3_ENVELOPE_COUNT; e++)
+    for (e = 0; e < P3_ENVELOPE_COUNT; e++) {
         if (devcfg_dma(&DMA_WRITE_ENVELOPE,
                        (P3_WR_BUF + (uint32_t)e * 4u * P3_STREAM_WORDS) | DMA_HOLD_TAG) != 0)
             return -1;
+        /* per-envelope DMA status, reported in the oracle self-report (spec §7) */
+        S.envelope_int_sts[e] = Xil_In32(DEVCFG_INT_STS);
+        heartbeat();
+    }
     return 0;
 }
 
@@ -530,9 +582,11 @@ static int link3_witness(char *readback_hex)
 {
     uint8_t digest[32];
     int i;
-    for (i = 0; i < P3_TARGET_FRAMES; i++) /* all twelve read before judging: L3 #1's lesson */
+    for (i = 0; i < P3_TARGET_FRAMES; i++) { /* all twelve read before judging: L3 #1's lesson */
         if (readback_frame(i) != 0)
             return -1;
+        heartbeat(); /* twelve PCAP readbacks is the session's longest silent stretch */
+    }
     p3_frames_hash(P3_CFRAMES(S.readback), digest);
     p3_hex(digest, 32, readback_hex);
     return 0;
@@ -593,13 +647,76 @@ static int arm_attempt(const char *commit_hex, const char tables_hex[6][17],
  * sampler lives in p3_search.c and returns non-zero at its own stop condition. */
 extern int p3_search_next(uint32_t genome[P3_GENOME_WORDS], uint32_t seed, uint32_t index);
 
-static void emit_record(uint32_t seq, const char *outcome, const char *body)
+/* ───────────────────────────── audit-on-request (§4.7) ────────────────────────────── */
+
+/* The raw words behind one candidate's self-report: the three re-read staging streams
+ * followed by the twelve readback frames, in that fixed order. The collector recomputes
+ * both link-2 hashes and the link-3 hash from them and compares with the compact record. */
+#define P3_AUDIT_STREAM_WORDS (P3_ENVELOPE_COUNT * P3_STREAM_WORDS)
+#define P3_AUDIT_FRAME_WORDS (P3_TARGET_FRAMES * P3_FRAME_WORDS)
+#define P3_AUDIT_WORDS (P3_AUDIT_STREAM_WORDS + P3_AUDIT_FRAME_WORDS)
+#define P3_AUDIT_CHUNK 384 /* 1536 B raw -> 2048 B base64, well inside g_payload */
+
+static uint8_t g_chunk[P3_AUDIT_CHUNK * 4];
+static char g_words_b64[P3_AUDIT_CHUNK * 4 * 2];
+
+static uint32_t audit_word(uint32_t i)
 {
-    snprintf(g_payload, sizeof(g_payload),
-             "{\"outcome\":\"%s\",\"schema\":\"loop_record\",\"schema_version\":\"1.0.0\",%s}",
-             outcome, body);
-    p3_base64url((const uint8_t *)g_payload, strlen(g_payload), g_encoded);
-    send_frame("REC", seq, g_encoded);
+    if (i < (uint32_t)P3_AUDIT_STREAM_WORDS)
+        return Xil_In32(P3_WR_BUF + 4u * i);
+    i -= (uint32_t)P3_AUDIT_STREAM_WORDS;
+    return S.readback[i / P3_FRAME_WORDS][i % P3_FRAME_WORDS];
+}
+
+static void serve_audit(void)
+{
+    uint32_t chunks = (P3_AUDIT_WORDS + P3_AUDIT_CHUNK - 1) / P3_AUDIT_CHUNK;
+    uint32_t c;
+
+    for (c = 0; c < chunks && S.kind == P3_RUNNING; c++) {
+        uint32_t off = c * (uint32_t)P3_AUDIT_CHUNK;
+        uint32_t count = (uint32_t)P3_AUDIT_WORDS - off;
+        uint32_t i;
+        size_t b64n;
+
+        if (count > (uint32_t)P3_AUDIT_CHUNK)
+            count = (uint32_t)P3_AUDIT_CHUNK;
+        for (i = 0; i < count; i++) { /* big-endian, as the host decodes them */
+            uint32_t w = audit_word(off + i);
+            g_chunk[4 * i] = (uint8_t)(w >> 24);
+            g_chunk[4 * i + 1] = (uint8_t)(w >> 16);
+            g_chunk[4 * i + 2] = (uint8_t)(w >> 8);
+            g_chunk[4 * i + 3] = (uint8_t)w;
+        }
+        b64n = p3_base64url(g_chunk, count * 4u, g_words_b64);
+        if (b64n == 0u) {
+            p3_stop(P3_PROTOCOL, "PROTOCOL: the audit chunk did not encode");
+            return;
+        }
+        send_payload("AUDIT", S.seq,
+                     p3_wire_audit(S.seq, c, chunks, off, count, g_words_b64,
+                                   g_payload, sizeof(g_payload)));
+    }
+    if (S.kind == P3_RUNNING) {
+        S.audit_served = 1;
+        S.audit_served_seq = S.seq;
+    }
+}
+
+/* One candidate's record, built by p3_wire so it carries `seq`, `verified` and the nested
+ * `evidence` the validator requires — the shape the flat payload this replaced never had.
+ * `rec` is populated as the transaction proceeds; `outcome` selects which members the
+ * validator will then insist on. */
+static void emit_record(p3_wire_record_in *rec, const char *outcome)
+{
+    rec->outcome = outcome;
+    /* `audited` means the host ASKED and this application SERVED the raw words for this
+     * candidate — never merely that auditing was configured. A record that claimed the
+     * mark without the words would be exactly the self-report rule (ix) exists to bound. */
+    rec->audited = (S.audit_served && S.audit_served_seq == rec->seq);
+    if (rec->audited)
+        S.audited++;
+    send_payload("REC", rec->seq, p3_wire_loop_record(rec, g_payload, sizeof(g_payload)));
 }
 
 /* returns 0 to continue the session, -1 when the epoch has ended */
@@ -609,37 +726,55 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     char type[16];
     char commit[65], tag[33], staged[65], stream_h[65], readback[65];
     char tables[6][17];
+    p3_wire_record_in rec;
     const char *payload;
     size_t jn;
     uint64_t nonce_before, nonce_after;
-    uint32_t status, fault;
+    uint32_t status, fault, hb_before;
     int i, n;
 
     S.seq++;
     p3_genome_to_hex(genome, genome_hex);
-    snprintf(g_payload, sizeof(g_payload),
-             "{\"app_epoch\":0,\"genome\":\"%s\",\"nonce\":\"%016llx\",\"schema\":"
-             "\"sign_request\",\"schema_version\":\"1.0.0\",\"seq\":%lu,\"token\":\"%s\"}",
-             genome_hex, (unsigned long long)pl_nonce(), (unsigned long)S.seq, S.page.token);
-    p3_base64url((const uint8_t *)g_payload, strlen(g_payload), g_encoded);
-    send_frame("SIGNREQ", S.seq, g_encoded);
+    memset(&rec, 0, sizeof(rec));
+    rec.seq = S.seq;
+    rec.genome = genome_hex;
+    send_payload("SIGNREQ", S.seq,
+                 p3_wire_sign_request(S.page.token, 0, S.seq, genome_hex, pl_nonce(),
+                                      g_payload, sizeof(g_payload)));
     if (S.kind != P3_RUNNING)
         return -1;
 
-    n = recv_line(g_line, sizeof(g_line));
-    if (n < 0) {
-        p3_stop(P3_PROTOCOL, "PROTOCOL_FRAME: the reply line is too long");
-        return -1;
-    }
-    payload = parse_frame(g_line, S.seq, type, sizeof(type));
-    if (!payload) {
-        p3_stop(P3_PROTOCOL, "PROTOCOL: the notary reply did not verify");
-        return -1;
+    /* The host may attach `AUDITREQ` to this exchange (§4.7) before answering. It is read
+     * here, BEFORE this candidate is staged, so the raw words it will be asked for do not
+     * yet exist and cannot be fabricated to fit a record; they are served after link 3 and
+     * before the record, which is why `verified` can be truthful at emission.
+     * Honest limitation: because the request arrives in advance, this is weaker than a
+     * surprise post-hoc audit at rates below 100%. Session 1 audits every candidate, so
+     * every record it emits is backed by served words. */
+    S.audit_requested = 0;
+    for (;;) {
+        n = recv_line(g_line, sizeof(g_line));
+        if (n < 0) {
+            p3_stop(P3_PROTOCOL, "PROTOCOL_FRAME: the reply line is too long");
+            return -1;
+        }
+        payload = parse_frame(g_line, S.seq, type, sizeof(type));
+        if (!payload) {
+            p3_stop(P3_PROTOCOL, "PROTOCOL: the notary reply did not verify");
+            return -1;
+        }
+        if (strcmp(type, "AUDITREQ") != 0)
+            break;
+        S.audit_requested = 1;
     }
     if (!strcmp(type, "SIGNREF")) {
         /* a gate refusal is DATA, not a channel failure (§3c): the session continues */
+        static const char *const refused_kind[] = {"gate_refusal"};
         S.refused++;
-        emit_record(S.seq, "REFUSED_BY_GATE", "\"sign_refusal\":true");
+        rec.have_sign_refusal = 1;
+        rec.finding_kinds = refused_kind;
+        rec.finding_kinds_n = 1;
+        emit_record(&rec, "REFUSED_BY_GATE");
         return 0;
     }
     if (strcmp(type, "SIGNOK") != 0) {
@@ -659,48 +794,85 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
         return -1;
     }
 
+    rec.have_sign_reply = 1;
+    rec.commit = commit;
+    rec.tag = tag;
+    for (i = 0; i < 6; i++)
+        rec.tables[i] = tables[i];
+
     p3_derive_frames(genome, S.frames);
     stage_streams();
+    heartbeat();
     if (link2_witness(staged, stream_h) != 0)
         return -1;
     if (strcmp(staged, commit) != 0) { /* the binding, BEFORE any DMA */
         p3_stop(P3_STOPPED, "STOP_LINK2: staged frames are not the signed commit");
-        emit_record(S.seq, "STOP_LINK2", "\"link2\":false");
+        emit_record(&rec, "STOP_LINK2");
         return -1;
     }
+    /* link 2 held: the oracle self-report can now be filled in. `readback` is still empty
+     * and is set after link 3; the validator refuses an ARM without readback == commit. */
+    rec.have_oracle = 1;
+    rec.staged_sha256 = staged;
+    rec.staged_stream_sha256 = stream_h;
+    rec.readback_sha256 = readback;
+    rec.envelopes_n = P3_ENVELOPE_COUNT;
+    rec.envelope_int_sts = S.envelope_int_sts;
+    rec.audit_available = 1;
+    memset(readback, '0', 64); /* the schema wants 64 hex; link 3 overwrites it below */
+    readback[64] = 0;
     if (write_envelopes() != 0)
         return -1;
     if (link3_witness(readback) != 0)
         return -1;
+    /* the words exist now, so an audit promised in this exchange is served BEFORE the
+     * record that will claim it — including on the STOP_LINK3 path, where the raw words
+     * are exactly what a reviewer would want */
+    if (S.audit_requested)
+        serve_audit();
     if (strcmp(readback, commit) != 0) {
         p3_stop(P3_STOPPED, "STOP_LINK3: the fabric did not read back as the candidate");
-        emit_record(S.seq, "STOP_LINK3", "\"link3\":false");
+        emit_record(&rec, "STOP_LINK3");
         return -1;
     }
+    hb_before = axi_read(P3_HEARTBEAT);
     if (arm_attempt(commit, (const char(*)[17])tables, tag, &nonce_before, &nonce_after,
                     &status, &fault) != 0)
         return -1;
+    rec.have_arm = 1;
+    rec.nonce_before = nonce_before;
+    rec.nonce_after = nonce_after;
+    rec.status_after = status;
+    rec.fault_after = fault;
+    rec.key_loaded_observed = (int)((status >> P3_ST_KEY_LOADED) & 1u);
     if (!((status >> P3_ST_CFG_VALID_HW) & 1u)) {
-        snprintf(g_body, sizeof(g_body), "\"fault\":%lu,\"status\":\"0x%08lx\"",
-                 (unsigned long)fault, (unsigned long)status);
-        emit_record(S.seq, "REFUSED_BY_PL", g_body);
+        emit_record(&rec, "REFUSED_BY_PL");
         /* the fault code names the check that fired, not its cause (spec §4.6) */
         p3_stop(P3_STOPPED, "the PL refused the ARM");
         return -1;
     }
     {
-        char scores[128];
-        int o = 0;
-        for (i = 0; i < 6; i++)
-            o += snprintf(scores + o, sizeof(scores) - (size_t)o, i ? ",%lu" : "%lu",
-                          (unsigned long)axi_read(P3_SCORE0 + 4u * (uint32_t)i));
-        snprintf(g_body, sizeof(g_body),
-                 "\"commit\":\"%s\",\"genome\":\"%s\",\"nonce_after\":\"%016llx\","
-                 "\"nonce_before\":\"%016llx\",\"readback\":\"%s\",\"scores\":[%s],"
-                 "\"staged\":\"%s\",\"stream\":\"%s\"",
-                 commit, genome_hex, (unsigned long long)nonce_after,
-                 (unsigned long long)nonce_before, readback, scores, staged, stream_h);
-        emit_record(S.seq, "SCORED", g_body);
+        /* The PL's OWN witness of what it bound. These are read back from the hardware,
+         * never echoed from the signed reply: rules (ii) and (iii) compare them with the
+         * signed commit and tables, and an echo would make both checks vacuous. */
+        char readout[6][17];
+        char hw_commit[65];
+        rec.have_score = 1;
+        for (i = 0; i < 8; i++)
+            snprintf(hw_commit + 8 * i, 9, "%08lx",
+                     (unsigned long)axi_read(P3_HW_COMMIT0 + 4u * (uint32_t)i));
+        rec.hw_candidate_commit = hw_commit;
+        for (i = 0; i < 6; i++) {
+            uint32_t hi = axi_read(P3_READOUT0 + 4u * (uint32_t)(2 * i));
+            uint32_t lo = axi_read(P3_READOUT0 + 4u * (uint32_t)(2 * i + 1));
+            snprintf(readout[i], sizeof(readout[i]), "%08lx%08lx",
+                     (unsigned long)hi, (unsigned long)lo);
+            rec.readout[i] = readout[i];
+            rec.scores[i] = axi_read(P3_SCORE0 + 4u * (uint32_t)i);
+        }
+        rec.hb_before = hb_before;
+        rec.hb_after = axi_read(P3_HEARTBEAT);
+        emit_record(&rec, "SCORED");
     }
     S.scored++;
     memcpy(S.last_commit, commit, sizeof(commit));
@@ -729,31 +901,32 @@ static void closing_unsigned_control(void)
         p3_stop(P3_STOPPED, "KILL: the closing unsigned ARM validated");
         return;
     }
-    snprintf(g_body, sizeof(g_body),
-             "\"fault\":%lu,\"kind\":\"unsigned\",\"nonce_after\":\"%016llx\","
-             "\"nonce_before\":\"%016llx\",\"status\":\"0x%08lx\"",
-             (unsigned long)fault, (unsigned long long)na, (unsigned long long)nb,
-             (unsigned long)status);
-    emit_record(S.seq, "CLOSING_CONTROL", g_body);
+    /* Its own frame type, not a loop_record: "CLOSING_CONTROL" is not a LOOP_OUTCOME and
+     * the validator reads this from the log's `closing_negative` key (§4.0, rule viii). */
+    send_payload("CLOSE", S.seq,
+                 p3_wire_closing(nb, na, fault, status, g_payload, sizeof(g_payload)));
     S.closing_unsigned = 1;
 }
 
 static void emit_summary(void)
 {
-    snprintf(g_payload, sizeof(g_payload),
-             "{\"audit\":{\"audited\":%lu,\"total\":%lu},\"closing\":{\"baseline\":\"%s\","
-             "\"restore\":\"%s\",\"unsigned_control\":\"%s\"},\"counts\":{"
-             "\"refused_by_gate\":%lu,\"scored\":%lu},\"epoch_end\":{\"kind\":\"%s\","
-             "\"last_seq\":%lu,\"reason\":\"%s\"},\"schema\":\"session_summary\","
-             "\"schema_version\":\"1.0.0\",\"written_by\":\"app\"}",
-             (unsigned long)S.audited, (unsigned long)(S.scored + S.refused),
-             S.closing_baseline ? "done" : "not_reached",
-             S.closing_restore ? "done" : "not_reached",
-             S.closing_unsigned ? "done" : "not_reached", (unsigned long)S.refused,
-             (unsigned long)S.scored, END_NAME[S.kind], (unsigned long)S.seq,
-             S.reason ? S.reason : "");
-    p3_base64url((const uint8_t *)g_payload, strlen(g_payload), g_encoded);
-    send_frame("TERM", S.seq + 1u, g_encoded);
+    p3_wire_summary_in in;
+
+    memset(&in, 0, sizeof(in));
+    in.token = S.page.token;
+    in.kind = END_NAME[S.kind];
+    in.reason = S.reason ? S.reason : "";
+    in.last_seq = S.seq;
+    in.scored = S.scored;
+    in.refused_by_gate = S.refused;
+    in.closing_restore = S.closing_restore;
+    in.closing_baseline = S.closing_baseline;
+    in.closing_unsigned = S.closing_unsigned;
+    in.audited = S.audited;
+    in.total = S.scored + S.refused;
+    in.crc_dropped = S.crc_dropped;
+    in.drop_budget = P3_DROP_BUDGET;
+    send_payload("TERM", S.seq + 1u, p3_wire_summary(&in, g_payload, sizeof(g_payload)));
 }
 
 int main(void)

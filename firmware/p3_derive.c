@@ -553,5 +553,6 @@ int p3_parse_identity_page(const uint32_t words[P3_PAGE_WORDS], p3_identity_page
     out->seed = words[19];
     out->budget = words[20];
     out->flags = words[21];
+    out->fclk0_hz = words[22];
     return 0;
 }
