@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """The gate-signer principal, as a separate process (docs/decisions.md D4).
 
-Reads one JSON request on stdin and answers on stdout. Two operations:
+Reads one JSON request on stdin and answers on stdout. Operations:
   {"op": "sign", gate_verdict, candidate_commit, expected_tables, nonce}  → tag + 24 words
+  {"op": "sign_genome", genome, nonce}  → the signer derives the canonical frames itself
+     (host/p3_genome.py), runs ITS OWN gate (host/p3_gate.py, fabricmap rules verbatim) and
+     signs only a writable candidate; an unwritable genome returns {"refused": kinds} with
+     exit 0 — a gate refusal is data (D1 §3c: per-candidate outcome, never a channel error)
   {"op": "provision", "execute": bool, ["ruling": path]}                    → the key written
      into the PL's write-once register over JTAG (host/provision_key_jtag.py); execution is
      refused unless a ruling with the text "provisioning P3-K" is given (a board action).
@@ -41,6 +45,26 @@ def claim_provision_ruling(path: Path) -> None:
         f.write(f"{path}\n")
 
 
+def sign_genome(holder: sg.KeyHolder, genome_hex: str, nonce_hex: str) -> dict:
+    """D1 §4.3: genome → the signer's own derive + gate + tables + tag. Pure (no board)."""
+    import p3_gate as g
+    import p3_genome as gn
+    import p3_oracle as po
+    manifest = g.load_manifest()
+    frames = gn.frames_from_genome(gn.from_hex(genome_hex), manifest)
+    verdict = g.gate(g.build_streams(frames, manifest), manifest)
+    if not verdict["writable"]:
+        return {"refused": {"finding_kinds": sorted({f["kind"] for f in verdict["findings"]})}}
+    tables = po.expected_tables(frames, po.load_constants())
+    # records carry the nonce as the integer's hex; the MAC signs its LITTLE-endian bytes
+    # (l3_runner's convention: nonce_int.to_bytes(8, "little")) — do not fromhex here.
+    payload = sg.sign_arm(holder, verdict, bytes.fromhex(verdict["candidate_sha256"]),
+                          tables, int(nonce_hex, 16).to_bytes(8, "little"))
+    return {"commit": verdict["candidate_sha256"], "sequence_sha256": verdict["sequence_sha256"],
+            "expected_tables": [f"{t:016x}" for t in tables], "tag": payload.tag.hex(),
+            "words": payload.words(), "key_id": holder.key_id}
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: sign_arm.py <key_path>  (request JSON on stdin)", file=sys.stderr)
@@ -50,6 +74,9 @@ def main() -> int:
         holder = sg.KeyHolder(Path(sys.argv[1]))
         if req.get("op") == "probe":            # boundary verifier: proves the signer holds the key; answers key_id only
             json.dump({"key_id": holder.key_id, "user": __import__("getpass").getuser()}, sys.stdout)
+            return 0
+        if req.get("op") == "sign_genome":
+            json.dump(sign_genome(holder, req["genome"], req["nonce"]), sys.stdout)
             return 0
         if req.get("op", "sign") == "provision":
             execute = bool(req.get("execute"))

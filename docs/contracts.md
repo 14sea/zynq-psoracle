@@ -196,6 +196,79 @@ strobe), `axi.hw_candidate_commit` and `axi.functional_readout` (read-only), `ma
 {algorithm: siphash-2-4-128, key_id: <sha256 of K, never K itself>}`, and the statement
 that no readable register or readback frame carries `K`.
 
+## Standalone-plane schemas (D1 — `docs/d1_standalone_spec.md` §7; 1.0.0 drafts)
+
+Added under the D5 batch after D1's review #2 (ACCEPTED WITH Q7 CONDITION). They apply
+**only** when `control_plane == standalone`; no L2–L4 rule is touched. The type split is
+deliberate: a validator that requires a host-observed `oracle_record` never accepts an
+`app_oracle_record` (the application's self-report) in its place.
+
+### `d1_genome` (a value contract, not a record)
+
+292 bits over the manifest's whitelisted `(far, word, bit)` addresses in **ascending
+order**, absolute values, packed little-endian into ten 32-bit words (bits 292..319 zero);
+canonical text form = the ten words as 8 hex chars each, word 0 first (80 chars). The
+derive function (base target frames + genome bits + word-50 ECC recompute, flush frames
+verbatim) is `host/p3_genome.py`; its conformance corpus is
+**`fixtures/d1_corpus_v1.json` — `N = 256` pinned (review #2 Q7)**: entry 0 = the blank
+candidate, entry 1 = the known answer, entries 2..255 from per-index seeds
+`d1-corpus-v1/<i>`; each entry pins `candidate_sha256`, `sequence_sha256` and the six
+expected tables. A C twin must reproduce every entry.
+
+### `app_identity` — 1.0.0
+
+Spec §3b: `control_plane: standalone`, `pss_idcode`, `token` (full 128-bit hex), `uboot_epoch`,
+`carrier_sha256` (full 256-bit), `nonce_at_start`, `status_at_start`, `fclk0_hz_decoded`,
+`app_epoch`, `findings` (non-empty ⇒ the loop must not have started).
+
+### `sign_request` / `sign_reply` / `sign_refusal` — 1.0.0
+
+§4.3/§5b: request = `token`, `app_epoch`, `seq` (strictly increasing from 1), `genome`
+(80 hex), `nonce` (the application's PL reading). Reply = `seq`, `commit` (full
+candidate_sha256), `expected_tables` (6 × hex64), `tag` (hex128). Refusal = `seq`,
+`finding_kinds` (fabricmap kinds; **a refusal is a per-candidate outcome, never an
+epoch end**).
+
+### `notary_log` — 1.0.0
+
+Host-side, written by the signer/relay: `token`, `entries` (ordered `{seq, request,
+reply | refusal, at}` — `seq` strictly increasing, exactly one answer per request).
+Rule (vii) cross-checks it against the application's records.
+
+### `app_oracle_record` — 1.0.0
+
+The application's links 2 and 3 for one candidate: `seq`, `staged_sha256`,
+`staged_stream_sha256` (distinct domains, as `oracle_record`), `readback_sha256`,
+`write` (per-envelope DMA/INT_STS evidence), `audit_available`; when audited, the audit
+result is attached by the collector. **Never a substitute for `oracle_record`.**
+
+### `loop_record` — 1.0.0
+
+One per candidate: `seq`, `genome`, `outcome ∈ {SCORED, REFUSED_BY_GATE, STOP_LINK2,
+STOP_LINK3, REFUSED_BY_PL, STOP_AXI}`, `verified ∈ {audited, replayed-only}` (rule ix),
+and `evidence` — the per-outcome required set: `SCORED` ⇒ `sign_reply`,
+`app_oracle_record`, ARM fields (`nonce_before/after`, `status_after`, `fault_after`,
+`key_loaded_observed`, `hw_candidate_commit`, `functional_readout`, `scores`, heartbeat
+pair); `REFUSED_BY_GATE` ⇒ `sign_refusal` only; the STOP outcomes ⇒ what was observed up
+to the stop. Validator checks the §7 consistency rules per record (commit chain, readout
+== tables, readback == commit for SCORED).
+
+### `session_summary` — 1.0.0
+
+`token`, `epoch_end: {kind ∈ COMPLETED|STOPPED|PROTOCOL|CRASHED, reason, last_seq}`,
+`counts`, `closing: {restore, baseline, unsigned_control}` each `done | not_reached`,
+`audit: {audited, total}`, `crc_dropped`, `drop_budget`, `written_by: app | collector`.
+Rule (viii)'s closing obligations are checked against `epoch_end.kind` (spec §3c/§4.0);
+`CRASHED` must be `written_by: collector`.
+
+### `run_log` additions (additive → 1.1.0 for standalone logs)
+
+`control_plane: uboot | standalone` (absent = `uboot`), `identity_page`, `app_identity`,
+`notary_log_sha256`, `loop_records`, `session_summary`. Rules (vii)–(ix) — spec §7 — are
+enforced by `validators/records.validate_standalone_run_log`; rules (i)–(vi) semantics
+apply per `loop_record` with `app_oracle_record` in `oracle_record`'s role **only** on the
+standalone plane.
+
 ## Import manifest
 
 `docs/import_manifest.md` will be created at the first import (L0 exit), in

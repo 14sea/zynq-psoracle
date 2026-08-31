@@ -1,4 +1,55 @@
-# D1 specification review #1 — verdict: HOLD (2026-08-31)
+# D1 specification reviews — #1: HOLD, #2: ACCEPTED WITH Q7 CONDITION (2026-08-31)
+
+## Review #2 — v0.2, verdict: **ACCEPTED WITH Q7 CONDITION** (2026-08-31)
+
+Non-author re-review of v0.2, relayed verbatim by the owner. Not an L5 build or board
+authorisation. Q1–Q6 accepted as scoped; Q7 accepted on the condition that the C↔Python
+corpus's `N` is pinned in the L5 design/manifest, not left as an unbound quantifier.
+**Discharged the same day: `N = 256`, pinned in `fixtures/d1_corpus_v1.json` (entry 0 =
+the blank candidate, entry 1 = the known answer, entries 2–255 deterministic per-index
+seeds) and in `docs/l5_design.md`.** The owner also established the batch-authorisation
+working mode, recorded as `docs/decisions.md` D5.
+
+---
+
+> 我逐項重審 v0.2。結論：上輪四個 blocker 已正確關閉，沒有再發現同級缺陷；D1 可評為「接受但
+> 附條件」。這不是 L5 build 或上板授權。
+>
+> 逐項裁決：
+>
+> 1. Q1：接受狹義定義。host 不搜尋、排序、計分，只對每個候選執行 gate/signature veto；這仍是
+>    permission authority，但不屬於 search loop。文件已誠實揭露此界線。
+> 2. Q2：接受，作為明示 downgrade。app_oracle_record 不得替代 L2–L4 的 host-observed
+>    oracle_record；raw ring、audit、post-run replay 只能提供有限保證，文件目前表述正確。
+> 3. Q3：接受 T1。console relay 有既有 L2–L4 證據基礎；T2 必須另做非擾動驗證，不能直接切換。
+> 4. Q4：接受 session brackets。COMPLETED、STOPPED、PROTOCOL 的 closing obligations 已分開
+>    定義；closing unsigned ARM 放最後也合理。
+> 5. Q5：接受 watchdog on。只由主迴圈在 framed line 後 kick，watchdog reset 歸類 CRASHED，且
+>    不虛構 terminal/ring evidence，這點已封閉。
+> 6. Q6：接受 host-supplied seed。L5 必須在標題或狀態中明示這是 deterministic/test mode，不得
+>    宣稱 autonomous discovery；文件已有此限制。
+> 7. Q7：有條件接受。C↔Python corpus 是正確 exit gate，但 N random genomes 的 N 必須在 L5
+>    design/manifest 中釘死，不能保留為未定量詞。
+>
+> 我也確認了上輪指出的四項已同步：refusal 與 epoch taxonomy 不再矛盾；framing 使用完整
+> 128-bit token；identity page 使用完整 256-bit carrier hash，且不宣稱 app 自行驗證
+> bitstream；watchdog crash 不再要求不存在的 terminal/ring dump。
+>
+> 因此建議：將 D1 狀態記為 reviewed: ACCEPTED WITH Q7 CONDITION；補一個明確的 corpus N；經你
+> 確認後才進入 contracts/L5 design host-only 工作；不因此授权 L5 build、ruling 或板上操作。
+
+The owner confirmed entry into the contracts / L5-design host-only batch the same day,
+with the D5 working mode:
+
+> 之後採「批次授權」：host-only 規格、validator、測試、文件同步：在既定範圍內連續完成，不逐步
+> 請示。上板前一次提交整體 review package，我做批次覆核。通過後由你一次授權該階段的 build、
+> ruling 與板上序列；不再為每個小步驟單獨請示。若發現超出已授權範圍、規格矛盾或 stop-loss
+> 事件，才中途暫停並回報。目前 D1 v0.2 可按上述方式進入下一批 host-only 工作；Q7 的 corpus N
+> 仍需在 L5 design/manifest 中釘死。
+
+---
+
+# Review #1 — v0.1, verdict: HOLD (2026-08-31)
 
 Non-author review of `docs/d1_standalone_spec.md` v0.1, relayed verbatim by the owner.
 The reviewer modified no files and authorised no L5 build, no ruling, no board contact.

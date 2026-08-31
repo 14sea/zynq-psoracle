@@ -55,8 +55,19 @@ to be accepted explicitly, §4.6's fault codes not to imply exclusive diagnosis)
 `COMPLETED/STOPPED/PROTOCOL/CRASHED` is now the single vocabulary across schemas,
 validator rules (viii)–(ix), `session_summary` and the watchdog; tokens and the carrier
 sha are carried full-width everywhere; crash evidence is collector-side with post-mortem
-reads `diagnostic`-only. **v0.2 awaits re-review; authorisations unchanged (none
-downstream).**
+reads `diagnostic`-only.
+
+**Review #2 (2026-08-31) = ACCEPTED WITH Q7 CONDITION** (`docs/d1_review_result.md`,
+verbatim): Q1 narrow definition accepted (the signer's per-candidate veto is permission
+authority, not the search loop); Q2 accepted as a declared downgrade; Q3 T1 (T2 needs its
+own non-perturbation evidence); Q4 session brackets; Q5 watchdog on; Q6 host-supplied seed
+with the deterministic/test-mode label mandatory; **Q7 conditional — the C↔Python corpus N
+must be pinned in the L5 design/manifest.** Not an L5 build, ruling, or board
+authorisation. **Q7 condition discharged: `N = 256`**, pinned in
+`fixtures/d1_corpus_v1.json` and `docs/l5_design.md` (entry 0 = blank candidate, entry 1 =
+known answer, 2–255 deterministic per-index). **D1 status: reviewed, ACCEPTED WITH Q7
+CONDITION (condition met). The contracts / L5-design host-only batch is authorised under
+D5; L5 build, ruling and board contact are not.**
 
 ## D2 — the name and remote of this repository
 
@@ -124,6 +135,24 @@ it is new hardware design and its own review.
 build are authorised as host-side work** (RTL, simulation, Vivado synthesis/implementation,
 manifest); the L1 *exit* review and everything after it remain gated; no board contact
 before the whole-line gate review and a ruling. Record: `l1_design.md`.
+
+## D5 — batch authorisation working mode (owner, 2026-08-31)
+
+Adopted at the D1 v0.2 acceptance, replacing step-by-step requests for host-side work:
+
+1. **Host-only work — specifications, validators, tests, documentation sync — proceeds
+   continuously within the defined scope**, without per-step requests; only commits, tests
+   and change records are kept.
+2. **Before any board stage**, one whole review package is submitted and the owner reviews
+   it as a batch.
+3. On a pass, the owner authorises that stage's **build, rulings and board sequences in one
+   act**; individual small steps are not re-requested.
+4. **Interrupt-and-report applies** the moment work would exceed the authorised scope, a
+   specification contradiction is found, or a stop-loss event fires — those pause the batch,
+   nothing else does.
+
+The push policy is unchanged (commit locally; ask before push). Rulings remain per session,
+whole-of-probe, consumed by any outcome.
 
 ## Kill criteria (line-wide; the per-rung ones are in the ladder)
 

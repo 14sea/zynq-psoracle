@@ -1,0 +1,3597 @@
+{
+ "schema": "d1_corpus",
+ "schema_version": "1.0.0",
+ "seed_label": "d1-corpus-v1",
+ "n": 256,
+ "genome_bits": 292,
+ "genome_words": 10,
+ "address_order": "ascending (far, word, bit)",
+ "addresses_sha256": "895baf85ed31df9beae28a533646182ffb8d0e0735c9849ede9641af81ee7458",
+ "manifest_sha256": "e45f466d082ccd6f227e6f9be4ce75a4e98c4caa708808c09a77ed32331c10ef",
+ "entries": [
+  {
+   "index": 0,
+   "genome": "00000000000000000000000000000000000000000000000000000000000000000000000000000000",
+   "candidate_sha256": "3e24d93665bb9f29fb43290283a0c01327acd6048b9e979d247e248ee232679b",
+   "sequence_sha256": "905abc6931c537bbdf980c153c7d59ec5aa2da1d2707442c6b5049d733dfc7a3",
+   "expected_tables": [
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000"
+   ]
+  },
+  {
+   "index": 1,
+   "genome": "fc00149308200004007b7c0000000000000000000000000000000000000000000000000000000000",
+   "candidate_sha256": "4f14db962e990c40eed3a5aae1cca6a88ca8e329ca0b61baebd435859d6a0929",
+   "sequence_sha256": "eb1c24f199420675e62a2f31c3d4887413effae79e592f1831d07cc97f370aa9",
+   "expected_tables": [
+    "50785ce844305dc4",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000"
+   ]
+  },
+  {
+   "index": 2,
+   "genome": "5f9333bb26ef9919bca417cec19aff86ada238ec961514199e106ada04b45f02947d157300000003",
+   "candidate_sha256": "a07038c792cf0e56dffbc67d637adab7b44298964a63cbf46a4770a1b4f5767e",
+   "sequence_sha256": "4a120c033cc325883b70250a9758d622ef8652fb2175847e9ca3eda1bb906241",
+   "expected_tables": [
+    "c8794ac9211da40f",
+    "c0010fc170a0bbf6",
+    "03400ea168298b59",
+    "43f5811911e06258",
+    "e411638c04aa4016",
+    "8a090e5220b03344"
+   ]
+  },
+  {
+   "index": 3,
+   "genome": "2dbc03fdf561e3185553f00c65d1c01c96b4693fbf61fdd8ad72ccbcb2f58e5fbba244c10000000a",
+   "candidate_sha256": "19c376bbbe48c6bf7b611cebbc2570d8d7c85e82b3184a1815f0fec1b9c25d52",
+   "sequence_sha256": "bc3d4c1f60641223c08e15df46e9ea0cf0ba1fee73745df1856fbfc3c3128f04",
+   "expected_tables": [
+    "006d5f614c55330a",
+    "a40086b5600e40f0",
+    "df590882a3a84d28",
+    "530dc3482d6c7a51",
+    "8c1d2f30a859d0b8",
+    "0e280d934b202342"
+   ]
+  },
+  {
+   "index": 4,
+   "genome": "1122408cb43b9d0db3ff75cc02c878ef16f676012d4eaccc699e5f09e80861fee57501fc0000000c",
+   "candidate_sha256": "3e5046605d2b089e223991948e17bf3e4343a3bc64a2fd486f003e1729c628bf",
+   "sequence_sha256": "a0fd36645b853362a57e7be7a76b87646369b492f2e17415bd3ce5f1ac9d1f36",
+   "expected_tables": [
+    "4a055c8045187788",
+    "c440c2c270a4bdb2",
+    "ce509d17a2004401",
+    "7256428161ac284c",
+    "8b004789ea3fc222",
+    "855144f3b1100882"
+   ]
+  },
+  {
+   "index": 5,
+   "genome": "2323dbe3b72ba3f38c921e6818acb4b67ba48aeb43efd1154be8e424b031abdb52e1ade500000007",
+   "candidate_sha256": "fb15f1be87d8b10ccc3ee8fc6988bc634cba44e3391f955e666913e23dfb51b7",
+   "sequence_sha256": "5041999faf12029413537602cfb5620c7e12166a912fa4b8f5fcd6c6cb36c46f",
+   "expected_tables": [
+    "585048210c5fb216",
+    "c0ed85e0220c93b6",
+    "97e11f138b88f718",
+    "20f3900d0c1012c0",
+    "82120e802c5bd298",
+    "88484971dbb012d1"
+   ]
+  },
+  {
+   "index": 6,
+   "genome": "0c6bc15d6166e2d0ed6b4e634f524cd593e4c8f46dd5341476ccef7dd873c4849954732b0000000a",
+   "candidate_sha256": "a2514156bfffbfcb9754d067a15456e738987532aa331f6b67c6595d581a5578",
+   "sequence_sha256": "ce7d1cc1954a5129e79ee4c0363863d886810abdd1e39e5bb967f5db851a7ae2",
+   "expected_tables": [
+    "d06d0e404c444502",
+    "a46d2d64120fd682",
+    "c3c18e85c2205c39",
+    "70a4d018454c7295",
+    "6b1c450984675234",
+    "033840427a349307"
+   ]
+  },
+  {
+   "index": 7,
+   "genome": "f2b52b7a972142d646954a2713c908a832f26aa50cfb8ddf264251710636490b76c1a63a00000006",
+   "candidate_sha256": "941a0b6b81b65ff17fb7e1286d466e4d26a0495308713411b46fde214812abd6",
+   "sequence_sha256": "98f364b4e64099ea746aa128dd0bde60930589c39335b02a1ba340e626b789af",
+   "expected_tables": [
+    "10110ce94967b293",
+    "4029ee3102064264",
+    "0f309913c320d209",
+    "f2228249682c785c",
+    "49120a946002408e",
+    "841908e06024b3c1"
+   ]
+  },
+  {
+   "index": 8,
+   "genome": "2a7cd2670db42ed36d7dff5b30c12af5ec7f56abb60c83ffc7b43aa0db5d93a7e339af180000000f",
+   "candidate_sha256": "a998b770e73a26c50bd4e92c07af84dbbd2165f1d29b9f57f5d742052380f6ce",
+   "sequence_sha256": "89330319bcf6e569ba65564dcff8d29acb59ad4a0c98b9eef25847403df476df",
+   "expected_tables": [
+    "d25c5d21694b7d06",
+    "046c2d37388dce04",
+    "ae6985172888ab49",
+    "e332cbc0288c9068",
+    "06066bd1c6ed0228",
+    "891107a21bb43bd3"
+   ]
+  },
+  {
+   "index": 9,
+   "genome": "aaa3d401b34eb1d2597fce5f7e9804c4a7b038c500b1b04757f53c4ed80dc58cfc11361200000006",
+   "candidate_sha256": "103246113a23b687e3b1b2eeb29888c2f2a65e9b614fdb72d0e9c7c86c482924",
+   "sequence_sha256": "2b3a2a533b86d609fd1637c798808417b85ba4f51ed0aee8d6dec1a1e417b519",
+   "expected_tables": [
+    "d84807204d22d746",
+    "846dabc0682cc2c6",
+    "4fe80a87e1209a10",
+    "a0a0020915e00245",
+    "62000581e4650306",
+    "832905a27b2439c5"
+   ]
+  },
+  {
+   "index": 10,
+   "genome": "a9f2c16d23ca8130d0ab56b0ade104be9c146e93f919f02fa6fd1e960bd62a81e132cb4e0000000b",
+   "candidate_sha256": "934cc80425c620a0cc46f5335a9af9b30afdff1c5308058edab800a303a945be",
+   "sequence_sha256": "1b99dfc64372b95ea35c0528bc5c1e2e288c30d2222b9f1f30dace6e2b10f95c",
+   "expected_tables": [
+    "484d46216c64c402",
+    "c0c400c14a0573d2",
+    "ddd901336a800e30",
+    "b32259c8143c4251",
+    "0c0f6d7140280324",
+    "09504db2d0b4b312"
+   ]
+  },
+  {
+   "index": 11,
+   "genome": "be4230aeabbfd128858ca0bdb8eb685488525e3250acbc9f778afc8e39a2e5678badd0e700000005",
+   "candidate_sha256": "236496bc2aa275272905fa386afdb108362e091c1c3eb53b734d92f74be72f5c",
+   "sequence_sha256": "3792ed699615e1ab81eab9f75d54c93ce4e3e08e7d952128ae9a54b23ce95438",
+   "expected_tables": [
+    "8a3d19a12930c80d",
+    "c480a6c02a2330a6",
+    "4ce9852409801a29",
+    "a31690d9359c2a48",
+    "2e1b0fc9c6d8d0bc",
+    "86604053b9809184"
+   ]
+  },
+  {
+   "index": 12,
+   "genome": "d8c96e149402126ef5c48b3f617925c192d164f7de808aef1e93151187b308e5146607e90000000f",
+   "candidate_sha256": "876373244cbd30fe512f8d3b90f4592fec47c6742f1ef3f6357ddebe45ada0d5",
+   "sequence_sha256": "772782288ab72b13ba8c8ecd58a4946865ec72dc6e8fddffc088688d5573a680",
+   "expected_tables": [
+    "100c01c8012323d9",
+    "44e1ae247a215e42",
+    "0c08888782a11b38",
+    "f3b01bc1607cc830",
+    "a1110c7cc20b8312",
+    "04180c5112b493c2"
+   ]
+  },
+  {
+   "index": 13,
+   "genome": "53c633f91531e52bc0fe16126f1b25f52ca32d58655f2f4311b4c3e9adf57aed5abeeeb10000000a",
+   "candidate_sha256": "4d1c3221fb8976748adea7c9874e4f03482015ad2d56c260d050609779a9124d",
+   "sequence_sha256": "561952333af52458b768c2c28afd4446ec0ff2e43e3288e2fa390098ad37fcd9",
+   "expected_tables": [
+    "424148c90d5f770d",
+    "408008d2080b56f4",
+    "43c91d956809c630",
+    "c09852d94960b83d",
+    "651f486da2b9d298",
+    "09290f61b3242253"
+   ]
+  },
+  {
+   "index": 14,
+   "genome": "507e26481551940e2e265f860dbd9b3aa39235ab7df769871d2cf12a29d83f85d1601a5600000008",
+   "candidate_sha256": "439685f8d67b22283f75ae84bb6d86e18acd64e725912bd8521328bb0b862acc",
+   "sequence_sha256": "449606cb98df4a0d3e92b3ed877863c3951acfd892fe6ddb4ede65d1ad2ea44b",
+   "expected_tables": [
+    "520146880d4326c9",
+    "00004f5710252ba0",
+    "59911e12c189de49",
+    "f16950c539f01859",
+    "a1050841c41a5224",
+    "8b494b3281040b16"
+   ]
+  },
+  {
+   "index": 15,
+   "genome": "bd5b196088b16c5404dca65605a8a0194f50a73fa7b19d6544a4574886786133a67afef900000000",
+   "candidate_sha256": "4e353ce2eaa6b33e971ea4270978dd91db707a465d0fb2f513e02803c785d6dd",
+   "sequence_sha256": "38f624d60c7371af83785b998419758a90028f8596d515a75a0e817feadf137d",
+   "expected_tables": [
+    "422819a121645996",
+    "40218e47088b8630",
+    "0d118202e9a83728",
+    "601b4b8109302ad1",
+    "431e4e344aab401a",
+    "811101d3b0040b55"
+   ]
+  },
+  {
+   "index": 16,
+   "genome": "48cd626fa237a83b00adee93844ae76cdf853802e881651272856b2498d69a7d1d61eb3b00000000",
+   "candidate_sha256": "ba891835caa6e8d6ca9b59f7a07c1553ebf9016e1423e0929f3d4775fcecc64f",
+   "sequence_sha256": "1b17a1a190f6e2982f0fd6385040a6db1cd9b3ec5e45ad584e73dd56684fe481",
+   "expected_tables": [
+    "d25d1d09414bc40b",
+    "c0c1a814088922e2",
+    "d1500a34aa813850",
+    "9015d1190ca43021",
+    "2b0f4981ae4bc136",
+    "09390a401814b211"
+   ]
+  },
+  {
+   "index": 17,
+   "genome": "ebb119750cd659ac068facc315d9f48ee32cd5ec9787bd993c892e201899464f5c044fa70000000c",
+   "candidate_sha256": "9000a776beae84896a28f80f9e0e3c29450c439f2bf24b38c2dd43dcea305c5d",
+   "sequence_sha256": "29142e1cbdf330058f41d00eb4a8d6cf156dc421019edf4da6efaebff87a156e",
+   "expected_tables": [
+    "d24c13696564689c",
+    "40896c8100a6a156",
+    "e77016018028bf18",
+    "43fd81c128cc3ad1",
+    "a8094f09a4408116",
+    "0a68406132140bd2"
+   ]
+  },
+  {
+   "index": 18,
+   "genome": "0862c71855c65feb915a54e79e6cc58b15b9900ca93c3ace24a89b8a68b92610a2adca990000000a",
+   "candidate_sha256": "0093419ffe6a1022c53dec5ff381392b9ebadff6ba29de27f23bf20034cdf24c",
+   "sequence_sha256": "9ef39b21c682e2b00c35d78507356cd1936e3598d9c427ade61ed7e5502086e8",
+   "expected_tables": [
+    "c00946402c0f7348",
+    "24ec2ae242a7b502",
+    "6ab00f2163290410",
+    "b205430531948aa5",
+    "0d1b4189489c1098",
+    "0a11418392240b12"
+   ]
+  },
+  {
+   "index": 19,
+   "genome": "4fa93d815c491281a43219894df157482fe12a883d548386ffba04e35583e01fabea3dde00000004",
+   "candidate_sha256": "3f0f3a1a0353ecb453a62e442623479f9ff28e09c6e6ce48b64d3ed12d19ca59",
+   "sequence_sha256": "3607180ab9601fbf8d6692e265fc0f6463b023a172369d6b6a249415a5f9a357",
+   "expected_tables": [
+    "18684208041c3e55",
+    "2009242430243874",
+    "06908e84e809c450",
+    "f166404878749071",
+    "ee012e64a8ce00ac",
+    "04714593bb1091d5"
+   ]
+  },
+  {
+   "index": 20,
+   "genome": "33cadac7d20174b8fa6ade181b407cd5907232425a82e83a71ef940e0059e60e6d3f9fb70000000a",
+   "candidate_sha256": "c757d864340e211aaf0b0c15dc1092e6c8513332de5708574e93381d378c8cba",
+   "sequence_sha256": "0ae319e51458518862a894394f7c44e4404614dbf8d25392e99b34d3e6cb99ee",
+   "expected_tables": [
+    "505445a00451c71e",
+    "20ccc146782b5674",
+    "5ee1900502801911",
+    "93d6980015a4081c",
+    "2a0606a8e0a81136",
+    "0f6141e1fb340a56"
+   ]
+  },
+  {
+   "index": 21,
+   "genome": "306849e7a3169d998b1d3c53aa767bbe44540cca5f9b2280cf94f4eb2998cd321f9eaade0000000c",
+   "candidate_sha256": "244b04c364cd44edd2c2d089c5a72b1d0caa7c3e738e21742467807c7b733eba",
+   "sequence_sha256": "5a77295a5c8c2dd36e577f8b30fc8f173239264589de5422ec02ea84fc5d41d3",
+   "expected_tables": [
+    "d25450a1495cd01a",
+    "8448e98608a59182",
+    "c9d9913160893541",
+    "51f4109c71549004",
+    "c60326694eb050ae",
+    "83790c1139041b93"
+   ]
+  },
+  {
+   "index": 22,
+   "genome": "2e179b60046d47d901a05d9d57d4b62d9822b4e547422857001e9c64540bec4dffd6f75900000002",
+   "candidate_sha256": "1b5c9b7999b4e6c27146125db257ea6f81b5e4f020a97d5e7b8758bd8587e5e1",
+   "sequence_sha256": "e81de30bc32dc808774e46d58b68e71d586ef95423befadcfffdd23b1142e7e1",
+   "expected_tables": [
+    "d8284e21004d241e",
+    "442d22f328022c24",
+    "427010920a204f58",
+    "e0f1928404e418dd",
+    "400a0d2ce06690ba",
+    "07394cb2aa348845"
+   ]
+  },
+  {
+   "index": 23,
+   "genome": "bcb76175e2939e8f2a48c6c5d64e63229fc5c1f4088636f1bb142d90c8803a4ab95366d300000003",
+   "candidate_sha256": "e96c562a34bf3cd81f7a82e33ab752f7217dce60483eb753fd8c400a35e1b585",
+   "sequence_sha256": "9f7de4d8835f7ce42b8563dd33cc4d66d87b9ef79afe9756b2b441ab6c3caa38",
+   "expected_tables": [
+    "426c05e1206ec189",
+    "a049e37310a4a3e2",
+    "c0209eb0aa211a68",
+    "10bc8a15200ce2a5",
+    "ad0927a124278034",
+    "09290e9381a41041"
+   ]
+  },
+  {
+   "index": 24,
+   "genome": "b7f391a4f8e02e1e3b988093c2e80029a880da261f0158c58c3863690f4bae4bc680dfba0000000a",
+   "candidate_sha256": "393410e0ec8cc87f2209e762412ad0b2ebea7394cda0f925323cd2122915ab20",
+   "sequence_sha256": "34fcbf32ccf00d60a1883726bffd2b4fd838554cde944c2a629eea67f177a780",
+   "expected_tables": [
+    "00240ba120365a8e",
+    "e405e963588d2454",
+    "111008b008a08f08",
+    "71020209619c1ac4",
+    "c10e6a552400c08e",
+    "0a114d638a348956"
+   ]
+  },
+  {
+   "index": 25,
+   "genome": "c78c0f9c02393435c1c213037b24e75e7d6462f7520bafa691e7974ec69e278ad8a59aba00000007",
+   "candidate_sha256": "e2668e7d619164520f5856b9b740d06be47f7ba88fbe0b1c6ece96918349fd56",
+   "sequence_sha256": "7e88475d353654ef0bee69467a041e690af001d3fe330dcb278d65746f3043ad",
+   "expected_tables": [
+    "0a254848043d81d2",
+    "4480281600285b74",
+    "c7f993862aa1a178",
+    "a1b718043d38a814",
+    "6103669c600d1384",
+    "8f390163d1a4aa94"
+   ]
+  },
+  {
+   "index": 26,
+   "genome": "7723c75b1cc343dc1cb0fc423b5933e09fb8fa39394f9190f5a39122fe60698619dce9d400000001",
+   "candidate_sha256": "2bc762c013b5ecd3a5dcc09b3bbbb2d79fc1463cb1995fb36e4dc6fbb5002c87",
+   "sequence_sha256": "2900a4b74f66acae8bf828b4d7c25a54a578e7a25d84d8d23875eb195dedbbc6",
+   "expected_tables": [
+    "507157e820453eca",
+    "406d0de040068036",
+    "2fa81f17aa094c68",
+    "1152c04938ec1294",
+    "2b1e221dc0f713a0",
+    "84690911b1900111"
+   ]
+  },
+  {
+   "index": 27,
+   "genome": "067a24484a01cb5582590267021ac508a7655d62c4ca0f6e99f131e1b9ce0574b250dfe800000002",
+   "candidate_sha256": "00aac8d18e8c4e4c91a2e27affc7aaea0763f00c7bf38c0c5fa9c5dda8cea4fd",
+   "sequence_sha256": "bff4d88c6fba9fc0cb3f2bdbc3033497b5820a5ed8d6c27eeecfe45c4d2dc99c",
+   "expected_tables": [
+    "002100004048d9c3",
+    "20206ae5028792a4",
+    "82109300a081d818",
+    "e28d1b9948c8b824",
+    "e50f2041ce738108",
+    "821805d35134a854"
+   ]
+  },
+  {
+   "index": 28,
+   "genome": "78d66571a4ed65cfb1f4f861d2985ab1990fab9b830c32b145c301cc11793c2f4813ba1e0000000a",
+   "candidate_sha256": "5d9c53d4eccddf6fbdece7b1b8bc5594c95b4520c3977d0ea0a02c243f853f3f",
+   "sequence_sha256": "8226a46effa400f6792e094c3db6f4c044315022564a10089151083f648cbb33",
+   "expected_tables": [
+    "98485fe9214e35c9",
+    "c468a0d3520b9460",
+    "e02107b30a880f61",
+    "006e8909256082ec",
+    "47160ae0a2600104",
+    "06710a20d3240b17"
+   ]
+  },
+  {
+   "index": 29,
+   "genome": "bde08fd4a25d55dd7268e85adb5bb6d3f5130d5fb07de8f3da6c9a26a4744b8a6a18bf700000000e",
+   "candidate_sha256": "b3e24058d1d5c812b9ead7b1398576e0ef1ca661e65f0e45930099ab1d592da0",
+   "sequence_sha256": "a20700d690515de90f01627b3efba07481775a30d19021e10f0cd82ef4ce54e0",
+   "expected_tables": [
+    "9a2c17e0007dc5da",
+    "802cc8827827c570",
+    "5da107a763a8ea70",
+    "81d9cbd93444183c",
+    "a216630460b11208",
+    "892149f0603432d7"
+   ]
+  },
+  {
+   "index": 30,
+   "genome": "7dfda4a8b4aef10b21163a602075c85da36138439c4caa4aae48c63d841acc41668cd5fd00000004",
+   "candidate_sha256": "e2dcc731649d7f24917ffcbf259791d159a77eb70b7aa3a542cf7d0897cd5416",
+   "sequence_sha256": "7be9203f5b40322d1cc59ceaabc0086282f0b7447e3aaa91f3a15e5a41ea43c8",
+   "expected_tables": [
+    "982958a9251a3249",
+    "84058095122f86d2",
+    "465987068080c801",
+    "d385034c45f4d820",
+    "880a6c0c0081d09a",
+    "025148f168109bc4"
+   ]
+  },
+  {
+   "index": 31,
+   "genome": "d404cc341421c4744bd597958fb9848501eb2886ea0ab79a0c24a31495483eb0ec19db7e0000000e",
+   "candidate_sha256": "19e81b0c1216a6b3ad5dd0133d5be2aa0cdafe09634416d39858891014562712",
+   "sequence_sha256": "8c4a63d17ef64abb447fa378ba7162d474f2a923072cff64ef5ee1e83aa82b25",
+   "expected_tables": [
+    "402449c9412033d2",
+    "44e4631208026ea0",
+    "66c09b2100a00110",
+    "9221d1492c70e27d",
+    "810e40c40ee11206",
+    "0b710bf280340996"
+   ]
+  },
+  {
+   "index": 32,
+   "genome": "3ef5ba253021ce0a4690d1a5744cd168ea1d31838e96d2144564e8cdda71065be8daa23700000007",
+   "candidate_sha256": "1f8979164a4971e5c192ea5cfc1ef69e4b1fdefe44448b0b2ae287ab261b81c9",
+   "sequence_sha256": "9f1ef2934abfce13dc1af52c50a821e9c4e71933c96501c8358468c8afb96ca1",
+   "expected_tables": [
+    "006c4da10003121d",
+    "c0056633028768e4",
+    "bc381496c881b900",
+    "706d810545a48221",
+    "46160b312ce7d094",
+    "0b6101e243a40381"
+   ]
+  },
+  {
+   "index": 33,
+   "genome": "0de87c01630070e9ebdd3f30d394aefe4fa011f704c26c03098c523b5a62e46721f97d9b0000000c",
+   "candidate_sha256": "c76544b3559229d308caa10060797f9c8a3b9765f26451705bb2993210304399",
+   "sequence_sha256": "1da3aa97dd7a35d71558d36e3b8bc6caf73da8127cc1df6b8fddd2fc42c2e7d4",
+   "expected_tables": [
+    "506850004908d15d",
+    "e4e841041a2f5b50",
+    "52711ab7a8a07279",
+    "c0b9000451c07854",
+    "801c4a91c2eec0b4",
+    "03114081b91080d7"
+   ]
+  },
+  {
+   "index": 34,
+   "genome": "97c9f48b29d1b8cbaaae2cb719f5b33f579c63dc0bd16506d627941fc2e0a1a65ed03fe100000005",
+   "candidate_sha256": "9f44757e9fe1dac2362a8331a5e66401fc252fa2b8d6be0a2015e0627ac2c247",
+   "sequence_sha256": "298728d38e9ce8c2e67e4ecf95c7072c4eed9a6431984f67a4656b9c986036e4",
+   "expected_tables": [
+    "527112802d3a4c4d",
+    "c06d6b041aa935f4",
+    "f9f10a10e2297560",
+    "b0fb00445d7c6050",
+    "22152610c227139a",
+    "85280171889411d5"
+   ]
+  },
+  {
+   "index": 35,
+   "genome": "722465b849644d7c60d016f2fb44ab43aade394ebb6005220cb5a79554f331c2274ca44d00000000",
+   "candidate_sha256": "af846b31eedc61c3a214256d19093026182f1c0ec18b84619a5d671e2162ae42",
+   "sequence_sha256": "b513d4d51a133b6052cc65d755bd373700adbbe02df5b91c3bb1bc8838c2e279",
+   "expected_tables": [
+    "c0014ae9081419cb",
+    "60e008921a86e704",
+    "a8a888a489a9cd41",
+    "9199490c4ca4601c",
+    "8517460c04c6933a",
+    "8150079092008341"
+   ]
+  },
+  {
+   "index": 36,
+   "genome": "551ace7f5de91a5253556dff919b8dece1af00a6b395c49fce196200c329a83f9e92816200000002",
+   "candidate_sha256": "241999deacf3c1ff374d077f3be5fe159fabfb0f9137fb5bae89a9ce702b0fe4",
+   "sequence_sha256": "627f1b97c6c9a64eab1ac8390bdf83e24ce4f4a215d8b59e17d687e0d123e51d",
+   "expected_tables": [
+    "58751ec969433b52",
+    "24646a656aa0e830",
+    "b7700e3540a1bf19",
+    "a321c15120402078",
+    "82126a70ae25418e",
+    "00284c528a301900"
+   ]
+  },
+  {
+   "index": 37,
+   "genome": "d49f9680b88509dfd3da346fa339e43115f704e1549541e13af37b30c8c2cd1abd62ccb100000001",
+   "candidate_sha256": "18bc3a30ba12a863769df6021168ec6867b7b239642b16824340197b6fdb4a43",
+   "sequence_sha256": "3526bbb9212b9fa8546da1f07bf7ef53970af601d39d6bbb63e516903ef01e52",
+   "expected_tables": [
+    "c0205088243b5bce",
+    "c42dead56280d460",
+    "9b098e3262001218",
+    "41b51ac12850503c",
+    "a90f43216c0f4132",
+    "86290dc378809050"
+   ]
+  },
+  {
+   "index": 38,
+   "genome": "8839944e46afb7a99aee7489eb747a5d3363015860db355d54bc8ae7df717795584dd75600000008",
+   "candidate_sha256": "ce5c67c0dfbd08691c7a5df1e3555742128119a12175660c488bad3e60817ddd",
+   "sequence_sha256": "1bf56c99ff8e01162dee9de542406187fdf50c6e92588d34344d24748725a364",
+   "expected_tables": [
+    "c81d5c002568e54c",
+    "608d61a7602c34a2",
+    "43d993a4c208d261",
+    "22dcd2045c54323c",
+    "661e49dd88c71204",
+    "8b694730b2140346"
+   ]
+  },
+  {
+   "index": 39,
+   "genome": "c018ebbe54db7f25a8a66a6e1e8ddda7f24ce0c7700c1e23138eacaafd05d6e26b5f7b1c00000008",
+   "candidate_sha256": "7ce2f4b2cf192b321b3e0f062c99a7df21a7149dc22a4a2beb807c63ea9c086f",
+   "sequence_sha256": "9574caec68f81fc31caeb534a2424fa0aaef512a5c2e4401506969b244b6d592",
+   "expected_tables": [
+    "1a151649253d2691",
+    "60c40ba732aa9722",
+    "a0e0851382a1aa11",
+    "81e558451128bac5",
+    "240807ed06f79228",
+    "0f7142a03b143017"
+   ]
+  },
+  {
+   "index": 40,
+   "genome": "6c05469bccc5d1a4d1cec20d5edb7a15ec61a3cdf3e087fe38bcebf276136d35b4ef55b700000001",
+   "candidate_sha256": "7009ac85d2a1e00df5251ea10ecd546b88b8e32260afa198a041c96db7fdd379",
+   "sequence_sha256": "6dd6a30a0d1c1408f0fe9f9f72455c98c29d1d1445df4207be208ceca79b7603",
+   "expected_tables": [
+    "80790768251169c0",
+    "64c9a290602256a0",
+    "06e180822928fd41",
+    "a3fedb513864f0e5",
+    "ed0849bc8ede5096",
+    "83494dc3b2908244"
+   ]
+  },
+  {
+   "index": 41,
+   "genome": "05a91db0f0d2155aac1b912c38aa0d7c76bb2e2f8ef776c567e23bd8b6bfadac8696459600000001",
+   "candidate_sha256": "2273bab2a48140bb2fcf5b1fa7a62138443a58cb9e1108647fff647f13cc77a2",
+   "sequence_sha256": "a1c56ffa4011e0ab2816547e96da513f0cabb58832d3525266dedf514171e639",
+   "expected_tables": [
+    "022043416416525e",
+    "a021878632241852",
+    "7bf91c16e3a9f319",
+    "700203992130e268",
+    "4f19413ce671028e",
+    "86410903db90bb40"
+   ]
+  },
+  {
+   "index": 42,
+   "genome": "ad7ca2561affce124355192cacc6782ea3379680a248e617ee9a79cde9b3543b27f9690300000007",
+   "candidate_sha256": "d2e546784dce79187f108324a4c38175fa5ce52c309847e28a2361846a65967c",
+   "sequence_sha256": "247d4500b11be3891b90aa5fe5bd3188b8c1858360794ade4f8ad14650115dc9",
+   "expected_tables": [
+    "9a3c4a6061639b03",
+    "04044237228749b2",
+    "ded803308000cb01",
+    "a076c1944584a0e9",
+    "cf192bc16ebf40be",
+    "0600468032b09391"
+   ]
+  },
+  {
+   "index": 43,
+   "genome": "8d56cd74b30cdf76f0632def6cd0baa22911db4b6026c29a98d178c5a5df867cbc245fd300000007",
+   "candidate_sha256": "20553998255b383444f0296b89695098552281f0727043338b1a998bd72dd683",
+   "sequence_sha256": "754277d8373af9468a2a339985b0d7a2545d4688ff1cf109068977cc6df63463",
+   "expected_tables": [
+    "d82c10414c6687d2",
+    "80e4aaf372a3f990",
+    "1c88169309888041",
+    "82dbd00864cc80e1",
+    "e40d214cee19c116",
+    "0a2904935ab4aad4"
+   ]
+  },
+  {
+   "index": 44,
+   "genome": "a6b2a6a9031ea975c12f1453baeb782185f72dc16d380b3d0d6570bdbed78b9e6249fb2600000006",
+   "candidate_sha256": "53fb64f9ef24c03f3b3778c8940a1e908581e4e347a6fae73b88d5d1a0b71398",
+   "sequence_sha256": "6274dd0a4b5a39889b2fd0cad59878b1be7108f643dac5a1df5f02ffd6e9223b",
+   "expected_tables": [
+    "ca6140214d39c4c3",
+    "04a428c1088cd4c6",
+    "8aa88b3261000e01",
+    "72fcd8d94d34d86c",
+    "840f0295ecd3430c",
+    "894009e04b34a395"
+   ]
+  },
+  {
+   "index": 45,
+   "genome": "0cca59990e24859ac60a9447ffdccfb90d753af195652acfe78f3d67b2750d37f3ce75e90000000e",
+   "candidate_sha256": "c6060b10a1e6f31e76a7c0b3b4f4873c6140f7c43021b3a3e6b96292df8efa02",
+   "sequence_sha256": "2df471ed7ed4b03b048de8d6c72e14139d589041e0b7a483639f4c37f58f2dd0",
+   "expected_tables": [
+    "c06949400416e81e",
+    "00486ec60001d4c0",
+    "cbb986b329014679",
+    "e3a7030d74e49875",
+    "4b1c2f38ced301b8",
+    "871848f3133033c7"
+   ]
+  },
+  {
+   "index": 46,
+   "genome": "cf74a07df79773a5bfada5bbdd48c0745e7d9279d1d5a025438eaa09abb9fec1e664b2b700000009",
+   "candidate_sha256": "598994d390e66a2fee123a2184d5bd02abb14a24350371ec61690af5becee7f6",
+   "sequence_sha256": "068b0b4cd2b7c40ac56f266ec3c05d4dcd668f009478e2d818ea4a2dd2bf2453",
+   "expected_tables": [
+    "c26d11496968e681",
+    "e48cedb17a2f3836",
+    "efe184b6ea087628",
+    "21871901418400b1",
+    "02134959041b921e",
+    "0f414ae3bb841a07"
+   ]
+  },
+  {
+   "index": 47,
+   "genome": "134e3ff130a0cd538013bd37896dd186eb110b7cce8a71baf8297d40529e03800051c90d00000002",
+   "candidate_sha256": "447275bb0ac125b448903bb089f82db43fecced42fb75ea990a161e216e553d3",
+   "sequence_sha256": "f9b95595c9b23d24c14999a3fb6b97aa6e2566a2fccf3ea5a6c34b2057aca787",
+   "expected_tables": [
+    "504059c1645f1257",
+    "80202ad60a831994",
+    "58c013218829b928",
+    "d2cf994d28140230",
+    "eb0b259044664310",
+    "885041000030aa10"
+   ]
+  },
+  {
+   "index": 48,
+   "genome": "4e825f38a6249d19b1c88d8adb60d4d74b3aec1b4ae50847ebeec3767baf64c52102bbbd00000009",
+   "candidate_sha256": "0b3f37dfefc48354121038a7a6faa88c4bb2758be7b3e1660a20288a1a7f3362",
+   "sequence_sha256": "aa926932083c834333fa1d61e72b49d4b13bbfbeb90dc5444478b01688ba711a",
+   "expected_tables": [
+    "d0290949000de15e",
+    "c44088c270a03dc4",
+    "2be106a789887330",
+    "b0451288143c589c",
+    "cb1368718054d230",
+    "075141c1f394b817"
+   ]
+  },
+  {
+   "index": 49,
+   "genome": "c02debdfaaf0df5fdd075d5fea80dbc2c52272593dd5c82ad99187095a21f0dc1f163d9d0000000b",
+   "candidate_sha256": "3efdffd3047e40c2af3a255c1b5b2a9d975c36e9d4e1787695e9d3bd56f3d1ee",
+   "sequence_sha256": "4af46556ce5ae336665918401a82643d81cb0048bac7ce659189f7854c07a266",
+   "expected_tables": [
+    "52554e48657f889b",
+    "8465afb668a6d980",
+    "178806a760097c61",
+    "d3c7480041a8084c",
+    "a3106439a864933a",
+    "00790601bbb00057"
+   ]
+  },
+  {
+   "index": 50,
+   "genome": "b7e36ea910f6726bee3ecb62bf567848a55d4673df6c3b05f45a1dd1390dcd88e58832d600000006",
+   "candidate_sha256": "5ccffe0ee565524c0aa704924b6d662501e99ad865e04450e8ad0d78d40f5de0",
+   "sequence_sha256": "af9c713f9cf81168055c632252b926c7bb2d4c56980698da8a499a9a9f3350fa",
+   "expected_tables": [
+    "92610fa1253b5659",
+    "00e14d60122fda56",
+    "e8b887262180cf29",
+    "71d61194484cca35",
+    "6f00254160d002a6",
+    "86414cb36a242985"
+   ]
+  },
+  {
+   "index": 51,
+   "genome": "b87fa3b6ef4e12219f11f5dc8dfa4a30c04c848a1194cd0a2ee517b962987accf540def70000000a",
+   "candidate_sha256": "2d61e8c56d9fd419c6a996c9e6b5140d0528c5afdfc34a833073fd6e9a9f21fb",
+   "sequence_sha256": "60ae9df255226f821e4dc445ed3b2d1d8558acb14f5f5d5e1db2fa2b00fe9d8a",
+   "expected_tables": [
+    "c81c57e1483db801",
+    "a485c7756825b802",
+    "b481843040883c41",
+    "83240091495478d1",
+    "8d0b4410e0168336",
+    "09490bf3f0241b56"
+   ]
+  },
+  {
+   "index": 52,
+   "genome": "e2a881e92188317c0c9b6c0dbd5d44147bd474c3b8c6a09689d8b91b8285ac613f25a5e40000000d",
+   "candidate_sha256": "5ba3353a318db8bc63f8a8e0c9240eee8f4f8e236aaee7345112c93c12abd4c2",
+   "sequence_sha256": "f73effa7a37c00fe4f1dd191c01d89025b0c29f202a5f5c7623773511fffc047",
+   "expected_tables": [
+    "584114296c74508a",
+    "c0a42784202c0044",
+    "cce99e228a80f010",
+    "b1a4c1c571ec4011",
+    "810329984609902a",
+    "02684cd1db9020c3"
+   ]
+  },
+  {
+   "index": 53,
+   "genome": "639969ae7f21afe0b4a91955dd15b2ec58f120781e0f4759792b7ca8cb764b911b02ed4300000003",
+   "candidate_sha256": "fc0ac34ff2e8c81e7f2d42de30b75536dae51d5f8e4c054d726c9a52449134e1",
+   "sequence_sha256": "dae14ca77623640d7b2b9d6be6295d94d8e2637035bfe54053d90b0eef2e101d",
+   "expected_tables": [
+    "101548294814ee11",
+    "e0e926a7588898f4",
+    "1bf09db50a082368",
+    "53d182440960b031",
+    "ae1e0d714c05433c",
+    "8c28491021b0a251"
+   ]
+  },
+  {
+   "index": 54,
+   "genome": "ff8d6a2cfdb454a1cb87eaa36bebfd050521396a9a0ffecc7a0e0f96b8e328b1ec67b72b0000000f",
+   "candidate_sha256": "a70c6d038b150ea469c3e273e7dfc9a3658af71d32ff6903b1704af5bfe97f83",
+   "sequence_sha256": "0946e5edb3d48175ce2f6589d6bbb7de7892137e8d654b229a419d6f3336928b",
+   "expected_tables": [
+    "922d1da96d292a11",
+    "e4c9e91602227654",
+    "57c8178020890119",
+    "33dd035934b4ea74",
+    "af174da90a5b0216",
+    "053048e282b490c7"
+   ]
+  },
+  {
+   "index": 55,
+   "genome": "d146bc939dda1cadae4cf145ca7c3c4cf0ac39e95036a6316294b40cc3a586dbc0beb27a00000005",
+   "candidate_sha256": "0d06a7546d78316e4f49abaf6bdebf210696af49f7f88665ca8e15fd3de374a3",
+   "sequence_sha256": "5f653f0f59fcb06a4ad57baaf638f5c990b5ed630145e11618fd3142a076350f",
+   "expected_tables": [
+    "0a5057c829386bdd",
+    "008ce75210a19812",
+    "e6d01ca64308aa19",
+    "01f8980d05f4a004",
+    "0a130e786cad9284",
+    "0b1104721a843085"
+   ]
+  },
+  {
+   "index": 56,
+   "genome": "31646632d7f5ecc4aee48f01553167e1f246b2a0964509ad5615a221c8dd9e1f3b6745010000000d",
+   "candidate_sha256": "e8f861d053bb68aed66bb4201fe71de04aa6e45b43e6d7ef1f892239f795e044",
+   "sequence_sha256": "918c9bd6f9082505f21d7b95c92263029874aabb373a4f0c5421b3841dcf73bd",
+   "expected_tables": [
+    "d2100be12901a7c1",
+    "6068e512108f1eb0",
+    "812084958201eb58",
+    "6336094068f01899",
+    "220d4aa9ac0f1138",
+    "0b280e800a903bc2"
+   ]
+  },
+  {
+   "index": 57,
+   "genome": "98799d481f36e9d0ab1f7186732a1c0625169629e9f9564f12fab5e6e6388acedc96b14500000001",
+   "candidate_sha256": "f318c1904c2b8f3f2d3c30cfa73f1f0ac49b8441dbc3fb116821385a48fcae7d",
+   "sequence_sha256": "6d015fb1fc8b5cc7783143caa61cc4460c59951091ced3e0c04635c11a64768b",
+   "expected_tables": [
+    "82095c804d64fa56",
+    "042d4b85108f3982",
+    "996803826108d619",
+    "b24253911490b29c",
+    "6512063ce4359292",
+    "0c684d3258901a05"
+   ]
+  },
+  {
+   "index": 58,
+   "genome": "17d477615dd360be285755a74b64b0c035ee8b779971c0ec90dcbec77d8ea73afbd8118b00000000",
+   "candidate_sha256": "4fa41c28b3bd8ff5a3195665eb7e2d5f03f1f1fc6ad25be87876524374e0f9bb",
+   "sequence_sha256": "f7ac275791f4dd5cbc244a07cccdc4d74cedee2ed8236ccc11bb1c30ae82e63e",
+   "expected_tables": [
+    "426046816d473bcf",
+    "20c82b11120b2876",
+    "b7808a8763a0c428",
+    "33db0b0c7414009c",
+    "640167456ef610bc",
+    "8b3844a3d810a804"
+   ]
+  },
+  {
+   "index": 59,
+   "genome": "52020b9851e6f9e153530b36059e6e7d22add10068a47387be097e0d2f497ee123d159f90000000e",
+   "candidate_sha256": "5cdf2b3453a4c33d3a45e521386ab9ba7a511c2cbf89f79c0ede8d672136e5b9",
+   "sequence_sha256": "144ac218764e5edc8fcba1f1e9cd672e8c02c4d4df09eebde6c76280791eb3c0",
+   "expected_tables": [
+    "90010ac86c1d1310",
+    "24a84ac04aaa4e86",
+    "f2510c1481009251",
+    "b01c50156dc882f1",
+    "a80c6dd54632c3b8",
+    "0a114ad1a2301996"
+   ]
+  },
+  {
+   "index": 60,
+   "genome": "aea06a5a397987d528e5bc7f994408d6700e89869a0bc111772b119375b1c004a510990800000008",
+   "candidate_sha256": "eb1208228487e6e780f6aa4c20d80bc4bda122ca4b70298436eda5b3b1cb15a4",
+   "sequence_sha256": "d9710ef929c631f7dd04886fd43106d847972cb4664d29ee8b3ed9ec8644fcd7",
+   "expected_tables": [
+    "5a395b6049690f93",
+    "c0682ba23a0481e4",
+    "b5e1112502a0a301",
+    "1128810c58044098",
+    "2f130044c0740122",
+    "041041822b101316"
+   ]
+  },
+  {
+   "index": 61,
+   "genome": "ab8a17efd7e7e46010ed6b1741810650198cbb00b93f18a3393566ae2ca38c07d81d4f4600000006",
+   "candidate_sha256": "e6cea5940540cafc3992a620def98f042d0267ec16efded83646351b85e1a41b",
+   "sequence_sha256": "9b75e3e452e151dad6478ced401eaa629b4a8055a312da6dabcf3dc0a31ad381",
+   "expected_tables": [
+    "905d1e216975e744",
+    "60a0aa46480a0af6",
+    "a1011f844b000650",
+    "910a494835a01ad0",
+    "ac194e8d84b04104",
+    "03680d320b3480d0"
+   ]
+  },
+  {
+   "index": 62,
+   "genome": "04369bca97500716c01e2a6034d543f29908bc4c4326207b8d26e3c738b6311771e2f43900000003",
+   "candidate_sha256": "94a5f712ec95ff061d84e7b2c7eb64bfcd0673aea2ea5a5aeea3222ae6857549",
+   "sequence_sha256": "a9ee3bfb550ad053a09bdf38e47fd204141bd54a162e4945e88a8602715a10a8",
+   "expected_tables": [
+    "123112000d57f296",
+    "000480f30204d300",
+    "602916150b290f40",
+    "82849acc54e400c1",
+    "c51b6a218c5a50b0",
+    "851903e081a0a345"
+   ]
+  },
+  {
+   "index": 63,
+   "genome": "12374b941c502cd3d0ac28bfec2819bfd24195b53b75effcea97680cc2fdff319cb8fd7c00000006",
+   "candidate_sha256": "1e945761a054126f9f49ad24e1df738ab384ece3ec734530419d8cf5d5fa2d47",
+   "sequence_sha256": "fa40c874e821ddffdf0a95eddc7aedaf4c5be24f95c727b8cba6f76e5e29aa30",
+   "expected_tables": [
+    "120412c0011f6e12",
+    "40692a536a8c7504",
+    "55d984b3c3216d29",
+    "3368ca812d90a8a1",
+    "8a1f29100ead4182",
+    "8f790e52ba303ad5"
+   ]
+  },
+  {
+   "index": 64,
+   "genome": "911c122d611cc674608c0b90f7c5dfec73d2335873949538c92a7bdd6ecc5f9447317a020000000c",
+   "candidate_sha256": "fe2699845a7e710718eefb7d3270411e2a846d0c6793a7b491423b6d32778be6",
+   "sequence_sha256": "34bfb72e1b32c9d4f9415fb42ddd726697098bafe9f663a0ff21791b91048fcd",
+   "expected_tables": [
+    "9a45008109214086",
+    "e0a0003718026a90",
+    "0c788eb5c209b571",
+    "03cfd8444da4625d",
+    "c70d6195cc3c422e",
+    "8e004b2021042897"
+   ]
+  },
+  {
+   "index": 65,
+   "genome": "7ab0ee26adcb3f148a5ac5869c4765014d8cb3b34c7bcb656a954d36d9f03f2bad80bff30000000a",
+   "candidate_sha256": "a09afd8cd9b447b14a7d1c49e953d7ee8d6a2a1f6c4259c4334ca0d4ed272014",
+   "sequence_sha256": "4fac7bd53c6ec2de39ad6bbb1e62b43aa80a132c37dd89f72d3ca4da4505c5fb",
+   "expected_tables": [
+    "481c07a92c0179d3",
+    "8044cba300ac3c66",
+    "b5a01b2269816238",
+    "703e1a541ca4d881",
+    "8b170f41224541b6",
+    "8b210ed390341257"
+   ]
+  },
+  {
+   "index": 66,
+   "genome": "1dc6f488fa7e5bbf77e2382088ac3f10d6587719862c5652d33bdb91ce3076ec3b3d09800000000d",
+   "candidate_sha256": "4012a6ad59d4e4c63b2b5ae72c640f2b2c4f878e193f99b9904ad1df96dc84dc",
+   "sequence_sha256": "118f97e9f9ca16c92043254df6cf35a28a5ee76cc9275d60df47fd75c0e855f2",
+   "expected_tables": [
+    "9a295a80041a8fcf",
+    "e4ccc4f052a34052",
+    "38818522a3092971",
+    "c05a838540b8e240",
+    "2710619de2add328",
+    "0e284781a1901292"
+   ]
+  },
+  {
+   "index": 67,
+   "genome": "b0989600ea94dbaaef8e5a81b26d351aab46dfa23533de1635a92e22cb671e00f16ec1b900000004",
+   "candidate_sha256": "57aced076809f9b50c4c93580fd45d24ed08fa67327f023559f432ce33a59a08",
+   "sequence_sha256": "b48863cfbf2098517c712530de4c2f3890f16b8b73f3d63cd7adfae3607f9793",
+   "expected_tables": [
+    "920044a02523c84c",
+    "e48ce5a510a273c0",
+    "95399220c9818c18",
+    "e17ac0cd109cba8c",
+    "281e4579048f0130",
+    "0a194be31310a180"
+   ]
+  },
+  {
+   "index": 68,
+   "genome": "5234c49510e1df649eb72dcfa48c9fe8b98e011e089154808917e0fba3a18117415c6c1f00000000",
+   "candidate_sha256": "99eb7253e6337d644f20188444e311595c98e485f3372a32c25049c09be71145",
+   "sequence_sha256": "37b97220aba82eb07cc2066fb6a260d8d405a77571144ae98e6bcb5317334e64",
+   "expected_tables": [
+    "50441ac8651016c0",
+    "40e46fb360a6b8a4",
+    "b1180a354aa99871",
+    "1049000571007249",
+    "c4192a588cb35134",
+    "855104200b000051"
+   ]
+  },
+  {
+   "index": 69,
+   "genome": "d47eb99b3516707433ab9f3a210c5d5a642aca0e4d0e71aede2ba12338ac0ab6a6873a640000000d",
+   "candidate_sha256": "9915472138ee37a4ea64dfd554c6eabd257ca8ac91cdacdbb394796478dda463",
+   "sequence_sha256": "1d0d559013d76f1b0a422c161afd4cb6986ffd2ee823162589f4ea53627093a6",
+   "expected_tables": [
+    "d27141c84c346697",
+    "c4a448557a2f0b02",
+    "7219150420a9a411",
+    "f246180d78081298",
+    "a31122a98e50138a",
+    "0c4049d200843997"
+   ]
+  },
+  {
+   "index": 70,
+   "genome": "e4b76c5a1bc6df5cf4b7b414693752b5a54d5041592a1dd34ae984640c8999a36dce32a000000004",
+   "candidate_sha256": "224a2c371cc7edc5d52ac972942322b3bfed315c5a43db8042856716c8c76925",
+   "sequence_sha256": "a8ab6f78cb5005a4d86208e01d22afbfa559a6b6919f4aa2e09b2b4f20dfc889",
+   "expected_tables": [
+    "c03153686d609edb",
+    "406106f358a654c2",
+    "a0c9939321008e40",
+    "91c492542cd83a30",
+    "c2010e2d028213a2",
+    "80204be15a041885"
+   ]
+  },
+  {
+   "index": 71,
+   "genome": "e0d765b0555dc99f070d9db573961ba509b515a8b81b4a1c4d87d6bbd00821f0727a40de00000008",
+   "candidate_sha256": "9e487f1954f9425ec8b625a48ff46d6a77299e06c273b422ac9ba60bbfc2f9a2",
+   "sequence_sha256": "350bed405396dc3e53d3e6fd9da2e13c982a07b563f30ddf1b9915eac6cc8125",
+   "expected_tables": [
+    "da004369493e62cb",
+    "244966d10a832ce0",
+    "9b681b9148090049",
+    "3368c19451c0d874",
+    "860844204aefd30c",
+    "855900b191000902"
+   ]
+  },
+  {
+   "index": 72,
+   "genome": "a1fc88f06af115d50f258aeb80b85ea16185449d5af0524e63cc985ecf7215b34c9fbd1e00000000",
+   "candidate_sha256": "a37862a0c56e3efb055721935abe07772c743635da194753980db5bd266ee534",
+   "sequence_sha256": "033921675f8f18593cb8e76f874ee5a53776cbced4e382a033ce84081e125a3a",
+   "expected_tables": [
+    "12000b6161788c92",
+    "a42c6d972225a670",
+    "90000a334128f171",
+    "b36412811558c260",
+    "4a160bfd4aa51286",
+    "8371422051109255"
+   ]
+  },
+  {
+   "index": 73,
+   "genome": "b4df162d44560c035763655ced8072a42847deceff811fc8246c20dda5e8c8c514cfeaef00000005",
+   "candidate_sha256": "c3b01a6738f6700819d9c8d537764baddb8cc186946295d063a6c790a619c28d",
+   "sequence_sha256": "7e270c50adfa8d89b71762e3acd4fb6f7401f1798fcdddd55c5b75ddcf35941e",
+   "expected_tables": [
+    "c26516a1442b2544",
+    "240146576881c842",
+    "81c880b108a89540",
+    "53f653886d88eaf9",
+    "4c1f08ec84938296",
+    "0158495168840991"
+   ]
+  },
+  {
+   "index": 74,
+   "genome": "7f6e7d92563ee992777312a65fbc74e9bdb187de02d33d04d110150a97ea4f23e58b507d0000000f",
+   "candidate_sha256": "f9e872394c7b1a76a4d555210ab53b9ccc16851d3578581590e86b8370873653",
+   "sequence_sha256": "90421ceb6659ae930c4c42d1980da4a8de652617a2ea9fbf7e972bc4bca1994d",
+   "expected_tables": [
+    "8a3848e84416b757",
+    "24484ed4528f6696",
+    "4bb01a956aa8d930",
+    "20fe008519502af5",
+    "231d2ef442c100b2",
+    "8a510cf221a08886"
+   ]
+  },
+  {
+   "index": 75,
+   "genome": "8e06460ac1f7d3ce0f72e860b702360dba1e705d924f9944f322aa1af7c6c650b185ca7e0000000d",
+   "candidate_sha256": "0e85cbb6df0f0d9e65006965f86530d28a865519db2e7fd343465ee109abffd1",
+   "sequence_sha256": "98fbe4ddaaff419cedc6313b1412e2b7019eab41853ac3113d2b7ad94636555d",
+   "expected_tables": [
+    "92391f002c2315c8",
+    "2468c5f0022284a6",
+    "ad7815228a28c970",
+    "21d0031019a84a1d",
+    "2a0f61dc0c5590a4",
+    "0e5901d22984b092"
+   ]
+  },
+  {
+   "index": 76,
+   "genome": "5a9e4ffe0cfa89046131d86119670d73ca8023a12f4b26fd7d53e1f52cf3bdbf7838b7ce0000000f",
+   "candidate_sha256": "a37f7c3435e38d1625eb2e165d65b97be014953def4dc8ee882f16ce9054fef4",
+   "sequence_sha256": "6b4fa0e83e2155d067ba671f081eb54c1aae442231941045d3017f613f3630db",
+   "expected_tables": [
+    "1a1d4fc960553cd0",
+    "044020d51280c5c6",
+    "41a1191688016f19",
+    "722aca546434f010",
+    "ef170a05aeb85304",
+    "86780eb1cbb483c7"
+   ]
+  },
+  {
+   "index": 77,
+   "genome": "18a4426e68b49d051803fc17bdde766d874c49fa79de2c996d49ce7980c21524f5a800f000000004",
+   "candidate_sha256": "cac616197ba444eb586d64e9287f5cb1d790bb895a1960a2a0f1b502080a08e8",
+   "sequence_sha256": "bb3dc65b02c8225253612c48c1037a386d4f6863ef4a9d713450e4060b5af4a5",
+   "expected_tables": [
+    "d21d5d8164490880",
+    "a0402b9248a404c0",
+    "e0f89734e0885e78",
+    "13fcd01d614c7851",
+    "ca054500828951a2",
+    "820942f341008180"
+   ]
+  },
+  {
+   "index": 78,
+   "genome": "3afd92a4f0fa0c02e4f36634b83f0b76fa11d7510d946c037d7b43e27dacb4d0ab7fd6910000000e",
+   "candidate_sha256": "3e087125341c2dc0a7dcb15f41b1eb2c54b9012bae127882a7571b377c8831ff",
+   "sequence_sha256": "3da8f086ed8b784b06b9f1f15fa3cae6c95c75a0dc4c1bf230188da76e72c558",
+   "expected_tables": [
+    "4a0c1ea164131704",
+    "e00586171a855346",
+    "58e90436ca01be61",
+    "d08a00d510d838a0",
+    "ef1b40ed08fec338",
+    "06214783c92429c6"
+   ]
+  },
+  {
+   "index": 79,
+   "genome": "071758a238a460443a19614a02fb5f20f322c9c5df3f0e659765911bee8133a6c88e57db00000009",
+   "candidate_sha256": "63c6ad28d71cc72d7624b0557e3f0f917c0d74a74795cd9a5592ac12c9806ab6",
+   "sequence_sha256": "a43318bf7ef24d29d4e4b69564d58f46fa417e6d47945f0055c64cedf482b90a",
+   "expected_tables": [
+    "80301c0160105a94",
+    "80614951700a8814",
+    "03001712c321af51",
+    "71ec1b59515ce8cc",
+    "2109223dc2951394",
+    "89310333c3941146"
+   ]
+  },
+  {
+   "index": 80,
+   "genome": "967f754030128691e5c7051668357c387467df080d8d5c8b4c4d323f1c48e2556da7dff60000000a",
+   "candidate_sha256": "4bb0560c3d7ed459f6972e6c5555cc3a417aafeb523f8aaaed449c81f73b014e",
+   "sequence_sha256": "523fb93368e75ab5de4f6a9cfb2189d8f5b5c50f0b5af818fc300a95c96b6c9f",
+   "expected_tables": [
+    "42200080456c0347",
+    "c4490e7718055886",
+    "939985902208b611",
+    "d25e00cc75d87aa8",
+    "820e48adcc4881a6",
+    "096140f1e8340956"
+   ]
+  },
+  {
+   "index": 81,
+   "genome": "223c8de0e9dee0d187bb18e5e3f82c9864e85fe207e054263f72db40df4b0c9ad778780300000006",
+   "candidate_sha256": "34a69e273805c6d939faf92167419d25c95aadb18bb6fcceb7d8dddca9a51f3c",
+   "sequence_sha256": "b4fcf7dc91b09a3705132ceaeec6950743b0581f9a8c2597396a94f4187caad5",
+   "expected_tables": [
+    "9a0042216c5c5c52",
+    "e42ce615020eb086",
+    "321988a12180f519",
+    "e0ba088900dc2254",
+    "e90c435568ef523e",
+    "06080d2243209995"
+   ]
+  },
+  {
+   "index": 82,
+   "genome": "e8685fd315dc9e0f0e7af4e14c39eaac8ee9323571848f011ef88bac97f05cd26e01e7670000000d",
+   "candidate_sha256": "68d9fd92e6ef2ce180b4d1b61e3c8007292371dfd8c2f143a9530a66ec7bcdfc",
+   "sequence_sha256": "ad4d3ff3513ed217d655671266748109f96f242bdb905fe1fdde566d88b6ead6",
+   "expected_tables": [
+    "ca5857682c7f77dc",
+    "0040652602a5a080",
+    "26d08c93a8201e69",
+    "011750410df0b821",
+    "a51f43d40841921e",
+    "02604ff0709413c3"
+   ]
+  },
+  {
+   "index": 83,
+   "genome": "dd17c964096ea4c3968369134d9cf673f6ae0aa26ba940eff4623363af951fe723badc820000000f",
+   "candidate_sha256": "8b9f454bf11015f0e2e537ac6a0df0c4c85ead0c7dcb862b51a6f91608dc4152",
+   "sequence_sha256": "002afd4d5c2c5959874e138cb78ac95eafd66a8aa52c3351484090b5d6f26a95",
+   "expected_tables": [
+    "982c1e894c6e0810",
+    "406d6c5348081d92",
+    "b3810994a380bf58",
+    "b2775a0d70401059",
+    "6b0b6a75c6b982ac",
+    "8e000b8142a023d6"
+   ]
+  },
+  {
+   "index": 84,
+   "genome": "dd26186fad871b0521846034821beb0b860a306f0ffc3b985dd96c8d60ff847ca6f819f900000005",
+   "candidate_sha256": "f79171e8c8eb6e910beadea64caae83f437a67dddeb4a89c8ba25cf43a914086",
+   "sequence_sha256": "f4fb08b83654b1421edf89074f4df67bbc3a71a966ddd1f77d2ecc05f420c66a",
+   "expected_tables": [
+    "807d148929682894",
+    "c40082f01aa40532",
+    "60100522e1a95d49",
+    "529580516de08a0c",
+    "a6150500aebec19a",
+    "021144d35b90ab94"
+   ]
+  },
+  {
+   "index": 85,
+   "genome": "7c165ea597cafe46530c5834bd6143eaa21ec03fd0194d391871b3c52e9ae667e9438d4400000000",
+   "candidate_sha256": "5226ee4dcd6ac2a5aa08f4a6d6bee73d9bab18a25109c8798dba023afc7d0355",
+   "sequence_sha256": "af29128145cdef7ba0fa5bfea763ddbd91babc22a9f200b4e78e098f8fd43635",
+   "expected_tables": [
+    "186c46a92913e2d4",
+    "0460c2734aaa4182",
+    "b9b80137c0a98a68",
+    "030499404c1c2899",
+    "e5034ab5c6129120",
+    "0a6005b2e8108a50"
+   ]
+  },
+  {
+   "index": 86,
+   "genome": "9e0dae875fbb22576e3ec33b7103daa7c13d36508448d8f203a3505e5c20cb6a8d7ec28700000003",
+   "candidate_sha256": "c804ad81eed59d3d2f8a26cb31363fabf4c3e4e5c3bc30309b00abc842aaca0e",
+   "sequence_sha256": "a1d4f173431f6a5dac47c44445ff29f10be15309d92328e29facd3d03e8cd944",
+   "expected_tables": [
+    "0a7c0d802d3bfed3",
+    "20256d343a084f26",
+    "be68039100006861",
+    "c0c78bd035a04a30",
+    "401a022d62eec136",
+    "8c60090339a41000"
+   ]
+  },
+  {
+   "index": 87,
+   "genome": "f5fb3ec2b39cfd630ae4b23e9159ed2915c2d922734b80b757ed97ffeacda2eb692262da0000000d",
+   "candidate_sha256": "5a0efdc1acff523fc6c2b587c4be2e7576a18c8c481073c744b1e0cbc0044389",
+   "sequence_sha256": "a9acdb2aad26ae2f742b74e53a170df2c65bd24137daed093d9eb6d90afa6dcf",
+   "expected_tables": [
+    "8a3051a8297b8755",
+    "c0a1cbc72aaf06d0",
+    "05309b3022814719",
+    "a11dd84975cc5098",
+    "670d4e31621d9324",
+    "093141b1db843983"
+   ]
+  },
+  {
+   "index": 88,
+   "genome": "d85af326eda431ff25369184f74b3772a15ef2076c6b83c6bfb4c287a019553640a4a0cc00000002",
+   "candidate_sha256": "98ac3f414a36a4a04bda1107c7c4f5865dae05f179a8bfe43835749c196a3dfe",
+   "sequence_sha256": "e75c9753faf1399f3ef8be3d92dc88e6e3433679e0c9dc910b4c16cc773cffdd",
+   "expected_tables": [
+    "801c49892d2f3c8f",
+    "a4ec86c510292900",
+    "ad2993b601a1c850",
+    "f05252517cac809d",
+    "ac0262088a195080",
+    "8350073133201b01"
+   ]
+  },
+  {
+   "index": 89,
+   "genome": "4ec155f477206ec186184362742d6e2959e6d4648b77992390f4532efeaffb10a5cbcd1700000000",
+   "candidate_sha256": "552354588859e43e506fe9af6481e7cee728ac08752401933b1dde05c2c130b7",
+   "sequence_sha256": "2fc7b1ef5b9e67f6bceaf6a3378363813ad8a90e09047f9c5581f616653a401d",
+   "expected_tables": [
+    "002c0c49085cf244",
+    "a0694c22028b9e44",
+    "87389e904b206759",
+    "909409c51d981a89",
+    "211b60b548d740b6",
+    "89410f82fa10a850"
+   ]
+  },
+  {
+   "index": 90,
+   "genome": "d2224416a59e5c2666b836697578a87049d076944424565d7fbf1ea467f863bfef1146ae0000000d",
+   "candidate_sha256": "81a803f18b2a1fd4e8238db8ef6d2c6e379380d455f2a934508513c9c08f957f",
+   "sequence_sha256": "66ecd403ba0953c95d2beb6862a2291932341da22c1ba43d247f392aa095606c",
+   "expected_tables": [
+    "ca1450c8282274c0",
+    "c0c0e44232a6c206",
+    "18298e9409202221",
+    "6233928104fcb211",
+    "ae1d4fd4ea34032e",
+    "8d7045e3b1841bc2"
+   ]
+  },
+  {
+   "index": 91,
+   "genome": "7fe8f140a258c111d3b9d31cd3132011089ad8b4533d21fdb45220379cc69bb587fb55b800000006",
+   "candidate_sha256": "da0f3cb8f2e5f3880ecc73542d1339934f6b0ea1f4ee6c4a817060c762b5dcff",
+   "sequence_sha256": "2183613e4cd73065fd8e1a580cf1d8fcd70b63d5372f6f2fb4c2d72f880ef8c3",
+   "expected_tables": [
+    "0a2847a8404cd407",
+    "c444c28468075ed4",
+    "69210da049200728",
+    "23309a587cc8509c",
+    "280d28a58eeb02aa",
+    "8c110e434830a1c4"
+   ]
+  },
+  {
+   "index": 92,
+   "genome": "46959c4f747a1e2865c3d12f5ee7999321dded5a23118cf4cb23bbfd59f07606be0322ff0000000d",
+   "candidate_sha256": "f6296ae7166e61d4e094796733f3bdf8c8d167be76ab54e548cb384203778d62",
+   "sequence_sha256": "abe4f32ac309964ebcf3588acc73212ceaf7833f9cf18f653ddd9f0a77b94b9e",
+   "expected_tables": [
+    "0a754f084440235c",
+    "e4852e3332a04d46",
+    "ada18a8140898521",
+    "20c9cadc653c78e5",
+    "c71563e1c444111e",
+    "0e7903d3a1841283"
+   ]
+  },
+  {
+   "index": 93,
+   "genome": "25bfee99513c9f250ce3ae8c39b65d857a88c01a1bb8ebf1135bda82e1746e1c2e9515a80000000b",
+   "candidate_sha256": "14d9de43d0d8b77b845744675413a7b2e6ba7041f98b25631d0ba53527560dba",
+   "sequence_sha256": "57d36771887c6e0851ebaa17d5e6cc62da39346d96f7abe26cbe495a4ae3a714",
+   "expected_tables": [
+    "da6119604c1907d1",
+    "60c507f720a426d0",
+    "74e80901cb89b731",
+    "11448a14385888d0",
+    "241441c8e835518a",
+    "0e304cc1e1b03246"
+   ]
+  },
+  {
+   "index": 94,
+   "genome": "d998b574cf60afc2f8b21ca70906064bd607ccda4ac4965569101d39fa95691db2f67e550000000d",
+   "candidate_sha256": "f956d64697c5d83bdc672401a027313f79bcdcd43a0c7e1cfdac9915eb4185dc",
+   "sequence_sha256": "0746c625752a7c56383cbab94b19d0f9d756ba7aab4c7685709f63d3a8cc7d8f",
+   "expected_tables": [
+    "500c4ac90c66bc45",
+    "602caba7528875d0",
+    "84900404a2887b70",
+    "30a0929c4108f2b8",
+    "8b090d39e87f0098",
+    "80490c92a38422d7"
+   ]
+  },
+  {
+   "index": 95,
+   "genome": "564520329ce531d7a5ed618665e27fc5aa108f5e640fb644c76f4e3ea2baf95f0fb4386200000000",
+   "candidate_sha256": "a98d9ba306d92cad7b7932dacd61327f2efecd58e2fbc2ed9372f78af6ab5515",
+   "sequence_sha256": "160f91bcfacaa93551a9eef82a36076aee347971d9c87fe6edc3c2ff4725b1b7",
+   "expected_tables": [
+    "80301ec9610a6f83",
+    "44298e9010293c24",
+    "4d48158588a98871",
+    "60de52981514f2d1",
+    "02116f18a839c1ae",
+    "85204b50e9009b15"
+   ]
+  },
+  {
+   "index": 96,
+   "genome": "c84b394fb8e25ceed5323552404a3bc3a47d9805631ad2ffb8881b4e0da2c3a807a4ac320000000c",
+   "candidate_sha256": "3d97ec0d41ce7553074980664ee33efa0cc2651f446f23fcee3df46e93746690",
+   "sequence_sha256": "d03a74f0cf1ea6cc06b26f99d27548b2d074a1c865c0f99b25059990a753fede",
+   "expected_tables": [
+    "405d5a0824661e9d",
+    "84a98c4648a3dd02",
+    "be00918760218f41",
+    "a250da19358482a0",
+    "e913614d620802ae",
+    "88014040380080d3"
+   ]
+  },
+  {
+   "index": 97,
+   "genome": "4ecf2c6c599ab211ab60771839e455440a42e4760d4cfb749a58577d0c59792a733c886d0000000f",
+   "candidate_sha256": "da9b2e851f58381a89e6b5f921893794b5242ede0b7f0e3292cde61bdbff8aff",
+   "sequence_sha256": "9b43f6000b21f8036d73fd733eb2939ed502a0db51c26e5565df42e6a7df9526",
+   "expected_tables": [
+    "4a2d540928480f53",
+    "2401417438291ac6",
+    "54e8850488a14438",
+    "70c48a844d3cdad8",
+    "e106660d62a84038",
+    "80584ef0e2a01a92"
+   ]
+  },
+  {
+   "index": 98,
+   "genome": "074d51370eced0f2000750356b0daa7776e25388a40bd80bc8ba4b2fc95dd6896cc6ff6c00000009",
+   "candidate_sha256": "d1fa7ffab1e4883f63f4914bda45c29e80865d187baea58953f51999f67569eb",
+   "sequence_sha256": "d069cd6ccdfa7b18cc198d49ebe802c75c6f819fd7c68f840f1d0c8a45b53ced",
+   "expected_tables": [
+    "887446416506a806",
+    "00e922140a230596",
+    "17c99994a208a241",
+    "c23b414555881a1c",
+    "830e696920074282",
+    "0e7047f03a942a57"
+   ]
+  },
+  {
+   "index": 99,
+   "genome": "58c7b9c6b553445c86c31bedd813f35ab4d433e3c7c8a00fa5ff5b358b5d863ebd17603f00000001",
+   "candidate_sha256": "9d7fe691fe65ea669769a95ac1403d6754d81f375f72f2a8371858288317d59d",
+   "sequence_sha256": "68c0568c107ba668c0dbaea25d0795fed86b64343ce6459c3a88ce7001015a66",
+   "expected_tables": [
+    "121c42884c54239f",
+    "c025e6522203bb62",
+    "ccb189a62281df48",
+    "e2ff115044e05000",
+    "090c63f9ea214136",
+    "0f7945c25b802b01"
+   ]
+  },
+  {
+   "index": 100,
+   "genome": "da069e39f52c848bbf868ffb7a806b8dca1895ffc56111910bc105940cb736ec1be58f1900000002",
+   "candidate_sha256": "e2e8ec7cc7af9626daf7074adc73ac06b33f395ee1682df5650b4d6520b822d5",
+   "sequence_sha256": "e50df5dcec0a8a09fdc0f46aed5d1eebe808e29a59c3546a10a72ee9c4737c49",
+   "expected_tables": [
+    "d84909c90d2b225c",
+    "e40ced527a00be84",
+    "29f8008389a96e69",
+    "40bc91802c8042c4",
+    "8513048da20a83b8",
+    "0a390200d334b250"
+   ]
+  },
+  {
+   "index": 101,
+   "genome": "8fc2be5b3d916b81ad60d77a0f4b42f78f772c172c390dc519b1cbfb1cbe96a95ffd9b0400000003",
+   "candidate_sha256": "d279b01daf9253cf17f0b63bced3712e34304140a5810465b4d29459a4626f51",
+   "sequence_sha256": "83463aefc0ccb3e42313d3c391475daa9d9cb68c244ba491901e7125041f570f",
+   "expected_tables": [
+    "4279454028692f55",
+    "840c0de03a8b9f74",
+    "8bc18317e9a00a60",
+    "700442d97924783d",
+    "e513498d22ea53aa",
+    "0a68072019b4aa14"
+   ]
+  },
+  {
+   "index": 102,
+   "genome": "68aa43909e0c62a18158160aae2ae474fc51641951d53c1a1307b90d59adb31a961d62560000000d",
+   "candidate_sha256": "5507a491eafe397a2a12a2fcf8807d0f68e282318b22359b4cb76eb1bbce02b1",
+   "sequence_sha256": "d17c38d52744c6935745a552d617ad1d57b438ab1ee23a56fa4faf5cc6b8adff",
+   "expected_tables": [
+    "c8084068001dfb00",
+    "04c88864200e1240",
+    "49c984366a08fc30",
+    "8315909145382a25",
+    "211903c96ce4110e",
+    "8d4902128b843883"
+   ]
+  },
+  {
+   "index": 103,
+   "genome": "0d55e3297da4df55600ec27e706627f3592f1c542c69660de5e35f493b81a03a082658670000000e",
+   "candidate_sha256": "afb1103cafc387b27ee227edbd4ec49fa9689fc8e16cbb50e4ad2d5d1e317049",
+   "sequence_sha256": "3f2f82437713b84c6554096aa952878e039240955790070d3790280c5431cadb",
+   "expected_tables": [
+    "80690d012d0d6a83",
+    "a0650ab33aa3c790",
+    "f32903950b216270",
+    "7290409c4194a028",
+    "4b0967796a584114",
+    "04600150db200196"
+   ]
+  },
+  {
+   "index": 104,
+   "genome": "cc5101505dd4dd6e02872dc1885c3c1c148b14dc0c8e2e2852657e0a3acd932a0672ec4000000003",
+   "candidate_sha256": "65285807212d5d251a5f2a46c928f1d5bb68225d32e2238e25a4ce4dc2003478",
+   "sequence_sha256": "3f62d63250e0d247651ddce7d0ceb16d39425b7149057f2279cf3c8a82c239bb",
+   "expected_tables": [
+    "d22812486d662a88",
+    "60a1608300a3a880",
+    "60d11d2022281031",
+    "52f0088511c4a828",
+    "220f4731667a410a",
+    "890003104aa03851"
+   ]
+  },
+  {
+   "index": 105,
+   "genome": "c3e824074deb1c9aacf3db2850488227c570bab8553e1e4b3d06a817c1726e0369fcb99a00000007",
+   "candidate_sha256": "16ff5b14cab489c01905c33f05021aa0e8bb6248b8275b8dc7356f81bdaa0dcd",
+   "sequence_sha256": "78df56cb564921e7efd7a28314d0c6c8618d897da3d861349b2105749b73035d",
+   "expected_tables": [
+    "18544f086c223d4b",
+    "6008050632a51f76",
+    "0a60979061082e68",
+    "c323120954a4ea80",
+    "a8160b4804af10a4",
+    "0f3108a1a1b08395"
+   ]
+  },
+  {
+   "index": 106,
+   "genome": "2c87e232872232cdf470189b2bbe0290ab2394f5c25fee3033f14b58160e7060b0b350d500000000",
+   "candidate_sha256": "2efb4e3d625579fc1937aa84f250c09048fc8e89682ef0ce2ac353fcf26518e1",
+   "sequence_sha256": "b94abbed904f174244df3896355bfbbdb4516c2b93878aa6cd2f77dfdaff5157",
+   "expected_tables": [
+    "103848610809b589",
+    "006dac7078287042",
+    "57891703c820c968",
+    "00a0999501d0e8fc",
+    "690841b40268c190",
+    "00490793f100b804"
+   ]
+  },
+  {
+   "index": 107,
+   "genome": "6173c034a71aa65ec407dece79bd148edd0aa2f1633981dd3988bd9388929d93ff40b7c700000003",
+   "candidate_sha256": "06d9e77ca2118734cf073e78ad919858cbc488a403493ea49e81ff73f2e5fe99",
+   "sequence_sha256": "cc9eabb3a20b4a6c7ec66e7b4fa3c4ca6aa61a284b5bde0b9121ed3d1497b308",
+   "expected_tables": [
+    "5a0445694d02a08a",
+    "80658e63200df392",
+    "25f803836b002f38",
+    "22e2d245787040d8",
+    "ad030f014c03123e",
+    "82684ab319b48245"
+   ]
+  },
+  {
+   "index": 108,
+   "genome": "80c26d14a89ae5bbe8b59eaeee305b161b6661dbb6cf37b3f4a484f50e0c426bc609b5fa00000001",
+   "candidate_sha256": "52a40a129001b9af34fece4c0a3ff97c2f9388c5d92bde7c41429e96290347c2",
+   "sequence_sha256": "b5f1644f46e8da7e498e48ee28baef275a89e92d6f6aeb96aa135154227c5ea9",
+   "expected_tables": [
+    "5a044140612e1c5b",
+    "c0c88bc2320b73c2",
+    "c3c997a28a895361",
+    "c1ecc9006c78f20d",
+    "6e022e952280900e",
+    "0911017330902945"
+   ]
+  },
+  {
+   "index": 109,
+   "genome": "986bc704ea0b4274133880a9b2f9b46984a25353aef40c22a9e712f596872512a4e6def000000000",
+   "candidate_sha256": "664c55eccad4fa1112106434f6faa83fb1f4b27231ddcf0a8dd8682dd7fae601",
+   "sequence_sha256": "047234d49d4592236760a7c48f83334324508660cb39e994216601ada18c5878",
+   "expected_tables": [
+    "080c01800025dcc2",
+    "a4e5e06462072422",
+    "02380c3661805930",
+    "d0db494144dc784c",
+    "cc0b623c484b0182",
+    "870101d3d304a054"
+   ]
+  },
+  {
+   "index": 110,
+   "genome": "1333bce39266f08d05b6fbfb5cbfebb5021403a08bd8a4efeba385a8135971aecf98fdd300000004",
+   "candidate_sha256": "359e43bb793e2b0861901419df21f50d98534f28d360bcf2b3e0c5c3a1ffdd00",
+   "sequence_sha256": "f55fef9cc685d586c68e33530e0ab86ddd7cfc547746c4e82c70209782a2d6e2",
+   "expected_tables": [
+    "90505f81055896dd",
+    "440dac412a2eae96",
+    "cce10191c0015749",
+    "b23f0b5521503041",
+    "8f0e2650a2e013be",
+    "84210333b3101ad5"
+   ]
+  },
+  {
+   "index": 111,
+   "genome": "7ad8fc6cc5885c58ee3daca4962b06f7c8d244c013669ffcc49c0e569b312c51b75718300000000a",
+   "candidate_sha256": "585d24c05ad26a025e9400020fbfe7bdd4d80c8840b4d4f6fbec0c5534ec453f",
+   "sequence_sha256": "4e36d11250214cf34de87ca2e6f2b219c40bce4ca732d758e2ad8ba38660b3ef",
+   "expected_tables": [
+    "580d11a96940745f",
+    "2064c70712a37544",
+    "0c619c3509006d50",
+    "23a08ad13c18ea0d",
+    "42106df90863802a",
+    "03094cc292200316"
+   ]
+  },
+  {
+   "index": 112,
+   "genome": "f40958dea88a73ac17234fdb730a6ff71da38f7c73b656a4cd06611e976c47216d8135e70000000b",
+   "candidate_sha256": "e30a6d7b178330fb2fa59846a07cbe4bd2852505df769ce0913bb02a904b55d5",
+   "sequence_sha256": "9372bf78f428be4d27674579624b5b93852bf1203c78115be10ba476030ac28a",
+   "expected_tables": [
+    "583504e864700c9c",
+    "84c9eca4682aaf02",
+    "12691e956b291579",
+    "219e58993500e2bc",
+    "831428d4064140b6",
+    "8f6000f121b02947"
+   ]
+  },
+  {
+   "index": 113,
+   "genome": "317e829fdcec682c039a030f0ac43f3a6c104e95cdbe928b398d70f4c515112ee170537600000008",
+   "candidate_sha256": "bb5de10e058edc78a2c399ac2dc8b570e16f0cf75bc428d2f96d9c67a797c8b5",
+   "sequence_sha256": "192e2a83f4bc15ca20a90701d141bcb41753798fe448d28e9674eb9b50dc286b",
+   "expected_tables": [
+    "88550ae024117a88",
+    "6484ea55208f0b10",
+    "0c9115126921b671",
+    "d272118c240cd244",
+    "ec080244e62f4124",
+    "814142f213142206"
+   ]
+  },
+  {
+   "index": 114,
+   "genome": "f9863752b6f4e0f5d9926dafd3899551d2a63785b535bfaa49d8274047f248191df1c3440000000f",
+   "candidate_sha256": "9a836ed99d27e0921fb5dcc535b9fc715d0c7462e2157a659aa3e58cbc3afc62",
+   "sequence_sha256": "f07d154b7adb3c52fb27df9a1ad2987f68c03b21d9a3884dd1d4632f174304a1",
+   "expected_tables": [
+    "d2181ee8246db2c7",
+    "c4a8ab50620a7cd0",
+    "c7210ca6c3212c10",
+    "c36b49c128a0aa5c",
+    "c31f4cd42c2e00a2",
+    "00684c1071b48282"
+   ]
+  },
+  {
+   "index": 115,
+   "genome": "7e673abee3af87886e9ea1c373b92c7bda43cf3abe2ec618d2e710a6580b7f9b57eff8d600000007",
+   "candidate_sha256": "c8cfe4759cf48fa90faefeadcc0cb994808a1d87cc6544cd29d65ba838e50a54",
+   "sequence_sha256": "a6da038f83942a07c201a82115fd830f3c616a857adfa7bd0f5f390e6dbbb10e",
+   "expected_tables": [
+    "883d19e92d11d01d",
+    "e009edf21005eda6",
+    "143995948b882939",
+    "531ac1c91458b0fc",
+    "260a2aa968ce03ae",
+    "8f490b31f2a09895"
+   ]
+  },
+  {
+   "index": 116,
+   "genome": "09cc1e58853ad6ac60ad104a3b06b9ceb4cf3dceaceb6ac88089b0679353e3a3336dc05a00000005",
+   "candidate_sha256": "5061312112213d1b4e6ac78d84f39dbca95727cecf64a2efb41b2f867b7eb50f",
+   "sequence_sha256": "1751f77cb88c2880bca90020de15a01a3dae4697be736e59ab5f438c33ec7b06",
+   "expected_tables": [
+    "0a094840494164dc",
+    "408888363023c1d2",
+    "f1f8990523a9d801",
+    "52f9439c74a0983c",
+    "400e2ad846cb132c",
+    "88194090ba808280"
+   ]
+  },
+  {
+   "index": 117,
+   "genome": "9d01b760ddcfbe16790dccdf1beb401fbfa70b0f46533d9122d0935b8e9dd9a56ccb22b300000000",
+   "candidate_sha256": "1ad05b229a157e6238681f053cb2c8466e57e94c088fac5657436a1d520793e5",
+   "sequence_sha256": "12a4ffec9ffef212d4bbee3a53348a8a3861b27eae05ea348271a5e4d3c639f3",
+   "expected_tables": [
+    "d828078169676ac7",
+    "2405ab2278a8e5b2",
+    "c3f11a02eaa8cb00",
+    "400e905979146a7c",
+    "490148b5c2831296",
+    "80210ee17a043a01"
+   ]
+  },
+  {
+   "index": 118,
+   "genome": "5de005b29be547ac573ae45338dc0085dcc79f0c34e118de71f9b32853b4d142aa2798fa00000006",
+   "candidate_sha256": "da6fb66b4f45406eb4be9b9450dee090404ebe14d936b856880572675ad0e037",
+   "sequence_sha256": "e62b8b98b7a841eda44aa90bf7b5a49c86975bc09c5c5778ad2f12f83d9171e7",
+   "expected_tables": [
+    "c0381fc92c14dec8",
+    "0488eca24807c470",
+    "81e888012b287800",
+    "e30ac28d21c41ae8",
+    "2b1342f8444c910c",
+    "803147d379202294"
+   ]
+  },
+  {
+   "index": 119,
+   "genome": "c47d623d13327cbefcc555710a48f9b3571e580f91c15f1fd8240890fa120cdb93286f790000000c",
+   "candidate_sha256": "0fbdfccbf208f7c34ff141690c922fac4f3ca02461ab4d7d239eabb6c93e5571",
+   "sequence_sha256": "4788018f89f4b2d36231fad1985eca6cdc422d23cba7b1c6d9a58f06aed66211",
+   "expected_tables": [
+    "42654c494923838b",
+    "40c925175aafdd02",
+    "b9810213a2a97601",
+    "a3558109088cea0c",
+    "a6082b1128dd8238",
+    "03190952001482d3"
+   ]
+  },
+  {
+   "index": 120,
+   "genome": "1c5eb33e097a255f6ff332526776799f0c3251780bbaf04d2f9ceedfc3051ca68e989c7100000006",
+   "candidate_sha256": "46f2d9ed0ca7718ddea43b355ea0693d85c4c2b3726d86882e5f65c634a2eada",
+   "sequence_sha256": "2d30b11e2cee6c6ee3ba523268ac999dcf6129633844a5adf4b9d6fc0fa04d25",
+   "expected_tables": [
+    "0a3d5ac14c0f1d8f",
+    "44244dd71809c702",
+    "5e59118169091729",
+    "32dc021455dc421d",
+    "cc02475086a5529a",
+    "03214e52132031d4"
+   ]
+  },
+  {
+   "index": 121,
+   "genome": "c282fab663c6a3f61cb66ca87f23bbb25fff28161b4d19c3217fcaf141c69515c1aa9bcc00000000",
+   "candidate_sha256": "fb8ba35f4bd010d02d284d3e493af4ddad4b123690980b4f6fa28737db28ea41",
+   "sequence_sha256": "27d25119ef2afb8601a41ad3b6d7b8cf46db1adc8db541edb34ec4b4a9cf06eb",
+   "expected_tables": [
+    "d01416492d339497",
+    "e0ec05e0620821c6",
+    "aba98f91aaa16761",
+    "9151025868305a3d",
+    "4c074960888c51a0",
+    "875047334914a014"
+   ]
+  },
+  {
+   "index": 122,
+   "genome": "754bfd55acf9696d8b0fd31827152dd2a9968e4cdb48d2091ae69233c35c607c8af239ef0000000f",
+   "candidate_sha256": "c83d8e9ef53b12c88f34f7270e213ef959d0539a182c30de1358ca28a7029d8d",
+   "sequence_sha256": "a905687dad225305381a9c4233ebce6cd0e3499945a5ca92d9de88330ff293f5",
+   "expected_tables": [
+    "0a644fe8654c68dd",
+    "84e5c1c4288b1b30",
+    "9c090b050829cf11",
+    "139211cc5040d29d",
+    "a0044070ea2f909c",
+    "05700153f0b03a97"
+   ]
+  },
+  {
+   "index": 123,
+   "genome": "ea920810077d125b3a1e549695c1ce29d0b2211e70dd241008a5bc7f21cf1fc6564cbb2c00000004",
+   "candidate_sha256": "0f6274d65149a4f07b24395c61a19b53cf1120d8311a343b22d3b6a0f58e315d",
+   "sequence_sha256": "c3be9c2786eca5bfb0ce35e2949559124918fb6f6d0a98447746b699debe5671",
+   "expected_tables": [
+    "ca084e680d2af01a",
+    "00204b6158202464",
+    "4b300d3042a87871",
+    "010dd04055247059",
+    "c0070748c492930a",
+    "8b580b601214a895"
+   ]
+  },
+  {
+   "index": 124,
+   "genome": "3d13e4ac316ae97247749011ef87a03934eb3720a460ab5bbdc5111c6a64712f07f90b9200000002",
+   "candidate_sha256": "c661fe02cfd8c6d89a5bb2a04a089417820569015de4c59748ff3a00077e5b48",
+   "sequence_sha256": "4f6bc62a2cd786471af2b8e2439aceb39c4a378be686100d9e0e431bd1286e9b",
+   "expected_tables": [
+    "082d4ba109121743",
+    "84e564c1088a4492",
+    "669988b02300c208",
+    "c21bc3d40da0c87d",
+    "a9142a91e2be01ae",
+    "81010201f1342110"
+   ]
+  },
+  {
+   "index": 125,
+   "genome": "772894aaacd4e7b8b50ce3a72cb430e59f9080ddd60495bbbdc7650b9acf7481682543c00000000a",
+   "candidate_sha256": "517f9044078fb4d437c26cedcabbe55756eebb9661cb0a838284c19311df38f7",
+   "sequence_sha256": "e187802a2cef0a893a2f959f5be7462f2d605228d7de054f24d2d2cb5859ccc7",
+   "expected_tables": [
+    "823117a92110684e",
+    "848caea6520e3e94",
+    "0cc80e17aa280b20",
+    "c3f09904795022c1",
+    "a90d2c9904494300",
+    "072002b1f334a902"
+   ]
+  },
+  {
+   "index": 126,
+   "genome": "2b4d09e2a04533e5746288c725d1293270c67273e2430952d548c13bf23bcc788b0d0ff000000004",
+   "candidate_sha256": "e9c7728a61a8f7578975cd72c09f2e6b1e503ff1dd9794961be83564554478e2",
+   "sequence_sha256": "915b4f31eeaf6f76717867d4570bab1cbf4767f8cbb1fec014a58ac4d8f4b171",
+   "expected_tables": [
+    "90180321045c0590",
+    "80a9aeb45029e134",
+    "810998120281e129",
+    "8092d34059ec5859",
+    "231020982ad5d028",
+    "022148536b148bd0"
+   ]
+  },
+  {
+   "index": 127,
+   "genome": "74a6cc5b2afd47a36296cf06bf76754c3e193a445971e8e803f9f0ebb971fab65c5934e100000004",
+   "candidate_sha256": "aa28ed525e3a8ff303b8a19445d5f262ca8193a930ab5d374e6cb16fd23b0c3d",
+   "sequence_sha256": "dd940ca967b8ed8c4bd4218ca5689771e72ccd0ad4b8709fc3a628eed64ab80c",
+   "expected_tables": [
+    "da710fe8254a9850",
+    "c0cc4af210064a60",
+    "7df80024eb21c410",
+    "13d61a1c71f41835",
+    "441402c1cef35312",
+    "08284f71fb0012c5"
+   ]
+  },
+  {
+   "index": 128,
+   "genome": "36cdf332f0a7d5dba8e95a3b7985e8a37d20eb0f0eff0219bb935ac9239c05eec304817900000000",
+   "candidate_sha256": "dea87fdad3b4347083f3da6ffe76e4f58b8afabb47514d31cfe2cad259bffa34",
+   "sequence_sha256": "9828f4a31adb7254c14d01457687979701a9a8a1a67d001b7ce5629e4f34a989",
+   "expected_tables": [
+    "90304ce1600f470f",
+    "e06da9963a2317e6",
+    "03a817936ba8f301",
+    "521f804c412880d0",
+    "ec036358e210c338",
+    "8611047211103a00"
+   ]
+  },
+  {
+   "index": 129,
+   "genome": "2187565b492e81cbce8dc9af80ec0f065cacac5ab79746c1f287f8c8cca4e3018fdc4d730000000e",
+   "candidate_sha256": "a9f56b646715f34df4df43dd6e65d5071fee3f85e9d1db374e46beba104150ac",
+   "sequence_sha256": "bff69ccb99ded1f5730225484dcf4024bd946f4ef33d944393b0f55dc5aea6ed",
+   "expected_tables": [
+    "98510d60494b484c",
+    "60696fd0220079d2",
+    "b3401c206a893771",
+    "4180438d2134a0c0",
+    "6e19290d44a751be",
+    "8d210052b83030d2"
+   ]
+  },
+  {
+   "index": 130,
+   "genome": "f31ad9e422691332c581b867f9293c724d76318a32a617fdef309ade802ce2b68d7fd06400000004",
+   "candidate_sha256": "f29100e258f8f9f72664d40f55f142c808b11e772b0e48bde075fd32813b891f",
+   "sequence_sha256": "e1ae7645bb67ac163085e3e6a79b4d17fc48e5c7728098957a426ad3b4eb0149",
+   "expected_tables": [
+    "18045ba940768016",
+    "c4c42ee50220d134",
+    "8aa996b429883311",
+    "2378ca413db0e218",
+    "ce1a63a8caab1222",
+    "08600552a9003984"
+   ]
+  },
+  {
+   "index": 131,
+   "genome": "3137fc5ffcbbab29dc347e0acf203ed14ed612ff017c804ad4cbb615d29fa052f9dcb21a0000000a",
+   "candidate_sha256": "19923e5c2e607ad63fb0c30582e525a11cfe20d68bc938fa770761b7c394a8cf",
+   "sequence_sha256": "32b5b750f96b66b227bf7aa0870594021d7fec273e88053fb5d47a3eb36c5d07",
+   "expected_tables": [
+    "5a555ce021483e5d",
+    "a0c58df1608c56b2",
+    "8c818da7e9a86479",
+    "82f202004490401d",
+    "220366184ce791a4",
+    "043940a2da24ab07"
+   ]
+  },
+  {
+   "index": 132,
+   "genome": "0618590b106bb92e841f139bad8b29d11b5c3659caadc7c8dd500e5ba5128fe07abc4dcb0000000c",
+   "candidate_sha256": "f16fac1f4ebb953f2a9dbfbeb745d04aed41ef96a9f3b1ddc89abcfed1961977",
+   "sequence_sha256": "7bed06b870b7bd06f53c2ad082bf0ba578a237d339c8c97cafa393105aadf0e0",
+   "expected_tables": [
+    "08714a004506529c",
+    "00c02c8528a83ea6",
+    "bd8987278b091121",
+    "129213d179a0e051",
+    "e208654c02b9829c",
+    "8a380cb1491083d2"
+   ]
+  },
+  {
+   "index": 133,
+   "genome": "f0620dcff75382f5aa5246de1584ecf5f32f315ef47a1a86bfd2a314bf498dd575d7e59200000008",
+   "candidate_sha256": "58e1e5762378083469ab31f23454fcc2dff5b9aecf67122550016526792ce4b3",
+   "sequence_sha256": "8293b1765d1cdcf0d702d7158c9fb60d5a596cbc5e027b1b435b65855a4a1955",
+   "expected_tables": [
+    "425506a80c7cb3d2",
+    "a0a8cb603805b6a2",
+    "a2611315c3a8e831",
+    "e19d510424a0ca79",
+    "a90e68fd8c7392a6",
+    "86090ca15b101943"
+   ]
+  },
+  {
+   "index": 134,
+   "genome": "6a8b25c48bcf018ff7150dc9319166200ba166c804444c13ec80a5af3daaf2a15a385ed800000000",
+   "candidate_sha256": "ead61aeed85e31629a3ba24ca03378d1fcb6a2b7dd478a5b7e9a2026bf5d815b",
+   "sequence_sha256": "24763fd6b06d932ef1f3d7c46e7f525bc46b548bfdbb61c60fe0e0654ea60f5e",
+   "expected_tables": [
+    "d80c0228695e98c9",
+    "0409e4c47000f866",
+    "12280e1088084250",
+    "c0b680c055683870",
+    "8f192c4506f81208",
+    "08390231b8048954"
+   ]
+  },
+  {
+   "index": 135,
+   "genome": "54bdbd2e45cd46da93ce0bb6230af74a4ae6cf72c4a0c361f5648cf0744000583483ee2600000000",
+   "candidate_sha256": "2a5ecd9db7006e318ee99bab2aeb51024a0f3a4787cea610698ef8aac0119e0f",
+   "sequence_sha256": "7c21f4d7efc2d93fcc5a8fdfbf428d102da4a1ac4ee3a752fb08106ec37e22dd",
+   "expected_tables": [
+    "983502892d06615f",
+    "642d4a374a063b60",
+    "9618880489813278",
+    "40df1b990808d09c",
+    "6e0e25a428549086",
+    "014801c041040151"
+   ]
+  },
+  {
+   "index": 136,
+   "genome": "464c7e0fd8356196a0de0655d2938b6826846e87269328b63df24c83ffa2f781725d78ed0000000c",
+   "candidate_sha256": "d879af4045f96e0ce137dfd060cf1d5fc7661cd1b1b8668ece78917bd9969f79",
+   "sequence_sha256": "a733ffc57e68d4d3be4af9d2d7c5e583bbfdb49f63ffef879aca70706f902bd7",
+   "expected_tables": [
+    "c275080805035bd7",
+    "6048a294180b9224",
+    "c13018b6e0a19141",
+    "e023c8d870680844",
+    "ac190ddd00f74218",
+    "8e5807f1f9008197"
+   ]
+  },
+  {
+   "index": 137,
+   "genome": "32981d2127dcecaaf88d3bb213a3eaa6b63936fb4088bb4abf1280dbf0f5c8fb3fd51d1d00000007",
+   "candidate_sha256": "9d01c24b5097f91990756534ea5e73b52561848217872a2946d8981f59995d00",
+   "sequence_sha256": "1dd9cad14e4803063702282b7a9668e45bd4c6a4f5fe6904f298c2b5dd872037",
+   "expected_tables": [
+    "9a4052a16906e05c",
+    "c08809075a8a7bc4",
+    "6e600113a2889869",
+    "82b712d059b0ca74",
+    "ec152a882a7792ba",
+    "04790c802bb033d4"
+   ]
+  },
+  {
+   "index": 138,
+   "genome": "46c3cad55237f22c02f71febba275de669bd115a69f8396764fe57b5d7652168eb2b91d500000001",
+   "candidate_sha256": "0e62667ded0a456d0d97044eb84e9fd994e952fa87916fa213b630ed92bd2e6a",
+   "sequence_sha256": "3c6709237329008f3427ff525554a40db2e6e88137a5d68773d05f3c75c8a1a1",
+   "expected_tables": [
+    "d264484845519798",
+    "60c56860222babe6",
+    "eae80b354989f631",
+    "b0cc5a544c905a24",
+    "0f1644f462cdc038",
+    "856145b3d2902104"
+   ]
+  },
+  {
+   "index": 139,
+   "genome": "498f3a7f3c8d34152e8324887d457c27933279fbaefa60dea8227cda02f16b909f4360c90000000f",
+   "candidate_sha256": "fc0f5b012606947deb79c1d675d281de1041c84171187c97fe5576cdbf862330",
+   "sequence_sha256": "e9c480ea0749aa38e1f47962d59df01aea7252768c5048c215f3a321299299a0",
+   "expected_tables": [
+    "c85d104964492a97",
+    "c001455630282570",
+    "5ae81392c3885939",
+    "f2fcc34c31ac4019",
+    "cc1d25b04c02423a",
+    "8c380913a2a00283"
+   ]
+  },
+  {
+   "index": 140,
+   "genome": "182ecf48bd76330bbcca30865e6aa5dafda62b48ee2164d125a91272454bba4ef14feaf600000005",
+   "candidate_sha256": "68d52d255541a5ea8701f78cdb5533da5ccf1b6571d3e0946cf0a8561761e095",
+   "sequence_sha256": "2211b1e5e7cc8ab3e5e6a06b472334831e871dc9ee5c2a38cb1865da9a9ff91f",
+   "expected_tables": [
+    "82095a800c4f6b58",
+    "c0448ff4502c3102",
+    "d3b10a852b09ab10",
+    "509bd3193034700d",
+    "480e42ece0868124",
+    "08494bf39b848991"
+   ]
+  },
+  {
+   "index": 141,
+   "genome": "4411d6585daf2c7bea230149960b6fd9f3af239207baa2db64e87cbee3853ff1e2101e460000000a",
+   "candidate_sha256": "57238e139ab55139e99df5ec950cc5fd99bc8bf868a4cdead406d7d83bdbbe96",
+   "sequence_sha256": "85fa5b352c536e0a69c3e8fe2b4b9faca4913957fe1d095171b35f82295391c4",
+   "expected_tables": [
+    "882108486c4b2e4e",
+    "20e561033088dc22",
+    "e6311b25c381bf71",
+    "c23e82513520d02d",
+    "0e010d504e35c20c",
+    "8a404bb2d2242156"
+   ]
+  },
+  {
+   "index": 142,
+   "genome": "17d5895d717993a14dd04f2cbc6fe8122bd9eb019c216a421a2c0ecdf2b629ecb67c075c00000002",
+   "candidate_sha256": "cbc519040de2b193dad9b8b8b851cc8f874e441cb28576dcdb3ab8597e7cef80",
+   "sequence_sha256": "463d43d155837cce118d9b64bca066eee6ef0f9a5ee91d3f976814013460f166",
+   "expected_tables": [
+    "5a650ec0084c1310",
+    "e48d07b122214bf4",
+    "79a98a2289008001",
+    "d11f035d453c88a1",
+    "e4114518a2ff820a",
+    "815949928034b240"
+   ]
+  },
+  {
+   "index": 143,
+   "genome": "11d5f32441cd4fb3370e7dae0bd5f27629239c41b08a21b0254dde4e4738c5c3864f434300000001",
+   "candidate_sha256": "3954f044be2f589053a712ba6652d5db97d4e17398b0576e7260777e8ff8e9db",
+   "sequence_sha256": "72469adbb6a8fa317a0a82ae8a048499f2d1017846043243fa3488e918fc9759",
+   "expected_tables": [
+    "d80456812d0f4007",
+    "24cd4eb372832970",
+    "42c1131608009040",
+    "01d5c9cc3dc400fc",
+    "48184ffc4086d31e",
+    "8300401269940b00"
+   ]
+  },
+  {
+   "index": 144,
+   "genome": "9f966104c970ab22afe954f872be46882f16aaf72f60367b1d744eee7535ecd3a452c6ce0000000f",
+   "candidate_sha256": "288abd244938715d9fa7e81871269e9808e32c60e973cec59f06bf9d8dadb7b4",
+   "sequence_sha256": "64cc2572a2b4d0b1383b331673f931e12c5f57ce452bec8c4a95dad28b1fa612",
+   "expected_tables": [
+    "422c4e8048264d01",
+    "64c0c5f13a88b0d4",
+    "c8380283a9a0c778",
+    "d2a6ca1d1570b2cc",
+    "e41a4f640876c206",
+    "03500d93eba423c2"
+   ]
+  },
+  {
+   "index": 145,
+   "genome": "862b5a263d8b6ae8b040e9c09da34450b7632315ff1ec7904260492fa3907ca9cabce8990000000f",
+   "candidate_sha256": "e12a29c3eebf23119b4c17603537efd1a6560042241742f9766c12b8d2ad3a5c",
+   "sequence_sha256": "531341c0382eb85f562c7268ad6540e3d60e9a66e92d0be9e40959906720d1ea",
+   "expected_tables": [
+    "1834150128212b1c",
+    "80e90064508eb826",
+    "16a19726e2208d30",
+    "510ed1507d30b079",
+    "030b095822b94298",
+    "02310b23e0a01293"
+   ]
+  },
+  {
+   "index": 146,
+   "genome": "c08dd9289430368a070fd34e021d239e62e53e3f694a518cde0be5faecccf355cb7592ea0000000d",
+   "candidate_sha256": "ee1dfd53bed8a5bf23126742ae2058011a0eb7207ade0189403492e08fe578de",
+   "sequence_sha256": "18639d4b14e663eb1efb5622fdfded71d83c8a48ed691744d15478b317adf2d8",
+   "expected_tables": [
+    "02014d094526621c",
+    "044dce3620288b40",
+    "9251990380a9e468",
+    "321250cd39e05224",
+    "e7072c8d8c3fd12c",
+    "8c304273a8843986"
+   ]
+  },
+  {
+   "index": 147,
+   "genome": "7f93374eaa5c62f8ebccf4c32e0473a019be9cdc7304b5664c35f1bb6eac342bb4cbf08500000007",
+   "candidate_sha256": "b9c69f0ce503a983ecaf93a16d02333764a9484e16f66ebfd3cfda231a07b849",
+   "sequence_sha256": "26f75c4e4bac8abdf200cef441447efa697befb43fc678d9dd5c8dd9dc24f5e3",
+   "expected_tables": [
+    "ca3d57a80145c94f",
+    "c4a9e961100af054",
+    "ee880e110a290560",
+    "a1f45a8c5980728d",
+    "871b0ab566965192",
+    "0348078380a02985"
+   ]
+  },
+  {
+   "index": 148,
+   "genome": "b57f5618a84ace8da669802c7788aeeb1225b9e95672265de5ace608f2a35de5a0bf9c3a0000000e",
+   "candidate_sha256": "db5b34b1ab1094e92d15bbe65594623b70346df9016fd7c4ac716c0b4da511ea",
+   "sequence_sha256": "3c27ea1a1ca9574e25b646d327607838faa1562521846c4b2baadaf07cd69a6a",
+   "expected_tables": [
+    "082103e040294dcc",
+    "8049c67732871592",
+    "c2381097c3084359",
+    "63b9920901a0a0f5",
+    "0a136cb886fdd284",
+    "83114bc2332081d6"
+   ]
+  },
+  {
+   "index": 149,
+   "genome": "e136b3c59f62c6eb91406410155c408d73fa80c299feacf97047c397feed5d4e956024a300000006",
+   "candidate_sha256": "71651bad26b4d667c89bc1f0b31c9e78253991985cb4366934b8d005d3813e7a",
+   "sequence_sha256": "1834b1c8ab1955a4e5c6adf7f961997f43e1d4464f794a697dc32f04970898b9",
+   "expected_tables": [
+    "40441e28087fab0d",
+    "04ac807348061492",
+    "6e709f01c380f600",
+    "13a48b0574446899",
+    "2f154215a05fd136",
+    "87080a43622028c1"
+   ]
+  },
+  {
+   "index": 150,
+   "genome": "d01b4f4b777cf2f41073cf3090a051326df93cbe2db34975317c1fcb7a24d499f9f78e120000000f",
+   "candidate_sha256": "0c4fafe3762dfd343377a22278dd0afd4516b61b8083f36fbb619b89d459ee8f",
+   "sequence_sha256": "be36a50b14bd6ac692da37f84c1674b554808b27eda1a7fb2a9fd8c0f3c0503b",
+   "expected_tables": [
+    "da510f884c65b7d2",
+    "a0e900654a2a0b80",
+    "3b219a3069a9b628",
+    "7064ca8859b00860",
+    "6d124db9687e02a4",
+    "032947a269a420d2"
+   ]
+  },
+  {
+   "index": 151,
+   "genome": "a63971e0d4dc8c3a3e1e2ec467d40467be91a94f6bd7ed3853423d57efd9a96186fccc920000000e",
+   "candidate_sha256": "f1ce4e27343217f7e944d3a5d141275cb177c794511300195ebdfe2e8e914462",
+   "sequence_sha256": "8e374f836fa8e5c1b31a10fee54dcd1ba5e64648e226973d13db4eba8de28cbc",
+   "expected_tables": [
+    "da2012212576720f",
+    "20c1c7075084a784",
+    "5d481c96eaa8dd10",
+    "1288d80c5c6468f5",
+    "630f0d5d46bf808e",
+    "84010803cb201ad2"
+   ]
+  },
+  {
+   "index": 152,
+   "genome": "1736dc1674e605c69026e8dc59a7db323c3fe3f2c7a0da4d4fb86b60c9d3f691e28b840e0000000a",
+   "candidate_sha256": "a63fae4b9a9e2203e4adc83768c3f064087b754b707157018b09df3e46d3e591",
+   "sequence_sha256": "493f6c9f00fcfce29e1d472f93de8cb2f94270c2bab245c4a1dcfeb18556f2e6",
+   "expected_tables": [
+    "90341fc0250226d4",
+    "a06c02d36804b116",
+    "bea100902b819769",
+    "62ef135400389af8",
+    "c30749e10c85428c",
+    "0a5047a2bb209342"
+   ]
+  },
+  {
+   "index": 153,
+   "genome": "3246f088489bfd4e6aa5697174843d62d644a8b2be4ff8feb93277cc927d2d188f190eeb00000001",
+   "candidate_sha256": "3c6214550b72a87228d006eea025dfe4883c445235d3d4a70682819b5dde90b1",
+   "sequence_sha256": "8037eae6e6d5058f209270ecedd9966347132beca43f12ce929f2868c44675a4",
+   "expected_tables": [
+    "1a0114a061120c8d",
+    "606461d21aabc9a6",
+    "d5289594a2816939",
+    "f370cb0c25200ac1",
+    "ed1464906ce1403e",
+    "86300d5383842a50"
+   ]
+  },
+  {
+   "index": 154,
+   "genome": "4962a7c9106697a863d0294a8d3b0690d1ebb5c574fec25ffbeda75f4c69de05ff51c44200000005",
+   "candidate_sha256": "8daa0d4bb2a5334d946f7c26f5a1415129b345c0d625a64059470b710dd62280",
+   "sequence_sha256": "84756e344b6b0a8699d6e21ae90317b88c84349d6fbe58cc53d67c85dbe3057d",
+   "expected_tables": [
+    "90491a0800551349",
+    "448c48e23025c892",
+    "36819f2343207a50",
+    "e3a8d2d155f0c0b9",
+    "eb1e6c858426112e",
+    "0b284bb27b8018c0"
+   ]
+  },
+  {
+   "index": 155,
+   "genome": "60f12dfebc7a60171fa79887a778c65af014e1ddeecd66b2226581e741d30338b14bacb90000000a",
+   "candidate_sha256": "a2f7726106b503a53f283a3c83c0cba03fa167a39ecc935d7dbe718c78e72a81",
+   "sequence_sha256": "2033bd303ff421de2cf565aca624fdaad23379fab7388c4c2bd01c662260554b",
+   "expected_tables": [
+    "1a154b69455e2ed3",
+    "c401ef01400f2142",
+    "d91905260228f970",
+    "d0add901747cb095",
+    "4d0700e02a861130",
+    "891901c342209253"
+   ]
+  },
+  {
+   "index": 156,
+   "genome": "3901f5cdb05dedc093412f226f2ffdeeccc7cb243bed8a5104fed5a78b03baeeee2f3e9200000004",
+   "candidate_sha256": "e8a90dec6eece3dca4f4bc1768b427e8d7c9855ef813402d0f5f8f2b4bc5d7d7",
+   "sequence_sha256": "8e5ed0eeae7575073430e78bf1e8264faeabf96b1edc904aa58d51b1de752e1a",
+   "expected_tables": [
+    "da4d12a040540345",
+    "846dc882428a1bb0",
+    "85d88d9529217f19",
+    "115fc25d541898bd",
+    "050006f9e289d20e",
+    "0d214fa3da0481d5"
+   ]
+  },
+  {
+   "index": 157,
+   "genome": "c74d20c37764aec353e6dec26362403576b47e26666cef1e78ec74fe93b77fcd5f667b840000000b",
+   "candidate_sha256": "cc9bace82b35a24d804292df105aa30e4d182957c66ad08bae2b31627012ab51",
+   "sequence_sha256": "73de4e974cd769848afbe91af43c66d8e6ef00c910ccfdcfdbba2e4178252b93",
+   "expected_tables": [
+    "d0704f080d7aa701",
+    "e42948364089e694",
+    "de490d90a3a0e108",
+    "e206d0981dbcf814",
+    "ee190c78e44bc22a",
+    "8b684b21f2b4a217"
+   ]
+  },
+  {
+   "index": 158,
+   "genome": "89dc027679b6f3eeb58aa927ad347a7049e2b410932b4eb5ed31babd260009286851400100000001",
+   "candidate_sha256": "6507348d0f48011defcb330ec4769e70506140f318b388e4d9c9c7859d138887",
+   "sequence_sha256": "84d5632f709a9dd911a35d87c0edc98c9753a2da3c4b967e55a960b19d755b0d",
+   "expected_tables": [
+    "921c19412c634a88",
+    "e4a82eb5522b18d2",
+    "13899b3409002761",
+    "2154898465f0f899",
+    "8e08619466321110",
+    "80200da001800100"
+   ]
+  },
+  {
+   "index": 159,
+   "genome": "f8798b07cabf9e320ed0e847c21043afa632b586aa315580eccee4b11e5c7cae5826839a00000009",
+   "candidate_sha256": "f472e9232e868ce040abe6e53e77a37d93951698628dea4697bf6ea4f3bcaa78",
+   "sequence_sha256": "74b7f8aaa1adfcdd92fb610416e8e16e8ad5cd5daab0a4ed1b2462a44d933939",
+   "expected_tables": [
+    "9a5c1da820279912",
+    "6085ef2700a585a2",
+    "1b5000b1e1a18940",
+    "102c418068e0728c",
+    "8e06263da6485204",
+    "07394a21f0942b02"
+   ]
+  },
+  {
+   "index": 160,
+   "genome": "77bb9e0095620374795e0df2134aa55ee850277210bccd8df87b82efc1cd92fe97727e9f0000000e",
+   "candidate_sha256": "01b67849b5e2f0903492d42fe3329da7007baee3450c391752e36e12087f38cf",
+   "sequence_sha256": "d965e1887e95fc284f100d71c54c0db3eeab302be7c5cb62045b7fab64c0158d",
+   "expected_tables": [
+    "50200aa80d0173d6",
+    "04a589e55a04e956",
+    "1c7185044981ba38",
+    "239b00917d243814",
+    "ee0d6260aa2f933e",
+    "0c5947034a2428d7"
+   ]
+  },
+  {
+   "index": 161,
+   "genome": "d72216f91f3f4948c31f0804b9abdb5fd1493a7fbb19a35e1bb1fed0f29be6809892d7b40000000c",
+   "candidate_sha256": "7a0f72c5b04def2309fcaf43ae6bfd2d9565fd5dd39e926cc991dde22a448348",
+   "sequence_sha256": "bb97fa883c35926c4d6c1ed840fac2f51170cf137ec4313ad31f44ba799a7234",
+   "expected_tables": [
+    "9a6108c94d71fa4c",
+    "042042c000865536",
+    "65f9832642a92d69",
+    "b3c7c35908b0c070",
+    "e40b453044755380",
+    "0a690543bb149ac6"
+   ]
+  },
+  {
+   "index": 162,
+   "genome": "3f3531c8dade12c955244b3c18d6a50d37b7b97ec63d0b695a2ec6cee53087e04d4a7aee0000000f",
+   "candidate_sha256": "ca1e97c54bad022b16d1208e24f19912bb47b86740c64d7a81cf7b90e860167f",
+   "sequence_sha256": "613ccd79c3341593986b72a9e3eeac97376e2429d6b0cf723a3cd9fda07fc19b",
+   "expected_tables": [
+    "9a2906a0215c8e0d",
+    "242986316a244e16",
+    "8bf00f00e3a98338",
+    "42991b1c1de488e8",
+    "e61844640297d226",
+    "8f70417108a41297"
+   ]
+  },
+  {
+   "index": 163,
+   "genome": "bcedad5c09710b4d6217e614d81dbb1b53e4c9e5bfe5e2d59858776828a335b2ce3ca0f000000000",
+   "candidate_sha256": "4eff126192b3cef8b4be149d78219afe497bb08131d8325a8aa5d9b53fac8607",
+   "sequence_sha256": "80c4b86c5f6c580c5760058a02a76e67a95bdf892dfd7f9e121d2cbaa2cd9d8a",
+   "expected_tables": [
+    "422d1fe04d6c18d9",
+    "002542b418854760",
+    "d7b18ea283217749",
+    "71f9c34d21489080",
+    "e11366094eb8420a",
+    "82214673c2008001"
+   ]
+  },
+  {
+   "index": 164,
+   "genome": "cec6c635af530a532381daa350137a92f4a5c88179e7631f25e544aa72b6620bde07576f00000009",
+   "candidate_sha256": "2259da75fd0ee1f62d8f3b27becabb85d8b8242f2eb6869d093a4dbff49c8b06",
+   "sequence_sha256": "632009c6ba72a2226ea5eef80a382e42a9449d3b568efb34a02ec3216b1e3c11",
+   "expected_tables": [
+    "126c4749482ba842",
+    "c464e87012812366",
+    "d3211c832300fe41",
+    "b374d058194890a0",
+    "0c190eb82054411e",
+    "09780172f194a346"
+   ]
+  },
+  {
+   "index": 165,
+   "genome": "127064a8ade9e5cd8723231f559abb42ab9308fcc8590b1840a7aaffbe906ad3bd66e05600000000",
+   "candidate_sha256": "056af1b28a25196ef8648c5282c6b06ea959a3e8ed82349645afaeab9822fb19",
+   "sequence_sha256": "da94d6c112d7663997fbd0b959aba749797c16d93afba1890017a0981af5b36e",
+   "expected_tables": [
+    "08011a816c182cc9",
+    "8468ee83280f1ba4",
+    "09200b84c829c869",
+    "12f191195d40d879",
+    "460b4b3d0c5b9326",
+    "0d690992b0000201"
+   ]
+  },
+  {
+   "index": 166,
+   "genome": "ea3173ca0f0792806007542e20145147c5a9155ff3efa0e2fee7f4fa3109b32713c7aaa80000000b",
+   "candidate_sha256": "46fea628e739348c80df68979e85368df385c9c24feef8642835857bd8d4c854",
+   "sequence_sha256": "2504bc39c199cacdec25bc7bd4639c82437442bc3a031121ea22176d8b93775c",
+   "expected_tables": [
+    "c01944284d75a805",
+    "00490a21322445a6",
+    "67481f0621a97d20",
+    "81cc5b8431c05020",
+    "ee022ee8c65251a8",
+    "8d180341daa41913"
+   ]
+  },
+  {
+   "index": 167,
+   "genome": "0a20f655748fb10f76f0895df362f1d0c942c9f2cacd2b514cf189bc5f196301b7547ee30000000e",
+   "candidate_sha256": "7ce68fb647333dde32d759b576a2e1b0f65709e2abbcb59848545b11f9438c67",
+   "sequence_sha256": "f6981adedda6289c11a492b871caeb4e7e2b26343392193d860a436f77e70403",
+   "expected_tables": [
+    "984c0140204b37cd",
+    "e0446680782cc8a6",
+    "412987a508817b28",
+    "10fd93180d1cd89c",
+    "8708095d0066113e",
+    "880805d3f2240bd7"
+   ]
+  },
+  {
+   "index": 168,
+   "genome": "7e6a4201dde7864f310c82bd79b66fb649c60b7b14dcbc80a246cfcc197cd8c84850f38c00000006",
+   "candidate_sha256": "7353452c9cc7bb7dd28056c811326e6c91a17f37be67ed17b3c92f1045e32b03",
+   "sequence_sha256": "0fd6b5cb707474418e0c577f81b6e005ea3e94c871da01039cfcf5408f66d9b7",
+   "expected_tables": [
+    "80680ba8290b6a88",
+    "2460a2667a0523a6",
+    "c4e98f9348897079",
+    "419e001c25502a58",
+    "4d1e65412062d200",
+    "05700a2168343a85"
+   ]
+  },
+  {
+   "index": 169,
+   "genome": "537df907c802c423090096ff5a689de5920f69f84c8904fc2bf08ca275c697424d2e0d8800000009",
+   "candidate_sha256": "5a55e6f4f45fae57e9a7a714fe81899a2982736850b21f36bfa23900ca45d77d",
+   "sequence_sha256": "7aa49aa06592472e184ec6157cd4c531134624f55d669ecd5e76e8e59b53c390",
+   "expected_tables": [
+    "40544188000e0815",
+    "24c5ab172a07a696",
+    "a1e0019582091839",
+    "72e99a09303c302c",
+    "8c05076c00dc9022",
+    "8a3007215990b052"
+   ]
+  },
+  {
+   "index": 170,
+   "genome": "2889a75da227f15031d4df2cd076eaad7074c388dcd8b97ce43b15589513533ee794c0d60000000a",
+   "candidate_sha256": "1ebed2a42886474b9cfa60a603a7d264dbd930fa5888cf11d5d0e5f7001fc878",
+   "sequence_sha256": "38028b4b56ec230f5db9c0aad8b8a06d8741a3e1a1cbc8cef6826ac2c61f3b69",
+   "expected_tables": [
+    "d04d4d6001459143",
+    "c4258284722a0ee2",
+    "ce7081b14208f041",
+    "733f9b14095c4a80",
+    "4b0a264cea6101ae",
+    "8c4147b322208302"
+   ]
+  },
+  {
+   "index": 171,
+   "genome": "6bfbb9c5ef8f5f1d45b8ace1ca4c5833c3ff8c32e4cc0af047d431b37721e42c110f09360000000c",
+   "candidate_sha256": "ca2f77d5ade6097d4e65024151aec828c72249f25f951520db0cc18cf0f05ed6",
+   "sequence_sha256": "351f806b994e71cc1a1260785ce213660f2eb067a19599343404405285edee95",
+   "expected_tables": [
+    "d84c1128285cfc9f",
+    "e405a4e702a7e576",
+    "aa818fb080807829",
+    "4044db8d7004d8ac",
+    "071000fce6d40024",
+    "03490440fb101192"
+   ]
+  },
+  {
+   "index": 172,
+   "genome": "8d08dca18fed0cf7a4ae2917cbf7e79205ceb813f9d08f32c8d45a2ee3d54a0cf28e253c0000000a",
+   "candidate_sha256": "8d6f7a93e345879f7d0e2e8282f3f077313ccb4f14355acc6051e60ac442919d",
+   "sequence_sha256": "17a78a90656ed107f415bbab5358926bce0f15ef1a46d78457af10e634960b47",
+   "expected_tables": [
+    "98681a012d3aecd6",
+    "40ecae0618801930",
+    "a4818aa360815470",
+    "9115d95c1df4b8dc",
+    "82056178e0954088",
+    "09590ce272302243"
+   ]
+  },
+  {
+   "index": 173,
+   "genome": "931b3ad9aaf6b74911723cdc434866f3b8caae714d72da3f6e08e40396a21e1d7f53e36e00000003",
+   "candidate_sha256": "d5635b175d7e71a14eff6debf212b15b24c0f5b3dc61a4e7e89020fad4cebe3e",
+   "sequence_sha256": "010e582a6a74c736a94c68c2530d2e6207a9ee92ae8de0ca0c6b025b2590dc8a",
+   "expected_tables": [
+    "d2415ac024799d1d",
+    "842182e76828a596",
+    "340198974b00ce78",
+    "f296988950248a9c",
+    "8a1b0cb4ac63502e",
+    "0a784af000b49101"
+   ]
+  },
+  {
+   "index": 174,
+   "genome": "108cd0cd30579944726a981f3255869c051e215a77dce7f32699326011aa5ed20d806b4700000001",
+   "candidate_sha256": "6f66bb798cd6f3791b966ea46fd49e772de96d0ffc6ac0b14cbc924dc091469c",
+   "sequence_sha256": "1fa89dae7e673e00077d871ab9380b7893540c1f7e4c29e5a11ea3a023f051ef",
+   "expected_tables": [
+    "9245438004504784",
+    "80646a9478a040e2",
+    "fc79070160885770",
+    "c189da442864b00c",
+    "481942404c4083b6",
+    "0a604e1030949911"
+   ]
+  },
+  {
+   "index": 175,
+   "genome": "c09c190e14ec712e8adb81a9174b1896c2ae16073e4b8537c52415f7699c50e83511e4740000000f",
+   "candidate_sha256": "e6683d808f06986fd01ddb38e84cb7ffb4ea95616ac2f6979fc21eda816aade9",
+   "sequence_sha256": "f605fd5828b3786f60294f129df1d4659e1e913a591b86572f0f9bb70c6d294e",
+   "expected_tables": [
+    "88150b086426739c",
+    "40806195222a3940",
+    "a761190380a06b01",
+    "f142c8d15c84701d",
+    "470b24c162348222",
+    "014903d021a02bc3"
+   ]
+  },
+  {
+   "index": 176,
+   "genome": "6eccc45bcae9756f7379685e4171f265dda7d32e3d1d7129f34c73fcc759d7525b1e69c500000000",
+   "candidate_sha256": "8f99ee33d5c8552371ac04e2751b861aaa44bde9f89a492f52445674818cd48c",
+   "sequence_sha256": "7995934086aeae756555e4371736b12d8d45ed13c72f3200557387ac8cb7c273",
+   "expected_tables": [
+    "18791e68604addc8",
+    "24e4ca96782bc464",
+    "d3400f946aa82e48",
+    "535f48400ddc52b8",
+    "6f0c627c4ca5c038",
+    "8b6842316b101a11"
+   ]
+  },
+  {
+   "index": 177,
+   "genome": "0382f414c4815e08ab8c64cc6d2302f0040cf7fed6aeb854fff33c172522ba612c7660b700000007",
+   "candidate_sha256": "3758934cfd63b597ac68575ffe3907238e341657df56b4ee3995455415d114d8",
+   "sequence_sha256": "392c154947fd325ac2533c417ad85f8a933e2e8eeb422a0bc8a2f16e65ee47f5",
+   "expected_tables": [
+    "400414402100604d",
+    "6444c36230a2b074",
+    "e489159521a81168",
+    "61aa93d054b84a91",
+    "aa182d6c463a8116",
+    "0c610fc1d9a09181"
+   ]
+  },
+  {
+   "index": 178,
+   "genome": "2a59d2b733d1c72a6f2b9a685910de6c5185f26f4f24b49be5369c8586c21550c6f6ae1200000005",
+   "candidate_sha256": "ded5e6c40c005b36033181747b2b1fe23d55061c30e10572d2638469564db546",
+   "sequence_sha256": "ca2ea144fd7d6f441d0855b66fe8935850d9170536756137bbd18911fef5eef0",
+   "expected_tables": [
+    "125c43616c13c60c",
+    "84c545a73203c2a4",
+    "c4f00e9603a82759",
+    "d2c7900064e822b0",
+    "0e07253c482b908e",
+    "87010722018481d1"
+   ]
+  },
+  {
+   "index": 179,
+   "genome": "8e7120fbaf7ef6903a02283f1310e176f0d67fa03fa5cbbb0a0faa5452946af8acefeeda00000005",
+   "candidate_sha256": "2729aa9f58a75f58f0208a3cdde648537d78e5df66697db9ac3ddbe72416e0fc",
+   "sequence_sha256": "0075aad6b811f5cf47668a60a8029a08bd560781bad18db6270f5c07b97c3946",
+   "expected_tables": [
+    "9a791a410c70a803",
+    "8009eb237a2f0186",
+    "9d618c140301bf08",
+    "d33fc8882ce8c81c",
+    "c00b41b82ece9386",
+    "0d314893a08432d1"
+   ]
+  },
+  {
+   "index": 180,
+   "genome": "c9aa404485cb063c17fae9dd1aa595ea0735ca07bd69bb00004c42111a7133e6d963f3e200000001",
+   "candidate_sha256": "8500085437554a2a6efbf0d66b0309da8c82f50a55e17d75976df414be7c9ff4",
+   "sequence_sha256": "e70d4b904f6ac9efd7bfcf2cdc08e061afd85bf2903bec7c4b2c93cdf243855a",
+   "expected_tables": [
+    "180c17082c60758a",
+    "44c0e6666804a972",
+    "cfb00317a1a14410",
+    "5143414c4818cae4",
+    "001e42b1824ac224",
+    "89284273c2940205"
+   ]
+  },
+  {
+   "index": 181,
+   "genome": "4af7e471f7a3b0727a88b02ae1d63ba3e5830998b9a4cdac068e6029df0c281ccc5cb4380000000e",
+   "candidate_sha256": "7ad701f57984b9737a40ea60825d9832fb5693326f431213b12e162258342a60",
+   "sequence_sha256": "57c41f7f218c75d3994cf8a4ee4c2c39e669089dbc57d0049d643692bd07a7ec",
+   "expected_tables": [
+    "004859492842e243",
+    "e0e5c951722d45e6",
+    "14080eb12109bc61",
+    "3378491c69443878",
+    "0002005dace74002",
+    "05314862902039c7"
+   ]
+  },
+  {
+   "index": 182,
+   "genome": "d948b4e1031b4c5178244cb88355996a38263cc6d7489ff7420aec4df3c90f0811d7a3b500000003",
+   "candidate_sha256": "2c696f676cfbc058e400eca903e0e1ea16c02d1c5db376616510855e39cf079f",
+   "sequence_sha256": "66a660f5193d43dc45a55166994f51c369095b9a6c772f57e009ec2d66dbc65e",
+   "expected_tables": [
+    "5a48048909788447",
+    "002401067a836132",
+    "861001340aa1c701",
+    "e1e19bcc6de4aa1c",
+    "420705f8247750b0",
+    "8e49484102b41801"
+   ]
+  },
+  {
+   "index": 183,
+   "genome": "00ee2cece58d1cd8a9270543f28b8b2cdd08480ed25cfaa45ca139a8fb94d2347a23597e0000000d",
+   "candidate_sha256": "911f8ae5ee1b97b24202b56633e745e07400218c9801a29ab4a3f3e7b1e7ed3e",
+   "sequence_sha256": "4ae8ad0be793188fe560594dce5e05b7419fd7b56eab392780facf1eca33bfb8",
+   "expected_tables": [
+    "c80500016d50245b",
+    "a428a95610a59860",
+    "747807b06aa96941",
+    "2101195921089a44",
+    "a70901f1ce5d010c",
+    "087903f038902396"
+   ]
+  },
+  {
+   "index": 184,
+   "genome": "403313d06dcb68a87a30c45871bc36fe1f06ad707ab0e2b4b0e574e1cefaf30fdf35969800000003",
+   "candidate_sha256": "e455a71c31c6327f63fdfff5f7588ab9b00ae096de851dbb445420ed2b666b81",
+   "sequence_sha256": "46bf601ee0cb07aa6bf4081607b23312cfd92341d6e148ef7470f3775706f4f6",
+   "expected_tables": [
+    "4800074828553c0c",
+    "a0894141788ec122",
+    "d4790295eb001178",
+    "31d8d88d607090d8",
+    "6c172e9de42d412a",
+    "89390323f8a48a44"
+   ]
+  },
+  {
+   "index": 185,
+   "genome": "a810caebdadfb999fff52050690211a39ed30447de9e8bb7e81142f595d29d6392408b0800000001",
+   "candidate_sha256": "868d453bf1cbc1e4300952694998495f08c258d36ca22a4bdaf3835bad8072c2",
+   "sequence_sha256": "dea9fe5829b0a40acc479829dc8249df2c3bcca06696dacc0a768e1e54392c52",
+   "expected_tables": [
+    "8a59122161799f1a",
+    "644cc58158a8d5a2",
+    "0c889d93eaa11b00",
+    "f1c099906c00d838",
+    "ce076a440243c108",
+    "82180e0208948210"
+   ]
+  },
+  {
+   "index": 186,
+   "genome": "a7b542c553845e7766b53f223e87ffdee04e1dc752f4523a4988ac7769f4583a0570dbce0000000e",
+   "candidate_sha256": "1a3a0d19628934b8159b4966c9af0be41b963d69de0e45ee38825718d9040452",
+   "sequence_sha256": "ec00f641762017d29399e727a2164f30a15fbb940734cdacf6a5744c6f81b587",
+   "expected_tables": [
+    "d0645020697b9682",
+    "60e14c3312a64b54",
+    "b0f9840741a1f951",
+    "83fd98dc5480d24d",
+    "c21f07412e3e1026",
+    "00504a1131342296"
+   ]
+  },
+  {
+   "index": 187,
+   "genome": "f163db105155de8f86167d9d98b61d3b932c8721ee093af9e6a72161ab25391b9ac4c9a600000001",
+   "candidate_sha256": "18d7479e0dd3c2f05d6261c17288ea5abaa190cf23c115d8e6899c676939015e",
+   "sequence_sha256": "5acb8eb7ee609a44e64593980acaa57ddae11cd9e872b73b283714b860743317",
+   "expected_tables": [
+    "d20056e80d2f129c",
+    "204d666228a73db0",
+    "e3b1033282010b19",
+    "524adb9460509ac0",
+    "4b1a2a592c13018c",
+    "85680b4392903110"
+   ]
+  },
+  {
+   "index": 188,
+   "genome": "61554545433fdfb650d9cd4e614b61bcc4646ba84e9e347236a0523ad96b153e97af8ec600000008",
+   "candidate_sha256": "ec678f0211de5688baa687c41a0058dc7997dc78632e16307fb35b380012fd6e",
+   "sequence_sha256": "8469c68cb0be768096cb05bc226d60c657f39e19ef9c0796e75b1cb5b02dff0c",
+   "expected_tables": [
+    "da440d284846d1c2",
+    "60c90ab360a3c8b2",
+    "c259959160093908",
+    "d03e9a59112c7210",
+    "281642e9eacd40ae",
+    "8248031312049952"
+   ]
+  },
+  {
+   "index": 189,
+   "genome": "a10e56418c6b622cded317f9268ad18b0d34366318667adb74ce0a99e59df4b1da418e2c0000000f",
+   "candidate_sha256": "1eaf42d9433aa2204758e36316ea90422f6f1f5bbd0796f38aaee2b52695b27b",
+   "sequence_sha256": "fdf55d6f32bbbecdacc98488d26ccaf7e069af2cd63c988040b29a936614edb7",
+   "expected_tables": [
+    "48404a20446139cc",
+    "40c0e5746a0aff32",
+    "da18160329814208",
+    "93c7829161a0ca45",
+    "2e0349c40a170208",
+    "07784262faa42bd2"
+   ]
+  },
+  {
+   "index": 190,
+   "genome": "f09302b45bac573a06721d2750f3de1462efc14d09c127d64162088c4b2b05d224bc9d8e0000000e",
+   "candidate_sha256": "62f37bddec934b739c16b74f647894ebcd4773c90965335fe3e084741066a750",
+   "sequence_sha256": "8cc7d9ac8a155ac2312977bd99e6a22971b6e0a07b73bf5167822a593f720313",
+   "expected_tables": [
+    "d80448e92c339f0a",
+    "20816ee302220840",
+    "e36188828028f451",
+    "b0cd82502d5ca0e8",
+    "0612035908ac8286",
+    "86500181433088d6"
+   ]
+  },
+  {
+   "index": 191,
+   "genome": "d8cd6d96393bea20b5dad8842545095934a6459485b16a11c8205cefd5f2364df2e6a9d300000008",
+   "candidate_sha256": "1ff291ab74818cf8321628788295269fec5b395a8049779c4dc62b3a3bb009c7",
+   "sequence_sha256": "14a7a5da191d0d3b1d782ff0377d5808f661012c18190940addc676a53617e07",
+   "expected_tables": [
+    "1a1c4dc80c345b51",
+    "c4c10634508b34e2",
+    "d319080463219621",
+    "402881c4550c9819",
+    "c6172d6ce04fc09c",
+    "0a0903b380108213"
+   ]
+  },
+  {
+   "index": 192,
+   "genome": "94ceeef3ba88c46a2dfa7b410db33a953d57ee4aaecb0150f8c14c1f64278987e3d42dac0000000c",
+   "candidate_sha256": "8b44e815d5c5bf350a7bffd3ab4e143a604c2be0637a400a8b366c9de201811c",
+   "sequence_sha256": "bab17ae68446fc49cd9de902d8e1ec80d583c12e6e0f3c887af620f92a5641c3",
+   "expected_tables": [
+    "187054c12473df59",
+    "c4e4a55610038ec0",
+    "89c193012a88d141",
+    "50d2c3d85d7840f9",
+    "aa102f0c803643a8",
+    "805008e35a10a0d3"
+   ]
+  },
+  {
+   "index": 193,
+   "genome": "3df7162569b5cb88cd0774cfc3f4d65629ba9b28c4ec4613d6efbc04193b717f12916af60000000b",
+   "candidate_sha256": "6761934aec992a6b5d16f00e438db28aab69895fb95b2ad297487db669c6910d",
+   "sequence_sha256": "7b56e0a4d0362aa99478e12996360244fbf2b8c26de8a60d8dc2bd60e9974fda",
+   "expected_tables": [
+    "c26c5ca16d01084c",
+    "a4092ff12087f1f0",
+    "3a410fa40908d258",
+    "c04f910c04d4a0dc",
+    "22182fc1ee60918c",
+    "85494351f2a49b13"
+   ]
+  },
+  {
+   "index": 194,
+   "genome": "2d21fb952ea83511276d4d458f1a144030623c21e957b234bb42a37d7069d44353b3a32600000009",
+   "candidate_sha256": "356ad93dc8c93635690fa76dc002da5af5a4f57960570113e3a5e9481571d283",
+   "sequence_sha256": "bbf126028af5e6d45120b22b5e010a1bb4f471f83f39f990045bf6cdf72c01ae",
+   "expected_tables": [
+    "586c0c60611ded17",
+    "84456682102c8810",
+    "478094264200c418",
+    "3040d99945e0d21d",
+    "e9166aa0047c90ac",
+    "064802606b941803"
+   ]
+  },
+  {
+   "index": 195,
+   "genome": "285ba7c54b33b417924d8009cc7eb4c7cf78a0eb336fa89c878fc046ffdb45a4daae03dc0000000b",
+   "candidate_sha256": "2239cdc4a82d25ff52605b3ab367519fb12ec68706990ce7abb604e6ac27f295",
+   "sequence_sha256": "4f2f76f8984e92b4bced2ccac7f22bdbfa08516f5c2d7e1fae7bdc72d0d2a927",
+   "expected_tables": [
+    "024c0920495fc9c3",
+    "20056047602915a2",
+    "6fc097a7a9886d18",
+    "23f1c01534740881",
+    "4005207d82dd5388",
+    "8779403333b49b02"
+   ]
+  },
+  {
+   "index": 196,
+   "genome": "cbc817cd0019957cdcda55fbf0d93cf69bc8ec263d1bd191c9e425cec23d895fb87d86960000000f",
+   "candidate_sha256": "182e777aa973d84b1e59fb2fa57c55f98744104badbad6ebd6bddd746db113a2",
+   "sequence_sha256": "326bfe3f47b92868cabdc30ebfb4f8213b45d3241f08973cb00a455c0eeeba80",
+   "expected_tables": [
+    "4a4d4408047551ce",
+    "40a02d866a21f9f4",
+    "35699bb5caa00e19",
+    "5150c0c93d6c02c0",
+    "c7122e98acaf8004",
+    "816909835ba42ac2"
+   ]
+  },
+  {
+   "index": 197,
+   "genome": "bc73a8bb0ee8110d7ea2ecef0dae4cc1baffe4d5993bb829727fd46f96b7e882a358378300000003",
+   "candidate_sha256": "9c29ead7b33174c122abf6d5122754e66b84f404f014049ccc8c4fde474c7e90",
+   "sequence_sha256": "6c9032470350a9156703efc0fcfcfbe471009f952794e287e44d339439545217",
+   "expected_tables": [
+    "58791fe12438ac99",
+    "40056fc17225e400",
+    "ef809907cb208e31",
+    "13a4099555381af9",
+    "6a11061440e3533c",
+    "05004d83eab4b245"
+   ]
+  },
+  {
+   "index": 198,
+   "genome": "2a8e3be5e48df0ea685f91f8792e4b0621de9b3c1cf1b2dacfd2915c5d5aceb51897318700000007",
+   "candidate_sha256": "8645a557ae66ed0fb9b90091dcdea7df29f64d1b2c7604fae5f1f8030c867434",
+   "sequence_sha256": "97e7f4c15a9d8c653223e6f1467c8db9ea62ab96525b0cf0c692ac0b927b2c94",
+   "expected_tables": [
+    "884c41216557711d",
+    "a0a881543a2ae9e4",
+    "ede88a804129d069",
+    "d30e821d2590c298",
+    "c30428edca641294",
+    "0e680c0179b09b85"
+   ]
+  },
+  {
+   "index": 199,
+   "genome": "ac19e43bc254076c61510cd42d9c74d09f33ed97b021c53cfd3c637921abf4ce8122689200000005",
+   "candidate_sha256": "3ca57c2ef42173b03a4ce68c288b403d2959fc8dbad54bce290015ed4c993ae9",
+   "sequence_sha256": "36e1b749286406725f738791b80d149c7e82e45c164771a2b72f19c2cbacbb65",
+   "expected_tables": [
+    "d2790261402091c9",
+    "24e582a71800e000",
+    "1f890207aba00830",
+    "237cc98d496870f9",
+    "eb196260a418c224",
+    "03014703ab808991"
+   ]
+  },
+  {
+   "index": 200,
+   "genome": "7443ec7f201c42980cf93c4c3ce5f3f45ae3ec512409945ca2728d8c415529cf2771da720000000b",
+   "candidate_sha256": "f497cf85b7d1cff4817a2559df4724db77f535f3b05d2fbf720345935d57c5d0",
+   "sequence_sha256": "f2dfeef54b0eb6d0139eeff88fafc01b131340f998c70f956b455aec2f72a58a",
+   "expected_tables": [
+    "da7550e94040555b",
+    "c04d076020038000",
+    "07e989178a012060",
+    "62d5c2cc053c22e9",
+    "0d0e2fc0a02e922e",
+    "84010dd0c2a43216"
+   ]
+  },
+  {
+   "index": 201,
+   "genome": "bf32626b6832a66d9442a10f81039731722cba419534a2ded8d0ec8c252e0688b46065ff00000002",
+   "candidate_sha256": "1d0734045889184fcb84f981ae969b833a661af9178bbec7a26f932091f22421",
+   "sequence_sha256": "fa6fd2fac05d5bd7ad060cd9d21a79eecec63ef7bda1382258b596ff4987f818",
+   "expected_tables": [
+    "027919a104690989",
+    "a0e02e63600c1c96",
+    "e6010432c301a450",
+    "e3c3835825a08090",
+    "a6182544241a5216",
+    "0a5904d35030a841"
+   ]
+  },
+  {
+   "index": 202,
+   "genome": "4a05d2e0f8aa505936c1bfca25659f443f38add01a230103578b41592e14bf1fb04bcb0900000006",
+   "candidate_sha256": "8875e91f30e25fb9e972e2591c8343bd9eb8c765fe9b144f09df454d13858bc7",
+   "sequence_sha256": "334fa3e635ec2e95f85a7ba0ddc1b6399ecd8435caf18a9429f417fc5cfbda65",
+   "expected_tables": [
+    "5808590960590b0e",
+    "e065cc107022aa06",
+    "2b481204ab018371",
+    "91e900cc49344091",
+    "630a0ab5a8924110",
+    "8e184a8299343390"
+   ]
+  },
+  {
+   "index": 203,
+   "genome": "87cc151472a98e8640881ee81560858b7bbb5acfd6b998534b7bfa5c7ae7de580fc249ed00000005",
+   "candidate_sha256": "fd08ce57f6a8f1eef4cefa2518c76f4220bf8484f3682705cc1c76e5c25358cd",
+   "sequence_sha256": "29a5575729726f29e37a0b4204a2ee4aed83ce848b662af580d2ebd425a986f5",
+   "expected_tables": [
+    "582448402026c2c4",
+    "e00800362281e7f4",
+    "2f300b03cba9b310",
+    "c1a39308059c4a39",
+    "c21d41316c56d1ba",
+    "0e704f516b90b090"
+   ]
+  },
+  {
+   "index": 204,
+   "genome": "87520ded725698a17a38d060b8f356c9625fb7286e4f76db4deeea6eeac3b69ba35636b20000000a",
+   "candidate_sha256": "7e15241c463023b5f16aa461e8652af12415c5c9f7f8a35f9225aae6fc8a374f",
+   "sequence_sha256": "f71ee7eece8e2585062b1c7b6d92825af26deb3a8c33729dfbc9fb9ad68c4933",
+   "expected_tables": [
+    "82654701007cd650",
+    "a088414152a1c496",
+    "f9b895258008e358",
+    "d24ed2d035f4b2e8",
+    "c2054b392c37522c",
+    "0f0143c3db248147"
+   ]
+  },
+  {
+   "index": 205,
+   "genome": "e7a1dfbf59acf3d6291308177a1a4df35b7ce6eafded6f790e4115cd87baeaf6427d5fb50000000f",
+   "candidate_sha256": "d88b68027f967beb547f3e4ef596273f8bbf6a57268902810fa58f3357e59c17",
+   "sequence_sha256": "83331e3591ace24cc31b4aa2d62936d678d594c056b8436598a2b872c65cf026",
+   "expected_tables": [
+    "987508696c371ad6",
+    "246d2ba0182e05d4",
+    "fba987958b897619",
+    "53a6db914d68a884",
+    "c51906dccaab8318",
+    "08410861e8b49bd6"
+   ]
+  },
+  {
+   "index": 206,
+   "genome": "6a64a2a8246155ffa447c01c938cef90ace3d55df85f503642a710ded3845b4a11e449cb0000000e",
+   "candidate_sha256": "361407e8461f753a327dbfb4f7c38749c11975540a3f5de6e3528784fb099931",
+   "sequence_sha256": "36ea1e5d13c82d427d01f94eb2bcd256991f4a184fd64942a7e7101dc311c426",
+   "expected_tables": [
+    "00090f29451b218b",
+    "80ac069238271024",
+    "13219d236829c871",
+    "b19dd985158842fc",
+    "46090258604f81b4",
+    "8d180b1130303092"
+   ]
+  },
+  {
+   "index": 207,
+   "genome": "d5ae8dc80321c77c1e351b35483cf03946a8ae2136b0b7ec8499fdaa32d96e26b3a8cf290000000b",
+   "candidate_sha256": "bfe5e43347892d1b20dcc74cde97f8d5e9913bc4c48662bb6673b4d654187262",
+   "sequence_sha256": "a9d1285d9413790d4fa19377d7d5b74fe6ee3544464a9c0d61fccd8b061bcbed",
+   "expected_tables": [
+    "10214888497494da",
+    "00a467f64a060ef0",
+    "66910892e1003108",
+    "63574a8d3970b280",
+    "050f2710c6d851b8",
+    "0a184cc2b2b40b52"
+   ]
+  },
+  {
+   "index": 208,
+   "genome": "5a09657892c83928a95549c1fbcf4062d766dd7b114c643667b6e79fac05bc7d7656d4c40000000d",
+   "candidate_sha256": "6c8e542ecc33876d063208bc9262fd75ddbf2aa213a89c58ca1dbddabaa01927",
+   "sequence_sha256": "9592faae5412e7082b4d844697f96a07f8d309af0a9594b1d4ef353d5ea856a4",
+   "expected_tables": [
+    "180906c961449349",
+    "04c1a18410a8b904",
+    "d2a887b6a2886c28",
+    "a18c88dd558c60dc",
+    "0f0a4c2dae33d00a",
+    "07480fb19b8031c6"
+   ]
+  },
+  {
+   "index": 209,
+   "genome": "0718fdfdce3717cc4730d491ccca52559e35a07306500490d7989921fb67bd0983b89af100000007",
+   "candidate_sha256": "31e98e10ead9550f13623c2b713673ab64c85db54ef86dc0d202e4eeb29a69ab",
+   "sequence_sha256": "ed1a8700f4dd3332e8dda86c7cd7ba3a737cb7588670ce9d5dd5c2171c60148a",
+   "expected_tables": [
+    "c2654d410054bcdd",
+    "246ce4a708206436",
+    "8ac100a6ea804968",
+    "40c48011602430e1",
+    "2316295160fd10b8",
+    "82014e539ba4b194"
+   ]
+  },
+  {
+   "index": 210,
+   "genome": "02dc12de064078ee68314925f9c7db831b0de8fb94f14e21bcf6459d5c89a37aaec2cf5a0000000f",
+   "candidate_sha256": "939139d7ce8620ad3bf1816bf1fd724410cb9ab743c123e4d53c0469ac5191a5",
+   "sequence_sha256": "0fdeb41c3e98159c6d2706115f021ab177c6599369f30e758a5cee65d206e0bf",
+   "expected_tables": [
+    "101506404053b48c",
+    "00a8231512ab4d44",
+    "b1a802a3cb895269",
+    "41e5095c452ce8f0",
+    "ad0b26252a46c08e",
+    "8d310592dab409d2"
+   ]
+  },
+  {
+   "index": 211,
+   "genome": "d8e4e2a857a344a162a53f7889872eab02f23b896906fbb8706496ac1b19386057e9b82e0000000a",
+   "candidate_sha256": "03de5dcfae9043724f54215342209eb8d8e0c8ecd01051f787baef1653e3e559",
+   "sequence_sha256": "d60bb9ceb1fb86db58f1526364cdfebcdd89e4150804c74041d1651a099d97a0",
+   "expected_tables": [
+    "500958896939a601",
+    "60cc40123a07cf62",
+    "5e909c3380080451",
+    "123ad85c2da09a58",
+    "2e0244d142ca90ae",
+    "01580b60c2200a17"
+   ]
+  },
+  {
+   "index": 212,
+   "genome": "35ea3e7a136bcd268d308fbe381be2914bfd1e8386e0e47398833c75ef7c2ef905c1f83500000007",
+   "candidate_sha256": "aa8c7121d0e697eec46bf5b94c74468f27a14dc8028eb9d49ea1343bdaa1e200",
+   "sequence_sha256": "178d608105fe667012d7b965f3cf8761563243cd1ca347b2dfcda74828bf15f7",
+   "expected_tables": [
+    "58310be1084396d5",
+    "04800fc62a873ef2",
+    "fea98a0389807340",
+    "c0378bd944c07020",
+    "e01e2dd56e1783b2",
+    "0e41084090a02a95"
+   ]
+  },
+  {
+   "index": 213,
+   "genome": "93376750a3ec951904137ae93e9e554af9b13a46b8bdf6bf7ee84adb580063ae9d330ddf00000007",
+   "candidate_sha256": "fee5e9641e841a64e8462f58277c4a19884acf4a00b3bd8950013151776f2fbb",
+   "sequence_sha256": "981ffa291fca191e8091ba4dd0a460a59966199111356e196f28287fabfe3ec6",
+   "expected_tables": [
+    "98005ec06c6d904b",
+    "8041a4d32224a394",
+    "5fb80f044ba1ba10",
+    "b3c6c91d71e0e265",
+    "ee0043a1a26c4236",
+    "88794113f0b011d0"
+   ]
+  },
+  {
+   "index": 214,
+   "genome": "a3ce6585da38c34a536bcb9b15ac2e9752f95d131793e638924975c6df216088414e2aa800000006",
+   "candidate_sha256": "387d98adbe174aef129ab62b8abb8140ffa683df131890a78586c6cf7dc52eb3",
+   "sequence_sha256": "268a386a38f61c48fc7971ef059825fdfb9e3048bd418a130b15ed06d03dfcef",
+   "expected_tables": [
+    "1a440d204436cf49",
+    "2460e8f468036fd4",
+    "7f619803c2803571",
+    "4318888d1498a071",
+    "6510247d64c74320",
+    "00104061e2241091"
+   ]
+  },
+  {
+   "index": 215,
+   "genome": "ff7a11f9b745602c264086ff6f2ce8bb9407fb224960a72ddd6345093240a8d5f479d10b0000000c",
+   "candidate_sha256": "043baf51a61b8f00b204250802e62970d1a0cc607c69c3ea15461c7b53c57fe2",
+   "sequence_sha256": "1195f2ea1848943c0385dee57b8dda155f52272bd63822f20cc4166a31a10a3c",
+   "expected_tables": [
+    "c06903e90874a38c",
+    "8080ee453a0fa734",
+    "c499009123804e09",
+    "321f180d49b8a0bd",
+    "a30e2c9088fac316",
+    "041809a2c9100186"
+   ]
+  },
+  {
+   "index": 216,
+   "genome": "fbe20de721fd1b969ae4ca632d3d42bd6558a179ef3d3b1de2118ec59de56d42da4f587d0000000b",
+   "candidate_sha256": "440edeb2241f6567436b4fb6d1447dab7e6b317fd012cd4b8db1625202eedc67",
+   "sequence_sha256": "7b561fb5096b12eaf24433460be56da50fa9ecf5f28b13b54439f46efa311fd6",
+   "expected_tables": [
+    "9a5c0fa9297605d2",
+    "c00869e042a59674",
+    "69d987136108a768",
+    "728cd1454c708a91",
+    "4e1d67ed00c39118",
+    "82790c72a2a03016"
+   ]
+  },
+  {
+   "index": 217,
+   "genome": "eb252fb8763121b4e933c1b27dc2d2669aa3d738c1fcba6c9a7f85fbb231fc849e89e2140000000c",
+   "candidate_sha256": "d101bd6697f1a92135516ee5afc17ba2c5bb6c43c32c1cd3b252915de1f3f8d5",
+   "sequence_sha256": "cb7df3e89c7136b662bf5a24910ce04c792e97994dd89f886ee3a26081e5cee2",
+   "expected_tables": [
+    "02090d694435b6d3",
+    "a48909901a0c7934",
+    "46e80d94cb085c68",
+    "224f1b90518cdaf9",
+    "e51a249080d1138a",
+    "07694f02ea041283"
+   ]
+  },
+  {
+   "index": 218,
+   "genome": "83fc31b4221d33bf653181778ed2232eb80781c390d6c116c82e92829c14cc66c725315c0000000e",
+   "candidate_sha256": "ea37a8b59d167d706004870771c1c046d59166c165fa0beee1221ce585dc825f",
+   "sequence_sha256": "5206b531e75a10b5278c69f549cce02e883100bc8e79468b9c8813c0d601e665",
+   "expected_tables": [
+    "8a040141403e948f",
+    "84882eb51a2dc974",
+    "94d014324a81d840",
+    "a1b88110184400ed",
+    "8600628dc249902a",
+    "0751493228302287"
+   ]
+  },
+  {
+   "index": 219,
+   "genome": "0fe153343dd67fe2e3de8e6ef44afc446725be2b6f71576273f9241288e03a4c7e2c674f00000009",
+   "candidate_sha256": "f9a322914df6c8d210eea05652ed69f37eec0e38db8335cda57aa2148d927829",
+   "sequence_sha256": "24b13bb9c2981c66c756dc63bef3770444bd5a588aab39ed0e26a91ff65d0d54",
+   "expected_tables": [
+    "d22c03412d077b04",
+    "c4e94aa232afd256",
+    "936802a6e188e519",
+    "d0575a9918a4e2a1",
+    "2a1d0409a489811e",
+    "08784fb0d1941043"
+   ]
+  },
+  {
+   "index": 220,
+   "genome": "19bf2f35f0fee0a2e5f3443e62e1d8d16a47f6cdd856681a6e22d7716f4cab0d600ede980000000e",
+   "candidate_sha256": "ae1fdd718d48e9c0d68f8df92bf118395d1e55c3c39b3b014a413935787a1220",
+   "sequence_sha256": "bb5dab88137d0bc0cdee4a529f96cc6c53254b08e559fc9a22372d009afd0765",
+   "expected_tables": [
+    "ca4c0ec164071751",
+    "e4898e553a0e54d2",
+    "d0099487c828e001",
+    "93e791c040bc58ec",
+    "cb0e4c7de0945000",
+    "8c1109a1882439d6"
+   ]
+  },
+  {
+   "index": 221,
+   "genome": "e2cb2321173dbc413493f0e6b0b4a53e4b25573a0901f734ea388bfda3f5d3295e97225900000004",
+   "candidate_sha256": "4ce72bf78b7cefdb3fc8172d10e054773b2bf4912e5af9c8c1c85a498504a859",
+   "sequence_sha256": "6e2f816d72314883af0ea5e0c4d8b9c79a0fba88bb96b06abd5e17a1a273153d",
+   "expected_tables": [
+    "8a405d294c2db201",
+    "40210e4652a9a1e4",
+    "d779023088892438",
+    "301b88844dd8f260",
+    "cf1569f82231109a",
+    "883947302a043281"
+   ]
+  },
+  {
+   "index": 222,
+   "genome": "c4dcbe54c9cbae54b1ff2aa8e2b136edd72f59b9b9da152675add28e691a162b7b3c85aa0000000f",
+   "candidate_sha256": "3956bbcd24973e3294af9d4e3309c407875c61dc7abc7d41c55472f4922e9a5f",
+   "sequence_sha256": "8f4a783e42367ac8c802af3f58a5fc81e3636063b833928f5d7f7a572b3f0087",
+   "expected_tables": [
+    "182412486d615dd7",
+    "64248037728936e2",
+    "a25813b7e2087c78",
+    "b17849481dd8226c",
+    "2e024a4962bc512c",
+    "0b3843e111b08bc2"
+   ]
+  },
+  {
+   "index": 223,
+   "genome": "28182751d7fb2b907bc8468ad842424f3206efa5ac42f9269742a0cf037b936f3cb875720000000e",
+   "candidate_sha256": "bd6db1e96a4701ac995a1845caa8ac50949bcbfab8437c01921f9fd095faf311",
+   "sequence_sha256": "3a55cbd27ffea7ebdb8c9e9d9001ac3f23f8dc07b5130c22a9a12e6c9c24f0b7",
+   "expected_tables": [
+    "4a480e602845e343",
+    "6408c9a570886722",
+    "d4f010a68220c048",
+    "f02e49985d2c0a88",
+    "641c2a50a6a89086",
+    "8c2902d04b309bc7"
+   ]
+  },
+  {
+   "index": 224,
+   "genome": "e7524a10d664e77c102a612081e4487225fd5fb85b5082b422bddc5a8f312facb29cb55f00000003",
+   "candidate_sha256": "9c373ccdb453517c2e0c936d72cde84520a6ac902ccef1e26f686d1037e1f953",
+   "sequence_sha256": "7dba42419fb0e93267798c76290b05966071f102872d21fed6a5a0156bc813cb",
+   "expected_tables": [
+    "80201e680421e69a",
+    "20e080e3420b0994",
+    "ae018a346008c529",
+    "312e988c319cc070",
+    "4812055de2a1539c",
+    "8b594d9292b01245"
+   ]
+  },
+  {
+   "index": 225,
+   "genome": "8f71f26d99b25c8980f090d93e6c7e504df48b4156221a02cf94a701bb502e1ac755a1d600000002",
+   "candidate_sha256": "93da7163610df31faa5413ee0e396fb6053fba4b33d1e4f30050c9f6af4eee6b",
+   "sequence_sha256": "5fe25919290bcae8c385fd92bd9852ff4eb1e8a6240bd99abcf8dd8b1e6530d2",
+   "expected_tables": [
+    "026d490128691f0d",
+    "404da00328a7b016",
+    "8aa99a0629002151",
+    "c1de100d40148a85",
+    "830666d92c73102e",
+    "0b410c3391301301"
+   ]
+  },
+  {
+   "index": 226,
+   "genome": "2eb4b9f02b8764d1aa0fe460672743913837a8305885f7f3fd744309cb90bb9d41c15aa400000006",
+   "candidate_sha256": "04ea65af43682b8e204c4106df32e9d29e191d13eca9cba7faf1c70beb675844",
+   "sequence_sha256": "e9bb5ef8f0eaf0cd173efa3736ad98504993e5a2b05e0aa7750d5eff131262f0",
+   "expected_tables": [
+    "c02815616d5cc817",
+    "802c4113120e9466",
+    "df0904810a019268",
+    "91049a5c6930a2bd",
+    "ab0968d1a80742a0",
+    "89400f61c9240394"
+   ]
+  },
+  {
+   "index": 227,
+   "genome": "c093c866244b6deb25e638675fc2ee575ce4d8c3bbcceced41af5aeb73db8bdc9fa2979b0000000f",
+   "candidate_sha256": "5e1d476de467981f9932cc7b08fdd8910221452a9fc5a0ed93b405666264d3b5",
+   "sequence_sha256": "21fbd326543aa78a497d3c4bfbd53bd9a3e6b93babe38b355e5c3e27d16cfb4e",
+   "expected_tables": [
+    "18145209056a2518",
+    "c4ed2ec3128a8562",
+    "d6e18d862a807751",
+    "33b54b18718c38d5",
+    "46074170e85cc3be",
+    "8d3949031bb48ac6"
+   ]
+  },
+  {
+   "index": 228,
+   "genome": "2b10717f1df97326dd83eaa69fee2560b84d0fb90ccae3055fe0ba8f23de5acda5e237880000000a",
+   "candidate_sha256": "3f71fcc540ea304521beb17185630ef9608106621796beaecd39fc8aa058cc7a",
+   "sequence_sha256": "4394c2362b91532c9d5aeb25b1eb49ad3f274c2d1d99f878e185bac491c878d0",
+   "expected_tables": [
+    "1a5d1f616c462a85",
+    "44c00fa1422a7234",
+    "f4a091360a09da38",
+    "703a009d5d148075",
+    "a6054970e41a92a2",
+    "08100b837134bb47"
+   ]
+  },
+  {
+   "index": 229,
+   "genome": "0b9105b5d8584384c38885d29ddb1e1b5a22e4e9929964b438e8126f8020527c8871acda00000002",
+   "candidate_sha256": "5021fdb48638a522fdeb48964c173694d9cba3437a3e809ea943f57865c6d275",
+   "sequence_sha256": "fb6f694c74a615140896284a6336d84e39ad01bd5e75fab324688d81a50c8c52",
+   "expected_tables": [
+    "4a4c034100144ac0",
+    "6409c8a10802fd54",
+    "53b10122ca083159",
+    "21e089d1756c30d9",
+    "e8124080ea2b8004",
+    "0831431370200051"
+   ]
+  },
+  {
+   "index": 230,
+   "genome": "f2d7fee3c189a320edb174344e49bf7953445c759e1320e4a7bc7f46c98f066f8f6b379900000003",
+   "candidate_sha256": "cc5488f42e3aa2067ecff7defd2d92fdeaf8899cf9b10ddbd441f6c8f4098496",
+   "sequence_sha256": "cdf479d432bc3a4567d519638679ff1e40c42de4925fa6b76904536da728c143",
+   "expected_tables": [
+    "485054a968711455",
+    "64c587f11a0954e4",
+    "c1919296c2212179",
+    "71d10bc9348c0005",
+    "49016fe1e68fc03a",
+    "0b31450313b4b945"
+   ]
+  },
+  {
+   "index": 231,
+   "genome": "1661645c612a00a5686317abc86f21003076692660881c10d9fe474f533a608d847ba4a600000006",
+   "candidate_sha256": "2a1d3d8fd12cab7df46c8a857f56c67f637e5b0c7d01d599d62303e1b32142a0",
+   "sequence_sha256": "3fed1e64d0fd6de6c5621e82595f1b8aa07252fa40abf9a7b176bfc46ad9e962",
+   "expected_tables": [
+    "482548c04c4805c1",
+    "a0c9290032056a06",
+    "8a8081a002a19008",
+    "0018d05d553c2a08",
+    "e3126cf0a0ee4206",
+    "05404543f1208ac1"
+   ]
+  },
+  {
+   "index": 232,
+   "genome": "fb882542fd84d9fd966be95687dfbfb102813c87553549f902fad722e4b078016fe6cda70000000a",
+   "candidate_sha256": "9e466ac9ebb7f311494b8ed142c9c293f1a3e138f8cf405a22ef8ecea419a2a9",
+   "sequence_sha256": "5b4a2ffe720383d8b4f42443d34f8a2f220f38f1b327f0915ce5ab0db736a849",
+   "expected_tables": [
+    "901815a86c6c6fcb",
+    "a0a8ce8448a29cd4",
+    "11010c33c1a10651",
+    "43719add38e41875",
+    "011b4c2c401f50be",
+    "04604fe1f0301252"
+   ]
+  },
+  {
+   "index": 233,
+   "genome": "cb4730300d6bf75a5571d48d57e604c311739ba68e310bfc833ccabf748e98f2f55d2a7200000009",
+   "candidate_sha256": "743ccdd36c29f7b0c551125af5dcbc63f2d80f306dc3d801ba696ddeb1a640f7",
+   "sequence_sha256": "00d3939c8eb9d47a073d1edc41ce90883a9e9b3cebfa0913dbd0d0d9b3347be9",
+   "expected_tables": [
+    "48084f4948223d0f",
+    "042126f2602b65b6",
+    "0b20828543a00118",
+    "722a8b1c7d94d8fd",
+    "0401638c0af6d226",
+    "01094ff20984b813"
+   ]
+  },
+  {
+   "index": 234,
+   "genome": "8aaa174f865fd613cbf513ecd119ab94d8c9723e38355cbd87b5b9de1521eb65945f3ec300000007",
+   "candidate_sha256": "90c6ba099caeaaf00f6def38d7acd70ba912ef1f6e1698ea53718198f9f7431f",
+   "sequence_sha256": "78b0de20d69e2b55542c9b6eb7e6d812df3b897256f72e70db9cbf63c931d8e2",
+   "expected_tables": [
+    "8a5d4200416fb546",
+    "4400c3662226fae6",
+    "31618ca14ba92a69",
+    "3313c84135e86a30",
+    "451029ecc6e29116",
+    "89080d13bba411d5"
+   ]
+  },
+  {
+   "index": 235,
+   "genome": "d4ab3bd8fa6da2a340b4e0a221786383058e657c23b91295508ff140932c907238dc09c600000008",
+   "candidate_sha256": "a1d653ef279d2c0acc666e86142686fc58b93b66850e62dc3bd4453e54e9b67d",
+   "sequence_sha256": "f6c6313870b93bb9190c80b0023a05eeb5a15f291a6eb6ebc0121de5812f85ff",
+   "expected_tables": [
+    "88211fc8017f9e15",
+    "e0898864020c65e0",
+    "a1080b0161291768",
+    "209cc081207c8218",
+    "631002584ee3d184",
+    "0568429118102812"
+   ]
+  },
+  {
+   "index": 236,
+   "genome": "b0525d218867dd62e99d3bc6996b97bca0ff7e24db132168a554b3073eef77ecccbecf680000000d",
+   "candidate_sha256": "af255c2f54da79e65a3115f6a7453db5ab2b752748c627e3a16c9f23e08e7407",
+   "sequence_sha256": "e97d8c7365c47e570720335f2ce652f95a6e5cd7254608f0a441182e76c157be",
+   "expected_tables": [
+    "90405aa141265854",
+    "44e08bc310a3faa2",
+    "ebf1983140218d58",
+    "13431bd95cbc0038",
+    "091f603de6f89282",
+    "8b300672e394a9d2"
+   ]
+  },
+  {
+   "index": 237,
+   "genome": "3b17d21fc5f06e8a7cff3e55b1e659f3211b8c9c26a9d328616ff8c9eeb3811efff6a66e0000000a",
+   "candidate_sha256": "e2478ffc24275deaa9115acbe4a36602f3a244126bd76b1fee03438acc373731",
+   "sequence_sha256": "1bbc0d46c92291d1950558c60f36fa0d83fc0bc998be41b825a22a05366dc8e2",
+   "expected_tables": [
+    "525d5ae06d03750c",
+    "604da773588ac714",
+    "3d29033501299121",
+    "4264489c491482f8",
+    "4e13033dec3f51ae",
+    "857841f24b248243"
+   ]
+  },
+  {
+   "index": 238,
+   "genome": "bc9fa79917aa0f64b6ccd2ac5bcb1da9924f8ee30135908c904e11738b8f0a7363d66a720000000b",
+   "candidate_sha256": "641b0d8f7fbca46f5905531c879ed387f001709684bdd7fb1a7f89b5037958e7",
+   "sequence_sha256": "2f0f413fec71d59ae0a06a3eab16693f4cb680235dad2881e3a8c5b1a0de2ae0",
+   "expected_tables": [
+    "08694de02935e3c1",
+    "40a546f772803642",
+    "a5b08493c3810c19",
+    "22e200d9700452fc",
+    "61092a794a2380ac",
+    "0d0148f042a4a813"
+   ]
+  },
+  {
+   "index": 239,
+   "genome": "d79f1da6d1f4afdf76cdea692d3a97cdf6b6ac67c16a5fd20a8d469acc06de12593ce33c00000006",
+   "candidate_sha256": "5e5894e2cad060509e8c580debdc19620a668dc4607e19b3429b25b3cf4c8974",
+   "sequence_sha256": "7a128fd0665b4f2490351a3c7e645566393b5441511aa28bbb761f0c3906d33e",
+   "expected_tables": [
+    "92341f89693e43de",
+    "6029e4f77288c6d4",
+    "9ad81907a3a1ec58",
+    "80c193993970ea99",
+    "840a460d08ad4120",
+    "0b794a603834b081"
+   ]
+  },
+  {
+   "index": 240,
+   "genome": "a21023a3d386dd3b8ce20fc4dcab3d25870043d34b4f56718af2db48ffdd99988bcd646900000004",
+   "candidate_sha256": "f94a9de382fc98745716536c8f7f76e707564912a9a6b56f9394af05b597a260",
+   "sequence_sha256": "28d410fba03bb6f3281d4d8bda64956925cc6dd36eb46fdc01b8eb3035adf9a7",
+   "expected_tables": [
+    "d05000212c3f870b",
+    "6080878300a2be86",
+    "11e017b2a0814f31",
+    "10fa9a510118a241",
+    "c10d61dd68d752b8",
+    "84300f525a003ac1"
+   ]
+  },
+  {
+   "index": 241,
+   "genome": "bdc797f18fb8ae8d8e3aef4d953e4645b3878c2032c1e94a1b663882f2036766b7cd041500000008",
+   "candidate_sha256": "077c5bf297bb3b3fa39ddb40690ea0207b8d1ff3a80851f74a15f04eea859965",
+   "sequence_sha256": "d2958ea27d018eb65a6d2c5c3f5b48f8abd8a93fff93791ab0d4551ccd035a72",
+   "expected_tables": [
+    "5a681de12c7dfccc",
+    "000de77220899ed0",
+    "d5600a248200d958",
+    "8304429d185008b9",
+    "a4000398c6d780ba",
+    "8f490182e3009042"
+   ]
+  },
+  {
+   "index": 242,
+   "genome": "e55cfd3e97ea16abec635ecfd4c5ee8e9b55622b6dfb4b484d3c4001ea4372354915d42800000006",
+   "candidate_sha256": "5a89e6954b1c910e911a5f0fb4808d1cee9581b8452113d36fb2f521e631bc9c",
+   "sequence_sha256": "8838f4a98a4900b638dc3cc78728d40babdab49a92dabf3d85151300d59cdaf0",
+   "expected_tables": [
+    "58354e696c2ea75d",
+    "00ccaf373021f312",
+    "997093a3cb885c59",
+    "52175244482c8861",
+    "820e08998a354020",
+    "09304760a32081c4"
+   ]
+  },
+  {
+   "index": 243,
+   "genome": "1a7e55ccc97feaeb900fd90f6a76b50f632ecced99f0e5d641ecdeb09d5607b0e970207500000007",
+   "candidate_sha256": "d96fa6b0e238eaef70983de2008f97bd4e48b7ec6bbc0785f7cebe1e1d2907b6",
+   "sequence_sha256": "e8432a00ead420aa9eea4ca1d81a0e768a63fa2b58e14e83c469663ae22c3aa3",
+   "expected_tables": [
+    "9a0d4f804d5e484c",
+    "20e8aa75608f1da6",
+    "f6d80282c129f418",
+    "b1f1839c285c708c",
+    "060445454a6b5230",
+    "8b6141f251a0a281"
+   ]
+  },
+  {
+   "index": 244,
+   "genome": "a872ffeb0662d10e068d1da3e1340cf6b29752667045ccb67abd4d7fd73e31205aec05390000000a",
+   "candidate_sha256": "ac1ae92c6f4a88df4f57d3dcceb131f27e52709d177c29e9febbb4e868678fd7",
+   "sequence_sha256": "08e7f3f981c1b49fb5bf9ca55b528d6a7cec3933c9e82779cac12ade6869b096",
+   "expected_tables": [
+    "50594a214177e0dd",
+    "40446cc102272982",
+    "9d490cb582a0c819",
+    "a182d80475d87838",
+    "eb10055c02cf4198",
+    "813947609030ba42"
+   ]
+  },
+  {
+   "index": 245,
+   "genome": "8472a23d827b72088b969ef0330f8cf9b38593dfb0cd9e3745b02c1882518d16e098465200000000",
+   "candidate_sha256": "5838eb681c729ef8b37fa15b1314efa97433a813fd61e09d9219bf29531fd777",
+   "sequence_sha256": "2121cac3bc06208c004b056c544826546dd0b9bfedb72471e2d9e8628ed5b692",
+   "expected_tables": [
+    "5a654b4105219009",
+    "4404c1610a2fb622",
+    "85390f1782a8da31",
+    "a1abc9550180eab4",
+    "020c07108ca10084",
+    "82010db21b040340"
+   ]
+  },
+  {
+   "index": 246,
+   "genome": "5664404c51aefa65e56602da93c1301815149a638e22b8dce8a6c249492a6617d8cb5bd60000000c",
+   "candidate_sha256": "6ad641386d95c39f7462f9a6dc53e8874a6f320ef58c69783115721651055d49",
+   "sequence_sha256": "333b7b2332374f9b390703f2ab972349bd7be517ec9559ba5aa3944338ccef44",
+   "expected_tables": [
+    "882508882d480780",
+    "24e00c3038aff286",
+    "cc31122223800108",
+    "72d2834861840ad4",
+    "ca186ae188865084",
+    "0f690133b0148896"
+   ]
+  },
+  {
+   "index": 247,
+   "genome": "ca51d401dc4d4cca75a94fd305691c10649a2590e13473bd5a2a4b31beb2da4dcc5b19fb0000000f",
+   "candidate_sha256": "c415ccb146f42146c00ce1cbb25841bd37ef000483c9aae46816ba828cff586b",
+   "sequence_sha256": "aa046580c2df5090d9b0faa9aa479459c3d791baa7b8a318479b299e058f47ba",
+   "expected_tables": [
+    "d848060840226e4c",
+    "646dac035883ea24",
+    "78010c006100a631",
+    "2268d9c16834d219",
+    "a31149b5a0f3c016",
+    "0c314b7328b09296"
+   ]
+  },
+  {
+   "index": 248,
+   "genome": "12ae008a0ad52da8e78c62feaf00bde224d4215467e2dfa78031b8c8bcf876d5f5f538660000000d",
+   "candidate_sha256": "c4c8a1e9cd03d20b73764691840903c959e94511a6c06d29e22ed30c902ae650",
+   "sequence_sha256": "31f15d9eab2da64c04d365117c5ebf2e3f4c044f923f03a373382641afe740c3",
+   "expected_tables": [
+    "821116802110c808",
+    "44884ed63a8cf364",
+    "9c8898352121d731",
+    "e0d958002920aa15",
+    "4415298dcc7b93a6",
+    "0a4807f2a0800a97"
+   ]
+  },
+  {
+   "index": 249,
+   "genome": "c5b4b89b217371267542b9509b279bc7306ed72bf7ee6790d47f5c16d2e3721a24d3266a00000002",
+   "candidate_sha256": "07bd4b0b4bfdd0188206d593f2df7e02977dfb0befa5fc662f517be28880860b",
+   "sequence_sha256": "1af70cfec9279fa2169dab94f4138d13008ef31e72d302f07ad871030c0f6ae2",
+   "expected_tables": [
+    "12715b480c320195",
+    "84840491582ecd72",
+    "f2e095270389d549",
+    "414bd1d43c98e09c",
+    "221527b068674186",
+    "0d1047d0e2248141"
+   ]
+  },
+  {
+   "index": 250,
+   "genome": "d1a9be5522c1ad85751c87ae33ead2e8f12ee6b53ea797460164d84bc825d0ac2b3fd12100000000",
+   "candidate_sha256": "1ea3f51b1ef0b34ffac8faab6d71a7efe1aadc37dcd0430d9b8f6ccc48b35565",
+   "sequence_sha256": "9142f894001c23ae3f2015b410244b673221f8bf60a53e401e74e7b5261229c4",
+   "expected_tables": [
+    "404403c82169d0d5",
+    "840d0e86728c6af0",
+    "a73816170320b968",
+    "f1674291593ca2dc",
+    "401a01a9e2ad5238",
+    "012003c06b102004"
+   ]
+  },
+  {
+   "index": 251,
+   "genome": "499e550e109f80d59f741ad58718fb939ce6b760e78d599ab4fb798e8adada8b5a1f06fb0000000c",
+   "candidate_sha256": "bbae5305b9e1cf3fd8d7d6254932851ad7f3d1a7ee070b298f31b00cd7935c69",
+   "sequence_sha256": "e3ba381211c943d35b618f50755630748666fcdfd20337a85ca15259b834c7d5",
+   "expected_tables": [
+    "9a1d4008210c17c6",
+    "046867554800b7f2",
+    "93018d212a011d49",
+    "c2dfd1813de00a9d",
+    "2d052bb964a1431c",
+    "0c394f7178048bc2"
+   ]
+  },
+  {
+   "index": 252,
+   "genome": "72d1ea1aa8adb10489a6275eb600d8b40d3de6f5c1eca9979eb39d58743a85bb93741e0100000005",
+   "candidate_sha256": "5d29727976d88ce3624dc62936817cf43537c2b7577efe81f1dd7aa34211a200",
+   "sequence_sha256": "5e497916abc53255edf0be6182da8705acd9857ced2c8042086bdbc6da9f58fc",
+   "expected_tables": [
+    "c81118e825010c91",
+    "c4458b8128299ae4",
+    "ee69073329205629",
+    "a0e79180292848a5",
+    "e1102f0c6a7e1338",
+    "8608050218849bd4"
+   ]
+  },
+  {
+   "index": 253,
+   "genome": "c728fd7b37daa6c78515ac0f57ccfb0dbbae3466b6c1fd9b62e8e389bcf766398f1028680000000e",
+   "candidate_sha256": "ac48298b3105db133f332446b770354b7299d24f400f01db06e09049765c02cf",
+   "sequence_sha256": "e54a23f4fc7281070b22b6f7857e634002bba5a12fab81edbea133f8b2748468",
+   "expected_tables": [
+    "5a711349696eb2d5",
+    "846c2e26200c1496",
+    "f7700a808aa1db49",
+    "c3d5c18569a42a5d",
+    "0f1548052e71502a",
+    "0a304152f220b293"
+   ]
+  },
+  {
+   "index": 254,
+   "genome": "7c32b2088f3d637078ee79d8dae283f1cb74534bc3bf84a443d4877c71bd5914ae60bf8400000002",
+   "candidate_sha256": "a7f59479513d47ba79c931e171b1e26cf319e031ef09b67be97a398dc6e3029d",
+   "sequence_sha256": "a05c430c5d26d4ef4dea2808a60c59bea1ba6c947ba63dd1eb8183adbb06e5ff",
+   "expected_tables": [
+    "9a295ca80d01ed07",
+    "40a481e1780eec20",
+    "8fa197b7c9893d40",
+    "208b1910259c7044",
+    "43134440885e100a",
+    "81600e8373343a55"
+   ]
+  },
+  {
+   "index": 255,
+   "genome": "49d5b7f3cb8df00d49f49a7f4d0ddc1a5b75ec77c742310b8408757603f888dac3a1e73300000000",
+   "candidate_sha256": "efd1cb0020aca4cbe938ad0c26df9681be6ef5478e08485b986037125c75a6d7",
+   "sequence_sha256": "74f83f0adc06666a8c446898620e17fb7e4b049ebc5d6ceac2fa69b11752d7f5",
+   "expected_tables": [
+    "98584149295d9dcd",
+    "6405ab112a2bc3f0",
+    "ca9192828aa06739",
+    "c2c511cd1c2852b1",
+    "411f26d06c08c2bc",
+    "0001486208140b41"
+   ]
+  }
+ ]
+}

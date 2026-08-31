@@ -27,7 +27,7 @@ match bit anywhere that the host must take on trust.
 
 **Canonical status table: [`docs/status.md`](docs/status.md)** — L0, D4, L1, L2, L3 (scoped), L4 all
 **PASS** on EBAZ4203 `17A6` as of 2026-08-31, and the **L0–L4 overall review is PASS (scoped)**;
-L5's D1 specification is at v0.2 (review #1 HOLD addressed, awaiting re-review — `docs/d1_review_result.md`). The per-rung rows below are a summary; where they and
+L5's D1 specification is **reviewed: ACCEPTED WITH Q7 CONDITION** (condition met — corpus `N = 256`; `docs/d1_review_result.md`); the host-only batch toward L5 runs under D5 batch mode. The per-rung rows below are a summary; where they and
 `docs/status.md` disagree, `docs/status.md` wins.
 
 | rung | state |
@@ -38,7 +38,7 @@ L5's D1 specification is at v0.2 (review #1 HOLD addressed, awaiting re-review �
 | L2 = P2b | **PASS** on 17A6 (run #3) — `docs/l2_findings.md`; heartbeat pinned [49.5, 50.5] MHz |
 | L3 one gated candidate | **PASS (scoped)** on 17A6 — five sessions, `docs/l3_findings.md` |
 | L4 fault / restore / baseline | **PASS** on 17A6 — `docs/l4_findings.md` |
-| L5 the loop | D1 spec v0.2 (`docs/d1_standalone_spec.md`; review #1 HOLD addressed, awaiting re-review) |
+| L5 the loop | D1 reviewed ACCEPTED WITH Q7 CONDITION (met); host-only batch under D5; no build/board/ruling |
 
 Tests: `host/run_tests.sh` (records exit status + environment into `evidence/tests/`); see
 `docs/status.md` for the sandbox/sudo caveat.

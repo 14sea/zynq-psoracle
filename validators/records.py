@@ -15,6 +15,10 @@ SUPPORTED = {
     "carrier_manifest": "1.0.0", "candidate": "1.0.0", "gate_verdict": "1.0.0",
     "oracle_record": "1.0.0", "arm_record": "1.0.0", "score_record": "1.0.0",
     "run_log": "1.0.0", "negative_control": "1.0.0", "principal_boundary": "1.0.0",
+    # standalone plane (D1 — docs/d1_standalone_spec.md §7; contracts.md standalone section)
+    "app_identity": "1.0.0", "sign_request": "1.0.0", "sign_reply": "1.0.0",
+    "sign_refusal": "1.0.0", "notary_log": "1.0.0", "app_oracle_record": "1.0.0",
+    "loop_record": "1.0.0", "session_summary": "1.0.0",
 }
 REQUIRED = {
     "carrier_manifest": ("bitstream_sha256", "frame_table_sha256", "part", "axi", "target_fars", "no_icap"),
@@ -29,6 +33,17 @@ REQUIRED = {
     "run_log": ("ruling_sha256", "records", "epoch_final"),
     "principal_boundary": ("runner_user", "signer_user", "pod_group", "key_store", "checks", "all_passed", "at"),
     "negative_control": ("kind", "arm_record_sha256", "nonce", "configuration_valid_hw", "fault", "scored", "refused_as_expected"),
+    "app_identity": ("control_plane", "pss_idcode", "token", "uboot_epoch", "carrier_sha256",
+                     "nonce_at_start", "status_at_start", "fclk0_hz_decoded", "app_epoch", "findings"),
+    "sign_request": ("token", "app_epoch", "seq", "genome", "nonce"),
+    "sign_reply": ("seq", "commit", "expected_tables", "tag"),
+    "sign_refusal": ("seq", "finding_kinds"),
+    "notary_log": ("token", "entries"),
+    "app_oracle_record": ("seq", "staged_sha256", "staged_stream_sha256", "readback_sha256",
+                          "write", "audit_available"),
+    "loop_record": ("seq", "genome", "outcome", "verified", "evidence"),
+    "session_summary": ("token", "epoch_end", "counts", "closing", "audit",
+                        "crc_dropped", "drop_budget", "written_by"),
 }
 NEGATIVE_KINDS = ("unsigned", "replay", "other_candidate", "wrong_table", "unprovisioned", "wrong_key")
 EXPECTED_FAULT = {"unsigned": 13, "replay": 13, "other_candidate": 13, "wrong_table": 15,
@@ -189,3 +204,253 @@ def validate_run_log(log: dict) -> dict:
         if not neg["refused_as_expected"]:
             raise RecordError(f"(vi) negative control {neg['kind']!r} was not refused with fault {EXPECTED_FAULT[neg['kind']]}")
     return verdicts
+
+
+# ------------------------------------------------------- standalone plane (D1) — records
+
+
+LOOP_OUTCOMES = ("SCORED", "REFUSED_BY_GATE", "STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL", "STOP_AXI")
+EPOCH_END_KINDS = ("COMPLETED", "STOPPED", "PROTOCOL", "CRASHED")
+VERIFIED_MARKS = ("audited", "replayed-only")     # rule (ix): a bounded guarantee, said out loud
+CLOSING_STEPS = ("restore", "baseline", "unsigned_control")
+GENOME_HEX = 80
+
+
+def _check_app_identity(r):
+    if r["control_plane"] != "standalone":
+        raise RecordError("app_identity is a standalone-plane record")
+    _hex(r["token"], 32, "token (the FULL 128-bit session token)")
+    _hex(r["carrier_sha256"], HEX64, "carrier_sha256 (full width; review #1 blocker 3)")
+    _hex(r["nonce_at_start"], 16, "nonce_at_start")
+    if not isinstance(r["findings"], list):
+        raise RecordError("app_identity findings must be a list")
+
+
+def _check_sign_request(r):
+    _hex(r["token"], 32, "token")
+    _hex(r["genome"], GENOME_HEX, "genome")
+    _hex(r["nonce"], 16, "nonce")
+    if not isinstance(r["seq"], int) or r["seq"] < 1:
+        raise RecordError("sign_request seq must be an integer >= 1")
+
+
+def _check_sign_reply(r):
+    _hex(r["commit"], HEX64, "commit (the FULL candidate_sha256)")
+    _hex(r["tag"], 32, "tag")
+    if len(r["expected_tables"]) != 6:
+        raise RecordError("sign_reply expected_tables must have six entries")
+
+
+def _check_sign_refusal(r):
+    if not r["finding_kinds"] or not all(isinstance(k, str) for k in r["finding_kinds"]):
+        raise RecordError("sign_refusal finding_kinds must be a non-empty list of kind strings")
+
+
+def _check_notary_log(r):
+    _hex(r["token"], 32, "token")
+    last = 0
+    for e in r["entries"]:
+        for k in ("seq", "request", "answer", "at"):
+            if k not in e:
+                raise RecordError(f"notary_log entry missing {k!r}")
+        req, ans = validate(e["request"]), validate(e["answer"])
+        if ans["schema"] not in ("sign_reply", "sign_refusal"):
+            raise RecordError("a notary_log answer is a sign_reply or a sign_refusal, nothing else")
+        if not (e["seq"] == req["seq"] == ans["seq"]):
+            raise RecordError(f"notary_log entry seq {e['seq']} disagrees with its request/answer")
+        if req["token"] != r["token"]:
+            raise RecordError("a notary_log entry's request token is not this session's")
+        if e["seq"] <= last:
+            raise RecordError("notary_log seq must be strictly increasing")
+        last = e["seq"]
+
+
+def _check_app_oracle_record(r):
+    for k in ("staged_sha256", "staged_stream_sha256", "readback_sha256"):
+        _hex(r[k], HEX64, k)
+    if r["staged_sha256"] == r["staged_stream_sha256"]:
+        raise RecordError("staged frames and staged stream hashes are different domains and cannot coincide")
+    if not isinstance(r["audit_available"], bool):
+        raise RecordError("audit_available must be a bool")
+
+
+def _need(ev: dict, keys: tuple, outcome: str) -> None:
+    missing = [k for k in keys if k not in ev]
+    if missing:
+        raise RecordError(f"loop_record outcome {outcome}: evidence missing {missing}")
+
+
+def _forbid(ev: dict, keys: tuple, outcome: str) -> None:
+    present = [k for k in keys if k in ev]
+    if present:
+        raise RecordError(f"loop_record outcome {outcome}: evidence must not contain {present}")
+
+
+def _check_loop_record(r):
+    from . import nonce as nc
+    if r["outcome"] not in LOOP_OUTCOMES:
+        raise RecordError(f"loop_record outcome {r['outcome']!r} is not one of {LOOP_OUTCOMES}")
+    if r["verified"] not in VERIFIED_MARKS:
+        raise RecordError(f"loop_record verified {r['verified']!r} is not one of {VERIFIED_MARKS} (rule ix)")
+    _hex(r["genome"], GENOME_HEX, "genome")
+    ev = r["evidence"]
+    if not isinstance(ev, dict):
+        raise RecordError("loop_record evidence must be an object")
+    out = r["outcome"]
+    if out == "REFUSED_BY_GATE":
+        _need(ev, ("sign_refusal",), out)
+        _forbid(ev, ("sign_reply", "arm", "score", "app_oracle_record"), out)
+        ref = validate(ev["sign_refusal"])
+        if ref["seq"] != r["seq"]:
+            raise RecordError("sign_refusal seq differs from the loop_record's")
+        return
+    _need(ev, ("sign_reply",), out)
+    reply = validate(ev["sign_reply"])
+    if reply["seq"] != r["seq"]:
+        raise RecordError("sign_reply seq differs from the loop_record's")
+    if out == "STOP_AXI" or out == "STOP_LINK2":
+        _forbid(ev, ("arm", "score"), out)
+        return
+    _need(ev, ("app_oracle_record",), out)
+    oracle = validate(ev["app_oracle_record"])
+    if oracle["seq"] != r["seq"]:
+        raise RecordError("app_oracle_record seq differs from the loop_record's")
+    if oracle["staged_sha256"] != reply["commit"]:
+        raise RecordError("staged_sha256 != the signed commit — link 2's binding failed, this record cannot stand")
+    if out == "STOP_LINK3":
+        _forbid(ev, ("arm", "score"), out)
+        if oracle["readback_sha256"] == reply["commit"]:
+            raise RecordError("STOP_LINK3 with readback == commit is a contradiction")
+        return
+    # REFUSED_BY_PL and SCORED both carry an ARM attempt
+    if oracle["readback_sha256"] != reply["commit"]:
+        raise RecordError(f"{out} requires readback == commit (no ARM without link 3)")
+    _need(ev, ("arm",), out)
+    arm = ev["arm"]
+    _need(arm, ("nonce_before", "nonce_after", "status_after", "fault_after", "key_loaded_observed"), out)
+    _hex(arm["nonce_before"], 16, "nonce_before"); _hex(arm["nonce_after"], 16, "nonce_after")
+    if int(arm["nonce_after"], 16) != nc.step(int(arm["nonce_before"], 16)):
+        raise RecordError("the nonce did not step by the model across this ARM attempt")
+    if out == "REFUSED_BY_PL":
+        _forbid(ev, ("score",), out)
+        if not arm["fault_after"]:
+            raise RecordError("REFUSED_BY_PL with fault 0 is a contradiction")
+        return
+    # SCORED
+    _need(ev, ("score",), out)
+    if arm["fault_after"]:
+        raise RecordError("SCORED with a fault is a contradiction")
+    if arm["key_loaded_observed"] is not True:
+        raise RecordError("(v) a score with key_loaded_observed false")
+    score = ev["score"]
+    _need(score, ("hw_candidate_commit", "functional_readout", "scores", "heartbeat"), out)
+    if score["hw_candidate_commit"] != reply["commit"]:
+        raise RecordError("(ii) hw_candidate_commit != the signed commit")
+    if [int(x, 16) for x in score["functional_readout"]] != [int(x, 16) for x in reply["expected_tables"]]:
+        raise RecordError("(iii) functional_readout != the signed expected_tables")
+    if len(score["scores"]) != 6:
+        raise RecordError("six LUTs score six counters")
+
+
+def _check_session_summary(r):
+    end = r["epoch_end"]
+    for k in ("kind", "reason", "last_seq"):
+        if k not in end:
+            raise RecordError(f"epoch_end missing {k!r}")
+    if end["kind"] not in EPOCH_END_KINDS:
+        raise RecordError(f"epoch_end kind {end['kind']!r} is not one of {EPOCH_END_KINDS}")
+    _hex(r["token"], 32, "token")
+    closing = r["closing"]
+    if sorted(closing) != sorted(CLOSING_STEPS) or any(v not in ("done", "not_reached") for v in closing.values()):
+        raise RecordError(f"closing must map exactly {CLOSING_STEPS} to done|not_reached")
+    kind = end["kind"]
+    if kind == "COMPLETED" and any(closing[s] != "done" for s in CLOSING_STEPS):
+        raise RecordError("(viii) COMPLETED requires all three closing steps done — the brackets are not optional")
+    if kind in ("STOPPED", "PROTOCOL") and (closing["baseline"] == "done" or closing["unsigned_control"] == "done"):
+        raise RecordError(f"(viii) {kind}: no closing ARM after a stop (restore only)")
+    if kind == "CRASHED":
+        if r["written_by"] != "collector":
+            raise RecordError("a CRASHED summary is written by the collector; the application is gone")
+        if any(v != "not_reached" for v in closing.values()):
+            raise RecordError("CRASHED with closing steps done is a contradiction")
+    if r["written_by"] not in ("app", "collector"):
+        raise RecordError("written_by must be app or collector")
+    audit = r["audit"]
+    if "audited" not in audit or "total" not in audit or audit["audited"] > audit["total"]:
+        raise RecordError("audit must report audited <= total (rule ix)")
+    if r["crc_dropped"] > r["drop_budget"] and kind not in ("PROTOCOL", "CRASHED"):
+        raise RecordError("crc_dropped exceeds the drop budget but the epoch did not end PROTOCOL")
+
+
+def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int) -> dict:
+    """Rules (vii)–(ix) over one standalone session (spec §7). `blank_commit` is the blank
+    candidate's gate hash; `nonce_seed` the carrier's NONCE_SEED. Raises RecordError naming
+    the rule; returns {scored, audited, chain_length}."""
+    from . import nonce as nc
+    for k in ("app_identity", "notary_log", "loop_records", "session_summary"):
+        if k not in log:
+            raise RecordError(f"standalone run log missing {k!r}")
+    ident = validate(log["app_identity"])
+    notary = validate(log["notary_log"])
+    summary = validate(log["session_summary"])
+    records = [validate(r) for r in log["loop_records"]]
+    if ident["token"] != notary["token"] or ident["token"] != summary["token"]:
+        raise RecordError("token differs across app_identity / notary_log / session_summary")
+    by_seq = {}
+    for r in records:
+        if r["seq"] in by_seq:
+            raise RecordError(f"two loop_records share seq {r['seq']}")
+        by_seq[r["seq"]] = r
+    notary_by_seq = {e["seq"]: e for e in notary["entries"]}
+    # (vii) every ARM-carrying record has a notary entry binding the same seq, commit, nonce
+    chain = nonce_seed & 0xFFFFFFFFFFFFFFFF
+    attempts = 0
+    for seq in sorted(by_seq):
+        r = by_seq[seq]
+        if r["outcome"] == "REFUSED_BY_GATE":
+            e = notary_by_seq.get(seq)
+            if e is None or e["answer"].get("schema") != "sign_refusal":
+                raise RecordError(f"(vii) seq {seq}: REFUSED_BY_GATE without a matching notary refusal")
+            continue
+        e = notary_by_seq.get(seq)
+        if e is None:
+            raise RecordError(f"(vii) seq {seq}: no notary_log entry")
+        if e["answer"].get("schema") != "sign_reply":
+            raise RecordError(f"(vii) seq {seq}: the notary answered a refusal but the record claims a signed candidate")
+        if e["answer"]["commit"] != r["evidence"]["sign_reply"]["commit"]:
+            raise RecordError(f"(vii) seq {seq}: notary commit != the record's commit")
+        arm = r["evidence"].get("arm")
+        if arm is not None:
+            if e["request"]["nonce"] != arm["nonce_before"]:
+                raise RecordError(f"(vii) seq {seq}: the nonce signed is not the nonce the ARM consumed")
+            if int(arm["nonce_before"], 16) != chain:
+                raise RecordError(f"(vii) seq {seq}: nonce_before is not the model chain value {chain:016x}")
+            chain = nc.step(chain)
+            attempts += 1
+    # closing negative control consumes the last nonce (COMPLETED only)
+    kind = summary["epoch_end"]["kind"]
+    closing_neg = log.get("closing_negative")
+    if kind == "COMPLETED":
+        if closing_neg is None:
+            raise RecordError("(viii) COMPLETED without the closing unsigned-ARM control")
+        if closing_neg.get("fault") != EXPECTED_FAULT["unsigned"]:
+            raise RecordError("(viii) the closing unsigned ARM was not refused F_ARM_AUTH — KILL, not a record")
+        if int(closing_neg["nonce_before"], 16) != chain:
+            raise RecordError("(viii) the closing control's nonce is not the model chain value")
+        chain = nc.step(chain)
+        attempts += 1
+        scored = [by_seq[s] for s in sorted(by_seq) if by_seq[s]["outcome"] == "SCORED"]
+        if not scored or scored[0]["evidence"]["sign_reply"]["commit"] != blank_commit:
+            raise RecordError("(viii) the first scored record is not the opening baseline (blank candidate)")
+        if scored[-1]["evidence"]["sign_reply"]["commit"] != blank_commit:
+            raise RecordError("(viii) the last scored record is not the closing baseline (blank candidate)")
+    elif closing_neg is not None:
+        raise RecordError(f"(viii) {kind}: a closing ARM control cannot exist after a stop")
+    # (ix) audit accounting
+    audited = sum(1 for r in records if r["verified"] == "audited")
+    if summary["audit"]["audited"] != audited:
+        raise RecordError(f"(ix) summary says {summary['audit']['audited']} audited, records mark {audited}")
+    if summary["audit"]["total"] != len(records):
+        raise RecordError("(ix) audit total != number of loop records")
+    return {"scored": sum(1 for r in records if r["outcome"] == "SCORED"),
+            "audited": audited, "chain_length": attempts}

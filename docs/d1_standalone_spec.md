@@ -521,3 +521,8 @@ Nothing in 2–5 begins on the strength of this document.
   as the narrow definition the reviewer must explicitly accept (§10); §4.6's fault codes
   recorded as observed, with no exclusive-cause claim.
 - **v0.1 (2026-08-31)** — first draft. Review #1: HOLD.
+- **Post-review #2 (2026-08-31, ACCEPTED WITH Q7 CONDITION)** — Q7's condition discharged:
+  the C↔Python corpus is pinned at **N = 256** (`fixtures/d1_corpus_v1.json`; entry 0 = the
+  blank candidate, entry 1 = the known answer, entries 2..255 from deterministic per-index
+  seeds; `host/p3_genome.py`), recorded in `docs/l5_design.md` for the L5 manifest. The
+  spec text itself is unchanged by review #2.

@@ -188,6 +188,16 @@ revisions and neither may be silently substituted for the other.
 | `docs/l3_diag_spec.md` |
 | `docs/d1_standalone_spec.md` |
 | `docs/d1_review_result.md` |
+| `docs/l5_design.md` |
+| `fixtures/d1_corpus_v1.json` |
+| `host/p3_genome.py` |
+| `host/l5_notary.py` |
+| `host/l5_refloop.py` |
+| `tests/test_p3_genome.py` |
+| `tests/test_d1_records.py` |
+| `tests/test_sign_genome.py` |
+| `tests/test_l5_notary.py` |
+| `tests/test_l5_refloop.py` |
 | `host/l3_diag_runner.py` |
 | `host/l3_diag_jtag.py` |
 | `tests/test_l3_diag.py` |
@@ -322,6 +332,7 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-08-31T163325Z.json` |
 | `evidence/tests/test_report_2026-08-31T161111Z.json` |
 | `evidence/tests/test_report_2026-08-31T155428Z.json` |
 | `evidence/tests/test_report_2026-08-31T155401Z.json` |
