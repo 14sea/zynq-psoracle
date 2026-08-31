@@ -1,7 +1,10 @@
 # L3 — one gated candidate end-to-end: host tooling design record
 
-Status: host-only, 2026-08-29, under the owner's continuous mandate. **No ruling exists;
-the board is not touched.** Ruling text: `whole-of-probe P3-L3`. 198 tests.
+> **Status note (2026-08-31):** statements about rung status in this document are historical — what was true when it was written. The canonical status is `docs/status.md`.
+
+
+Status *(historical, 2026-08-29)*: host-only, under the owner's continuous mandate. **No ruling existed;
+the board was not touched.** (L3 later ran five sessions and PASSED — `docs/status.md`, `docs/l3_findings.md`.) Ruling text: `whole-of-probe P3-L3`. 198 tests.
 
 ## 1. The chain (`host/l3_runner.py`)
 

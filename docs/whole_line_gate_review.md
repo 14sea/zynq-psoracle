@@ -1,5 +1,8 @@
 # Whole-line gate review package — before any P3 ruling
 
+> **Status note (2026-08-31):** statements about rung status in this document are historical — what was true when it was written. The canonical status is `docs/status.md`.
+
+
 Prepared 2026-08-29 under the owner's mandate ("到「建立 whole-of-probe ruling／實際送板上
 byte」前，再做一次整體 gate review；未取得該 ruling 前仍不得碰板"). This is the package for
 the non-author reviewer(s); nothing here is self-certified. HEAD at preparation: see `git log`.
@@ -47,7 +50,7 @@ says L2 (P2b) is the first board stage, then L3 (three rulings for the negative 
 
 ## What is explicitly NOT claimed
 
-No board contact has occurred for P3. No rung is PASS. The fakes prove runner sequencing
+*(Historical, as of the package's date 2026-08-29:)* No board contact has occurred for P3. No rung is PASS. The fakes prove runner sequencing
 and refusals only. The PL is proven only in simulation and by build reports. Sibling
 repositories are unchanged. No remote exists.
 

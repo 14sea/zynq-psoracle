@@ -1,5 +1,8 @@
 # P3 — re-establishing the write-integrity interlock around a PS-side oracle
 
+> **Status note (2026-08-31):** statements about rung status in this document are historical — what was true when it was written. The canonical status is `docs/status.md`.
+
+
 > **HOST-SIDE ARCHITECTURE DRAFT. Nothing here is evidence, nothing here authorises a
 > board action, a ruling, a Vivado build, or a change to `zynq-psmap` or `zynq-fabricmap`.**
 > Owner authorisation of 2026-08-29 covers exactly: this repository's boundary, this

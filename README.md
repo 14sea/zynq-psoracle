@@ -25,29 +25,28 @@ match bit anywhere that the host must take on trust.
 
 ## Status
 
+**Canonical status table: [`docs/status.md`](docs/status.md)** — L0, D4, L1, L2, L3 (scoped), L4 all
+**PASS** on EBAZ4203 `17A6` as of 2026-08-31; the L0–L4 overall review is pending its re-review;
+L5 is not specified (D1 first). The per-rung rows below are a summary; where they and
+`docs/status.md` disagree, `docs/status.md` wins.
+
 | rung | state |
 |---|---|
-| L0 host-only architecture | architecture basis ACCEPTED (§3 v0.2, `docs/l0_review_result.md`); **exit deliverables implemented at `afde303`** (import manifest with two-way closure, validators, fixtures, run-log rules, signer/principal model — 152 tests); L0 exit: **reviewed as passed** in the whole-line gate review (2026-08-29, `docs/whole_line_gate_review_result.md`; no separate L0 exit verdict document exists) |
-| L1 P3 carrier (Vivado) | **built, public (D4 option A: no key in the bitstream)**: RTL + fixture bench green incl. key-register negatives; build routed **+7.58 ns**, isolation target 6 / flush 0, ICAPE2 = 0, 12 target FARs blank, 3,107 LUTs — `builds/p3/`, `docs/l1_design.md`; **L1 preparation PASS** (re-review 2026-08-29) |
-| L2 = P2b counter-class non-perturbation | **PASS on 17A6** (run #3, ruling `2026-08-30-03`, spec v1.1; `docs/l2_findings.md`): 10/10 reads + envelope write + readback bit-exact; state words equal on all 15 samples; heartbeat inside its envelope on all 31 intervals (49.86–50.09 MHz). Runs #1/#2 were host-instrument outcomes. Scoped: this carrier, these nine words, this PCAP activity — not general computational correctness |
-| L3 one gated candidate end-to-end | session #1 STOP LINK3_MISMATCH → **diagnostic: FABRIC_BLANK, root cause = host instrument** (staging with the D-cache on; link 2 read the cache, the DMA read DDR; JTAG confirms the write never landed, CRC_ERROR 0) — fixed (verified `dcache off` before staging, fake reproduces it), `docs/l3_findings.md`. **Diagnostic #2 with the fix: NO_REPRODUCTION** (three envelopes land frame-exact, PCAP readback faithful, JTAG confirms, CRC_ERROR 0). **Session #1 `unprovisioned` PASS** (ruling `2026-08-30-03`): all twelve frames read back as the candidate, ARM → `F_ARM_NOKEY`, nonce consumed (matches the host model), no score. **Session #2 positive + `unsigned` PASS** (2026-08-31): first on-board key provisioning (DAP mem-AP), `HW_COMMIT` = gate hash, readout = signed tables, **scores `[35,22,20,20,20,18]` = host prediction = fabricmap's silicon scores**; unsigned ARM → `F_ARM_AUTH`, nonces = model. **Session #3 positive + `replay` PASS**: positive reproduced, replayed payload → `F_ARM_AUTH`. **Session #4 positive + `other_candidate` PASS**: a valid tag for another candidate with the positive commit staged → `F_ARM_AUTH`. **Session #5 `wrong_key` PASS**: PL provisioned with the control key refuses a tag under K → `F_ARM_AUTH`. **L3 overall: PASS (scoped), owner's adjudication 2026-08-31** — five sessions, summary table in `docs/l3_findings.md`. (runbook `docs/l3_l4_runbook.md`; real-signer rehearsal on the fake passes); **host tooling written** (`host/l3_runner.py`, link-1 gate, host oracle pinned to fabricmap's silicon scores, out-of-process signer, on-board negative controls; `docs/l3_design.md`); **no ruling, not authorised** |
-| L4 fault / restore / baseline | **PASS on 17A6** (2026-08-31, `docs/l4_findings.md`): illegal candidate refused at link 1 (never sent); corrupted staged buffer refused at link 2 with **zero DMA** (INT_STS unchanged); all twelve frames restored to base and read back; baseline signed ARM of the blank candidate scores `[18,22,20,20,20,18]` = prediction. Owner's adjudication pending |
+| L0 host-only architecture | **PASS** — §3 v0.3 (PL-enforced, gate-signed ARM; runtime-provisioned key); `docs/l0_review_result.md` |
+| D4 key custody | **PASS** — real signer OS user + JTAG-provisioned write-once key; `evidence/boundary/` |
+| L1 P3 carrier | **PASS** (preparation) — public build `builds/p3/`, +7.58 ns, isolation 6/0, ICAPE2 0; `docs/l1_design.md` |
+| L2 = P2b | **PASS** on 17A6 (run #3) — `docs/l2_findings.md`; heartbeat pinned [49.5, 50.5] MHz |
+| L3 one gated candidate | **PASS (scoped)** on 17A6 — five sessions, `docs/l3_findings.md` |
+| L4 fault / restore / baseline | **PASS** on 17A6 — `docs/l4_findings.md` |
 | L5 the loop | not specified (D1 first) |
 
-## Gate review
+Tests: `host/run_tests.sh` (records exit status + environment into `evidence/tests/`); see
+`docs/status.md` for the sandbox/sudo caveat.
 
-`docs/whole_line_gate_review.md` — the package; **result 2026-08-29: HOLD**
-(`docs/whole_line_gate_review_result.md`) — blocker D4 (the signer and the runner are one
-OS user; the keyed bitstream is key material). Proposal: `docs/d4_principal_boundary.md`
-(recommended: runtime key provisioned by a separate signer user over JTAG; bitstream becomes
-public). **Owner chose A (2026-08-29); implemented host-only** — runtime write-once key register,
-`F_ARM_NOKEY`, JTAG provisioning tool (prepare-only without a `provisioning P3-K` ruling),
-runner provisioning step + `key_loaded_observed`, pre-positive controls, public build.
-Re-review 2026-08-29 (later): **D4 PASS, L1 host/build/principal preparation PASS**
-(`docs/whole_line_gate_review_result.md`). Principal `p3signer`/`p3jtag` established on
-the host and verified as the runner (R1–R5, `evidence/boundary/`). Sudoers wildcard →
-fixed key paths (owner re-applies with sudo before the board). **Next: the owner's
-`whole-of-probe P3-L2` ruling. No ruling yet, no board contact.**
+## Gate reviews (historical records)
+
+`docs/whole_line_gate_review.md` (package, 2026-08-29) and `docs/whole_line_gate_review_result.md`
+(HOLD → D4 option A → PASS). Their status statements are historical; `docs/status.md` is current.
 
 ## Provenance
 

@@ -1,5 +1,8 @@
 # Contracts — versioned artifacts across the three parties and the two source repositories
 
+> **Status note (2026-08-31):** statements about rung status in this document are historical — what was true when it was written. The canonical status is `docs/status.md`.
+
+
 Policy (inherited verbatim from `zynq-autoehw/docs/schema.md`): every artifact carries
 `schema` and `schema_version`; **MAJOR** = incompatible field change, **MINOR** = additive
 optional field; a consumer **rejects** a foreign MAJOR and **ignores** unknown MINOR fields;

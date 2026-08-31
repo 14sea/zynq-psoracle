@@ -368,10 +368,17 @@ class LiveSignerRehearsal(unittest.TestCase):
     (provisioning is modelled, the JTAG path being a board action). Skipped where the
     principal does not exist."""
     def test_known_answer_through_the_real_signer(self):
-        import pwd
+        import pwd, subprocess
         try: pwd.getpwnam("p3signer")
         except KeyError: self.skipTest("no p3signer principal on this host")
         key = Path("/var/lib/p3signer/keys/K.bin")
+        # the boundary must be USABLE here: in a sandbox sudo may be blocked ("no new privileges",
+        # /etc/sudo.conf ownership) — that is an environment limit, reported as a skip with the
+        # exact error, never as a pass (reviewer 2026-08-31: 233/1 in such a sandbox)
+        probe = subprocess.run(["sudo", "-n", "-u", "p3signer", sys.executable, str(REPO / "host/sign_arm.py"), str(key)],
+                               input='{"op": "probe"}', capture_output=True, text=True, timeout=60)
+        if probe.returncode != 0:
+            self.skipTest(f"signer boundary not usable in this environment: {probe.stderr.strip()[:200]}")
         with tempfile.TemporaryDirectory() as d:
             board = FakeP3Board(REPO / "tests" / "__nokey__")  # placeholder; provision below sets the holder
             class RealSign(l3.SubprocessSigner):

@@ -1,5 +1,8 @@
 # Whole-line gate review — result (2026-08-29, non-author, relayed by the owner)
 
+> **Status note (2026-08-31):** statements about rung status in this document are historical — what was true when it was written. The canonical status is `docs/status.md`.
+
+
 Verdict: **HOLD. No `P3-L2` ruling; no board contact.**
 
 Verbatim (owner's relay):

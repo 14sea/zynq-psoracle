@@ -1,5 +1,8 @@
 # L0 architecture review — result
 
+> **Status note (2026-08-31):** statements about rung status in this document are historical — what was true when it was written. The canonical status is `docs/status.md`.
+
+
 ## Verdict, 2026-08-29 (owner-designated non-author review), on `4d92809`: **REJECT**
 
 Recorded in substance from the reviewer's text; the reviewer's own wording where it matters:

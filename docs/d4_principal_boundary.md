@@ -1,5 +1,8 @@
 # D4 — a real principal boundary for `K` (proposal after the whole-line HOLD)
 
+> **Status note (2026-08-31):** statements about rung status in this document are historical — what was true when it was written. The canonical status is `docs/status.md`.
+
+
 Status: proposal, 2026-08-29. Nothing here is implemented; the owner chooses the option.
 
 ## 0. What the review found, stated precisely

@@ -318,6 +318,11 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l3_17A6_2026-08-31-05/summary.json` |
 | `evidence/l3_17A6_2026-08-31-05/ymodem.log` |
 | `docs/l4_findings.md` |
+| `docs/status.md` |
+| `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-08-31T153009Z.json` |
+| `evidence/tests/test_report_2026-08-31T152940Z.json` |
+| `evidence/tests/test_report_2026-08-31T152909Z.json` |
 | `evidence/boundary/principal_boundary_2026-08-31-l4.json` |
 | `evidence/l4_17A6_2026-08-31-06/L4_0_gate_refused.json` |
 | `evidence/l4_17A6_2026-08-31-06/L4_1_corrupt_stage.json` |

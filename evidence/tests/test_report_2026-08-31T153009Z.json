@@ -1,0 +1,11 @@
+{
+  "at": "2026-08-31T153009Z",
+  "exit_status": 0,
+  "ran": 234,
+  "result_line": "OK",
+  "host": "H3C",
+  "user": "test",
+  "commit": "7550da78a05ab09460cd11d9d4b9df7cd474c1f4",
+  "sudo_signer_probe": "{\"key_id\": \"b4c022a27ff87ac2f98a39e5eaa1e23456251d3b95d16189f3130cb69905c307\", \"user\": \"p3signer\"}",
+  "boundary_available": true
+}

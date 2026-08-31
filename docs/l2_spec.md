@@ -1,5 +1,8 @@
 # L2 = P2b — counter-class non-perturbation on the P3 carrier (specification)
 
+> **Status note (2026-08-31):** statements about rung status in this document are historical — what was true when it was written. The canonical status is `docs/status.md`.
+
+
 Status: **v1.1, 2026-08-29** — amended after run #2 (`docs/l2_findings.md`). Runner
 `host/l2_runner.py`, adjudicator `host/l2_heartbeat.py`, fake-board tests
 `tests/test_l2_runner.py`. Ruling text: `whole-of-probe P3-L2`. Runs #1 and #2 on 17A6

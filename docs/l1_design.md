@@ -1,5 +1,8 @@
 # L1 — the P3 carrier: design record
 
+> **Status note (2026-08-31):** statements about rung status in this document are historical — what was true when it was written. The canonical status is `docs/status.md`.
+
+
 Status: RTL, host-only simulation **and Vivado build**, 2026-08-29, under the owner's
 continuous host-side mandate. **Built (dummy key committed; keyed build private); no
 board; L1 exit review pending.** Change log at the end.

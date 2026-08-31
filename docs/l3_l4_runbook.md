@@ -1,5 +1,8 @@
 # L3 / L4 runbook — one session at a time, each under its own ruling
 
+> **Status note (2026-08-31):** statements about rung status in this document are historical — what was true when it was written. The canonical status is `docs/status.md`.
+
+
 All host-side preparation is done (`docs/l3_design.md`, `host/l4_runner.py`). Every
 on-board session below needs: the board **power-cycled**, a fresh
 `principal_boundary` record (**run as the runner, < 6 h**), one `whole-of-probe P3-L3`

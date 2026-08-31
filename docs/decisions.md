@@ -1,5 +1,8 @@
 # Decisions, kill criteria, boundary — the record the owner rules on
 
+> **Status note (2026-08-31):** statements about rung status in this document are historical — what was true when it was written. The canonical status is `docs/status.md`.
+
+
 Status: draft, 2026-08-29. Each item names who decides. Nothing here is decided by this
 document.
 
