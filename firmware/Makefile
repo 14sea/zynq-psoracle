@@ -12,12 +12,20 @@ CC      ?= cc
 CFLAGS  ?= -std=c99 -O2 -Wall -Wextra -Werror -pedantic
 BUILD   ?= build
 
-.PHONY: twin clean
+.PHONY: twin wire clean
 twin: $(BUILD)/p3_twin
+wire: $(BUILD)/p3_wire_twin
 
 $(BUILD)/p3_twin: p3_twin.c p3_derive.c p3_derive.h p3_data.h
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) -o $@ p3_twin.c p3_derive.c
+
+# The wire twin exposes p3_wire.c -- the application's ACTUAL serialisation -- so
+# tests/test_firmware_wire_contract.py can feed the bytes the board emits to the real
+# validator. Same source as the image links; that is the whole point.
+$(BUILD)/p3_wire_twin: p3_wire_twin.c p3_wire.c p3_derive.c p3_wire.h p3_derive.h p3_data.h
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -o $@ p3_wire_twin.c p3_wire.c p3_derive.c
 
 clean:
 	rm -rf $(BUILD)

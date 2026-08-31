@@ -32,9 +32,12 @@ MAGIC = "P3L5"
 TOKEN_HEX = 32
 # application → host
 T_IDENT, T_SIGNREQ, T_HB, T_REC, T_AUDIT, T_TERM = "IDENT", "SIGNREQ", "HB", "REC", "AUDIT", "TERM"
+# the closing unsigned ARM: not a loop_record ("CLOSING_CONTROL" is not a LOOP_OUTCOME), so
+# it travels as its own type and the collector files it under the log's closing_negative key
+T_CLOSE = "CLOSE"
 # host → application
 T_SIGNOK, T_SIGNREF, T_AUDITREQ = "SIGNOK", "SIGNREF", "AUDITREQ"
-APP_TYPES = (T_IDENT, T_SIGNREQ, T_HB, T_REC, T_AUDIT, T_TERM)
+APP_TYPES = (T_IDENT, T_SIGNREQ, T_HB, T_REC, T_AUDIT, T_TERM, T_CLOSE)
 
 
 class FrameError(ValueError):
@@ -150,6 +153,7 @@ class Collector:
         self.app_identity: dict | None = None
         self.loop_records: list[dict] = []
         self.session_summary: dict | None = None
+        self.closing_negative: dict | None = None
         self.audits: list[dict] = []
         self.last_heard = clock()
         self.last_rec_seq = 0
@@ -195,6 +199,8 @@ class Collector:
             self.loop_records.append(rec)
         elif f["type"] == T_AUDIT:
             self.audits.append(decode_payload(f["payload"]))
+        elif f["type"] == T_CLOSE:
+            self.closing_negative = decode_payload(f["payload"])
         elif f["type"] == T_TERM:
             self.session_summary = decode_payload(f["payload"])
             self.epoch_end = self.session_summary.get("epoch_end")
