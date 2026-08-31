@@ -168,3 +168,16 @@ rc 0, `key_loaded` observed. 12/12 frames read back as the candidate. **Positive
 the PL's nonce had stepped: FAULT **13 = F_ARM_AUTH**, cfg_valid 0, no score, nonce consumed
 (`dc1b77ae…` → `64f0eeb9…`, = model). The tag that was valid one ARM earlier is worthless
 now: the nonce binds a signature to one attempt. Run log validates; both rulings consumed.
+
+## Session #4 (rulings `P3-L3 2026-08-31-04` + `P3-K 2026-08-31-04`, `--negative other_candidate`) — PASS
+
+`evidence/l3_17A6_2026-08-31-04/`, 13 min 17 s, zero disruptions; one link-2 `md.l`
+dropped line re-read (§2b, counted). Provisioning rc 0, `key_loaded` observed. 12/12
+readback. **Positive ARM**: STATUS `0xf54`, `HW_COMMIT` = gate hash, readout = signed
+tables, scores `[35, 22, 20, 20, 20, 18]` = prediction (third reproduction).
+**`other_candidate` control** — a tag the signer legitimately produced for the *blank*
+candidate (its commit and its tables, the current nonce), staged with the positive
+candidate's commit words: FAULT **13 = F_ARM_AUTH**, STATUS `0x982` (fault,
+recovery_required, alive, key_loaded), cfg_valid 0, no score, nonce consumed (= model). A
+valid signature is bound to the commit it was made for: swapping the commit breaks it in
+the PL, not in a host check. Run log validates; both rulings consumed.
