@@ -1,0 +1,12 @@
+{
+  "stage": "L4_1_corrupt_stage",
+  "corrupt_word": 74,
+  "sent": "0x00005213",
+  "corrupted_to": "0x0000d213",
+  "reread_word": "0x0000d213",
+  "reread_equals_stream": false,
+  "int_sts_before": "0x50020004",
+  "int_sts_after": "0x50020004",
+  "dma_happened": false,
+  "verdict": "REFUSED_AT_LINK_2"
+}

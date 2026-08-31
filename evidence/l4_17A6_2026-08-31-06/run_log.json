@@ -1,0 +1,115 @@
+{
+  "schema": "run_log",
+  "schema_version": "1.0.0",
+  "tool": "l4_runner.py/0.1.0",
+  "ruling_sha256": "04848bf85da6a7ea780d08228d2e2126839ee824fba8a8836cb5a3213c9e084b",
+  "records": [
+    {
+      "schema": "gate_verdict",
+      "schema_version": "1.0.0",
+      "candidate_sha256": "3e24d93665bb9f29fb43290283a0c01327acd6048b9e979d247e248ee232679b",
+      "sequence_sha256": "905abc6931c537bbdf980c153c7d59ec5aa2da1d2707442c6b5049d733dfc7a3",
+      "writable": true,
+      "findings": [],
+      "gate_tool": {
+        "name": "host/p3_gate.py",
+        "frame_rules": "zynq-fabricmap gate_candidate.py",
+        "source_commit": "71666b02d526a6f2c641f1e0aebc15dac0417d4f"
+      },
+      "manifest_sha256": "e45f466d082ccd6f227e6f9be4ce75a4e98c4caa708808c09a77ed32331c10ef",
+      "epoch": 0
+    },
+    {
+      "schema": "oracle_record",
+      "schema_version": "1.0.0",
+      "session": {
+        "boardid": "17A6",
+        "epoch": 0,
+        "plmark": "18d0ec5ce1325b29"
+      },
+      "candidate_sha256": "3e24d93665bb9f29fb43290283a0c01327acd6048b9e979d247e248ee232679b",
+      "staged_sha256": "3e24d93665bb9f29fb43290283a0c01327acd6048b9e979d247e248ee232679b",
+      "staged_stream_sha256": "905abc6931c537bbdf980c153c7d59ec5aa2da1d2707442c6b5049d733dfc7a3",
+      "write": {
+        "envelopes": 3
+      },
+      "readback_sha256": "3e24d93665bb9f29fb43290283a0c01327acd6048b9e979d247e248ee232679b",
+      "configuration_valid_hw_expected": true
+    },
+    {
+      "schema": "arm_record",
+      "schema_version": "1.0.0",
+      "nonce": "9e3779b97f4a7c15",
+      "candidate_commit": "3e24d93665bb9f29fb43290283a0c01327acd6048b9e979d247e248ee232679b",
+      "expected_tables": [
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "tag": "fa0b80ac5537299038fc30344eb23edd",
+      "signer": {
+        "principal": "gate-signer",
+        "key_id": "b4c022a27ff87ac2f98a39e5eaa1e23456251d3b95d16189f3130cb69905c307",
+        "provisioned_key_id": null
+      },
+      "axi_before": {
+        "status": "0x00000900",
+        "fault": "0x0"
+      },
+      "key_loaded_observed": true,
+      "mode_holdout": false,
+      "armed_at": 1788189639.0855339,
+      "axi_after": {
+        "status": "0x00000f54",
+        "fault": "0x0",
+        "nonce": "dc1b77ae0bf34dad"
+      },
+      "oracle_record_sha256": "243c8a5af2ba0c1a3a129049a40a2cb33fc9875fa257b70e6221480d5003c45e",
+      "gate_verdict_sha256": "20801075969c16a47dd090b2d083de433287d1fc027e51b08b188fb5a37a9abf",
+      "epoch": 0
+    },
+    {
+      "schema": "score_record",
+      "schema_version": "1.0.0",
+      "configuration_valid_hw": true,
+      "hw_candidate_commit": "3e24d93665bb9f29fb43290283a0c01327acd6048b9e979d247e248ee232679b",
+      "functional_readout": [
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "scores": [
+        18,
+        22,
+        20,
+        20,
+        20,
+        18
+      ],
+      "heartbeat": {
+        "before": 560135924,
+        "after": 930512881
+      },
+      "mode_holdout": false,
+      "status": "0x00000f54",
+      "arm_record_sha256": "0341139fdcd0c43d7715e9d86c9f9617410aff69cd6377a1ec9144b650b78fdf",
+      "host_prediction": [
+        18,
+        22,
+        20,
+        20,
+        20,
+        18
+      ],
+      "match": true
+    }
+  ],
+  "epoch_final": 0,
+  "outcome": "PASS"
+}
