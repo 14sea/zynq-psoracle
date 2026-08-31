@@ -1,0 +1,69 @@
+{
+  "schema": "l5_manifest",
+  "schema_version": "1.0.0",
+  "status": "DRAFT — host-only. Fields under `pinned_at_build` are null until the build authorisation; nothing here authorises a build, a ruling or board contact.",
+  "carrier": {
+    "bitstream": "builds/p3/p3.bit",
+    "bitstream_sha256": "956379fa",
+    "note": "the short form is the one used in prose; the authoritative full hash is builds/p3/carrier_manifest.json",
+    "nonce_seed": "9e3779b97f4a7c15",
+    "heartbeat_bounds_ticks_per_s": [49500000, 50500000]
+  },
+  "board": {
+    "boardid": "17A6",
+    "role": "verify",
+    "part": "xc7z010clg400-1",
+    "pss_idcode_masked": "0x03722093",
+    "control_plane": "standalone",
+    "fclk0_hz": 50000000
+  },
+  "genome": {
+    "bits": 292,
+    "words": 10,
+    "address_order": "ascending (far, word, bit)",
+    "addresses_sha256": "895baf85ed31df9beae28a533646182ffb8d0e0735c9849ede9641af81ee7458",
+    "corpus": "fixtures/d1_corpus_v1.json",
+    "corpus_n": 256,
+    "corpus_seed_label": "d1-corpus-v1",
+    "note": "N = 256 is review #2's Q7 condition, discharged; the C twin reproduces every entry's candidate_sha256 and sequence_sha256 (tests/test_firmware_twin.py)"
+  },
+  "memory_map": {
+    "cmd_buf": "0x10200000",
+    "dst_buf": "0x10300000",
+    "wr_buf": "0x10400000",
+    "identity_page": "0x10440000",
+    "ring": "0x10800000",
+    "ring_depth_W": 512,
+    "app_image": "0x02000000",
+    "attributes": "every instrument buffer is mapped strongly-ordered, non-cacheable by the application before first touch; no per-operation cache maintenance"
+  },
+  "protocol": {
+    "transport": "T1 — console (UART) with the runner as relay",
+    "frame": "P3L5 <type> <seq> <token(32 hex)> <payload(base64url)> <crc32>",
+    "token_bits": 128,
+    "heartbeat_s": 10,
+    "silence_to_crashed_s": 30,
+    "crc_drop_budget_per_session": 16
+  },
+  "session": {
+    "brackets": "opening baseline (blank candidate) → candidates → closing baseline (= restore) → closing unsigned ARM",
+    "baseline_train_scores": [18, 22, 20, 20, 20, 18],
+    "epoch_end_kinds": ["COMPLETED", "STOPPED", "PROTOCOL", "CRASHED"],
+    "rulings_required": ["whole-of-probe P3-L5", "provisioning P3-K"],
+    "boundary_record_max_age_h": 6
+  },
+  "pinned_at_build": {
+    "app_image_sha256": null,
+    "toolchain": null,
+    "watchdog_load_value": null,
+    "console_uart": null,
+    "note": "P3_WDT_LOAD is deliberately 0 in the source: a guessed watchdog period is worse than an obviously unset one. The console UART is the BSP's stdout and must be the same UART U-Boot uses on this board — confirmed at build, not assumed here."
+  },
+  "provenance": {
+    "phenotype_manifest_sha256": "e45f466d082ccd6f227e6f9be4ce75a4e98c4caa708808c09a77ed32331c10ef",
+    "fabricmap_commit": "71666b02d526a6f2c641f1e0aebc15dac0417d4f",
+    "psmap_commit": "191ab0585332e75ac6f15179dc80eeec2d29f9f9",
+    "spec": "docs/d1_standalone_spec.md v0.2",
+    "design": "docs/l5_design.md"
+  }
+}

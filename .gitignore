@@ -8,3 +8,4 @@ sim/out/
 sim/*.vvp
 keys/
 build/
+firmware/build/

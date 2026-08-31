@@ -1,0 +1,30 @@
+# p3 firmware — host twin only.
+#
+# `make twin` builds the HOST driver (p3_twin.c + p3_derive.c) that the test suite drives
+# over the pinned corpus. It is host tooling, not a board image.
+#
+# The board application (`p3_app.c`) is NOT built here and has never been compiled: no ARM
+# bare-metal toolchain exists on this host, and the toolchain choice is an open item for the
+# L5 build authorisation (`docs/l5_design.md` §4). The recipe below is a record of what that
+# build will look like, deliberately not wired to a default target.
+
+CC      ?= cc
+CFLAGS  ?= -std=c99 -O2 -Wall -Wextra -Werror -pedantic
+BUILD   ?= build
+
+.PHONY: twin clean
+twin: $(BUILD)/p3_twin
+
+$(BUILD)/p3_twin: p3_twin.c p3_derive.c p3_derive.h p3_data.h
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -o $@ p3_twin.c p3_derive.c
+
+clean:
+	rm -rf $(BUILD)
+
+# --- board image, for the record only (needs an authorisation and a toolchain) ---------
+# CROSS      = arm-none-eabi-
+# BSP        = <standalone_v9_4 + devcfg_v3_9 built for cortex-a9>
+# APP_CFLAGS = -std=c99 -O2 -Wall -Wextra -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard
+# $(CROSS)gcc $(APP_CFLAGS) -I$(BSP)/include -o p3_app.elf p3_app.c p3_derive.c \
+#     -L$(BSP)/lib -lxil -Tlscript.ld
