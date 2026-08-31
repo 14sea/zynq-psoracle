@@ -127,3 +127,33 @@ second execution with the same ruling is refused as "already used"); the runner 
 session outcome beside the ruling only **after** the run (`_record_pk`), never before. The
 runbook is corrected accordingly. Tests exercise the marker with a dummy-adapter cfg
 (`P3_PROVISION_CFG`) so no test can ever open the pod.
+
+## Session #2 (rulings `P3-L3 2026-08-31-02` + `provisioning P3-K 2026-08-31-02`, `--negative unsigned`) — PASS
+
+`evidence/l3_17A6_2026-08-31-02/`, 13 min 10 s, zero disruptions, zero re-reads. Boundary
+R1–R5 PASS beforehand. First on-board key provisioning.
+
+- **Provisioning (signer principal, DAP mem-AP)**: openocd 0.12 found both TAPs
+  (`0x13722093`, `0x4ba00477`), wrote the four key words + `key_commit`, rc 0, no core
+  halted; the runner then read STATUS `0x900` = alive + **key_loaded** (bit 11).
+- links 1–3: known answer writable; three envelopes staged (`dcache off`), re-read equal,
+  WRITTEN; **12/12 frames read back as the candidate**.
+- **Positive ARM**: signer `key_id b4c022a2…`, nonce `9e3779b97f4a7c15`; after the strobe
+  STATUS `0xf54` = cfg_valid_hw ∧ scorer_done ∧ tag_ok ∧ alive ∧ sweep_done ∧
+  tables_match ∧ key_loaded, FAULT 0; **`HW_COMMIT` = the gate's `candidate_sha256`**;
+  **`FUNCTIONAL_READOUT` = the signed expected tables**; **scores `[35, 22, 20, 20, 20, 18]`
+  = the host prediction = fabricmap's published silicon scores for this candidate**;
+  heartbeat advanced; nonce → `dc1b77ae0bf34dad` (= model).
+- **`unsigned` control** (zero tag, same commit/tables, fresh nonce): FAULT **13 =
+  F_ARM_AUTH**, cfg_valid 0, no score, nonce consumed → `64f0eeb9026e6076` (= model's
+  second step).
+- run log validates (rules (i)–(vi)); both rulings consumed (the P3-K one by the signer's
+  own marker, the outcome recorded beside it by the runner afterwards).
+
+What this establishes (17A6, this carrier, U-Boot): the PL-enforced interlock works
+end-to-end on silicon — a gate-approved candidate, written over PCAP and witnessed by the
+oracle, is scored **only** after the PL verified a tag produced by the signer principal for
+this commit/tables/nonce and found the fabric's six truth tables equal to the signed
+expectation; the PL exposes the same commit the gate hashed; an unsigned ARM on the same
+fabric is refused and consumes the nonce. Still open for L3: `replay`, `other_candidate`,
+`wrong_key` (and optional `wrong_table`), one session each.
