@@ -1,9 +1,12 @@
-# D1 — the standalone loop: host-only specification (v0.1, drafted 2026-08-31, **not reviewed**)
+# D1 — the standalone loop: host-only specification (v0.2, 2026-08-31 — revised after review #1 HOLD, **not re-reviewed**)
 
 > **Status note:** this document specifies; it authorises nothing. It was written under the
 > owner's authorisation of 2026-08-31 — *D1 host-only specification only: no L5 build, no board
 > contact, no ruling.* The canonical status is `docs/status.md`. Everything below is the
 > author's proposal until a non-author review returns verdicts on the questions in §10.
+> Review #1 (2026-08-31) returned **HOLD** with four blockers, recorded verbatim in
+> `docs/d1_review_result.md`; v0.2 addresses all of them and the four secondary items
+> (§12 change log) and awaits re-review.
 
 ## 0. What this document is, and what it is not
 
@@ -96,22 +99,23 @@ warning). 5. `dcache off` (the existing `ensure_dcache_off`) — then the host w
 **identity page** with `mw.l` and reads it back with `md.l`:
 
 ```
-identity_page (16 words at IDENTITY_PAGE, 64-byte aligned, pinned in the L5 manifest)
-  0     magic              0x50334944  ("P3ID")
-  1     schema_version     1
-  2..5  token              128 bits, host-generated per session (os.urandom), never reused
-  6     uboot_epoch        the BoardSession epoch in which words 2..5 were written
-  7     carrier_sha_lo32   low 32 bits of the carrier bitstream sha256 (the full hash is in the run log)
-  8..9  nonce_seen         the PL nonce the host read on this session after provisioning (= NONCE_SEED unless an ARM has happened, which it has not)
-  10    status_seen        the PL STATUS the host read then (must have key_loaded=1, alive=1, fault=0)
-  11    seed               search seed (host-supplied test mode, §6) — recorded, never secret
-  12    budget             candidate budget for this session (0 = until stop condition)
-  13    flags              bit0 holdout_mode, bit1 watchdog_enabled (§6), others zero
-  14    reserved           0
-  15    checksum           xor of words 0..14
+identity_page (24 words at IDENTITY_PAGE, 64-byte aligned, pinned in the L5 manifest)
+  0      magic              0x50334944  ("P3ID")
+  1      layout_version     2
+  2..5   token              the FULL 128-bit session token, host-generated per session (os.urandom), never reused
+  6      uboot_epoch        the BoardSession epoch in which words 2..5 were written
+  7      app_image_sha_lo32 low 32 bits of the application image sha256 the host ymodem-verified (an identifier only; the authoritative hash is the host's, §3a step 4)
+  8..15  carrier_sha256     the FULL 256-bit carrier bitstream sha256, big-endian word order (review #1 blocker 3: no truncated identity anywhere)
+  16..17 nonce_seen         the PL nonce the host read on this session after provisioning (= NONCE_SEED unless an ARM has happened, which it has not)
+  18     status_seen        the PL STATUS the host read then (must have key_loaded=1, alive=1, fault=0)
+  19     seed               search seed (host-supplied test mode, §6) — recorded, never secret
+  20     budget             candidate budget for this session (0 = until stop condition)
+  21     flags              bit0 holdout_mode, bit1 watchdog_enabled (§6), others zero
+  22     reserved           0
+  23     checksum           xor of words 0..22
 ```
 
-6. The host reads `NONCE_LO/HI` and `STATUS` one last time (they must equal words 8..10), records
+6. The host reads `NONCE_LO/HI` and `STATUS` one last time (they must equal words 16..18), records
 everything above in the run log, and issues `go <app_entry>`. From that byte on the U-Boot
 authority is void. The host's console role from here is **relay and collector** (§5): it
 parses framed lines the application prints; it never sends a U-Boot command again in this epoch.
@@ -125,7 +129,7 @@ The application establishes `app_identity` and refuses to run the loop unless **
 | `PSS_IDCODE & 0x0FFFFFFF == 0x03722093` | SLCR `0xF8000530` | the silicon the host verified (psmap's rule, same mask) |
 | identity page valid | DDR (read through a non-cacheable mapping, §4.2): magic, schema, checksum | the host wrote it in this epoch |
 | `STATUS` alive, reserved bits zero, `fault = 0`, `recovery_required = 0`, **`key_loaded = 1`** | AXI `0x2004` | the same provisioned carrier instance is still there; a reconfiguration between the host's last read and `go` would have cleared `key_loaded` |
-| `NONCE == nonce_seen` | AXI `0x202C/0x2030` vs page words 8..9 | binds the application to the exact PL state the host last observed: the nonce steps on every ARM attempt and resets to the seed on reconfiguration |
+| `NONCE == nonce_seen` | AXI `0x202C/0x2030` vs page words 16..17 | binds the application to the exact PL state the host last observed: the nonce steps on every ARM attempt and resets to the seed on reconfiguration |
 | FCLK0 as pinned | decode the PLL and divisors from SLCR (the manifest's rule: "set and verified by decoding the PLLs, never by writing a remembered constant") | the L2 heartbeat envelope and the scorer's timing assume 50 MHz; **read-only** — the application never writes a clock register |
 | DEVCFG sane | `INT_STS` error mask `0x00F4C840` clear, `CTRL` PCAP mode/PCFG_PROG as the write plan requires (P1's masks, unchanged) | the DMA path is in the state the pinned transactions assume |
 
@@ -138,7 +142,7 @@ control_plane: standalone
 pss_idcode: <hex>
 token: <hex128>                  # echoed from the page — the host refuses any request whose token differs
 uboot_epoch: <n>                 # echoed
-carrier_sha_lo32: <hex>
+carrier_sha256: <hex256>         # echoed from the page, full width
 nonce_at_start: <hex64>          # must equal identity_page.nonce_seen
 status_at_start: <hex>           # must show key_loaded, alive, no fault
 fclk0_hz_decoded: <n>
@@ -147,25 +151,46 @@ app_epoch: 0
 findings: []                     # any non-empty list => the loop does not start; terminal record follows
 ```
 
+**What the carrier check does and does not establish (review #1 blocker 3).** The
+application cannot hash the fabric — no party can: PCAP readback returns frames, not the
+bitstream file, and hashing every frame is not among the pinned operations. "The specified
+carrier is loaded" is therefore established by a chain whose links are named: (1) the host
+sha-gated the setup load against the manifest's **full** hash on this same session
+(`BoardSession` refuses a mismatched image before any byte is sent); (2) the PL instance the
+host then observed is the instance the application finds — the `key_loaded = 1` and nonce-echo
+checks above, since a reconfiguration in between would have cleared both; (3) the full 256-bit
+hash rides in the identity page and in every record, so the identity is collision-free *as an
+identifier*. Links 1 and 2 are the verification; link 3 is bookkeeping. The page hash is not,
+and is not claimed to be, an application-side measurement of the fabric.
+
 ### 3c. The application epoch
 
 `app_epoch` is `0` for the life of the application; it is not a counter that advances, it is a
-name for "this run since `go`". **It ends** (`epoch_final`, a terminal framed line, after which
-the application only republishes its terminal state) on any of: a link 2 or link 3 mismatch
-(§4.4, §4.5); any PL fault or `recovery_required` (sticky by design — no retry inside an epoch,
-L1); a DEVCFG error bit; a notary refusal, timeout, or malformed reply (§5); a token, sequence,
-or nonce inconsistency; the identity page changing under it (re-read at every notary exchange);
-the budget or the stop condition being reached (a normal end); the watchdog (§6) — which, being a
-PS reset, ends it by producing a U-Boot banner rather than a terminal line. **A new epoch is a
-new session**: power cycle or reset → `BoardSession` → identity → setup load → provisioning →
-image → page → `go`. Whether an SLCR soft reset would preserve the PL configuration is not
-settled by this line's evidence and does not need to be: L5 treats every PS reset as
-requiring the full per-session bring-up, as L2–L4 already do.
+name for "this run since `go`". **How it ends is a four-kind taxonomy (review #1 blocker 1),
+and every schema, validator, summary and the watchdog use exactly these names:**
+
+| kind | causes | closing obligations (§4.0) | terminal evidence | host verdict |
+|---|---|---|---|---|
+| `COMPLETED` | the budget reached or the search's stop condition — both checked **before** a candidate is proposed, so a normal end never pre-empts the brackets | closing restore **and** closing baseline ARM **and** closing unsigned ARM — all three mandatory | `session_summary` framed line | PASS / HOLD per the run's own criteria |
+| `STOPPED` | link 2 or link 3 mismatch (§4.4, §4.5); a DEVCFG error bit; an AXI precondition failure; a PL refusal of an ARM (§4.6 — the fault is sticky, no retry inside an epoch); the identity page changing under the application (re-read at every notary exchange) | closing restore (write + readback only) as a mandatory finally **whenever DEVCFG is healthy** — the restore is a write, not an ARM, so a sticky ARM fault does not excuse it; **no ARM of any kind** after a PL fault | ring dumped in full (§4.7), then the terminal line naming the STOP | HOLD, or KILL where the ladder says so |
+| `PROTOCOL` | notary timeout; a malformed reply; CRC-dropped lines beyond the pinned drop budget (§5b); a token, `seq`, or nonce inconsistency in either direction | as `STOPPED` | as `STOPPED`, STOP name `PROTOCOL_*` | HOLD — never KILL: the transport is outside the interlock |
+| `CRASHED` | the watchdog (§6a); any end the host *infers* rather than receives — a U-Boot banner, console silence past 3 heartbeat intervals | none — the application is gone | none from the application; §6a's post-mortem rules apply | CRASHED, `session_summary` written host-side |
+
+**A gate refusal is not on this list.** `REFUSED_BY_GATE` (§4.3) is a per-candidate outcome:
+recorded, counted, loop continues — an illegal genome is the search's business, not the
+session's. On the notary path only the `PROTOCOL` row ends the epoch: the channel misbehaving,
+never the gate saying no.
+
+**A new epoch is a new session**: power cycle or reset → `BoardSession` → identity → setup load
+→ provisioning → image → page → `go`. Whether an SLCR soft reset would preserve the PL
+configuration is not settled by this line's evidence and does not need to be: L5 treats every
+PS reset as requiring the full per-session bring-up, as L2–L4 already do.
 
 The host collector (§5) ends the epoch on its side on any of: a U-Boot banner or prompt on the
 console (`BOOT_BANNER_RE`, `PROMPT_ANY_RE` — the same regexes), a framed line whose token is not
 this session's, a sequence gap, or console silence longer than the pinned heartbeat interval
-× 3 (§6). After that it accepts nothing further as evidence of this epoch.
+× 3 (§6) — classified `CRASHED` unless a terminal line arrived first. After that it accepts
+nothing further as evidence of this epoch.
 
 ## 4. The per-candidate transaction
 
@@ -184,6 +209,13 @@ session did not drift. After the closing baseline the application performs **one
 attempt** (zero tag) — the negative control of the session, expected `F_ARM_AUTH`, which is
 sticky and therefore correctly the *last* device operation of the epoch. A session whose
 closing negative control validates or scores is a KILL, as in L3.
+
+**Whether the brackets can be skipped is settled by §3c's taxonomy, not left to timing:** on
+`COMPLETED` all three closing steps are mandatory (the budget/stop check runs before a
+candidate is proposed, so a normal end always reaches them); on `STOPPED` / `PROTOCOL` the
+restore write is a mandatory finally whenever DEVCFG is healthy, and no ARM follows; on
+`CRASHED` nothing is promised. `session_summary` records each closing step as done or
+`not_reached` with the kind (§7).
 
 ### 4.1 Propose (the search; out of this document's scope except for its interface)
 
@@ -230,7 +262,9 @@ streams, runs `host/p3_gate.py`'s gate (fabricmap's rules, verbatim) on them, an
 `tag = MAC_K(commit ‖ tables ‖ nonce)`. Reply: `sign_reply {seq, commit, tables[6], tag}` or
 `refused {seq, finding_kinds}`. A refusal is **not** an error of the loop — an illegal genome is
 the search's business — but it is recorded (§4.7) and counted; the search continues with the
-next genome. A timeout or malformed reply ends the epoch (§3c).
+next genome (`REFUSED_BY_GATE`, a per-candidate outcome: §3c's taxonomy deliberately excludes
+it from the epoch-ending kinds). A timeout, a malformed reply, or any token/`seq`
+inconsistency is a `PROTOCOL` end (§3c).
 
 ### 4.4 Link 2 — the staged bytes, before any DMA
 
@@ -258,9 +292,11 @@ Preconditions as `arm_and_score`: alive, reserved zero, no fault, not busy, `key
 **the nonce must have stepped**. `configuration_valid_hw = 1` → read `HW_COMMIT` (8), the
 functional readout (12), `SCORE0‥5`, the heartbeat before and after → `loop_record`.
 `configuration_valid_hw = 0` → the PL's refusal is recorded with its fault code and **the
-epoch ends**: a refused ARM inside a correct loop means the fabric does not behave as the signed
-tables say (`F_ARM_TABLE`) or the signature chain is broken (`F_ARM_AUTH`) — either is an
-anomaly to report, not a candidate to retry. The application never guesses against the MAC;
+epoch ends** (`STOPPED`): a refused ARM inside a correct loop is an anomaly to report, not a
+candidate to retry. The fault code is recorded **as observed and no more** (review #1): it
+names the check that fired — `F_ARM_TABLE` the comparator, `F_ARM_AUTH` the MAC verify — not
+the cause, which the observation alone cannot diagnose exclusively; diagnosis, if wanted, is
+its own session with its own specification, as the L3 diagnostic was. The application never guesses against the MAC;
 the sticky fault makes that a property of the hardware, not of the firmware's manners.
 
 The AXI accesses are confined to the runner's map (`Plane`'s allowlist, ported): `0x2000`
@@ -281,8 +317,10 @@ host collector may, at any notary exchange, attach `audit {seq_k}` for any `k` w
 collector recomputes both link-2 hashes and the link-3 hash from those words and compares them
 with the compact record it already holds. The application cannot know which candidates will be
 audited, so a self-report it could not back with words would be caught with probability
-proportional to the audit rate — a rate the L5 prereg pins, not this document. On any STOP the
-ring is dumped in full before the terminal line.
+proportional to the audit rate — a rate the L5 prereg pins, not this document; §7 rule (ix)
+writes this down as the bounded guarantee it is. On any `STOPPED` or `PROTOCOL` end the ring
+is dumped in full before the terminal line; a `CRASHED` end, by definition, dumps nothing —
+§6a defines what, if anything, is recoverable afterwards and with what standing.
 
 Timing is the ARM global timer (`0xF8F00200`), whose frequency the application derives from the
 decoded PLLs and records; the host collector timestamps every received line independently. The
@@ -305,10 +343,13 @@ is also a throughput choice.
 
 ### 5b. Protocol invariants (either transport)
 
-Framed lines: `P3L5 <type> <seq> <token_lo32> <fields…> <crc32>\n`, printable ASCII, one line
-per message, `crc32` over the line body; a line that fails the CRC is dropped by the receiver
-and counted (the console's known fault rate — psmap kill criterion 3 — is thereby measurable
-per session and does not silently corrupt evidence). Exactly one outstanding request; `seq`
+Framed lines: `P3L5 <type> <seq> <token> <fields…> <crc32>\n`, printable ASCII, one line per
+message, where `<token>` is the **full 128-bit session token as 32 hex digits** (review #1
+blocker 2: a truncated token cannot claim to bind a 128-bit identity, and 32 bytes per line is
+noise at 115200) and `crc32` is over the line body. A receiver drops a CRC-failed line and
+counts it; the **drop budget** (per session, pinned in the L5 manifest) makes the console's
+known fault rate — psmap kill criterion 3 — a measured quantity, and exceeding it is a
+`PROTOCOL` end, never a silent degradation. Exactly one outstanding request; `seq`
 strictly increasing from 1; every reply carries the request's `seq`; the token in every line
 must be this session's (`identity_page.token`); the nonce in a `sign_request` is the
 application's reading and is not verified by the host — a wrong nonce merely yields a tag the
@@ -335,7 +376,7 @@ loop" is claimed — and no other (§10 Q1).
 | persistent champion / log storage with an explicit NV write budget | **not claimed at L5**: the champion lives in DDR and in the streamed records; the host collector persists. No NAND/TF-card write is part of L5 (new scope, its own decision if ever) |
 | automatic recovery without power-cycling | **scoped**: a low-scoring candidate needs no recovery (the next candidate rewrites all twelve frames); a link 2/3 STOP ends the epoch with the fabric restored to the base where possible (§4.0's closing write is attempted on STOP if the DMA path is healthy) and requires a new session; a PL fault is terminal by design (sticky). Recovery of a hung application: the private watchdog (§6a) resets the PS — a new session, not a resumed one. No power-cycle is *required* by any modelled failure; whether one is needed in practice is an L5 measurement |
 | replayable evidence after the run | yes — §7's validator replays every candidate from `genome` alone: canonical frames → gate → `commit` == application's `commit` == `hw_candidate_commit`; tables == readout; nonce chain from `NONCE_SEED` through every attempt (the xorshift model already verified on silicon, L3); scores == `p3_oracle` prediction; and cross-checks the signer log |
-| telemetry distinguishes slow progress from a stuck run | the application prints a `heartbeat` line every `H` seconds (pinned; e.g. 10 s) with `seq`, candidates completed, refusals, the PL heartbeat word, and the global timer; the collector applies the manifest's pinned heartbeat bounds `[49.5, 50.5] MHz` to consecutive application-reported pairs against the **application's** timer (a sanity envelope — it is not the L2 invariant, which needs host-side timing of AXI reads) and declares `STALLED` after 3 missed heartbeats (§3c) |
+| telemetry distinguishes slow progress from a stuck run | the application prints a `heartbeat` line every `H` seconds (pinned; e.g. 10 s) with `seq`, candidates completed, refusals, the PL heartbeat word, and the global timer; the collector applies the manifest's pinned heartbeat bounds `[49.5, 50.5] MHz` to consecutive application-reported pairs against the **application's** timer (a sanity envelope — it is not the L2 invariant, which needs host-side timing of AXI reads) and declares the epoch ended (`CRASHED`, §3c) after 3 missed heartbeats |
 | replay modes: deterministic (recorded seed) vs autonomous discovery (board-derived seed, recorded) | **L5's first specification uses the host-supplied seed** (`identity_page.seed`) — M1's "test mode". A board-derived seed (entropy source to be named — the PL has none by design; the global timer at start is weak) is a later step and is not the headline of L5 |
 
 ### 6a. Watchdog
@@ -344,8 +385,20 @@ Recommended **on** (`identity_page.flags.bit1`), the Cortex-A9 private watchdog 
 of 3 heartbeat intervals, kicked only from the main loop *after* each framed line is written (so
 a stuck DMA wait, a stuck notary wait past its own timeout, or a stuck UART all end in a PS
 reset → U-Boot banner → epoch ended on both sides). Not kicked from an interrupt. The reviewer
-is asked to confirm (§10 Q5); the alternative — no watchdog, the host power-cycles on `STALLED` —
-is the current L2–L4 practice and is acceptable if the reviewer prefers fewer mechanisms.
+is asked to confirm (§10 Q5); the alternative — no watchdog, the host power-cycles on a
+`CRASHED` classification — is the current L2–L4 practice and is acceptable if the reviewer
+prefers fewer mechanisms.
+
+**Crash evidence (review #1 blocker 4).** A watchdog reset produces no terminal line and no
+ring dump. The epoch's admissible evidence is exactly the framed lines the collector already
+holds — complete per candidate up to the last heartbeat, by construction: every completed
+candidate printed its compact record before the watchdog was next kicked. The host classifies
+the end `CRASHED` (§3c) and writes the `session_summary` itself, with the last received `seq`.
+The ring's DDR region MAY be read on the **next** U-Boot session (`md.l`, before anything is
+loaded into DDR) as a **post-mortem**: DDR retention across a PS reset is not warranted by
+anything this line has pinned, so a post-mortem record carries `standing: diagnostic` and is
+never admissible as run evidence — it may suggest where the application died; it proves nothing
+about any candidate. The validator refuses a `loop_record` sourced from a post-mortem.
 
 ## 7. Contracts this specification adds or amends (proposed; `contracts.md` is not edited by it)
 
@@ -367,19 +420,28 @@ New schemas, all `1.0.0`, each with a validator and a fixture before L5 (§11):
   `gate-signer`; `key_loaded_observed` per attempt), `score_record` (same fields), heartbeat
   before/after, timer stamps, and `outcome ∈ {SCORED, REFUSED_BY_GATE, STOP_LINK2, STOP_LINK3,
   REFUSED_BY_PL, STOP_AXI}`.
-- **`session_summary`** — opening baseline, count of SCORED / REFUSED_BY_GATE, champion (genome,
-  commit, scores, seq), closing baseline, closing negative control, `epoch_final` reason, audit
-  count and results, CRC-failed line count.
+- **`session_summary`** — opening baseline; counts of SCORED / REFUSED_BY_GATE; champion
+  (genome, commit, scores, seq); each closing step (restore, baseline ARM, unsigned control)
+  recorded as done or `not_reached` with the §3c kind; `epoch_end: {kind: COMPLETED | STOPPED |
+  PROTOCOL | CRASHED, reason, last_seq}`; audit count, rate and results; CRC-dropped line count
+  against the drop budget. On `CRASHED` the collector writes it host-side from what it received.
 
 Amendments (MINOR, additive): `run_log` gains `control_plane: uboot|standalone`,
 `identity_page`, `app_identity`, `notary_log_sha256`, and the list of `loop_record`s; its
 validator gains **rule (vii)**: every `loop_record` with a `score_record` has a `notary_log`
 entry with equal `seq`, `commit` and `nonce`, and the nonce sequence across all attempts (scored,
 refused-by-PL, and the closing negative control) is exactly the xorshift chain from
-`NONCE_SEED`; and **rule (viii)**: a `standalone` run log's first and last scored records are
-the blank candidate with the base scores, and its last attempt is a refused unsigned ARM. Rules
-(i)–(vi) apply per `loop_record` unchanged, with `app_oracle_record` in the place of
-`oracle_record` **only** when `control_plane == standalone`.
+`NONCE_SEED`; **rule (viii)**: a `standalone` run log's first scored record is the blank
+candidate with the base scores and — **when `epoch_end.kind == COMPLETED`** — its last scored
+record is the closing baseline and its last attempt a refused unsigned ARM (for the other
+kinds the validator checks the closing steps against §3c's obligations instead); and **rule
+(ix)**: the audit is a **bounded** guarantee and the records say so — each `loop_record` is
+marked `verified: audited | replayed-only`, `session_summary.audit` reports the audited set
+and rate, and any L5 acceptance criterion that quotes per-candidate integrity must quote the
+audited set, the hardware-witnessed properties for the rest (3′, the MAC, the nonce chain),
+and nothing stronger. Rules (i)–(vi) apply per `loop_record` unchanged, with
+`app_oracle_record` in the place of `oracle_record` **only** when `control_plane ==
+standalone`.
 
 ## 8. Rules that carry over unchanged
 
@@ -417,7 +479,7 @@ as the runner (< 6 h) — the board rules in `docs/l3_l4_runbook.md` stand.
 
 | # | question | author's position | what the reviewer must rule |
 |---|---|---|---|
-| Q1 | Is "host as notary" (gate + signer on the host, the search and the PS oracle on the board) an acceptable reading of D1's "no host in the decision loop", given §2/§3c of the architecture? | Yes, with §5c and §6 stated as the scope. The alternative — an on-board signer in a *separate* principal (TrustZone secure world holding `K`, or a PL soft-core key holder) — is a new principal boundary and therefore a new decision with its own D4-class review; a single-principal application holding `K` is rejected outright as the arrangement D4 was created to remove. | ACCEPT the scoped claim, or require the on-board-principal design before L5 (which would defer L5 substantially), or REJECT standalone. |
+| Q1 | Is "host as notary" (gate + signer on the host, the search and the PS oracle on the board) an acceptable reading of D1's "no host in the decision loop", given §2/§3c of the architecture? **The definition on offer is narrow and explicit (review #1): the host does not search, rank or score, but the signer still decides which candidates may execute — a permission veto on every candidate. The reviewer is asked to accept or reject exactly this definition, not a paraphrase of it.** | Yes, with §5c and §6 stated as the scope. The alternative — an on-board signer in a *separate* principal (TrustZone secure world holding `K`, or a PL soft-core key holder) — is a new principal boundary and therefore a new decision with its own D4-class review; a single-principal application holding `K` is rejected outright as the arrangement D4 was created to remove. | ACCEPT the scoped claim, or require the on-board-principal design before L5 (which would defer L5 substantially), or REJECT standalone. |
 | Q2 | Links 2 and 3 as the application's self-report (`app_oracle_record`) with `staged == commit` before DMA, raw-word ring, audit-on-request, and post-run replay — acceptable as L5's evidence standard? | Yes, as a **declared** downgrade from L3's host-observed links, with the type distinction in §7 so that no L2–L4 rule is weakened. | ACCEPT; or require live raw upload for every candidate (T1 bandwidth then bounds the loop at ≈ 1.5 s/candidate); or require T2 with its own perturbation evidence. |
 | Q3 | Transport: T1 console + relay, or T2 JTAG mailbox? | T1 first (§5a). | Confirm; if T2, confirm that an L2-class non-perturbation session for DAP traffic precedes any L5 ruling. |
 | Q4 | Session brackets (§4.0): opening baseline as positive control, closing baseline as restore, closing unsigned ARM as the negative control — sufficient as L5's per-session controls? | Yes; the sticky fault makes the negative control naturally last. `replay`/`other_candidate`/`wrong_key` were established at L3 and are not repeated per L5 session. | Confirm, or name additional per-session controls. |
@@ -443,3 +505,19 @@ as the runner (< 6 h) — the board rules in `docs/l3_l4_runbook.md` stand.
    session (small budget) before any long run; its findings document.
 
 Nothing in 2–5 begins on the strength of this document.
+
+## 12. Change log
+
+- **v0.2 (2026-08-31)** — after review #1 (**HOLD**, verbatim in `docs/d1_review_result.md`),
+  all four blockers and the four secondary items: (1) the four-kind epoch-end taxonomy in §3c
+  (`COMPLETED / STOPPED / PROTOCOL / CRASHED`), `REFUSED_BY_GATE` explicitly per-candidate and
+  excluded from it, closing obligations per kind (§4.0), schemas and validator aligned (§7);
+  (2) the full 128-bit token in every framed line plus a pinned CRC drop budget (§5b); (3) the
+  full 256-bit carrier sha in the identity page and `app_identity`, with the explicit statement
+  of what does and does not verify the carrier (§3b); (4) watchdog crash-evidence semantics —
+  `CRASHED` verdict, collector-written summary, post-mortem reads `diagnostic`-only, refused by
+  the validator as run evidence (§6a). Secondary: closing brackets settled by the taxonomy, not
+  timing (§4.0); the audit written as a bounded guarantee — rule (ix) (§4.7, §7); Q1 restated
+  as the narrow definition the reviewer must explicitly accept (§10); §4.6's fault codes
+  recorded as observed, with no exclusive-cause claim.
+- **v0.1 (2026-08-31)** — first draft. Review #1: HOLD.

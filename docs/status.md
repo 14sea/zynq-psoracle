@@ -14,7 +14,7 @@ and the other text is historical. Updated with every adjudication.
 | L3 one gated candidate | **PASS (scoped)** on 17A6 | owner 2026-08-31, five sessions | `evidence/l3_17A6_2026-08-30-03/`, `…2026-08-31-0{2,3,4,5}/`, `docs/l3_findings.md` |
 | L4 fault / restore / baseline | **PASS** on 17A6 | owner 2026-08-31 (this table records the adjudication the owner gave in the L0–L4 review; see below) | `evidence/l4_17A6_2026-08-31-06/`, `docs/l4_findings.md` |
 | L0–L4 overall review | **PASS (scoped)** — 2026-08-31, after two HOLDs (documentation drift → this table + historical banners; test-evidence plumbing → fail-closed `host/test_report.py`) | owner | this file; `evidence/tests/test_report_2026-08-31T15350{1,7}Z.json` |
-| L5 the loop | not built; **D1 specification drafted, not reviewed** (`docs/d1_standalone_spec.md` v0.1, 2026-08-31 — host as notary, `app_identity`, per-candidate transaction; seven reviewer questions open) — **no L5 build, no board contact, no ruling** | — | `docs/d1_standalone_spec.md`, `docs/decisions.md` D1 |
+| L5 the loop | not built; **D1 spec v0.2 after review #1 = HOLD** (four blockers — refusal/epoch state machine, full-width token, full carrier sha, crash evidence — all addressed in v0.2, awaiting re-review) — **no L5 build, no board contact, no ruling** | review #1: HOLD, non-author, 2026-08-31 (`docs/d1_review_result.md`) | `docs/d1_standalone_spec.md` (§12 change log), `docs/decisions.md` D1 |
 
 Board: EBAZ4203 `17A6`, U-Boot control plane, carrier `builds/p3/p3.bit` (`956379fa…`).
 Sessions: 2 L2 instrument outcomes + 1 PASS; L3 session #1 STOP (instrument) + diagnostic ×2

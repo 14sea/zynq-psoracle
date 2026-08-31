@@ -45,6 +45,19 @@ M1-property scope table. **Seven questions (Q1–Q7) await a non-author review**
 the D1 decision itself is unchanged. Nothing downstream (contracts 1.1, notary tooling,
 L5 design, build, ruling) is authorised by the spec.
 
+**Review #1 (2026-08-31) = HOLD** (`docs/d1_review_result.md`, verbatim). Four blockers —
+the notary-refusal/epoch contradiction between §3c and §4.3; the 32-bit token in the §5b
+framing against the 128-bit identity; the 32-bit carrier identifier in the identity page;
+the watchdog/ring evidence disposition undefined — plus four secondary items
+(closing-bracket conditionality, the audit as a bounded guarantee, Q1's narrow definition
+to be accepted explicitly, §4.6's fault codes not to imply exclusive diagnosis). **v0.2
+(same day) addresses all eight** (spec §12): the epoch-end taxonomy
+`COMPLETED/STOPPED/PROTOCOL/CRASHED` is now the single vocabulary across schemas,
+validator rules (viii)–(ix), `session_summary` and the watchdog; tokens and the carrier
+sha are carried full-width everywhere; crash evidence is collector-side with post-mortem
+reads `diagnostic`-only. **v0.2 awaits re-review; authorisations unchanged (none
+downstream).**
+
 ## D2 — the name and remote of this repository
 
 Working name `zynq-psoracle` (the PS as the oracle). No remote exists; creating one is the

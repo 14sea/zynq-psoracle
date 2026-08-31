@@ -187,6 +187,7 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l3_17A6_2026-08-30-01/ymodem.log` |
 | `docs/l3_diag_spec.md` |
 | `docs/d1_standalone_spec.md` |
+| `docs/d1_review_result.md` |
 | `host/l3_diag_runner.py` |
 | `host/l3_diag_jtag.py` |
 | `tests/test_l3_diag.py` |
@@ -321,6 +322,7 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-08-31T161111Z.json` |
 | `evidence/tests/test_report_2026-08-31T155428Z.json` |
 | `evidence/tests/test_report_2026-08-31T155401Z.json` |
 | `evidence/tests/test_report_2026-08-31T153507Z.json` |
