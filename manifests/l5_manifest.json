@@ -1,7 +1,7 @@
 {
   "schema": "l5_manifest",
   "schema_version": "1.0.0",
-  "status": "DRAFT — host-only. Fields under `pinned_at_build` are null until the build authorisation; nothing here authorises a build, a ruling or board contact.",
+  "status": "BUILD COMPLETE — host-only. `pinned_at_build` is filled: the toolchain, the console UART and the application image hash are pinned, and the watchdog is off for session 1 by the owner's ruling. This manifest still authorises nothing: the rulings (`whole-of-probe P3-L5`, `provisioning P3-K`) and board contact remain the owner's, after the post-build package is reviewed.",
   "carrier": {
     "bitstream": "builds/p3/p3.bit",
     "bitstream_sha256": "956379fa",
@@ -53,10 +53,10 @@
     "boundary_record_max_age_h": 6
   },
   "pinned_at_build": {
-    "app_image_sha256": null,
-    "app_image_sha256_provisional": "7540239fbba07e6a8a19d9081f8e21220f0fdac2f3ba7b48e88f34767da8005e",
+    "app_image_sha256": "7540239fbba07e6a8a19d9081f8e21220f0fdac2f3ba7b48e88f34767da8005e",
     "app_image": "firmware/bsp/out/p3_app.bin (raw binary, 81940 bytes, loaded at 0x02000000, `go`)",
-    "elf_sha256_provisional": "cd935b0aa8d316787934272c59a6a13472f78945feda6133f9b5326a9c0d0dbe",
+    "app_image_final_because": "the owner's watchdog ruling (option 2, watchdog-off) required no firmware change; the image was rebuilt after the ruling and is byte-identical, so this hash is final rather than provisional",
+    "elf_sha256": "cd935b0aa8d316787934272c59a6a13472f78945feda6133f9b5326a9c0d0dbe",
     "toolchain": {
       "name": "xpack-dev-tools/arm-none-eabi-gcc",
       "version": "14.2.1-1.1",
@@ -70,15 +70,26 @@
       "base": "0xE0001000",
       "source": "D1 spec T1 (the console = UART1) + every 17A6 board run's relay; not guessed"
     },
+    "watchdog_enabled": false,
     "watchdog_load_value": null,
-    "watchdog_finding": {
-      "requires_owner_decision": true,
-      "why": "D-c pins 30 s but the 32-bit A9 private watchdog at PERIPHCLK=333.33 MHz with prescaler 0 tops out at 12.88 s; p3_app.c programs no prescaler and the driver has no SetPrescaler. See docs/l5_findings.md §4.",
-      "peripheral_clock_hz": 333333343,
-      "peripheral_clock_note": "= CPU_6x4x/2; CPU_6x4x assumes 6:2:1 (ARM PLL 1333.33 MHz board-confirmed; CPU_CLK_CTRL not captured)",
-      "proposal_if_option_1": {"prescaler": 7, "load_value": 1250000035, "interval_s": 30.0}
+    "watchdog_status": "NOT USED — session 1 runs watchdog-off (owner's ruling on D-c, 2026-08-31). P3_WDT_LOAD is 0 in the image and unreachable: the firmware gates both the arm and the kick on identity_page flags.bit1, which this session writes as 0.",
+    "identity_page_flags": {
+      "bit0_holdout_mode": 0,
+      "bit1_watchdog_enabled": 0,
+      "others": 0,
+      "note": "the session's identity page MUST NOT declare the watchdog enabled. Flipping bit1 alone is forbidden: the load is 0, i.e. an immediate timeout. Enabling the watchdog is a firmware change (a prescaler write) with its own build, preregistration and ruling."
     },
-    "note": "toolchain and console_uart are pinned. app_image_sha256 and watchdog_load_value stay null until the watchdog decision (docs/l5_findings.md §4): the chosen option may change p3_app.c and therefore the image hash. The provisional hashes are this build, before that decision."
+    "watchdog_finding": {
+      "resolved": "option 2 (watchdog off for session 1), owner 2026-08-31",
+      "why_it_could_not_be_30_s": "the 32-bit A9 private watchdog at PERIPHCLK=333.33 MHz with prescaler 0 tops out at 12.88 s; p3_app.c programs no prescaler and the driver exposes no SetPrescaler. See docs/l5_findings.md §4.",
+      "peripheral_clock_hz": 333333343,
+      "peripheral_clock_note": "= CPU_6x4x/2; CPU_6x4x assumes the standard 6:2:1 ratio — ARM PLL 1333.33 MHz is board-confirmed, CPU_CLK_CTRL (0xF8000120) was never captured. Pre-board preflight, not a build blocker: nothing in a watchdog-off session depends on it.",
+      "if_ever_enabled": {"prescaler": 7, "load_value": 1250000035, "interval_s": 30.0, "requires": "a p3_app.c control-register write, a new build, a new prereg and a new ruling"}
+    },
+    "preflight_before_board": [
+      "md.l 0xF8000120 1 (CPU_CLK_CTRL) once at first power-on, stored with the session evidence; until then CPU_6x4x/PERIPHCLK are assumed, and no timing conversion derived from them may be reported as verified fact"
+    ],
+    "note": "COMPLETE. toolchain, console_uart and app_image_sha256 are pinned; the watchdog is deliberately off for session 1 and its load value is therefore not used rather than unset. Host recovery for a watchdog-off session is fixed in docs/l5_prereg.md §4."
   },
   "provenance": {
     "phenotype_manifest_sha256": "e45f466d082ccd6f227e6f9be4ce75a4e98c4caa708808c09a77ed32331c10ef",

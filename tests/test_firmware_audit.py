@@ -121,6 +121,29 @@ class RegisterDiscipline(unittest.TestCase):
         for buf in ("P3_CMD_BUF", "P3_DST_BUF", "P3_WR_BUF", "P3_PAGE_ADDR", "P3_RING_ADDR"):
             self.assertRegex(APP, r"Xil_SetTlbAttributes\(" + buf)
 
+    def test_the_watchdog_is_touched_only_under_the_identity_flag(self):
+        """Session 1 runs watchdog-off — identity page `flags.bit1 = 0` (docs/l5_prereg.md
+        §4, the owner's ruling on the D-c finding). With that bit clear the application must
+        not touch the SCU WDT at all, so both the arm and the kick are gated on it and
+        `P3_WDT_LOAD` is reachable only inside the gate. That matters: the load is 0 in this
+        image, which would be an immediate timeout if it were ever loaded ungated, so
+        enabling the watchdog is a firmware change (a prescaler write), never a flag flip."""
+        kick = APP_CODE[APP_CODE.index("static void kick_watchdog"):]
+        kick = kick[:kick.index("\n}")]
+        self.assertIn("if (S.page.flags & 2u)", kick)
+        self.assertEqual(re.findall(r"XScuWdt_\w+", kick), ["XScuWdt_RestartWdt"])
+
+        arm = APP_CODE[APP_CODE.index("if (S.page.flags & 2u) {"):]
+        arm = arm[:arm.index("\n    }")]
+        self.assertEqual(re.findall(r"XScuWdt_\w+", arm),
+                         ["XScuWdt_Config", "XScuWdt_LookupConfig", "XScuWdt_CfgInitialize",
+                          "XScuWdt_LoadWdt", "XScuWdt_Start"])
+
+        # nothing outside those two gated regions may name the driver or the load value
+        self.assertEqual(len(re.findall(r"XScuWdt_\w+", APP_CODE)), 6)
+        self.assertEqual(len(re.findall(r"P3_WDT_LOAD", arm)), 1)
+        self.assertEqual(len(re.findall(r"P3_WDT_LOAD", APP_CODE)), 2)   # the #define + the use
+
 
 class DmaDiscipline(unittest.TestCase):
     def test_exactly_four_dma_transactions_are_declared(self):

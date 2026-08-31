@@ -228,3 +228,45 @@ Re-review verdict: D4 discharged (boundary verified as the runner, pod attached,
 L1 host/build/principal preparation PASS. Defensive tightening adopted: the sudoers line
 names the two fixed signer key paths instead of a trailing wildcard (setup script updated;
 re-apply with sudo). No ruling exists; the board is not touched until one does.
+
+## Addendum 2026-08-31 — D5 batch review PASS; D-c ruled (watchdog off for session 1)
+
+The owner's D5 batch review passed the L5 host-only work and authorised the build stage
+alone — toolchain, compile, manifest, linker-map — with board contact, rulings and any long
+run still paused. That build is done (`docs/l5_findings.md`): xPack `arm-none-eabi-gcc`
+14.2.1-1.1 pinned with a verified sha256, a hand-assembled cortex-a9 standalone BSP in
+`firmware/bsp/`, and `p3_app.c` + `p3_derive.c` + `p3_search.c` compiling `-Wall -Wextra`
+clean into a linked image. `p3_app.c` needed no change to compile and `p3_derive.c`
+cross-compiled unchanged, so the 256-entry corpus evidence carries over untouched.
+
+**D-a** resolved as recommended: xPack, pinned by version, URL and tarball sha256.
+**D-b, D-e, D-f** confirmed as the author proposed. **D-d** resolved by evidence rather than
+assumption: the console is **UART1 @ 0xE0001000**, from the D1 spec's T1 and every board
+run's relay — the carrier carries no PS7 preset to read it from, because it inherits U-Boot's
+state by design.
+
+**D-c is the one the build changed.** Computing the accepted 30 s period showed it is not
+reachable as written: the 32-bit A9 private watchdog at PERIPHCLK ≈ 333 MHz tops out at
+12.88 s with the prescaler at its reset default, and `p3_app.c` programs no prescaler. The
+finding was reported rather than patched. **Owner's ruling: option 2 — the watchdog is off
+for the first L5 session** (no change to already-compiled, already-audited firmware; the
+collector's 3 × H silence → `CRASHED` already bounds a hang; an N = 8 bounded bring-up is the
+wrong place for un-boarded prescaler behaviour; watchdog-on can be validated separately
+without touching the interlock claim).
+
+Consequences on record: the identity page is written with `flags.bit1 = 0`;
+`watchdog_load_value` is *not used* rather than unset; host recovery for a watchdog-off
+session (collector declares `CRASHED`, runner stops without restoring, evidence sealed,
+power cycle, **new rulings**) is fixed in `docs/l5_prereg.md` §4; a new audit test checks that
+the firmware touches the SCU WDT only under that flag, because the load is 0 and a bare flag
+flip would be an immediate reset; and, since no firmware changed, `app_image_sha256` is
+pinned as final after a byte-identical rebuild.
+
+**Preflight, not a blocker:** `CPU_CLK_CTRL` (0xF8000120) was never captured on the board, so
+CPU_6x4x and PERIPHCLK are assumed at the standard 6:2:1 ratio (the ARM PLL itself *is*
+board-confirmed). One `md.l` at first power-on discharges it; until then no timing conversion
+derived from those figures may be stated as verified. Nothing in a watchdog-off session
+depends on it.
+
+Still the owner's, in this order: review the post-build package, then rule on the push, the
+`whole-of-probe P3-L5` and `provisioning P3-K` rulings, and the first N = 8 session.

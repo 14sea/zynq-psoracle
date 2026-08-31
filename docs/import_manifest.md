@@ -189,6 +189,7 @@ revisions and neither may be silently substituted for the other.
 | `docs/d1_standalone_spec.md` |
 | `docs/d1_review_result.md` |
 | `docs/l5_design.md` |
+| `docs/l5_findings.md` |
 | `docs/l5_prereg.md` |
 | `docs/l5_review_package.md` |
 | `manifests/l5_manifest.json` |
@@ -199,6 +200,12 @@ revisions and neither may be silently substituted for the other.
 | `firmware/p3_app.c` |
 | `firmware/p3_search.c` |
 | `firmware/p3_twin.c` |
+| `firmware/bsp/build.sh` |
+| `firmware/bsp/lscript.ld` |
+| `firmware/bsp/include/bspconfig.h` |
+| `firmware/bsp/include/xmem_config.h` |
+| `firmware/bsp/include/xparameters.h` |
+| `firmware/bsp/src/console.c` |
 | `host/gen_firmware_data.py` |
 | `tests/test_firmware_twin.py` |
 | `tests/test_firmware_audit.py` |
@@ -345,6 +352,8 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-08-31T180341Z.json` |
+| `evidence/tests/test_report_2026-08-31T180156Z.json` |
 | `evidence/tests/test_report_2026-08-31T173214Z.json` |
 | `evidence/tests/test_report_2026-08-31T170013Z.json` |
 | `evidence/tests/test_report_2026-08-31T165925Z.json` |
@@ -403,3 +412,4 @@ revisions and neither may be silently substituted for the other.
 | `zynq-fabricmap/scripts/gate_board_identity.py`, `board_uboot_axi.py`, `board_carrier_guard.py`, `board_carrier_exec.py`, `board_uboot_fpga_load.py`, `precheck_fresh_power.py` | the carrier-era authority and ICAPE2 write path; P3 has no ICAP writer and takes its session from `zynq-psmap` |
 | `zynq-fabricmap/vivado/carrier/carrier_stream.v`, `carrier_crc32.v`, `icape2_model.v`, `carrier_top.v` | the ICAPE2 stream engine and its model — the part of the carrier P3 removes |
 | any `evidence/` of either repository | evidence stays where it was produced; P3 cites it by commit |
+| Xilinx `embeddedsw` BSP sources (`standalone_v9_4`, `scuwdt_v2_6`) used to build the L5 image | third-party vendor sources under a separate licence, referenced **in place** by `firmware/bsp/build.sh` at `/home/test/Xilinx/2025.2/data/embeddedsw`, not vendored here. Only the glue original to this repo (`firmware/bsp/`) is tracked. **Reproducibility limit:** the pinned `app_image_sha256` reproduces against that Vivado/Vitis 2025.2 install and the sha-pinned xPack toolchain; the BSP sources themselves are not hashed in this manifest — see `docs/l5_findings.md` §6 |

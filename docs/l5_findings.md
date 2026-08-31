@@ -40,7 +40,26 @@ because the installed Vitis does not provide the compiler. xPack remains the rig
   DWARF line tables shift; the shipped image is the `.bin`). **Not yet pinned in the manifest
   — see §4:** the watchdog decision may change `p3_app.c` and therefore this hash.
 
-## 4. THE ONE DECISION — the watchdog period (D-c) is not reachable as written
+## 4. The watchdog (D-c) — the finding, and the owner's ruling
+
+> **RULED 2026-08-31: option 2 — the watchdog is OFF for the first L5 session.** The owner's
+> reasons: it changes no already-compiled, already-audited `p3_app.c`; the collector's
+> 3 × H = 30 s silence → `CRASHED` already bounds a hang; session 1 is an N = 8 bounded
+> bring-up where new, un-boarded prescaler behaviour is the wrong thing to add; and
+> watchdog-on can be its own change and validation later without touching the interlock
+> claim. Consequences, all recorded: the identity page is written with `flags.bit1 = 0`
+> (`manifests/l5_manifest.json` `pinned_at_build.identity_page_flags`); `watchdog_load_value`
+> is **not used** rather than unset; host recovery for a watchdog-off session is fixed in
+> `docs/l5_prereg.md` §4; and because no firmware changed, **`app_image_sha256` is now final**
+> — the image was rebuilt after the ruling and is byte-identical.
+>
+> **Latent hazard, guarded.** `P3_WDT_LOAD` is `0` in this image. Enabling the watchdog by
+> flipping `flags.bit1` alone would load 0 — an immediate reset. The firmware gates both the
+> arm and the kick on that bit, and `tests/test_firmware_audit.py` now *checks* that gating
+> rather than merely documenting it. Turning the watchdog on is option 1 below: a firmware
+> change, a new build, a new preregistration and a new ruling.
+
+The finding that prompted the ruling:
 
 D-c pins the watchdog at **3 × heartbeat = 30 s**, "computed from the private-timer clock at
 build". Computing it exposes a gap the accepted decision did not account for:
@@ -69,8 +88,9 @@ silently**. Options for the owner:
 3. **Revisit H** so `3 × H ≤ 12.88 s` at prescaler 0 (e.g. H = 4 s → 12 s), which also
    touches `docs/l5_design.md`/manifest.
 
-**Until this is decided, `pinned_at_build.watchdog_load_value` and `.app_image_sha256` stay
-null in the manifest** — both can move with the choice.
+**Option 2 was taken.** `watchdog_load_value` is recorded as *not used* (not merely unset) and
+`app_image_sha256` is pinned, since option 2 changed no firmware. Options 1 and 3 remain the
+only routes to a watchdog-on session, each needing its own build, prereg and ruling.
 
 ## 5. Build constants and their provenance (the "confirm, don't guess" items)
 
@@ -85,8 +105,12 @@ board evidence in this repo**, not an `.xsa`. Recorded in `firmware/bsp/include/
 | CPU_6x4x / PERIPHCLK | 666.67 / 333.33 MHz | **assumes 6:2:1**; `CPU_CLK_CTRL` (0xF8000120) was **not** captured in the board evidence | **assumed** — the one un-confirmed constant; affects only the watchdog computation |
 | DDR size | ≥ 512 MiB (`HIGHADDR 0x1FFF_FFFF`) | the inherited map reaches `0x1080_0000`+8 MiB (`l5_design` §2) | inferred |
 
-If the owner wants CPU_6x4x confirmed rather than assumed, it is one board read
-(`md.l 0xF8000120 1`) on the next power-up — but that is a board contact, still paused.
+**The owner has ruled this a blocking pre-board preflight** (2026-08-31): `md.l 0xF8000120 1`
+is read once at first power-on and stored with the session evidence, and **until that read
+exists no timing conversion derived from CPU_6x4x / PERIPHCLK may be reported as verified
+fact**. It does not block the host-only build — with the watchdog off (§4) nothing in session
+1 depends on the value. Recorded in `manifests/l5_manifest.json`
+`pinned_at_build.preflight_before_board` and `docs/l5_prereg.md` §4.
 
 ## 6. Files (all host-only)
 
@@ -94,5 +118,17 @@ If the owner wants CPU_6x4x confirmed rather than assumed, it is one board read
   `src/console.c`. Sources tracked; `firmware/bsp/out/` and `toolchain/` git-ignored.
 - `firmware/p3_app.c` — banner updated from "NEVER COMPILED" to "COMPILED, NOT BOARD-RUN";
   `tests/test_firmware_audit.py` updated to assert the new standing. No logic changed.
-- `manifests/l5_manifest.json` — `toolchain` and `console_uart` filled; `app_image_sha256`
-  and `watchdog_load_value` null pending §4.
+- `manifests/l5_manifest.json` — `pinned_at_build` complete: toolchain, console UART and
+  `app_image_sha256` pinned; watchdog off with `watchdog_load_value` recorded as *not used*;
+  the CPU-clock preflight listed.
+
+**Reproducibility limit, stated plainly.** The compiler is pinned by sha256, but the BSP
+sources are **not vendored**: `firmware/bsp/build.sh` references Xilinx's `embeddedsw`
+(`standalone_v9_4`, `scuwdt_v2_6`) in place at `/home/test/Xilinx/2025.2/data/embeddedsw`,
+under a separate vendor licence. Only the glue original to this repo is tracked. So
+`app_image_sha256` reproduces against **that** 2025.2 install plus the pinned toolchain — not
+from this repository alone. Recorded in `docs/import_manifest.md` ("Deliberately NOT
+imported"). If the owner wants the image reproducible from the repo, the fix is to hash the
+~25 BSP source files into the import manifest (or vendor them, licence permitting); that is a
+separate piece of work and is **not** required for session 1, whose image is already built
+and pinned.

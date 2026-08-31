@@ -68,6 +68,38 @@ affordable, so the first session audits **all** of them and the bounded-guarante
 owner, consumed by any outcome. Before the runner starts: power cycle, and
 `host/verify_principal_boundary.py` re-run as the runner (< 6 h old).
 
+**Watchdog: OFF for this session** — the owner's ruling on the D-c build finding
+(`docs/l5_findings.md` §4, option 2). The identity page is written with **`flags.bit1 = 0`**,
+so the application arms no watchdog and never touches the SCU WDT: the firmware gates both
+the arm and the kick on that bit, and `tests/test_firmware_audit.py` now checks that gating.
+`P3_WDT_LOAD` stays `0` in the image and is unreachable. **It must not be enabled by flipping
+bit1 alone** — a load of 0 is an immediate timeout. Turning the watchdog on is a separate
+change (option 1, a prescaler write) needing its own build, preregistration and ruling.
+
+**Host recovery with the watchdog off.** The application cannot self-reset, so a hung or
+silent application is the host's to end:
+
+1. The collector declares **`CRASHED`** after 3 × H = 30 s of console silence (§3c) and
+   writes the `session_summary` itself. This is unchanged by the watchdog being off — it was
+   always the host's inference, never the application's report.
+2. The runner then **stops**: no further PCAP or ARM operation, and **no restore attempt** —
+   the fabric state is unknown, and an unsynchronised write is worse than a known unknown.
+3. Evidence is **sealed as it stands**: the notary log, every framed line received, and the
+   partial record set, with the outcome recorded as `CRASHED`, cause `host-ended, watchdog
+   off`. Post-mortem reads on the next session are `diagnostic` and never adjudicable (§6a).
+4. Recovery is a **power cycle**, and the next attempt needs **new rulings** (`whole-of-probe
+   P3-L5` + `provisioning P3-K`). The consumed pair is never reused.
+
+A `CRASHED` end is a **HOLD** under §5 — never a PASS, and never by itself a KILL.
+
+**Pre-board preflight (blocking, at first power-on).** Read `CPU_CLK_CTRL` once —
+`md.l 0xF8000120 1` — and store it with the session evidence. Until that read exists,
+CPU_6x4x = 666.67 MHz and PERIPHCLK = 333.33 MHz are **assumed** (the standard 6:2:1 ratio),
+not verified: the ARM PLL is board-confirmed from `ARM_PLL_CTRL`, the CPU divisor is not
+(`docs/l5_findings.md` §5). **No timing conversion derived from those figures may be reported
+as a verified fact before that read.** Nothing in this watchdog-off session depends on the
+value, which is why it is a preflight and not a build blocker.
+
 **Instrument rules that killed earlier sessions and are therefore procedure now.** The
 runner runs in the background with **no shell timeout**; waiting is by pid, never
 `pgrep -f`; the D-cache is off before staging (and on the standalone plane the buffers are
@@ -115,3 +147,10 @@ schemas and the validator rules; the notary protocol and its drop budget; the re
 loop's state machine; the firmware source audit. None of these may be changed to make a
 session pass: a change to any of them invalidates this preregistration and requires a new
 one.
+
+Also fixed: the application image itself. The build is done and its hash is pinned
+(`manifests/l5_manifest.json` `pinned_at_build.app_image_sha256`); the watchdog-off decision
+required **no** firmware change, which is why that hash is final rather than provisional.
+One test was *added* to the firmware source audit with that decision — the watchdog-gating
+check described in §4. It is a strengthening (a property that was previously only read is now
+checked) made **before** any session, not a relaxation to let one pass.
