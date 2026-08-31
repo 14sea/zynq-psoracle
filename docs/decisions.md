@@ -270,3 +270,23 @@ depends on it.
 
 Still the owner's, in this order: review the post-build package, then rule on the push, the
 `whole-of-probe P3-L5` and `provisioning P3-K` rulings, and the first N = 8 session.
+
+## 2026-08-31 — L5 post-build review (HOLD) and its host-only fix
+
+The non-author review of the post-build package returned **HOLD** on one provenance
+blocker; the accepted items and the fix are recorded verbatim + per-item in
+`docs/l5_review_result.md`.
+
+Blocker: `firmware/bsp/build.sh` compiles Xilinx `embeddedsw` sources in place, and none
+were hashed, so `app_image_sha256` was reproducible only against this host's tree. Chosen
+remedy = **pin, do not vendor** (avoids the third-party licence question; touches no
+firmware). `manifests/l5_bsp_inputs.json` now pins all 65 embeddedsw files the build reads —
+sources and their full header closure, from the pinned toolchain's own `gcc -M` output
+(`host/gen_bsp_input_manifest.py`), re-hashed and drift-guarded by
+`tests/test_bsp_inputs_manifest.py`. Post-build evidence bundled in `evidence/l5_build/`
+(`build_evidence.json` + a tracked linker map, `host/gen_build_evidence.py`). prereg §7 marks
+this round's additions as defensive strengthening, not a gate change. Image rebuilt
+byte-identical (`7540239f…`); no firmware source changed. Host-only; **not pushed**.
+
+Unchanged and still the owner's, in order: re-review the updated package, then rule the push,
+`whole-of-probe P3-L5` + `provisioning P3-K`, and the first N = 8 session.

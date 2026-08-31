@@ -1,0 +1,38 @@
+{
+  "schema": "l5_build_evidence",
+  "schema_version": "1.0.0",
+  "purpose": "Post-build provenance for the pinned P3 L5 application image, regenerated after a clean rebuild (reviewer 2026-08-31).",
+  "git": {
+    "head": "bc66718e0af95afcaec7e37ce5a6e51f6af4376d",
+    "worktree_dirty": true
+  },
+  "toolchain": {
+    "name": "xpack-dev-tools/arm-none-eabi-gcc",
+    "version": "14.2.1-1.1",
+    "gcc": "14.2.1 20241119",
+    "url": "https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/download/v14.2.1-1.1/xpack-arm-none-eabi-gcc-14.2.1-1.1-linux-x64.tar.gz",
+    "tarball_sha256": "ed8c7d207a85d00da22b90cf80ab3b0b2c7600509afadf6b7149644e9d4790a6",
+    "flags": "-mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard -std=c99 -O2"
+  },
+  "bsp_inputs": {
+    "manifest": "manifests/l5_bsp_inputs.json",
+    "manifest_sha256": "ab7d06d8302fc3413eb7742219a240937398587632ab1e831860d3ad091a5a04",
+    "count": 65
+  },
+  "image": {
+    "bin": "firmware/bsp/out/p3_app.bin",
+    "bin_bytes": 81940,
+    "bin_sha256": "7540239fbba07e6a8a19d9081f8e21220f0fdac2f3ba7b48e88f34767da8005e",
+    "elf_sha256": "8300a8a64c4c012b02e5c2a5d7c28c5aaa5a5a6ad1940374ae276c8c11497ed6",
+    "reproduced_byte_identical": true,
+    "expected_bin_sha256": "7540239fbba07e6a8a19d9081f8e21220f0fdac2f3ba7b48e88f34767da8005e"
+  },
+  "linker_map": {
+    "path": "evidence/l5_build/p3_app.map",
+    "sha256": "46843baf68127c035d2b4574ae6bd133d75c8446d3ddebad3596575e4063d065"
+  },
+  "tests": {
+    "report": "evidence/tests/test_report_2026-08-31T182343Z.json",
+    "note": "the fail-closed test evidence (count / skipped / boundary / head_at_run) is this report; run host/run_tests.sh in a staged state so it covers the new files."
+  }
+}

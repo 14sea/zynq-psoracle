@@ -154,3 +154,11 @@ required **no** firmware change, which is why that hash is final rather than pro
 One test was *added* to the firmware source audit with that decision — the watchdog-gating
 check described in §4. It is a strengthening (a property that was previously only read is now
 checked) made **before** any session, not a relaxation to let one pass.
+
+The post-build review (2026-08-31) added provenance artifacts and their guarding tests —
+`manifests/l5_bsp_inputs.json` with `tests/test_bsp_inputs_manifest.py`, and
+`evidence/l5_build/`. These are **defensive additions that do not change execution
+semantics**: they pin and re-hash the exact build inputs and record the build's provenance;
+they touch no firmware source, change no image (rebuilt byte-identical, `app_image_sha256`
+unchanged at `7540239f…`), and alter nothing this preregistration says a board session will
+do. They tighten what a passing build must prove about its inputs; they do not move the gate.

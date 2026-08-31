@@ -118,17 +118,32 @@ fact**. It does not block the host-only build — with the watchdog off (§4) no
   `src/console.c`. Sources tracked; `firmware/bsp/out/` and `toolchain/` git-ignored.
 - `firmware/p3_app.c` — banner updated from "NEVER COMPILED" to "COMPILED, NOT BOARD-RUN";
   `tests/test_firmware_audit.py` updated to assert the new standing. No logic changed.
-- `manifests/l5_manifest.json` — `pinned_at_build` complete: toolchain, console UART and
-  `app_image_sha256` pinned; watchdog off with `watchdog_load_value` recorded as *not used*;
-  the CPU-clock preflight listed.
+- `manifests/l5_manifest.json` — `pinned_at_build` complete: toolchain, console UART,
+  the embeddedsw BSP input set and `app_image_sha256` pinned; watchdog off with
+  `watchdog_load_value` recorded as *not used*; the CPU-clock preflight listed.
+- `manifests/l5_bsp_inputs.json` + `host/gen_bsp_input_manifest.py` — the exact Xilinx
+  embeddedsw files build.sh compiles into the image (sources + header closure), pinned by
+  path/size/sha256. See the reproducibility note below.
+- `evidence/l5_build/` — `build_evidence.json` + a tracked copy of `p3_app.map`
+  (`host/gen_build_evidence.py`): the post-build provenance in one place — git state,
+  toolchain sha, BSP-input-manifest sha, linker-map sha, image sha (reproduced
+  byte-identical), and a pointer to the fail-closed test report.
 
-**Reproducibility limit, stated plainly.** The compiler is pinned by sha256, but the BSP
-sources are **not vendored**: `firmware/bsp/build.sh` references Xilinx's `embeddedsw`
-(`standalone_v9_4`, `scuwdt_v2_6`) in place at `/home/test/Xilinx/2025.2/data/embeddedsw`,
-under a separate vendor licence. Only the glue original to this repo is tracked. So
-`app_image_sha256` reproduces against **that** 2025.2 install plus the pinned toolchain — not
-from this repository alone. Recorded in `docs/import_manifest.md` ("Deliberately NOT
-imported"). If the owner wants the image reproducible from the repo, the fix is to hash the
-~25 BSP source files into the import manifest (or vendor them, licence permitting); that is a
-separate piece of work and is **not** required for session 1, whose image is already built
-and pinned.
+**Reproducibility, and its one remaining limit (reviewer 2026-08-31).** The compiler is
+pinned by sha256; the BSP sources build.sh compiles are now pinned too, in
+`manifests/l5_bsp_inputs.json` — every Xilinx `embeddedsw` file the pinned toolchain reads
+(`standalone_v9_4` + `scuwdt_v2_6`, sources **and** their header closure, 65 files),
+identified by path/size/sha256. The list is not hand-written: `host/gen_bsp_input_manifest.py`
+takes it from the compiler's own `gcc -M` dependency output, and
+`tests/test_bsp_inputs_manifest.py` re-hashes every entry against the tree on this host and
+guards it against build.sh drift. So `app_image_sha256` is now reproducible against an
+**identified** input set — those exact files (checked by sha256) plus the pinned toolchain
+reproduce the image byte-for-byte (verified: rebuilt → `7540239f…`).
+
+The one limit that remains: those files are still **referenced in place**, not vendored into
+the repo, because they are third-party vendor sources under a separate licence
+(`docs/import_manifest.md`, "Deliberately NOT imported"). The repo is therefore not
+self-contained — a rebuild needs the 2025.2 `embeddedsw` tree present — but it is no longer
+reproducible only against "whatever tree this host happens to have": the manifest pins which
+tree. Vendoring would remove even that dependency but requires a licence review, and is not
+required for session 1.

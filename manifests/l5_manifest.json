@@ -70,6 +70,13 @@
       "base": "0xE0001000",
       "source": "D1 spec T1 (the console = UART1) + every 17A6 board run's relay; not guessed"
     },
+    "bsp_inputs": {
+      "manifest": "manifests/l5_bsp_inputs.json",
+      "generator": "host/gen_bsp_input_manifest.py",
+      "count": 65,
+      "packages": ["standalone_v9_4", "scuwdt_v2_6"],
+      "note": "the exact third-party Xilinx embeddedsw files build.sh compiles into the image (sources + header closure, from the pinned toolchain's own gcc -M). These are referenced in place, not vendored; app_image_sha256 is reproducible against this identified input set (checked by sha256) plus the pinned toolchain, not merely against 'this host's embeddedsw tree'. tests/test_bsp_inputs_manifest.py re-hashes them."
+    },
     "watchdog_enabled": false,
     "watchdog_load_value": null,
     "watchdog_status": "NOT USED — session 1 runs watchdog-off (owner's ruling on D-c, 2026-08-31). P3_WDT_LOAD is 0 in the image and unreachable: the firmware gates both the arm and the kick on identity_page flags.bit1, which this session writes as 0.",
@@ -89,7 +96,7 @@
     "preflight_before_board": [
       "md.l 0xF8000120 1 (CPU_CLK_CTRL) once at first power-on, stored with the session evidence; until then CPU_6x4x/PERIPHCLK are assumed, and no timing conversion derived from them may be reported as verified fact"
     ],
-    "note": "COMPLETE. toolchain, console_uart and app_image_sha256 are pinned; the watchdog is deliberately off for session 1 and its load value is therefore not used rather than unset. Host recovery for a watchdog-off session is fixed in docs/l5_prereg.md §4."
+    "note": "COMPLETE. toolchain, console_uart, the embeddedsw BSP input set (manifests/l5_bsp_inputs.json) and app_image_sha256 are pinned; the watchdog is deliberately off for session 1 and its load value is therefore not used rather than unset. Host recovery for a watchdog-off session is fixed in docs/l5_prereg.md §4."
   },
   "provenance": {
     "phenotype_manifest_sha256": "e45f466d082ccd6f227e6f9be4ce75a4e98c4caa708808c09a77ed32331c10ef",

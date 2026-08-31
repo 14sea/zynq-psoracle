@@ -352,6 +352,7 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-08-31T182343Z.json` |
 | `evidence/tests/test_report_2026-08-31T180341Z.json` |
 | `evidence/tests/test_report_2026-08-31T180156Z.json` |
 | `evidence/tests/test_report_2026-08-31T173214Z.json` |
@@ -404,6 +405,13 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l2_17A6_2026-08-29-01/L2_3_read_7.json` |
 | `evidence/l2_17A6_2026-08-29-01/L2_3_read_8.json` |
 | `evidence/l2_17A6_2026-08-29-01/L2_3_read_9.json` |
+| `host/gen_bsp_input_manifest.py` |
+| `host/gen_build_evidence.py` |
+| `manifests/l5_bsp_inputs.json` |
+| `tests/test_bsp_inputs_manifest.py` |
+| `docs/l5_review_result.md` |
+| `evidence/l5_build/build_evidence.json` |
+| `evidence/l5_build/p3_app.map` |
 
 ## Deliberately NOT imported
 
@@ -412,4 +420,4 @@ revisions and neither may be silently substituted for the other.
 | `zynq-fabricmap/scripts/gate_board_identity.py`, `board_uboot_axi.py`, `board_carrier_guard.py`, `board_carrier_exec.py`, `board_uboot_fpga_load.py`, `precheck_fresh_power.py` | the carrier-era authority and ICAPE2 write path; P3 has no ICAP writer and takes its session from `zynq-psmap` |
 | `zynq-fabricmap/vivado/carrier/carrier_stream.v`, `carrier_crc32.v`, `icape2_model.v`, `carrier_top.v` | the ICAPE2 stream engine and its model — the part of the carrier P3 removes |
 | any `evidence/` of either repository | evidence stays where it was produced; P3 cites it by commit |
-| Xilinx `embeddedsw` BSP sources (`standalone_v9_4`, `scuwdt_v2_6`) used to build the L5 image | third-party vendor sources under a separate licence, referenced **in place** by `firmware/bsp/build.sh` at `/home/test/Xilinx/2025.2/data/embeddedsw`, not vendored here. Only the glue original to this repo (`firmware/bsp/`) is tracked. **Reproducibility limit:** the pinned `app_image_sha256` reproduces against that Vivado/Vitis 2025.2 install and the sha-pinned xPack toolchain; the BSP sources themselves are not hashed in this manifest — see `docs/l5_findings.md` §6 |
+| Xilinx `embeddedsw` BSP sources (`standalone_v9_4`, `scuwdt_v2_6`) used to build the L5 image | third-party vendor sources under a separate licence, referenced **in place** by `firmware/bsp/build.sh` at `/home/test/Xilinx/2025.2/data/embeddedsw`, not vendored here. Only the glue original to this repo (`firmware/bsp/`) is tracked. **These files are now pinned by sha256** in `manifests/l5_bsp_inputs.json` (path/size/sha256 for every source + header the build reads), so `app_image_sha256` reproduces against that *identified* input set plus the sha-pinned xPack toolchain. Not vendored (licence review pending) means the repo still needs the 2025.2 tree present to rebuild — see `docs/l5_findings.md` §6 |
