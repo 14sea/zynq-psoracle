@@ -27,7 +27,7 @@ match bit anywhere that the host must take on trust.
 
 **Canonical status table: [`docs/status.md`](docs/status.md)** — L0, D4, L1, L2, L3 (scoped), L4 all
 **PASS** on EBAZ4203 `17A6` as of 2026-08-31, and the **L0–L4 overall review is PASS (scoped)**;
-L5 is not specified (D1 host-only specification is next). The per-rung rows below are a summary; where they and
+L5's D1 specification is drafted (`docs/d1_standalone_spec.md`, not reviewed). The per-rung rows below are a summary; where they and
 `docs/status.md` disagree, `docs/status.md` wins.
 
 | rung | state |
@@ -38,7 +38,7 @@ L5 is not specified (D1 host-only specification is next). The per-rung rows belo
 | L2 = P2b | **PASS** on 17A6 (run #3) — `docs/l2_findings.md`; heartbeat pinned [49.5, 50.5] MHz |
 | L3 one gated candidate | **PASS (scoped)** on 17A6 — five sessions, `docs/l3_findings.md` |
 | L4 fault / restore / baseline | **PASS** on 17A6 — `docs/l4_findings.md` |
-| L5 the loop | not specified (D1 first) |
+| L5 the loop | D1 specification drafted, not reviewed (`docs/d1_standalone_spec.md`) |
 
 Tests: `host/run_tests.sh` (records exit status + environment into `evidence/tests/`); see
 `docs/status.md` for the sandbox/sudo caveat.

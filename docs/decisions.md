@@ -33,6 +33,18 @@ L2–L4 runners stay U-Boot; L5's specification will carry the `app_identity` co
 invalidated by any reset). Recorded here as the working decision; the whole-line gate
 review before the first ruling may reopen it.
 
+**Addendum 2026-08-31 — specification drafted, not reviewed.** Under the owner's
+authorisation of 2026-08-31 (D1 host-only specification only; no L5 build, no board contact,
+no ruling), `docs/d1_standalone_spec.md` v0.1 makes the standalone decision concrete:
+the `standalone` control plane and its crossing rules, the `app_identity` contract
+(token + IDCODE + `key_loaded` + nonce echo), the per-candidate transaction with the
+host as **notary** (gate + signer stay host principals — a consequence the 2026-08-29
+decision did not state), `app_oracle_record` as a declared self-report distinct from
+`oracle_record`, session brackets (baseline open/close + closing unsigned ARM), and the
+M1-property scope table. **Seven questions (Q1–Q7) await a non-author review** (spec §10);
+the D1 decision itself is unchanged. Nothing downstream (contracts 1.1, notary tooling,
+L5 design, build, ruling) is authorised by the spec.
+
 ## D2 — the name and remote of this repository
 
 Working name `zynq-psoracle` (the PS as the oracle). No remote exists; creating one is the
