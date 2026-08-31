@@ -22,12 +22,25 @@ Sessions: 2 L2 instrument outcomes + 1 PASS; L3 session #1 STOP (instrument) + d
 
 ## Test-suite status and environment caveat
 
-`python3 -m unittest discover -s tests` = **234 tests**. One of them,
-`test_known_answer_through_the_real_signer`, drives the REAL signer principal through
-`sudo -n -u p3signer`; it needs a host where the D4 boundary exists and sudo works. In a
-sandbox where sudo is blocked (`sudo: The "no new privileges" flag is set`, or
-`/etc/sudo.conf` ownership) it **used to fail** and the run was 233/1 — reported by the
-reviewer 2026-08-31. It now **skips with the environment's exact sudo error as the reason**
-(never a silent pass); a skip is not green and is counted in the report. `host/run_tests.sh`
-records exit status, counts, and the sudo probe into `evidence/tests/test_report_<date>.json`;
-the latest report from the host with the real boundary is listed there.
+`host/run_tests.sh` runs the suite and lands an evidence report **fail-closed**
+(`host/test_report.py`: atomic write → registration in `docs/import_manifest.md` → `git add`;
+any failure → exit 3 regardless of the suite's status; the suite's own status is returned
+only when the report landed). The report records `exit_status`, counts, `skipped`,
+`head_at_run` (the HEAD when the suite ran — necessarily earlier than the commit that
+includes the report; `worktree_dirty` says whether the tree differed), the `sudo -u
+p3signer` probe and `boundary_available`.
+
+`test_known_answer_through_the_real_signer` needs the D4 boundary to be usable; where sudo
+is blocked (`no new privileges`, `/etc/sudo.conf` ownership) it **skips with the exact sudo
+error as the reason** — a skip is counted, never green. Reviewer's sandbox 2026-08-31 saw
+233/1 before this; after: 
+
+| environment | report | ran | result | boundary_available | no_new_privs | exit |
+|---|---|---|---|---|---|---|
+| this host, user `test`, sudo works | `evidence/tests/test_report_2026-08-31T153501Z.json` | 240 | OK | true | false | 0 |
+| same host under `setpriv --no-new-privs` (sudo refused exactly as in the sandbox) | `evidence/tests/test_report_2026-08-31T153507Z.json` | 240 | OK (skipped=1) | false | true | 0 |
+
+Earlier reports in `evidence/tests/` (`152909Z`…`153424Z`) predate the fail-closed tool and
+carry a `commit` field that is simply the HEAD at their run time; they are kept as evidence.
+Fail-closed behaviour itself is unit-tested (read-only output dir, unwritable manifest,
+non-repo → `ReportError` / exit 3).

@@ -320,6 +320,11 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-08-31T153507Z.json` |
+| `evidence/tests/test_report_2026-08-31T153501Z.json` |
+| `evidence/tests/test_report_2026-08-31T153424Z.json` |
+| `host/test_report.py` |
+| `tests/test_test_report.py` |
 | `evidence/tests/test_report_2026-08-31T153009Z.json` |
 | `evidence/tests/test_report_2026-08-31T152940Z.json` |
 | `evidence/tests/test_report_2026-08-31T152909Z.json` |

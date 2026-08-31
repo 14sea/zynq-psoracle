@@ -1,0 +1,19 @@
+{
+  "schema": "test_report",
+  "schema_version": "1.0.0",
+  "at": "2026-08-31T153507Z",
+  "exit_status": 0,
+  "ran": 240,
+  "result_line": "OK (skipped=1)",
+  "skipped": 1,
+  "failures": 0,
+  "errors": 0,
+  "host": "H3C",
+  "user": "test",
+  "head_at_run": "efd3923cb792d3b8b33d2c2220a620570855d602",
+  "worktree_dirty": true,
+  "note": "head_at_run is the HEAD when the suite ran; the commit that includes this report is necessarily later",
+  "sudo_signer_probe": "sudo: The \"no new privileges\" flag is set, which prevents sudo from running as root.\nsudo: If sudo is running in a container, you may need to adjust the container configuration to disable the flag.",
+  "boundary_available": false,
+  "no_new_privs": true
+}

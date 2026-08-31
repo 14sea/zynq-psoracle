@@ -1,0 +1,19 @@
+{
+  "schema": "test_report",
+  "schema_version": "1.0.0",
+  "at": "2026-08-31T153424Z",
+  "exit_status": 1,
+  "ran": 240,
+  "result_line": "FAILED (failures=1)",
+  "skipped": 0,
+  "failures": 1,
+  "errors": 0,
+  "host": "H3C",
+  "user": "test",
+  "head_at_run": "efd3923cb792d3b8b33d2c2220a620570855d602",
+  "worktree_dirty": true,
+  "note": "head_at_run is the HEAD when the suite ran; the commit that includes this report is necessarily later",
+  "sudo_signer_probe": "{\"key_id\": \"b4c022a27ff87ac2f98a39e5eaa1e23456251d3b95d16189f3130cb69905c307\", \"user\": \"p3signer\"}",
+  "boundary_available": true,
+  "no_new_privs": false
+}
