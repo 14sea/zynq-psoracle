@@ -157,3 +157,14 @@ this commit/tables/nonce and found the fabric's six truth tables equal to the si
 expectation; the PL exposes the same commit the gate hashed; an unsigned ARM on the same
 fabric is refused and consumes the nonce. Still open for L3: `replay`, `other_candidate`,
 `wrong_key` (and optional `wrong_table`), one session each.
+
+## Session #3 (rulings `P3-L3 2026-08-31-03` + `P3-K 2026-08-31-03`, `--negative replay`) — PASS
+
+`evidence/l3_17A6_2026-08-31-03/`, 13 min 8 s, zero disruptions, zero re-reads. Provisioning
+rc 0, `key_loaded` observed. 12/12 frames read back as the candidate. **Positive ARM**: STATUS
+`0xf54`, `HW_COMMIT` = gate hash, readout = signed tables, scores `[35, 22, 20, 20, 20, 18]`
+= prediction (second reproduction of session #2's positive case on a fresh power-cycle).
+**`replay` control** — the positive session's exact 24 payload words staged again after
+the PL's nonce had stepped: FAULT **13 = F_ARM_AUTH**, cfg_valid 0, no score, nonce consumed
+(`dc1b77ae…` → `64f0eeb9…`, = model). The tag that was valid one ARM earlier is worthless
+now: the nonce binds a signature to one attempt. Run log validates; both rulings consumed.
