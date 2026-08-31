@@ -1,12 +1,14 @@
 /* p3_app — the standalone application: the board half of D1 (`docs/d1_standalone_spec.md`).
  *
  * ─── STANDING OF THIS FILE ────────────────────────────────────────────────────────────
- * NEVER COMPILED. No ARM bare-metal toolchain exists on this host and the toolchain choice
- * is an open item for the L5 build authorisation (`docs/l5_design.md` §4). What IS proven
- * host-side is `p3_derive.c` — every hash, the derive function, the stream builder and
- * parser, the pinned readback command stream, base64url, the nonce model and the identity
- * page — against the Python reference over the whole pinned corpus (N = 256) and its
- * fixtures. This file is deliberately thin for that reason: HAL plus state machine,
+ * COMPILED, NOT BOARD-RUN. As of the L5 build (docs/l5_findings.md) this file is
+ * cross-compiled for cortex-a9 into firmware/bsp/out/p3_app.elf with the pinned xPack
+ * arm-none-eabi-gcc 14.2.1 against a hand-assembled standalone BSP: it links clean with no
+ * undefined symbols and compiles -Wall -Wextra clean. It has NEVER been run on the board.
+ * What IS proven host-side is `p3_derive.c` — every hash, the derive function, the stream
+ * builder and parser, the pinned readback command stream, base64url, the nonce model and
+ * the identity page — against the Python reference over the whole pinned corpus (N = 256)
+ * and its fixtures. This file is deliberately thin for that reason: HAL plus state machine,
  * checked by source audit (`tests/test_firmware_audit.py`), not by execution.
  * ──────────────────────────────────────────────────────────────────────────────────────
  *

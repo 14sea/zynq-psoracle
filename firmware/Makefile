@@ -3,10 +3,10 @@
 # `make twin` builds the HOST driver (p3_twin.c + p3_derive.c) that the test suite drives
 # over the pinned corpus. It is host tooling, not a board image.
 #
-# The board application (`p3_app.c`) is NOT built here and has never been compiled: no ARM
-# bare-metal toolchain exists on this host, and the toolchain choice is an open item for the
-# L5 build authorisation (`docs/l5_design.md` §4). The recipe below is a record of what that
-# build will look like, deliberately not wired to a default target.
+# The board application (`p3_app.c`) is cross-compiled by `firmware/bsp/build.sh`, NOT here:
+# that script drives the pinned xPack arm-none-eabi-gcc 14.2.1 and a hand-assembled cortex-a9
+# standalone BSP to produce firmware/bsp/out/p3_app.elf (docs/l5_findings.md). `make twin`
+# below is unchanged — it builds only the HOST driver the corpus test uses.
 
 CC      ?= cc
 CFLAGS  ?= -std=c99 -O2 -Wall -Wextra -Werror -pedantic

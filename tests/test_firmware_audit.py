@@ -215,9 +215,11 @@ class StateMachine(unittest.TestCase):
         self.assertIn("p3_search_next", SOURCES["p3_search.c"])
         self.assertNotIn("score", SOURCES["p3_search.c"].lower().split("Determinism")[0])
 
-    def test_the_file_states_that_it_has_never_been_compiled(self):
-        """The standing of this artifact is part of the artifact."""
-        self.assertIn("NEVER COMPILED", APP)
+    def test_the_file_states_its_compile_standing(self):
+        """The standing of this artifact is part of the artifact: as of the L5 build it is
+        compiled host-side (docs/l5_findings.md) but has never been run on the board."""
+        self.assertIn("COMPILED, NOT BOARD-RUN", APP)
+        self.assertIn("NEVER been run on the board", APP)
 
 
 if __name__ == "__main__":

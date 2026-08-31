@@ -9,3 +9,5 @@ sim/*.vvp
 keys/
 build/
 firmware/build/
+firmware/bsp/out/
+toolchain/
