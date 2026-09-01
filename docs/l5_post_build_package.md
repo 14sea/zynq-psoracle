@@ -1,7 +1,11 @@
 # L5 post-build evidence package — baseline `10044abe…`
 
-**Standing: host-only. Nothing pushed; no unconsumed ruling; the board has not been touched
-since session 2.** The firmware HAS now run on hardware twice — session 1
+**Standing (updated after session 3, 2026-09-01): this package passed review and was pushed at
+`908a8e3`; the diagnostic session then ran on the pinned image — see
+`docs/l5_session3_findings.md` (HOLD; the ARM stop is a premature nonce read, and prereg §6's
+design-review trigger has fired). The text below is the package as reviewed.**
+Original standing line: host-only; nothing pushed; no unconsumed ruling; the board has not
+been touched since session 2. The firmware HAS now run on hardware twice — session 1
 (`docs/l5_session1_findings.md`, HOLD STOPPED at the ARM) and session 2
 (`docs/l5_session2_findings.md`, HOLD CRASHED on an instrumentation defect since fixed).
 Neither adjudicated L5; every result below is host-side.

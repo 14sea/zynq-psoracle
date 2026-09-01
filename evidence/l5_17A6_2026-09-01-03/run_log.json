@@ -1,0 +1,139 @@
+{
+  "control_plane": "standalone",
+  "app_identity": {
+    "app_epoch": 0,
+    "carrier_sha256": "956379fa8d23f8a6f1e0c80fe18b8c4aee68e76cc650499911a4bdb7807e610a",
+    "control_plane": "standalone",
+    "fclk0_hz_decoded": 50000000,
+    "findings": [],
+    "nonce_at_start": "9e3779b97f4a7c15",
+    "pss_idcode": "0x13722093",
+    "schema": "app_identity",
+    "schema_version": "1.0.0",
+    "status_at_start": "0x00000900",
+    "token": "ee2d7b988cef99338d05f3aebc4c3e82",
+    "uboot_epoch": 0
+  },
+  "loop_records": [
+    {
+      "evidence": {
+        "app_oracle_record": {
+          "audit_available": true,
+          "readback_sha256": "3e24d93665bb9f29fb43290283a0c01327acd6048b9e979d247e248ee232679b",
+          "schema": "app_oracle_record",
+          "schema_version": "1.0.0",
+          "seq": 1,
+          "staged_sha256": "3e24d93665bb9f29fb43290283a0c01327acd6048b9e979d247e248ee232679b",
+          "staged_stream_sha256": "905abc6931c537bbdf980c153c7d59ec5aa2da1d2707442c6b5049d733dfc7a3",
+          "write": {
+            "envelopes": [
+              {
+                "index": 0,
+                "int_sts": "0x50023004"
+              },
+              {
+                "index": 1,
+                "int_sts": "0x50023004"
+              },
+              {
+                "index": 2,
+                "int_sts": "0x50023004"
+              }
+            ]
+          }
+        },
+        "arm": {
+          "ctrl_readback": "unavailable: CTRL is write-only",
+          "fault_after": 0,
+          "key_loaded_observed": true,
+          "nonce_after": "9e3779b97f4a7c15",
+          "nonce_before": "9e3779b97f4a7c15",
+          "status_after": "0x00000901",
+          "writes_issued": 25
+        },
+        "sign_reply": {
+          "commit": "3e24d93665bb9f29fb43290283a0c01327acd6048b9e979d247e248ee232679b",
+          "expected_tables": [
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000"
+          ],
+          "schema": "sign_reply",
+          "schema_version": "1.0.0",
+          "seq": 1,
+          "tag": "fa0b80ac5537299038fc30344eb23edd"
+        }
+      },
+      "genome": "00000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "outcome": "STOP_ARM",
+      "schema": "loop_record",
+      "schema_version": "1.0.0",
+      "seq": 1,
+      "verified": "audited"
+    }
+  ],
+  "session_summary": {
+    "audit": {
+      "audited": 1,
+      "total": 0
+    },
+    "closing": {
+      "baseline": "not_reached",
+      "restore": "done",
+      "unsigned_control": "not_reached"
+    },
+    "counts": {
+      "refused_by_gate": 0,
+      "scored": 0
+    },
+    "crc_dropped": 0,
+    "drop_budget": 16,
+    "epoch_end": {
+      "kind": "STOPPED",
+      "last_seq": 1,
+      "reason": "the nonce did not step: the PL did not consume this ARM"
+    },
+    "schema": "session_summary",
+    "schema_version": "1.0.0",
+    "token": "ee2d7b988cef99338d05f3aebc4c3e82",
+    "written_by": "app"
+  },
+  "notary_log": {
+    "schema": "notary_log",
+    "schema_version": "1.0.0",
+    "token": "ee2d7b988cef99338d05f3aebc4c3e82",
+    "entries": [
+      {
+        "seq": 1,
+        "at": 1788252203.6967554,
+        "request": {
+          "app_epoch": 0,
+          "genome": "00000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "nonce": "9e3779b97f4a7c15",
+          "schema": "sign_request",
+          "schema_version": "1.0.0",
+          "seq": 1,
+          "token": "ee2d7b988cef99338d05f3aebc4c3e82"
+        },
+        "answer": {
+          "schema": "sign_reply",
+          "schema_version": "1.0.0",
+          "seq": 1,
+          "commit": "3e24d93665bb9f29fb43290283a0c01327acd6048b9e979d247e248ee232679b",
+          "expected_tables": [
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000"
+          ],
+          "tag": "fa0b80ac5537299038fc30344eb23edd"
+        }
+      }
+    ]
+  }
+}

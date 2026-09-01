@@ -1,0 +1,7 @@
+{
+  "stage": "L5_0_preflight",
+  "CPU_CLK_CTRL": "0x1f000200",
+  "addr": "0xf8000120",
+  "note": "prereg \u00a74: until this read exists CPU_6x4x and PERIPHCLK are assumed 6:2:1; it is recorded here as observed fact",
+  "verdict": "READ"
+}
