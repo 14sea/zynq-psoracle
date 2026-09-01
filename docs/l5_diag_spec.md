@@ -1,5 +1,10 @@
 # L5 diagnostic session — specification (host-only, written before the board)
 
+> **Superseded (2026-09-01).** This is the specification session 3 ran under, kept as its
+> record. Its §3 rows were written for the pre-settle firmware and one of them ("the gate
+> neither acted nor faulted") was contradicted by session 3's own observation. The next
+> session runs under `docs/l5_session4_spec.md`.
+
 **Standing: host-only. This document authorises nothing.** It fixes, in advance, what the
 next board session is *for*, what it must produce, and what may and may not be concluded
 from it — so its outcome cannot be argued into something afterwards.

@@ -151,8 +151,23 @@ def _envelope_contract(g, manifest: dict) -> list[dict]:
     try:
         envs = g.envelopes(manifest)
         base, roles = g.gc.pinned_frames(manifest)
+        # shape before content: a row missing far_set/targets, or targets that are not a
+        # list of ints, is the same host-side finding, not a stray KeyError/TypeError
+        # (round-4 review's non-blocking note)
+        if not isinstance(envs, list) or not all(isinstance(e, dict) for e in envs):
+            raise RecordError("envelope table is not a list of rows")
+        for e in envs:
+            if "far_set" not in e or "targets" not in e:
+                raise RecordError(f"envelope row missing far_set/targets: {sorted(e)}")
+            if not isinstance(e["far_set"], int) or not isinstance(e["targets"], list) \
+                    or not all(isinstance(f, int) for f in e["targets"]):
+                raise RecordError(f"envelope {e.get('far_set')!r}: far_set must be an int and targets a list of ints")
+        if not isinstance(roles, dict):
+            raise RecordError("pinned frame roles are not a mapping")
+    except RecordError as exc:
+        raise RecordError(f"invalid manifest: {exc}") from None
     except Exception as exc:  # noqa: BLE001 — any manifest parse failure is one finding
-        raise RecordError(f"invalid manifest: the envelope table cannot be read: {exc}") from None
+        raise RecordError(f"invalid manifest: the envelope table cannot be read: {type(exc).__name__}: {exc}") from None
     far_sets = [e["far_set"] for e in envs]
     if len(envs) != ENVELOPES or len(set(far_sets)) != ENVELOPES:
         raise RecordError(f"invalid manifest: {len(envs)} envelopes with far_sets {sorted(map(hex, far_sets))}, "

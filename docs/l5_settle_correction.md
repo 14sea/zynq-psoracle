@@ -1,6 +1,6 @@
 # L5 design correction after session 3 — the settle poll, the tally, the classification
 
-**Standing: host-only, built, design review round 1 = HOLD on the audit gate (fixed, §3a), round 2 = HOLD on the Falsified/HOLD boundary inside the gate (fixed, §3a), round 3 = HOLD on the twelve-frame clause of that boundary (corrected, §3a: manifest contract is host-side), awaiting round 4; NOT run on hardware. No ruling requested; the
+**Standing: host-only, built, design review round 1 = HOLD on the audit gate (fixed, §3a), round 2 = HOLD on the Falsified/HOLD boundary inside the gate (fixed, §3a), round 3 = HOLD on the twelve-frame clause of that boundary (corrected, §3a: manifest contract is host-side), **round 4 = PASS (2026-09-01): this batch is the baseline for the next session** — pushed `b773e43…c5ee7aa`; the session itself is specified in `docs/l5_session4_spec.md`; NOT run on hardware. No ruling requested; the
 board is untouched since session 3.** This is the entry point for the design review that
 `docs/l5_prereg.md` §6 requires after three sessions without a `COMPLETED` end. Owner's
 authorisation and its scope: `docs/decisions.md`, entry "2026-09-01 — L5 session 3: HOLD".

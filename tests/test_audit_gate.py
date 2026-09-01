@@ -284,6 +284,35 @@ class ContentThatCannotSupportTheClaim(unittest.TestCase):
         self.assertNotIsInstance(cm.exception, records.Falsified)
         self.assertIn("cannot be read", str(cm.exception))
 
+    def test_a_malformed_envelope_row_is_a_record_error_not_a_native_exception(self):
+        """Round-4 review's non-blocking note: a row missing far_set/targets, or targets of
+        the wrong type, must surface as the same host-side RecordError, never as a bare
+        KeyError/TypeError that only the runner's outer catch would turn into a CRASH."""
+        import unittest.mock as um
+        import p3_gate as pg
+        real = pg.envelopes(MANIFEST)
+        chunks = self._rechunk(list(self.WORDS))
+        malformed = {
+            "row missing targets": [{"far_set": real[0]["far_set"]}] + real[1:],
+            "row missing far_set": [{"targets": real[0]["targets"]}] + real[1:],
+            "targets not a list": [dict(real[0], targets=None)] + real[1:],
+            "target not an int": [dict(real[0], targets=real[0]["targets"][:3] + ["0x1234"])] + real[1:],
+            "far_set not an int": [dict(real[0], far_set="0x00400000")] + real[1:],
+            "table not a list": {"oops": 1},
+            "row not a dict": [42] + real[1:],
+        }
+        for name, envs in malformed.items():
+            with um.patch.object(pg, "envelopes", lambda m, envs=envs: envs):
+                try:
+                    au.verify(LOG, chunks, MANIFEST)
+                except records.RecordError as exc:
+                    self.assertNotIsInstance(exc, records.Falsified, name)
+                    self.assertIn("invalid manifest", str(exc), name)
+                except Exception as exc:  # noqa: BLE001
+                    self.fail(f"{name}: native {type(exc).__name__} escaped: {exc}")
+                else:
+                    self.fail(f"{name}: accepted")
+
     def test_the_contract_is_checked_before_any_served_word_is_interpreted(self):
         """A broken manifest AND unparseable words: the host-side finding wins, so a host
         defect can never be reported as a board falsifier."""
