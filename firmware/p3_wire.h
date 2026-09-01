@@ -100,8 +100,13 @@ typedef struct {
     int key_loaded_observed;
     /* Session 1 (2026-09-01) stopped because the nonce did not step, and STATUS/FAULT were
      * read and then thrown away on that path. These are recorded on EVERY ARM attempt,
-     * whatever the outcome: the failing path gets the same evidence as the passing one. */
-    uint32_t ctrl_before, ctrl_after;
+     * whatever the outcome: the failing path gets the same evidence as the passing one.
+     *
+     * There is deliberately NO ctrl_before/ctrl_after. CTRL (0x2000) is write-only in
+     * rtl/p3_axil.v; reading it is SLVERR and on this board a data abort, which is what
+     * killed session 2. The record states the value as UNAVAILABLE rather than omitting the
+     * question — a reader must be able to see that the strobe's fate in the register was not
+     * observable, not be left wondering whether anyone looked. */
     int writes_issued;   /* payload + tag + strobe actually handed to Xil_Out32 */
 
     int have_score;

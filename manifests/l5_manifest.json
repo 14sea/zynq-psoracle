@@ -1,7 +1,7 @@
 {
   "schema": "l5_manifest",
   "schema_version": "1.0.0",
-  "status": "BUILD COMPLETE (rebuilt after the wire-protocol fix) \u2014 host-only. The image is pinned again and the C wire serialisation is now checked against the real validator (tests/test_firmware_wire_contract.py). This manifest still authorises nothing: the rulings and board contact remain the owner's, after the new post-build package is reviewed.",
+  "status": "BUILD COMPLETE (rebuilt after session 2's instrumentation defect) \u2014 host-only. The firmware MMIO allowlist is now checked against the RTL AXI-Lite decode by tests/test_axi_map_vs_rtl.py. This manifest authorises nothing: the rulings and board contact remain the owner's, after this package is reviewed.",
   "carrier": {
     "bitstream": "builds/p3/p3.bit",
     "bitstream_sha256": "956379fa",
@@ -71,10 +71,10 @@
     "boundary_record_max_age_h": 6
   },
   "pinned_at_build": {
-    "app_image_sha256": "8390c4636e7801c89a779f6d162fef682596aa823b389b08ce3ae6e037fb6880",
+    "app_image_sha256": "10044abeed396bc25597a6a5adc76dd8f6ccf9cad6ea516f0caf89c9a6fd6245",
     "app_image": "firmware/bsp/out/p3_app.bin (raw binary, 81940 bytes, loaded at 0x02000000, `go`)",
-    "app_image_final_because": "REBUILT 2026-09-01 for the instrumentation batch authorised after session 1's HOLD: the ARM path now preserves STATUS, FAULT, CTRL before/after, the write count and both nonces on every path, and a non-consumed ARM is recorded as STOP_ARM instead of vanishing. No behaviour that a session performs was changed, and nothing was changed to explain session 1's result. Two clean builds are byte-identical.",
-    "elf_sha256": "38479c62bf720fe53d425e9e4fd47138e39ae66530ae9ca298a96e01d6494b4f",
+    "app_image_final_because": "REBUILT 2026-09-01 after session 2: the CTRL read-back added for STOP_ARM was removed. CTRL (0x2000) is write-only in rtl/p3_axil.v, so reading it is SLVERR and on this board a data abort \u2014 it killed session 2 before any record was emitted. The RTL contract was NOT widened to suit the instrument; the record states the value as unavailable instead. tests/test_axi_map_vs_rtl.py now compares the whole app allowlist against the whole RTL decode and requires app-not-in-RTL to be empty in both directions. Two from-scratch builds are byte-identical.",
+    "elf_sha256": "f7d2945defa5787670c7262da168d4e4019074ab2ac8360b95e9a2b66c81e92f",
     "toolchain": {
       "name": "xpack-dev-tools/arm-none-eabi-gcc",
       "version": "14.2.1-1.1",
@@ -135,6 +135,10 @@
       {
         "sha256": "d3828a8c0ab8a0df0793f26ec9eb1210ce8c1a3a6de271f3932d5bc9947abdce",
         "why": "superseded by the session-1 instrumentation batch. NOT defective: this is the image that produced the session-1 evidence (evidence/l5_17A6_2026-09-01-01/, HOLD STOPPED at the ARM), and it stays identifiable for that reason \u2014 see docs/l5_session1_findings.md"
+      },
+      {
+        "sha256": "8390c4636e7801c89a779f6d162fef682596aa823b389b08ce3ae6e037fb6880",
+        "why": "DEFECTIVE \u2014 contains the CTRL read-back that is SLVERR on this carrier; it crashes at every ARM attempt before emitting any record. It produced the session-2 CRASH (evidence/l5_17A6_2026-09-01-02/). MUST NOT be run on the board."
       }
     ],
     "audit_policy": {

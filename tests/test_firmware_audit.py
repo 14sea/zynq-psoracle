@@ -337,9 +337,11 @@ class WireWiring(unittest.TestCase):
         be written through on all paths, and the record must go out BEFORE the epoch stops."""
         fn = APP[APP.index("static int arm_attempt"):]
         body = fn[:fn.index("\n}\n")]
-        for obs in ("*status = axi_read(P3_STATUS)", "*fault = axi_read(P3_FAULT)",
-                    "*ctrl_before = axi_read(P3_CTRL)", "*ctrl_after = axi_read(P3_CTRL)"):
+        for obs in ("*status = axi_read(P3_STATUS)", "*fault = axi_read(P3_FAULT)"):
             self.assertIn(obs, body, f"{obs} is no longer observed")
+        # CTRL is write-only (rtl/p3_axil.v). Reading it is what killed session 2, so its
+        # ABSENCE here is the property — see tests/test_axi_map_vs_rtl.py.
+        self.assertNotIn("axi_read(P3_CTRL)", body)
         self.assertNotIn("nonce did not step", body,
                          "arm_attempt must report the non-consumed ARM, not stop on it: "
                          "the caller records the evidence and then stops")
@@ -354,7 +356,8 @@ class WireWiring(unittest.TestCase):
     def test_the_arm_record_carries_the_ctrl_readback(self):
         run = APP[APP.index("static int run_candidate"):]
         block = run[:run.index('emit_record(&rec, "STOP_ARM")')]
-        for f in ("rec.ctrl_before", "rec.ctrl_after", "rec.writes_issued"):
+        for f in ("rec.status_after", "rec.fault_after", "rec.writes_issued",
+                  "rec.nonce_before", "rec.nonce_after"):
             self.assertIn(f, block, f"{f} is not carried into the record")
 
     def test_the_hardware_witness_is_read_not_echoed(self):

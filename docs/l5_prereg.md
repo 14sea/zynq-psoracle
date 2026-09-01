@@ -172,7 +172,7 @@ session pass: a change to any of them invalidates this preregistration and requi
 one.
 
 Also fixed: the application image itself. The build is done and its hash is pinned
-(`manifests/l5_manifest.json` `pinned_at_build.app_image_sha256` = `8390c463…`).
+(`manifests/l5_manifest.json` `pinned_at_build.app_image_sha256` = `10044abe…`).
 
 **Image change on record (2026-08-31).** The earlier image `7540239f…` is **withdrawn**. It
 was not superseded by a preference: its framed output could not satisfy this

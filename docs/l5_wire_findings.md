@@ -121,7 +121,7 @@ the *reason*, because a refusal for an earlier cause would prove nothing.
 
 ## 5. The image
 
-`app_image_sha256` = **`8390c463…`** (see §7 for the history). Two clean builds are byte-identical, and
+`app_image_sha256` = **`10044abe…`** (see §7 for the history). Two clean builds are byte-identical, and
 `firmware/bsp/build.sh` now emits the `.bin` itself — it previously produced only the ELF, so
 the pinned hash was not reproducible from the script alone.
 
@@ -145,4 +145,5 @@ about the PL, the transport, or timing.
 | `7540239f…` | **withdrawn** — could never have produced an adjudicable session (§1) |
 | `b279459c…` | **withdrawn** — no defect in what it emitted, but a link-2 refusal was unauditable |
 | `d3828a8c…` | withdrawn — **not defective**: this is the image that ran session 1 and produced its evidence (`docs/l5_session1_findings.md`); superseded by the instrumentation batch |
-| `8390c463…` | **pinned** — byte-identical across clean rebuilds |
+| `8390c463…` | withdrawn, **DEFECTIVE — must not be run**: its `CTRL` read-back is SLVERR on this carrier and crashes at every ARM before any record is emitted (session 2) |
+| `10044abe…` | **pinned** — the `CTRL` read removed, `ctrl_readback` recorded as unavailable; byte-identical across two from-scratch rebuilds |

@@ -164,8 +164,12 @@ static void p3_stop(p3_end_kind kind, const char *reason)
 static int axi_readable(uint32_t off)
 {
     if (off == P3_STATUS || off == P3_FAULT || off == P3_HEARTBEAT || off == P3_NONCE_LO ||
-        off == P3_NONCE_HI || off == P3_CTRL)
-        return 1;   /* CTRL read-back: instrumentation for the ARM path (session 1) */
+        off == P3_NONCE_HI)
+        return 1;
+    /* CTRL (0x2000) is deliberately ABSENT: rtl/p3_axil.v decodes it write-only, so a read
+     * is SLVERR and on this board a data abort. Session 2 died on exactly that after this
+     * allowlist was widened for instrumentation. The RTL contract is not expanded to suit
+     * an instrument; the instrument records the value as unavailable instead. */
     if ((off & 3u) != 0u)
         return 0;
     if (off >= P3_SCORE0 && off < P3_SCORE0 + 6u * 4u)
@@ -598,11 +602,12 @@ static int link3_witness(char *readback_hex)
  * -1 only when the attempt was not made at all. Every observation is written through the
  * out-parameters on ALL THREE paths: session 1 stopped on the nonce check and threw away
  * the STATUS and FAULT it had just read, which were the two most diagnostic values it had.
- * The caller decides what to record; this function loses nothing. */
+ * The caller decides what to record; this function loses nothing that is READABLE — CTRL is
+ * write-only in the RTL, so the strobe's fate in the register is not observable from here
+ * and the record says so rather than pretending otherwise. */
 static int arm_attempt(const char *commit_hex, const char tables_hex[6][17],
                        const char *tag_hex, uint64_t *nonce_before, uint64_t *nonce_after,
-                       uint32_t *status, uint32_t *fault, uint32_t *ctrl_before,
-                       uint32_t *ctrl_after, int *writes_issued)
+                       uint32_t *status, uint32_t *fault, int *writes_issued)
 {
     uint32_t words[24];
     uint8_t tag[16];
@@ -614,7 +619,6 @@ static int arm_attempt(const char *commit_hex, const char tables_hex[6][17],
         return -1;
     }
     *nonce_before = pl_nonce();
-    *ctrl_before = axi_read(P3_CTRL);
     *writes_issued = 0;
     hex_to_words_be(commit_hex, words, 8);
     for (i = 0; i < 6; i++) {
@@ -646,7 +650,6 @@ static int arm_attempt(const char *commit_hex, const char tables_hex[6][17],
 
     *status = axi_read(P3_STATUS);
     *fault = axi_read(P3_FAULT);
-    *ctrl_after = axi_read(P3_CTRL);
     *nonce_after = pl_nonce();
     /* The caller emits a STOP_ARM record carrying everything above; it is NOT this
      * function's business to decide that the observations are uninteresting. */
@@ -749,7 +752,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     const char *payload;
     size_t jn;
     uint64_t nonce_before, nonce_after;
-    uint32_t status, fault, hb_before, ctrl_before, ctrl_after;
+    uint32_t status, fault, hb_before;
     int i, n, armed, writes_issued;
 
     S.seq++;
@@ -865,7 +868,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     }
     hb_before = axi_read(P3_HEARTBEAT);
     armed = arm_attempt(commit, (const char(*)[17])tables, tag, &nonce_before, &nonce_after,
-                        &status, &fault, &ctrl_before, &ctrl_after, &writes_issued);
+                        &status, &fault, &writes_issued);
     if (armed < 0)
         return -1;                    /* the attempt was never made */
     rec.have_arm = 1;
@@ -873,8 +876,6 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     rec.nonce_after = nonce_after;
     rec.status_after = status;
     rec.fault_after = fault;
-    rec.ctrl_before = ctrl_before;
-    rec.ctrl_after = ctrl_after;
     rec.writes_issued = writes_issued;
     rec.key_loaded_observed = (int)((status >> P3_ST_KEY_LOADED) & 1u);
     if (armed == 1) {
@@ -929,7 +930,7 @@ static void closing_unsigned_control(void)
 {
     static const char zero_tag[] = "00000000000000000000000000000000";
     uint64_t nb, na;
-    uint32_t status, fault, ctrl_before, ctrl_after;
+    uint32_t status, fault;
     int writes_issued;
     if (!S.have_last_reply) {
         p3_stop(P3_STOPPED, "no signed candidate to build the closing control from");
@@ -941,8 +942,7 @@ static void closing_unsigned_control(void)
      * rather than as a record the validator would have to be loosened to accept. */
     {
         int armed = arm_attempt(S.last_commit, (const char(*)[17])S.last_tables, zero_tag,
-                                &nb, &na, &status, &fault, &ctrl_before, &ctrl_after,
-                                &writes_issued);
+                                &nb, &na, &status, &fault, &writes_issued);
         if (armed == 1) {
             p3_stop(P3_STOPPED,
                     "the closing unsigned ARM was not consumed: the nonce did not step");

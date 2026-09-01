@@ -243,7 +243,7 @@ class WireContract(unittest.TestCase):
             f"readback={reply['commit']} envelopes=3 audit_available=1 "
             f"nonce_before={SEED:016x} nonce_after={nonce_after_hex} "
             f"status_after=0x900 fault_after=0 key_loaded=1 "
-            f"ctrl_before=0x0 ctrl_after=0x0 writes_issued=25")
+            f"writes_issued=25")
         return n.decode_payload(n.parse_line(line)["payload"])
 
     def test_a_stop_arm_record_from_the_c_code_validates(self):
@@ -252,9 +252,12 @@ class WireContract(unittest.TestCase):
         arm = rec["evidence"]["arm"]
         self.assertEqual(arm["nonce_after"], arm["nonce_before"])
         # the observations session 1 threw away are all present
-        for k in ("status_after", "fault_after", "ctrl_before", "ctrl_after",
-                  "writes_issued", "key_loaded_observed"):
+        for k in ("status_after", "fault_after", "writes_issued", "key_loaded_observed"):
             self.assertIn(k, arm)
+        # the strobe's fate is NOT observable (CTRL is write-only) and the record says so
+        # rather than dropping the question
+        self.assertIn("unavailable", arm["ctrl_readback"])
+        self.assertNotIn("ctrl_before", arm)
         self.assertEqual(arm["writes_issued"], 25)          # 20 payload + 4 tag + strobe
 
     def test_a_stop_arm_whose_nonce_stepped_is_rejected(self):

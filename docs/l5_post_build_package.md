@@ -1,7 +1,10 @@
-# L5 post-build evidence package — baseline `8390c463…`
+# L5 post-build evidence package — baseline `10044abe…`
 
-**Standing: host-only. Nothing pushed, no `P3-L5`/`P3-K` ruling, no board contact. The
-firmware has never run on hardware — every result below is host-side.**
+**Standing: host-only. Nothing pushed; no unconsumed ruling; the board has not been touched
+since session 2.** The firmware HAS now run on hardware twice — session 1
+(`docs/l5_session1_findings.md`, HOLD STOPPED at the ARM) and session 2
+(`docs/l5_session2_findings.md`, HOLD CRASHED on an instrumentation defect since fixed).
+Neither adjudicated L5; every result below is host-side.
 
 This is the single entry point for the review that gates push, the rulings and the first
 N = 8 session. It supersedes `docs/l5_review_package.md`, which is kept as the record of the
@@ -11,7 +14,7 @@ earlier rounds.
 
 | | value |
 |---|---|
-| application image | **`8390c4636e7801c89a779f6d162fef682596aa823b389b08ce3ae6e037fb6880`** |
+| application image | **`10044abeed396bc25597a6a5adc76dd8f6ccf9cad6ea516f0caf89c9a6fd6245`** |
 | | `firmware/bsp/out/p3_app.bin` → `0x0200_0000`, entered with `go` |
 | ELF | `manifests/l5_manifest.json` `pinned_at_build.elf_sha256` |
 | toolchain | xPack `arm-none-eabi-gcc` 14.2.1-1.1, tarball sha256 `ed8c7d20…` (verified against the vendor's `.sha`) |
@@ -36,6 +39,7 @@ longer a matter of trust.
 | `7540239f…` | its framed output could never have produced an adjudicable session |
 | `b279459c…` | no defect in what it emitted, but a link-2 refusal was unauditable |
 | `d3828a8c…` | **not defective** — the image that ran session 1 and produced its evidence; superseded by the instrumentation batch. It stays identifiable because the session-1 record belongs to it |
+| `8390c463…` | **DEFECTIVE — must not be run.** Its CTRL read-back is SLVERR on this carrier, so it crashes at every ARM before emitting a record. It produced the session-2 CRASH |
 
 ## 2. Post-build evidence
 
@@ -91,6 +95,27 @@ Both directions were verified live rather than asserted: the guard was run again
 defect before it was fixed (it named `manifests/l5_bsp_inputs.json` *and* the generator), and
 the earlier drift check was verified by temporarily editing the preregistration to name a
 withdrawn hash. Both discriminations are now permanent tests.
+
+### What the session-2 fix changed (this round)
+
+Session 2 crashed because the STOP_ARM instrumentation read `CTRL` (`0x2000`), which
+`rtl/p3_axil.v` decodes **write-only** — SLVERR, and on this board a data abort. Per the
+owner's ruling the RTL contract was **not** widened to suit the instrument:
+
+- the `CTRL` read-back is removed from the firmware and `CTRL` is out of `axi_readable()`
+  again;
+- the ARM record now carries `"ctrl_readback": "unavailable: CTRL is write-only"` — the
+  question is stated as unanswerable rather than quietly dropped;
+- the genuinely readable observations are kept: `STATUS`, `FAULT`, `writes_issued`, and both
+  nonces;
+- **`tests/test_axi_map_vs_rtl.py`** parses the app's allowlist and the RTL's decode from
+  their own sources and requires `app − RTL` to be **empty on both read and write**. It is
+  discrimination-checked: reintroducing the session-2 read makes it fail, naming `0x2000`.
+  Its parsers are themselves guarded, so a broken regex cannot make the comparison pass
+  vacuously.
+
+This does **not** explain session 1 — that ran `d3828a8c…`, built before the `CTRL` read
+existed. Session 1's non-stepping nonce remains open and unexplained.
 
 ### What the session-1 instrumentation batch changed
 

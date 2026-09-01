@@ -482,3 +482,31 @@ latch? — is unobservable from the PS without an RTL change, and a new carrier 
 disturb the L1/L2/L3 evidence chain resting on `956379fa…`. Options are set out in
 `docs/l5_session2_findings.md` §4 (drop the fields / add a read-only mirror / observe over
 JTAG). Spending another ruling before that decision would repeat the mistake at a higher cost.
+
+## 2026-09-01 — session-2 defect fixed: the RTL contract is not widened for an instrument
+
+Owner's ruling on the session-2 blocker (`READ app-not-in-rtl: ['0x2000']`), applied as
+given, all five items:
+
+1. **The RTL contract is not expanded for instrumentation.** No RTL change; the carrier
+   bitstream `956379fa…` is untouched, so the L1/L2/L3 evidence chain stands.
+2. The `CTRL` read-back is removed from the firmware and `CTRL` is out of `axi_readable()`.
+   The ARM record carries `"ctrl_readback": "unavailable: CTRL is write-only"` — the question
+   is recorded as unanswerable rather than silently dropped, so a reader can tell the
+   difference between "not observable" and "nobody looked".
+3. The genuinely readable observations are kept: `STATUS`, `FAULT`, `writes_issued`, and both
+   nonces.
+4. **`tests/test_axi_map_vs_rtl.py`** is the permanent guard. Both maps are parsed from their
+   own sources — the app's `axi_readable`/`axi_writable` bodies and the RTL's `ra`/`wa`
+   decode — so neither side is a copy that can drift. `app − RTL` must be empty on **read and
+   write**; `RTL − app` is reported and asserted to be exactly the key window (D4). The
+   parsers are themselves guarded with minimum-cardinality and anchor checks, because two
+   empty sets would otherwise compare equal and pass vacuously. Discrimination verified live:
+   reintroducing the session-2 read fails two tests and names `0x2000`.
+5. Image rebuilt: **`10044abe…`**, byte-identical across two from-scratch builds. `8390c463…`
+   is withdrawn as **DEFECTIVE — must not be run**; it crashes at every ARM.
+
+**This does not explain session 1.** That ran `d3828a8c…`, built before the `CTRL` read
+existed. The non-stepping nonce remains open, and no attempt is made here to account for it.
+
+400 tests / 0 skipped. Not pushed; no new ruling; board untouched since session 2.

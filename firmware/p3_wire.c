@@ -180,11 +180,13 @@ static void w_oracle(p3_w *w, const p3_wire_record_in *in)
 
 static void w_arm(p3_w *w, const p3_wire_record_in *in)
 {
-    w_fmt(w, "\"arm\":{\"ctrl_after\":\"0x%08lx\",\"ctrl_before\":\"0x%08lx\","
+    /* ctrl_readback is a constant, not a measurement: CTRL is write-only in the RTL. Saying
+     * so in the record is the honest form — the question was asked and cannot be answered
+     * from the PS, which is different from nobody having looked. */
+    w_fmt(w, "\"arm\":{\"ctrl_readback\":\"unavailable: CTRL is write-only\","
              "\"fault_after\":%lu,\"key_loaded_observed\":%s,\"nonce_after\":"
              "\"%016llx\",\"nonce_before\":\"%016llx\",\"status_after\":\"0x%08lx\","
              "\"writes_issued\":%d}",
-          (unsigned long)in->ctrl_after, (unsigned long)in->ctrl_before,
           (unsigned long)in->fault_after, in->key_loaded_observed ? "true" : "false",
           (unsigned long long)in->nonce_after, (unsigned long long)in->nonce_before,
           (unsigned long)in->status_after, in->writes_issued);

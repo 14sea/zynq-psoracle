@@ -221,8 +221,6 @@ static void cmd_rec(void)
         in.status_after = (uint32_t)kv_u("status_after", 0);
         in.fault_after = (uint32_t)kv_u("fault_after", 0);
         in.key_loaded_observed = (int)kv_u("key_loaded", 1);
-        in.ctrl_before = (uint32_t)kv_u("ctrl_before", 0);
-        in.ctrl_after = (uint32_t)kv_u("ctrl_after", 0);
         in.writes_issued = (int)kv_u("writes_issued", 25);
     }
     if (kv_has("hw_commit")) {

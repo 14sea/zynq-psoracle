@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "purpose": "Post-build provenance for the pinned P3 L5 application image, regenerated after a clean rebuild (reviewer 2026-08-31).",
   "git": {
-    "head": "6a300f8186c67ff84ab83c25f16eab60a68c92f0",
+    "head": "f55e673e2dd0b0c1ef7f6d6faa027da62da119c3",
     "worktree_dirty": true
   },
   "toolchain": {
@@ -22,17 +22,17 @@
   "image": {
     "bin": "firmware/bsp/out/p3_app.bin",
     "bin_bytes": 81940,
-    "bin_sha256": "8390c4636e7801c89a779f6d162fef682596aa823b389b08ce3ae6e037fb6880",
-    "elf_sha256": "38479c62bf720fe53d425e9e4fd47138e39ae66530ae9ca298a96e01d6494b4f",
+    "bin_sha256": "10044abeed396bc25597a6a5adc76dd8f6ccf9cad6ea516f0caf89c9a6fd6245",
+    "elf_sha256": "f7d2945defa5787670c7262da168d4e4019074ab2ac8360b95e9a2b66c81e92f",
     "reproduced_byte_identical": true,
-    "expected_bin_sha256": "8390c4636e7801c89a779f6d162fef682596aa823b389b08ce3ae6e037fb6880"
+    "expected_bin_sha256": "10044abeed396bc25597a6a5adc76dd8f6ccf9cad6ea516f0caf89c9a6fd6245"
   },
   "linker_map": {
     "path": "evidence/l5_build/p3_app.map",
-    "sha256": "7703f3af2124c8b4c74a5bc9b8205fab03fe385eae65a1cf6fe662430042aad5"
+    "sha256": "f3cec19a93e2837f056f499c8d75256e0402e0f2c8b5fb8f3e653745550cd570"
   },
   "tests": {
-    "report": "evidence/tests/test_report_2026-09-01T074518Z.json",
+    "report": "evidence/tests/test_report_2026-09-01T082319Z.json",
     "note": "the fail-closed test evidence (count / skipped / boundary / head_at_run) is this report; run host/run_tests.sh in a staged state so it covers the new files."
   }
 }
