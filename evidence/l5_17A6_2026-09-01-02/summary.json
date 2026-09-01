@@ -1,0 +1,514 @@
+{
+  "tool": "l5_runner.py/0.1.0",
+  "ruling": {
+    "ruling": "whole-of-probe P3-L5",
+    "boardid": "17A6",
+    "granted_by": "14sea",
+    "date": "2026-09-01-02",
+    "sha256": "be7f3033055095eef20c7fae0e29173fa47782da7051158faa091f0db9bf4a88"
+  },
+  "outcome": "HOLD CRASHED: silence > 30s",
+  "token": "90f3e8b6578c1f2f31a50b7e18586962",
+  "stages": {
+    "L5_0_preflight": "READ",
+    "L5_1_identity_page": "WRITTEN"
+  },
+  "precheck": {
+    "checks": [
+      {
+        "check": "devcfg CTRL",
+        "address": "0xf8007000",
+        "expected": "0x4e00e07f",
+        "observed": "0x4e00e07f",
+        "passed": true
+      },
+      {
+        "check": "devcfg INT_STS",
+        "address": "0xf800700c",
+        "expected": "0xa802000b",
+        "observed": "0xa802000b",
+        "passed": true
+      },
+      {
+        "check": "devcfg STATUS",
+        "address": "0xf8007014",
+        "expected": "0x40000a30",
+        "observed": "0x40000a30",
+        "passed": true
+      },
+      {
+        "check": "SLCR FPGA0_CLK_CTRL",
+        "address": "0xf8000170",
+        "expected": "0x00400800",
+        "observed": "0x00400800",
+        "passed": true
+      },
+      {
+        "check": "plmark undefined",
+        "passed": true
+      }
+    ],
+    "problems": [],
+    "passed": true
+  },
+  "identity": {
+    "tool": "board_session.py/0.1.0",
+    "transport": {
+      "requested_port": "/dev/ebaz-uart",
+      "resolved_port": "/dev/ttyUSB4",
+      "device_id": "188:4"
+    },
+    "parsed": {
+      "boardid": "17A6",
+      "role": "verify",
+      "pss_idcode": "0x13722093"
+    },
+    "requirements": {
+      "boardid": "17A6",
+      "role": "verify",
+      "idcode_masked": "0x03722093"
+    },
+    "control_plane": "uboot",
+    "epoch": 0,
+    "elapsed_s": 0.603,
+    "findings": []
+  },
+  "cpu_clk_ctrl": "0x1f000200",
+  "fclk0": {
+    "mhz": 50.0,
+    "pll_mhz": 1600.0,
+    "div0": 8,
+    "div1": 4,
+    "raw": {
+      "IO_PLL_CTRL": "0x00030008",
+      "ARM_PLL_CTRL": "0x00028008",
+      "DDR_PLL_CTRL": "0x00020008",
+      "FPGA0_CLK_CTRL": "0x00400800"
+    },
+    "ok": true
+  },
+  "setup_load": {
+    "bitstream": "builds/p3/p3.bit",
+    "sha256": "956379fa8d23f8a6f1e0c80fe18b8c4aee68e76cc650499911a4bdb7807e610a",
+    "bytes": 2083858,
+    "load_addr": "0x04000000",
+    "int_sts_before": "0xa802000b",
+    "int_sts_cleared": "0xa802000b",
+    "int_sts_after": "0x50021004",
+    "plmark": "18d1237cca2a2dc4",
+    "epoch": 0,
+    "boardid": "17A6"
+  },
+  "provisioning": {
+    "prepared": true,
+    "executed": true,
+    "rc": 0,
+    "cfg": "/home/test/zynq_psoracle/scripts/jtag_provision.cfg",
+    "stderr_tail": "Open On-Chip Debugger 0.12.0\nLicensed under GNU GPL v2\nFor bug reports, read\n\thttp://openocd.org/doc/doxygen/bugs.html\nInfo : auto-selecting first available session transport \"jtag\". To override use 'transport select <transport>'.\nadapter speed: 1000 kHz\n\nInfo : clock speed 1000 kHz\nInfo : JTAG tap: zynq_pl.bs tap/device found: 0x13722093 (mfg: 0x049 (Xilinx), part: 0x3722, ver: 0x1)\nInfo : JTAG tap: zynq.cpu tap/device found: 0x4ba00477 (mfg: 0x23b (ARM Ltd), part: 0xba00, ver: 0x4)\nInfo : gdb port disabled\nshutdown command invoked\n"
+  },
+  "image_loaded": {
+    "addr": "0x02000000",
+    "sha256": "8390c4636e7801c89a779f6d162fef682596aa823b389b08ce3ae6e037fb6880",
+    "bytes": 81940
+  },
+  "epoch_end": {
+    "kind": "CRASHED",
+    "reason": "silence > 30s",
+    "last_seq": 0
+  },
+  "audits": 8,
+  "run_log_validation": {
+    "scored": 0,
+    "audited": 0,
+    "chain_length": 0
+  },
+  "audit_policy": {
+    "policy": "all-self-reporting",
+    "audited": [],
+    "exempt_no_self_report": []
+  },
+  "uart_log": [
+    {
+      "command": "echo",
+      "byte_count": 14,
+      "sha256": "a21da71745c48d6734aa6d75efdbcdb5099b4a99daa14f91dcec8db92e943144",
+      "base64": "ZWNobw0KDQpaeW5xPiA=",
+      "text": "echo\r\n\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf8007000 0x1",
+      "byte_count": 80,
+      "sha256": "c60cbd53216f95fbe5a36da477796bd7b4a54d369214f88a1ea10aa14a7289f4",
+      "base64": "bWQubCAweGY4MDA3MDAwIDB4MQ0KZjgwMDcwMDA6IDRlMDBlMDdmICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuLi5ODQpaeW5xPiA=",
+      "text": "md.l 0xf8007000 0x1\r\nf8007000: 4e00e07f                             ...N\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf800700c 0x1",
+      "byte_count": 80,
+      "sha256": "a99aa77a2f00c0c7ebf71637ff2dd8026f1e2e242942c579c3c2a0384960fbfb",
+      "base64": "bWQubCAweGY4MDA3MDBjIDB4MQ0KZjgwMDcwMGM6IGE4MDIwMDBiICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuLi4uDQpaeW5xPiA=",
+      "text": "md.l 0xf800700c 0x1\r\nf800700c: a802000b                             ....\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf8007014 0x1",
+      "byte_count": 80,
+      "sha256": "e58918f611f0c083b87f0408d4d82b980dbba2c5c8685400e337412cca43e22c",
+      "base64": "bWQubCAweGY4MDA3MDE0IDB4MQ0KZjgwMDcwMTQ6IDQwMDAwYTMwICAgICAgICAgICAgICAgICAgICAgICAgICAgICAwLi5ADQpaeW5xPiA=",
+      "text": "md.l 0xf8007014 0x1\r\nf8007014: 40000a30                             0..@\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf8000170 0x1",
+      "byte_count": 80,
+      "sha256": "50c91ddad8ccb23c838198f0459d49791c2d0d92e5b2722d134f0c8e66b6942a",
+      "base64": "bWQubCAweGY4MDAwMTcwIDB4MQ0KZjgwMDAxNzA6IDAwNDAwODAwICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuLkAuDQpaeW5xPiA=",
+      "text": "md.l 0xf8000170 0x1\r\nf8000170: 00400800                             ..@.\r\nZynq> "
+    },
+    {
+      "command": "printenv plmark",
+      "byte_count": 55,
+      "sha256": "914cb504fef81fc5e9050859fa9b7d3c34d8e537f6a396e0394fbd6ee14ab7d7",
+      "base64": "cHJpbnRlbnYgcGxtYXJrDQojIyBFcnJvcjogInBsbWFyayIgbm90IGRlZmluZWQNClp5bnE+IA==",
+      "text": "printenv plmark\r\n## Error: \"plmark\" not defined\r\nZynq> "
+    },
+    {
+      "command": "printenv boardid",
+      "byte_count": 38,
+      "sha256": "d092c9f580e700283981d194cced455d3eeb01d8341da04cbd85c16bf86d4171",
+      "base64": "cHJpbnRlbnYgYm9hcmRpZA0KYm9hcmRpZD0xN0E2DQpaeW5xPiA=",
+      "text": "printenv boardid\r\nboardid=17A6\r\nZynq> "
+    },
+    {
+      "command": "printenv role",
+      "byte_count": 34,
+      "sha256": "818469d1659fdf64d6ff99de5b6581deed2eaca6bab28cfcff9e7b53c8fe3591",
+      "base64": "cHJpbnRlbnYgcm9sZQ0Kcm9sZT12ZXJpZnkNClp5bnE+IA==",
+      "text": "printenv role\r\nrole=verify\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf8000530 0x1",
+      "byte_count": 80,
+      "sha256": "885d4bd7a1136d2a95f4b8ffc46d95d23050c767343fdb71afc7ecdf658dfcf5",
+      "base64": "bWQubCAweGY4MDAwNTMwIDB4MQ0KZjgwMDA1MzA6IDEzNzIyMDkzICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuIHIuDQpaeW5xPiA=",
+      "text": "md.l 0xf8000530 0x1\r\nf8000530: 13722093                             . r.\r\nZynq> "
+    },
+    {
+      "command": "dcache off",
+      "byte_count": 18,
+      "sha256": "127f71d3e702674d1f8921bacb3e827d692d4c0425ad92bb76a904176d8c1459",
+      "base64": "ZGNhY2hlIG9mZg0KWnlucT4g",
+      "text": "dcache off\r\nZynq> "
+    },
+    {
+      "command": "dcache",
+      "byte_count": 48,
+      "sha256": "50e3fbd2f0883e29f874cdbafdf804b278e49db0730074b3b87912912da37cea",
+      "base64": "ZGNhY2hlDQpEYXRhICh3cml0ZXRocm91Z2gpIENhY2hlIGlzIE9GRg0KWnlucT4g",
+      "text": "dcache\r\nData (writethrough) Cache is OFF\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf8000120 0x1",
+      "byte_count": 80,
+      "sha256": "992519314513e4f5dd98bf89b44a21f860b68473b37f9eac3cd574d1c6daecf9",
+      "base64": "bWQubCAweGY4MDAwMTIwIDB4MQ0KZjgwMDAxMjA6IDFmMDAwMjAwICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuLi4uDQpaeW5xPiA=",
+      "text": "md.l 0xf8000120 0x1\r\nf8000120: 1f000200                             ....\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf8000108 0x1",
+      "byte_count": 80,
+      "sha256": "3d225ae5b97a6350834c8614f09ec7e739e17912babc3916fa535486afb0c86a",
+      "base64": "bWQubCAweGY4MDAwMTA4IDB4MQ0KZjgwMDAxMDg6IDAwMDMwMDA4ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuLi4uDQpaeW5xPiA=",
+      "text": "md.l 0xf8000108 0x1\r\nf8000108: 00030008                             ....\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf8000100 0x1",
+      "byte_count": 80,
+      "sha256": "fd021215a1b00c28d1345e9a8c7eaee09072eeefc3ddb48b5d781ce5d2655f1f",
+      "base64": "bWQubCAweGY4MDAwMTAwIDB4MQ0KZjgwMDAxMDA6IDAwMDI4MDA4ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuLi4uDQpaeW5xPiA=",
+      "text": "md.l 0xf8000100 0x1\r\nf8000100: 00028008                             ....\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf8000104 0x1",
+      "byte_count": 80,
+      "sha256": "fa1c6a5ef27b133f147d29a8c07c8e1d136a8bfc194ac08dcf89670d9cef6d49",
+      "base64": "bWQubCAweGY4MDAwMTA0IDB4MQ0KZjgwMDAxMDQ6IDAwMDIwMDA4ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuLi4uDQpaeW5xPiA=",
+      "text": "md.l 0xf8000104 0x1\r\nf8000104: 00020008                             ....\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf8000170 0x1",
+      "byte_count": 80,
+      "sha256": "50c91ddad8ccb23c838198f0459d49791c2d0d92e5b2722d134f0c8e66b6942a",
+      "base64": "bWQubCAweGY4MDAwMTcwIDB4MQ0KZjgwMDAxNzA6IDAwNDAwODAwICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuLkAuDQpaeW5xPiA=",
+      "text": "md.l 0xf8000170 0x1\r\nf8000170: 00400800                             ..@.\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf800700c 0x1",
+      "byte_count": 80,
+      "sha256": "a99aa77a2f00c0c7ebf71637ff2dd8026f1e2e242942c579c3c2a0384960fbfb",
+      "base64": "bWQubCAweGY4MDA3MDBjIDB4MQ0KZjgwMDcwMGM6IGE4MDIwMDBiICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuLi4uDQpaeW5xPiA=",
+      "text": "md.l 0xf800700c 0x1\r\nf800700c: a802000b                             ....\r\nZynq> "
+    },
+    {
+      "command": "loady 0x04000000",
+      "byte_count": 89,
+      "sha256": "36efb5265900aa692df7293f880338c7c4794993d5ee25e6aed8efdc8b2ef143",
+      "base64": "bG9hZHkgMHgwNDAwMDAwMA0KIyMgUmVhZHkgZm9yIGJpbmFyeSAoeW1vZGVtKSBkb3dubG9hZCB0byAweDA0MDAwMDAwIGF0IDExNTIwMCBicHMuLi4NCkM=",
+      "text": "loady 0x04000000\r\n## Ready for binary (ymodem) download to 0x04000000 at 115200 bps...\r\nC"
+    },
+    {
+      "command": "sb -k",
+      "byte_count": 88,
+      "sha256": "ba2014bfdf985d2f8cd8268bc980ac9e3ebcd0fe7e16341f33570850355a1209",
+      "base64": "IyMgVG90YWwgU2l6ZSAgICAgID0gMHgwMDFmY2MxMiA9IDIwODM4NTggQnl0ZXMNCiMjIFN0YXJ0IEFkZHIgICAgICA9IDB4MDQwMDAwMDANClp5bnE+IA==",
+      "text": "## Total Size      = 0x001fcc12 = 2083858 Bytes\r\n## Start Addr      = 0x04000000\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0xf800700c 0x00000004 1",
+      "byte_count": 36,
+      "sha256": "5a275597bc0971f19d754e2e5bb1c29b4c011c38840618a3a5044e4dec40f624",
+      "base64": "bXcubCAweGY4MDA3MDBjIDB4MDAwMDAwMDQgMQ0KWnlucT4g",
+      "text": "mw.l 0xf800700c 0x00000004 1\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf800700c 0x1",
+      "byte_count": 80,
+      "sha256": "a99aa77a2f00c0c7ebf71637ff2dd8026f1e2e242942c579c3c2a0384960fbfb",
+      "base64": "bWQubCAweGY4MDA3MDBjIDB4MQ0KZjgwMDcwMGM6IGE4MDIwMDBiICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuLi4uDQpaeW5xPiA=",
+      "text": "md.l 0xf800700c 0x1\r\nf800700c: a802000b                             ....\r\nZynq> "
+    },
+    {
+      "command": "fpga loadb 0 0x04000000 0x001fcc12",
+      "byte_count": 356,
+      "sha256": "d932b2a7665bf3234ee19341f5d86dced22a511bbfbea3f44fd7802b07232d4d",
+      "base64": "ZnBnYSBsb2FkYiAwIDB4MDQwMDAwMDAgMHgwMDFmY2MxMg0KICBkZXNpZ24gZmlsZW5hbWUgPSAicDNfdG9wO1VzZXJJRD0wWEZGRkZGRkZGO1ZlcnNpb249MjAyNS4yO1NXX0NSQz01Y2FmZjY3MCINCiAgcGFydCBudW1iZXIgPSAiN3owMTBjbGc0MDAiDQogIGRhdGUgPSAiMjAyNi8wOC8yOSINCiAgdGltZSA9ICIyMDo1OTozNCINCiAgYnl0ZXMgaW4gYml0c3RyZWFtID0gMjA4Mzc0MA0KenlucV9hbGlnbl9kbWFfYnVmZmVyOiBBbGlnbiBidWZmZXIgYXQgNDAwMDA3NiB0byA0MDAwMDQwKHN3YXAgMSkNCklORk86cG9zdCBjb25maWcgd2FzIG5vdCBydW4sIHBsZWFzZSBydW4gbWFudWFsbHkgaWYgbmVlZGVkDQpaeW5xPiA=",
+      "text": "fpga loadb 0 0x04000000 0x001fcc12\r\n  design filename = \"p3_top;UserID=0XFFFFFFFF;Version=2025.2;SW_CRC=5caff670\"\r\n  part number = \"7z010clg400\"\r\n  date = \"2026/08/29\"\r\n  time = \"20:59:34\"\r\n  bytes in bitstream = 2083740\r\nzynq_align_dma_buffer: Align buffer at 4000076 to 4000040(swap 1)\r\nINFO:post config was not run, please run manually if needed\r\nZynq> "
+    },
+    {
+      "command": "md.l 0xf800700c 0x1",
+      "byte_count": 80,
+      "sha256": "b3a2c6611dc240fb32128b791da12d9e5b1e53ff4d10cb4cf8c2eac8807c2acb",
+      "base64": "bWQubCAweGY4MDA3MDBjIDB4MQ0KZjgwMDcwMGM6IDUwMDIxMDA0ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuLi5QDQpaeW5xPiA=",
+      "text": "md.l 0xf800700c 0x1\r\nf800700c: 50021004                             ...P\r\nZynq> "
+    },
+    {
+      "command": "setenv plmark 18d1237cca2a2dc4",
+      "byte_count": 38,
+      "sha256": "e90a9348964504431a6feb5e95c540f77a19ae5e79e0ba29b76f50fbb7c0bb3e",
+      "base64": "c2V0ZW52IHBsbWFyayAxOGQxMjM3Y2NhMmEyZGM0DQpaeW5xPiA=",
+      "text": "setenv plmark 18d1237cca2a2dc4\r\nZynq> "
+    },
+    {
+      "command": "md.l 0x43c02004 0x1",
+      "byte_count": 80,
+      "sha256": "f8b8be6a4bcf1cc4a710298c1dce175d9eb465e34b90442d9d4801a8cb206b74",
+      "base64": "bWQubCAweDQzYzAyMDA0IDB4MQ0KNDNjMDIwMDQ6IDAwMDAwOTAwICAgICAgICAgICAgICAgICAgICAgICAgICAgICAuLi4uDQpaeW5xPiA=",
+      "text": "md.l 0x43c02004 0x1\r\n43c02004: 00000900                             ....\r\nZynq> "
+    },
+    {
+      "command": "md.l 0x43c0202c 0x1",
+      "byte_count": 80,
+      "sha256": "26e363bb8b280d76f5197e314886d0dbd2d0c7d11143a354c6a64063e58eefe9",
+      "base64": "bWQubCAweDQzYzAyMDJjIDB4MQ0KNDNjMDIwMmM6IDdmNGE3YzE1ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAufEouDQpaeW5xPiA=",
+      "text": "md.l 0x43c0202c 0x1\r\n43c0202c: 7f4a7c15                             .|J.\r\nZynq> "
+    },
+    {
+      "command": "md.l 0x43c02030 0x1",
+      "byte_count": 80,
+      "sha256": "a92e1196713cdbae28326804f3c478d1888060d948f051dd698b31239aaf35f4",
+      "base64": "bWQubCAweDQzYzAyMDMwIDB4MQ0KNDNjMDIwMzA6IDllMzc3OWI5ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAueTcuDQpaeW5xPiA=",
+      "text": "md.l 0x43c02030 0x1\r\n43c02030: 9e3779b9                             .y7.\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440000 0x50334944 1",
+      "byte_count": 36,
+      "sha256": "a49c29359d7f6a194a4c1feb2b684a902e78940faa896116824c2db30ed5eaaf",
+      "base64": "bXcubCAweDEwNDQwMDAwIDB4NTAzMzQ5NDQgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440000 0x50334944 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440004 0x00000002 1",
+      "byte_count": 36,
+      "sha256": "3779d57a0313760d3e77e777611777370714c37f55b1143f99ceb2f4da778df0",
+      "base64": "bXcubCAweDEwNDQwMDA0IDB4MDAwMDAwMDIgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440004 0x00000002 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440008 0x90f3e8b6 1",
+      "byte_count": 36,
+      "sha256": "f4748035b6bce9d8054731c37f0ce9a5e6e8cb8e14c3547f23245d6b1b9209ea",
+      "base64": "bXcubCAweDEwNDQwMDA4IDB4OTBmM2U4YjYgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440008 0x90f3e8b6 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x1044000c 0x578c1f2f 1",
+      "byte_count": 36,
+      "sha256": "ef76c6b898bb36330a1478e678dad20fb72d42b5611123bafe312469d828edd0",
+      "base64": "bXcubCAweDEwNDQwMDBjIDB4NTc4YzFmMmYgMQ0KWnlucT4g",
+      "text": "mw.l 0x1044000c 0x578c1f2f 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440010 0x31a50b7e 1",
+      "byte_count": 36,
+      "sha256": "cd901e2c0d0f56ba7284ea1322b9eca0eb3c35478224ece94da5b38a1852d90e",
+      "base64": "bXcubCAweDEwNDQwMDEwIDB4MzFhNTBiN2UgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440010 0x31a50b7e 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440014 0x18586962 1",
+      "byte_count": 36,
+      "sha256": "035e04db74df7787bf3074132d77527cd2bac6f7c80b79edca6dc96f190ae4bf",
+      "base64": "bXcubCAweDEwNDQwMDE0IDB4MTg1ODY5NjIgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440014 0x18586962 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440018 0x00000000 1",
+      "byte_count": 36,
+      "sha256": "3374b12783fa77a3818e135b9ee5e628155056221bf6073ebcf63057a9e1cbcd",
+      "base64": "bXcubCAweDEwNDQwMDE4IDB4MDAwMDAwMDAgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440018 0x00000000 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x1044001c 0x37fb6880 1",
+      "byte_count": 36,
+      "sha256": "107d70eaeee52c6632c53948b33ba955fcfc0607006bd4626d9bac8121f0148b",
+      "base64": "bXcubCAweDEwNDQwMDFjIDB4MzdmYjY4ODAgMQ0KWnlucT4g",
+      "text": "mw.l 0x1044001c 0x37fb6880 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440020 0x956379fa 1",
+      "byte_count": 36,
+      "sha256": "fdde26c095ae833e19a46fbae658453c73f2ae5fbadb0166ce6b3c6c77146375",
+      "base64": "bXcubCAweDEwNDQwMDIwIDB4OTU2Mzc5ZmEgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440020 0x956379fa 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440024 0x8d23f8a6 1",
+      "byte_count": 36,
+      "sha256": "a3d909e08132bc265775e05525030c22c5cf73bc603c8e5e011df8919d840458",
+      "base64": "bXcubCAweDEwNDQwMDI0IDB4OGQyM2Y4YTYgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440024 0x8d23f8a6 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440028 0xf1e0c80f 1",
+      "byte_count": 36,
+      "sha256": "2e5c2a8c426296bf94153eed24819bbed363ff36c401481558890396681abab2",
+      "base64": "bXcubCAweDEwNDQwMDI4IDB4ZjFlMGM4MGYgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440028 0xf1e0c80f 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x1044002c 0xe18b8c4a 1",
+      "byte_count": 36,
+      "sha256": "ec75b0690db277fa1114866eb494f29994aab2a1d9bacb070f6bb248b730b929",
+      "base64": "bXcubCAweDEwNDQwMDJjIDB4ZTE4YjhjNGEgMQ0KWnlucT4g",
+      "text": "mw.l 0x1044002c 0xe18b8c4a 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440030 0xee68e76c 1",
+      "byte_count": 36,
+      "sha256": "41abaf16adb379f3eefe17e1e621e3c56fed3894ba962f6a0a5b3e54e0966e5b",
+      "base64": "bXcubCAweDEwNDQwMDMwIDB4ZWU2OGU3NmMgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440030 0xee68e76c 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440034 0xc6504999 1",
+      "byte_count": 36,
+      "sha256": "1cfd38809b66d0ffbb65a2e815608770e5f194f9ca4c685ee2b877215855a9ca",
+      "base64": "bXcubCAweDEwNDQwMDM0IDB4YzY1MDQ5OTkgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440034 0xc6504999 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440038 0x11a4bdb7 1",
+      "byte_count": 36,
+      "sha256": "3a776572166dcea5c2fd979f0d9cbf68f3aebfa6d942e21dddbcec3b788582ef",
+      "base64": "bXcubCAweDEwNDQwMDM4IDB4MTFhNGJkYjcgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440038 0x11a4bdb7 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x1044003c 0x807e610a 1",
+      "byte_count": 36,
+      "sha256": "2e5ad803ab1ccfe1d1da55f794d06c7b856426a5a4dfeada7b9d6f87078a98bf",
+      "base64": "bXcubCAweDEwNDQwMDNjIDB4ODA3ZTYxMGEgMQ0KWnlucT4g",
+      "text": "mw.l 0x1044003c 0x807e610a 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440040 0x7f4a7c15 1",
+      "byte_count": 36,
+      "sha256": "3a1cbc7d7272187a0ca8e84b123d1c62b75e9966b6a14147450a345b36afdefa",
+      "base64": "bXcubCAweDEwNDQwMDQwIDB4N2Y0YTdjMTUgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440040 0x7f4a7c15 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440044 0x9e3779b9 1",
+      "byte_count": 36,
+      "sha256": "17eda84993e1cfe86832ad4b06f8a75d12372d4980b2198b03d427aa60d3faa3",
+      "base64": "bXcubCAweDEwNDQwMDQ0IDB4OWUzNzc5YjkgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440044 0x9e3779b9 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440048 0x00000900 1",
+      "byte_count": 36,
+      "sha256": "292f91daa92c11780b97d0ddcb37eb1fda95713680cb19a51734ff8375382789",
+      "base64": "bXcubCAweDEwNDQwMDQ4IDB4MDAwMDA5MDAgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440048 0x00000900 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x1044004c 0x00000001 1",
+      "byte_count": 36,
+      "sha256": "7da74045206e99a359482989e15e39bc1b0f273a93c2dfd6b4e4c76be8368428",
+      "base64": "bXcubCAweDEwNDQwMDRjIDB4MDAwMDAwMDEgMQ0KWnlucT4g",
+      "text": "mw.l 0x1044004c 0x00000001 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440050 0x00000008 1",
+      "byte_count": 36,
+      "sha256": "a6c0509906cabe884edba994f4612ff8d4389c903aa586ab996cb5fc725222ae",
+      "base64": "bXcubCAweDEwNDQwMDUwIDB4MDAwMDAwMDggMQ0KWnlucT4g",
+      "text": "mw.l 0x10440050 0x00000008 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440054 0x00000000 1",
+      "byte_count": 36,
+      "sha256": "dda99c84ca99ac2c205917f5687c9a952fc3666cc29052cb22998449a20b0b4b",
+      "base64": "bXcubCAweDEwNDQwMDU0IDB4MDAwMDAwMDAgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440054 0x00000000 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x10440058 0x02faf080 1",
+      "byte_count": 36,
+      "sha256": "410cc0f6685a506e264af6f6faaa3a933f096d121b7a1d6020775482b2b0a18d",
+      "base64": "bXcubCAweDEwNDQwMDU4IDB4MDJmYWYwODAgMQ0KWnlucT4g",
+      "text": "mw.l 0x10440058 0x02faf080 1\r\nZynq> "
+    },
+    {
+      "command": "mw.l 0x1044005c 0xdb04ff37 1",
+      "byte_count": 36,
+      "sha256": "aa8344eda467d415a1f98b9fe50ed2d7a84c7aa371faa564ec5f3176c70af7ac",
+      "base64": "bXcubCAweDEwNDQwMDVjIDB4ZGIwNGZmMzcgMQ0KWnlucT4g",
+      "text": "mw.l 0x1044005c 0xdb04ff37 1\r\nZynq> "
+    },
+    {
+      "command": "md.l 0x10440000 0x18",
+      "byte_count": 418,
+      "sha256": "e1884e39b33c4ecfb16f76dc0a1b253169364d295ef49bc9466b57cf3deda87a",
+      "base64": "bWQubCAweDEwNDQwMDAwIDB4MTgNCjEwNDQwMDAwOiA1MDMzNDk0NCAwMDAwMDAwMiA5MGYzZThiNiA1NzhjMWYyZiAgREkzUC4uLi4uLi4uLy4uVw0KMTA0NDAwMTA6IDMxYTUwYjdlIDE4NTg2OTYyIDAwMDAwMDAwIDM3ZmI2ODgwICB+Li4xYmlYLi4uLi4uaC43DQoxMDQ0MDAyMDogOTU2Mzc5ZmEgOGQyM2Y4YTYgZjFlMGM4MGYgZTE4YjhjNGEgIC55Yy4uLiMuLi4uLkouLi4NCjEwNDQwMDMwOiBlZTY4ZTc2YyBjNjUwNDk5OSAxMWE0YmRiNyA4MDdlNjEwYSAgbC5oLi5JUC4uLi4uLmF+Lg0KMTA0NDAwNDA6IDdmNGE3YzE1IDllMzc3OWI5IDAwMDAwOTAwIDAwMDAwMDAxICAufEouLnk3Li4uLi4uLi4uDQoxMDQ0MDA1MDogMDAwMDAwMDggMDAwMDAwMDAgMDJmYWYwODAgZGIwNGZmMzcgIC4uLi4uLi4uLi4uLjcuLi4NClp5bnE+IA==",
+      "text": "md.l 0x10440000 0x18\r\n10440000: 50334944 00000002 90f3e8b6 578c1f2f  DI3P......../..W\r\n10440010: 31a50b7e 18586962 00000000 37fb6880  ~..1biX......h.7\r\n10440020: 956379fa 8d23f8a6 f1e0c80f e18b8c4a  .yc...#.....J...\r\n10440030: ee68e76c c6504999 11a4bdb7 807e610a  l.h..IP......a~.\r\n10440040: 7f4a7c15 9e3779b9 00000900 00000001  .|J..y7.........\r\n10440050: 00000008 00000000 02faf080 db04ff37  ............7...\r\nZynq> "
+    },
+    {
+      "command": "loady 0x02000000",
+      "byte_count": 89,
+      "sha256": "3137d92c5780b3f4df7d477b5ab347e693cceb2ad48ad0d3e2f1b62fd870ec4e",
+      "base64": "bG9hZHkgMHgwMjAwMDAwMA0KIyMgUmVhZHkgZm9yIGJpbmFyeSAoeW1vZGVtKSBkb3dubG9hZCB0byAweDAyMDAwMDAwIGF0IDExNTIwMCBicHMuLi4NCkM=",
+      "text": "loady 0x02000000\r\n## Ready for binary (ymodem) download to 0x02000000 at 115200 bps...\r\nC"
+    },
+    {
+      "command": "sb -k",
+      "byte_count": 86,
+      "sha256": "33e0f518ea0c6c4685889345c35295182c55bf8f09dfa522797b47a75e77fa1e",
+      "base64": "IyMgVG90YWwgU2l6ZSAgICAgID0gMHgwMDAxNDAxNCA9IDgxOTQwIEJ5dGVzDQojIyBTdGFydCBBZGRyICAgICAgPSAweDAyMDAwMDAwDQpaeW5xPiA=",
+      "text": "## Total Size      = 0x00014014 = 81940 Bytes\r\n## Start Addr      = 0x02000000\r\nZynq> "
+    }
+  ],
+  "disruptions": [],
+  "transport_rereads": [],
+  "epoch_final": 0,
+  "crc_dropped": 0
+}

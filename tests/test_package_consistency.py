@@ -94,6 +94,7 @@ class WithdrawnHashesStayInHistory(unittest.TestCase):
         "docs/l5_review_package.md": "superseded package, kept as record",
         "docs/l5_review_result.md": "the round-2 review, verbatim",
         "docs/l5_prereg.md": "the image-change-on-record paragraph",
+        "docs/l5_session2_findings.md": "names session 1's image when comparing the two runs",
         "docs/l5_session1_findings.md": "names the image that RAN session 1 — that is the "
                                         "record, and it must stay identifiable",
         "tests/test_package_consistency.py": "this guard names them to test itself",

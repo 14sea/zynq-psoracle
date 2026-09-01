@@ -453,3 +453,32 @@ byte-identical across clean rebuilds. 392 tests / 0 skipped.
 
 Standing: not pushed (`6a300f8` and this batch), no new ruling, board untouched since
 session 1, no ARM re-issued. The root cause of the non-consumed ARM remains undetermined.
+
+## 2026-09-01 — L5 session 2: the diagnostic run died on my own instrumentation defect
+
+The diagnostic session specified in `docs/l5_diag_spec.md` ran and produced
+`HOLD CRASHED: silence > 30s` with zero loop_records. Its own §2 says a run that fails to
+produce the `STOP_ARM` evidence is an instrumentation failure, reported as one — so that is
+the classification, not a hardware finding.
+
+**Cause: a defect I introduced in the instrumentation batch.** `arm_attempt` now opens with
+`axi_read(P3_CTRL)`, and `CTRL` (`0x2000`) is **write-only** — `rtl/p3_axil.v` says so in
+its header, and an undecoded read is SLVERR, which on this board is a data abort. The
+application died silently between the audit and the record, which is exactly the observed
+console signature (IDENT, SIGNREQ, 16 HB, 8 AUDIT, then nothing).
+
+The allowlist that would have refused the read is one I widened myself, on a false premise:
+I claimed L3's host read `CTRL` over `md.l`, but that reads
+`pcap_probe_plan.REG["CTRL"] = 0xF8007000` — DEVCFG's control register, a different register
+in a different peripheral. Two registers sharing a name, and I did not check the RTL, which
+answers it in its first ten lines.
+
+Cost: both `-02` rulings consumed on my defect, one power cycle, one session, and nothing
+learned about the non-consumed ARM. Session 1's finding stands unchanged.
+
+**Not fixed and not re-run.** The repair is entangled with a decision that is the owner's:
+`CTRL` is write-only by design, so the most direct question about session 1 — did the strobe
+latch? — is unobservable from the PS without an RTL change, and a new carrier bitstream would
+disturb the L1/L2/L3 evidence chain resting on `956379fa…`. Options are set out in
+`docs/l5_session2_findings.md` §4 (drop the fields / add a read-only mirror / observe over
+JTAG). Spending another ruling before that decision would repeat the mistake at a higher cost.
