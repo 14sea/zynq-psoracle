@@ -352,6 +352,7 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-01T200750Z.json` |
 | `evidence/tests/test_report_2026-09-01T195838Z.json` |
 | `evidence/tests/test_report_2026-09-01T195210Z.json` |
 | `evidence/tests/test_report_2026-09-01T193440Z.json` |
@@ -560,6 +561,19 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l6_17A6_2026-09-01-09-C1/timeline.json` |
 | `evidence/l6_17A6_2026-09-01-09-C1/ymodem.log` |
 | `evidence/l6_17A6_2026-09-01-09-C1/ymodem_app.log` |
+| `docs/l6_c2_session1_findings.md` |
+| `evidence/boundary/principal_boundary_2026-09-01-10.json` |
+| `evidence/l6_17A6_2026-09-01-10-C2/L6_0_preflight.json` |
+| `evidence/l6_17A6_2026-09-01-10-C2/L6_1_identity_page.json` |
+| `evidence/l6_17A6_2026-09-01-10-C2/audits.json` |
+| `evidence/l6_17A6_2026-09-01-10-C2/console.log` |
+| `evidence/l6_17A6_2026-09-01-10-C2/console.ts.log` |
+| `evidence/l6_17A6_2026-09-01-10-C2/rate_report.json` |
+| `evidence/l6_17A6_2026-09-01-10-C2/run_log.json` |
+| `evidence/l6_17A6_2026-09-01-10-C2/summary.json` |
+| `evidence/l6_17A6_2026-09-01-10-C2/timeline.json` |
+| `evidence/l6_17A6_2026-09-01-10-C2/ymodem.log` |
+| `evidence/l6_17A6_2026-09-01-10-C2/ymodem_app.log` |
 | `evidence/boundary/principal_boundary_2026-09-01-07.json` |
 | `evidence/l6_17A6_2026-09-01-07-C1/L6_0_preflight.json` |
 | `evidence/l6_17A6_2026-09-01-07-C1/L6_1_identity_page.json` |

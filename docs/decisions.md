@@ -1083,3 +1083,20 @@ genome/readout identity holds for these 66 records only and is not extrapolated 
 transport-only difference under all inputs. The manifest changed with the pin: the C2
 ruling pair binds the committed post-pin hash, then power cycle, boundary, C2.
 
+## 2026-09-01 — C2 #1 (ruling 2026-09-01-10): PASS — the map-guided calibration complete and fully audited; calibration.C2 pin is the owner's
+
+Owner-issued ruling pair bound to the post-C1-pin manifest `d84a770a…`, power cycle (UART
+re-enumerated 21:00:54), boundary PASS, runner in the background. The board completed the
+session: 66 SCORED (opening baseline, 64 map-guided candidates under the shared seed,
+closing baseline), baselines `[18, 22, 20, 20, 20, 18]`, closing unsigned control refused
+with fault 13, TERM COMPLETED/budget. 66/66 audits pulled and verified; the inbound ledger
+holds exactly the 1785 preregistered frames; 0 CRC drops of 8, 0 rereads, 0 aborts. The
+validator accepted; `rate_report.json` (`a13e301f…`): 3633.0 evals/h, CoV 0.0150 over 63
+steady-state periods (C1 #4: 3909.9 / 0.0159). Against C1 #4 the two baselines are
+identical and all 64 candidates differ, as the operator change requires. Recorded:
+`docs/l6_c2_session1_findings.md`, the manifest's hardware_history and standing, this
+table. NOT done here, by the ruling's scope: `calibration.C2` stays null until the owner
+pins the rate report's sha; no S, no Claim B data, no extra diagnostics. The manifest
+changed (history/standing); if C2 is pinned it changes again, and the S ruling pair binds
+the post-pin hash.
+
