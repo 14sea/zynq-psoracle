@@ -639,3 +639,13 @@ implementation invariant → RecordError, not Falsified. Header destruction and 
 envelope keep their KILL discrimination tests. Each contract clause is tested one at a time
 as HOLD; a broken manifest with unparseable words yields the host-side finding first.
 No firmware or image change (`a7c73d1f…`). Not pushed, no ruling, board untouched; round 4.
+
+**Correction to the round-3 commit message (`3530bc6`).** It claimed that removing each of
+the "four each" / "twelve unique" / "pinned roles" clauses was caught by the tests. The
+"twelve unique" mutant in fact SURVIVED: with three envelopes of exactly four targets whose
+set equals the twelve pinned roles, that clause is implied by the other two, so no
+variant could reach it alone. Fixed in the follow-up commit by ordering each clause to be
+the first to see its own defect and having every variant assert the clause's message — a
+removed clause then changes which message appears. All four clause mutants (three unique
+far_sets, twelve unique targets, four each, pinned roles) now fail the test. Recorded here
+rather than by rewriting the earlier message.

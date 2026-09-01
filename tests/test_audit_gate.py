@@ -249,24 +249,35 @@ class ContentThatCannotSupportTheClaim(unittest.TestCase):
         import unittest.mock as um
         import p3_gate as pg
         real = pg.envelopes(MANIFEST)
+        # The clauses overlap by construction (3 × 4 = 12; 12 unique = the pinned roles), so
+        # removing one would often still be refused by another. Each variant therefore also
+        # asserts the MESSAGE — the clause that must be the first to see it — which is what
+        # makes a removed clause detectable (the "twelve unique" mutant survived until this).
         variants = {
-            "two envelopes": real[:2],
-            "duplicate far_set": [real[0], dict(real[1], far_set=real[0]["far_set"]), real[2]],
-            "five targets": [dict(real[0], targets=real[0]["targets"] + [0x7FFFFFF])] + real[1:],
-            # twelve unique targets in all, but 5/3/4 across the envelopes: only the
-            # "exactly four each" clause can see this one (its mutant survived otherwise)
-            "5/3/4 redistribution": [dict(real[0], targets=real[0]["targets"] + [real[1]["targets"][0]]),
-                                     dict(real[1], targets=real[1]["targets"][1:]), real[2]],
-            "repeated target FAR": [dict(real[0], targets=real[0]["targets"][:3] + [real[1]["targets"][0]])] + real[1:],
-            "not the pinned roles": [dict(real[0], targets=real[0]["targets"][:3] + [0x7FFFFFF])] + real[1:],
+            "two envelopes": (real[:2], "contract is exactly 3 unique"),
+            "duplicate far_set": ([real[0], dict(real[1], far_set=real[0]["far_set"]), real[2]],
+                                  "contract is exactly 3 unique"),
+            "five targets (13 in all)": ([dict(real[0], targets=real[0]["targets"] + [0x7FFFFFF])] + real[1:],
+                                         "13 target FARs (13 unique)"),
+            "repeated target FAR (12 entries, 11 unique)": (
+                [dict(real[0], targets=real[0]["targets"][:3] + [real[1]["targets"][0]])] + real[1:],
+                "12 target FARs (11 unique)"),
+            "5/3/4 redistribution (12 unique)": (
+                [dict(real[0], targets=real[0]["targets"] + [real[1]["targets"][0]]),
+                 dict(real[1], targets=real[1]["targets"][1:]), real[2]],
+                "do not stage exactly 4 target frames each"),
+            "not the pinned roles (12 unique, 4 each)": (
+                [dict(real[0], targets=real[0]["targets"][:3] + [0x7FFFFFF])] + real[1:],
+                "not the pinned target roles"),
         }
         chunks = self._rechunk(list(self.WORDS))
-        for name, envs in variants.items():
+        for name, (envs, fragment) in variants.items():
             with um.patch.object(pg, "envelopes", lambda m, envs=envs: envs):
                 with self.assertRaises(records.RecordError, msg=name) as cm:
                     au.verify(LOG, chunks, MANIFEST)
             self.assertNotIsInstance(cm.exception, records.Falsified, name)
             self.assertIn("invalid manifest", str(cm.exception), name)
+            self.assertIn(fragment, str(cm.exception), f"{name}: the wrong clause refused it")
         with um.patch.object(pg, "envelopes", lambda m: (_ for _ in ()).throw(KeyError("write_envelope"))):
             with self.assertRaises(records.RecordError) as cm:
                 au.verify(LOG, chunks, MANIFEST)

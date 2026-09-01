@@ -157,14 +157,18 @@ def _envelope_contract(g, manifest: dict) -> list[dict]:
     if len(envs) != ENVELOPES or len(set(far_sets)) != ENVELOPES:
         raise RecordError(f"invalid manifest: {len(envs)} envelopes with far_sets {sorted(map(hex, far_sets))}, "
                           f"contract is exactly {ENVELOPES} unique")
-    bad = [hex(e["far_set"]) for e in envs if len(e["targets"]) != TARGET_FRAMES // ENVELOPES]
-    if bad:
-        raise RecordError(f"invalid manifest: envelopes {bad} do not stage exactly "
-                          f"{TARGET_FRAMES // ENVELOPES} target frames each")
+    # The clauses overlap by construction (three envelopes × four each = twelve, and twelve
+    # unique equal to the pinned roles), so each one is ordered to be the FIRST to see its
+    # own defect and its message names that defect; the tests assert the message, which is
+    # how a removed clause is detected even though another would eventually refuse too.
     targets = [f for e in envs for f in e["targets"]]
     if len(targets) != TARGET_FRAMES or len(set(targets)) != TARGET_FRAMES:
         raise RecordError(f"invalid manifest: {len(targets)} target FARs ({len(set(targets))} unique), "
                           f"contract is exactly {TARGET_FRAMES} unique")
+    bad = [hex(e["far_set"]) for e in envs if len(e["targets"]) != TARGET_FRAMES // ENVELOPES]
+    if bad:
+        raise RecordError(f"invalid manifest: envelopes {bad} do not stage exactly "
+                          f"{TARGET_FRAMES // ENVELOPES} target frames each")
     pinned = {f for f, r in roles.items() if r == "target"}
     if set(targets) != pinned:
         raise RecordError("invalid manifest: the envelope table's target FARs are not the pinned target roles")
