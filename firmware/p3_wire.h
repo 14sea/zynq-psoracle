@@ -52,6 +52,12 @@ typedef struct {
     uint32_t app_epoch;
     const char *const *findings; /* may be NULL when n == 0 */
     int findings_n;
+    /* app_identity 1.1.0 (L6 prereg §2.4): the master seed the schedule derives from, the
+     * schedule mode the identity page asked for, and the hash of the map data compiled
+     * into this image — the host regenerates it from local_map.json and compares. */
+    uint32_t master_seed;
+    const char *schedule_mode;        /* abba | random_safe_forced | map_guided_forced */
+    const char *operator_data_sha256; /* 64 hex, P3_OPERATOR_DATA_SHA256 */
 } p3_wire_identity_in;
 
 size_t p3_wire_identity(const p3_wire_identity_in *in, char *out, size_t max);
@@ -76,6 +82,8 @@ typedef struct {
     const char *genome;   /* 80 hex */
     const char *outcome;  /* one of LOOP_OUTCOMES */
     int audited;          /* -> "verified": "audited" | "replayed-only" */
+    const char *arm;      /* loop_record 1.1.0: random_safe | map_guided on a candidate;
+                           * NULL on the two baseline brackets, which then carry no arm */
 
     int have_sign_refusal;
     const char *const *finding_kinds;

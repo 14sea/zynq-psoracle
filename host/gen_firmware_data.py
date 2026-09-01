@@ -2,10 +2,13 @@
 """Generate `firmware/p3_data.h` from the imported, hashed artifacts.
 
 Everything the firmware needs that is *data* — the fifteen pinned base frames, the three
-write envelopes, the 292 whitelisted addresses in canonical order — is generated here from
-`phenotype_manifest.json` rather than transcribed, so the C side cannot drift from the
-Python side by a typo. `tests/test_firmware_twin.py` regenerates and compares, so a stale
-header is a test failure.
+write envelopes, the 292 whitelisted addresses in canonical order, and (L6 §2.1) the
+operator tables derived from the pinned `local_map.json` — is generated here from
+`phenotype_manifest.json` and the map rather than transcribed, so the C side cannot drift
+from the Python side by a typo. `tests/test_firmware_twin.py` regenerates and compares, so
+a stale header is a test failure. The operator tables are `host/l6_operators.operator_data`
+rendered as C, and the header carries that derivation's sha256 (`P3_OPERATOR_DATA_SHA256`),
+which the image's IDENT names and the host regenerates and compares (prereg §2.1, §2.4).
 
 Pure host-side; nothing here touches a board.
 """
@@ -21,9 +24,11 @@ R = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(R / "host"))
 import p3_gate as g  # noqa: E402
 import p3_genome as gn  # noqa: E402
+import l6_operators as lo  # noqa: E402
 
 
-def render(manifest: dict) -> str:
+def render(manifest: dict, local_map: dict | None = None) -> str:
+    local_map = lo.load_local_map() if local_map is None else local_map
     base, roles = g.gc.pinned_frames(manifest)
     targets = sorted(far for far, r in roles.items() if r == "target")
     envelopes = g.envelopes(manifest)
@@ -38,6 +43,7 @@ def render(manifest: dict) -> str:
         " * Source: zynq-fabricmap phenotype_manifest.json",
         f" *   sha256 {hashlib.sha256(g.MANIFEST.read_bytes()).hexdigest()}",
         f" * Canonical address order digest: {gn.addresses_sha256(manifest)}",
+        f" * Operator data (local_map.json derivation) sha256: {lo.operator_data_sha256(lo.operator_data(manifest, local_map))}",
         " *",
         " * The twelve target frames are the candidate's; the three flush frames are written",
         " * verbatim (the device's auto-increment reaches them after the four targets).",
@@ -89,8 +95,39 @@ def render(manifest: dict) -> str:
     out += frame_block("P3_BASE_TARGET", targets)
     out += [""]
     out += frame_block("P3_BASE_FLUSH", flush_fars)
+    out += [""] + operator_block(manifest, local_map)
     out += ["", "#endif /* P3_DATA_H */", ""]
     return "\n".join(out)
+
+
+def operator_block(manifest: dict, local_map: dict) -> list[str]:
+    """The two-operator image's map data (L6 prereg §2.1): each LUT's genome-bit indices in
+    INIT-index order, the mutation size, and the sha256 of the derivation they come from."""
+    data = lo.operator_data(manifest, local_map)
+    keys = sorted(data["luts"])
+    maxlen = max(len(data["luts"][k]) for k in keys)
+    out = [
+        "/* L6 two-operator image: the map data behind the map-guided operator, derived from the",
+        f" * pinned local_map.json ({data['map_id']}) by host/l6_operators.py:operator_data.",
+        " * P3_OPERATOR_DATA_SHA256 is that derivation's hash; the IDENT names it and the host",
+        " * regenerates and compares it (prereg §2.1, §2.4). LUT order = sorted map keys. */",
+        f'#define P3_OPERATOR_DATA_SHA256 "{lo.operator_data_sha256(data)}"',
+        f"#define P3_MUTATION_BITS {data['mutation_bits']}",
+        f"#define P3_LUT_COUNT {len(keys)}",
+        f"#define P3_LUT_MAX_BITS {maxlen}",
+        "static const char *const P3_LUT_KEYS[P3_LUT_COUNT] = {",
+    ]
+    out += [f'    "{k}",' for k in keys]
+    out += ["};", "static const uint16_t P3_LUT_LEN[P3_LUT_COUNT] = {",
+            "    " + ", ".join(str(len(data["luts"][k])) for k in keys), "};",
+            "/* genome bit index of INIT position j of LUT i (INIT-index order); unused tail is 0xFFFF */",
+            "static const uint16_t P3_LUT_BITS[P3_LUT_COUNT][P3_LUT_MAX_BITS] = {"]
+    for k in keys:
+        bits = [row["genome_bit"] for row in data["luts"][k]]
+        bits += [0xFFFF] * (maxlen - len(bits))
+        out.append("    { " + ", ".join(str(b) for b in bits) + " },")
+    out += ["};"]
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:

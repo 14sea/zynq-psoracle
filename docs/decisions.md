@@ -722,7 +722,7 @@ re-review.
 
 ## 2026-09-01 — second re-review of the §4 batch: HOLD on one blocker (HB completeness), corrected
 
-The four corrections of `726c9e7` were confirmed. Remaining blocker: the soak gate only
+The four corrections of `1741c53` were confirmed. Remaining blocker: the soak gate only
 required two HB frames in the whole session, so a COMPLETED log with every
 SIGNREQ/AUDIT/REC kept and all heartbeats after the second removed passed every gate.
 Ruling: every SCORED record, the two baselines included, must carry exactly 16 HB
@@ -744,7 +744,7 @@ corrections and the single-sample CoV guard hold. Independent re-run: 571 tests 
 pre-existing principal-boundary test skips in the review environment; the fail-closed
 report here shows 571/0 skip — no contradiction).
 
-Rulings: (1) push `451f8b2` → `726c9e7` → `6ee3c38` with this adjudication commit;
+Rulings: (1) push `451f8b2` → `1741c53` → `6ee3c38` with this adjudication commit;
 (2) the §2 firmware/image batch is authorised — A/B operators, A,B,B,A / forced schedule
 and pair-seed C twin; `mutation_bits = 4` and the `operator_data_sha256` contract; IDENT
 1.1, the candidate arm, flags bits 2–3; sampled audit with auto-audit of every
@@ -755,3 +755,21 @@ two clean byte-identical rebuilds, build evidence, manifest/image hash and the P
 compatibility review package. Boundary unchanged: no ruling, no board, no C1/C2/S in
 this batch; the new image goes through the whole-package compatibility review and the
 prereg freeze first, then one ruling for the board phase.
+
+## 2026-09-01 — §2 two-operator image built and pinned (host-only); compatibility review package delivered
+
+Under the §2 authorisation: `firmware/p3_search.c` replaced by the two operators and the
+A,B,B,A / forced schedule with the pair-seed rule, the C twin bit-exact against the
+256-pair corpus on arm, seed and genome; `p3_data.h` regenerated with the map tables and
+their derivation hash `0c9c82a8…`; `p3_wire` emits `app_identity` 1.1.0 and `loop_record`
+1.1.0; `p3_app.c` gains the schedule mode from flags bits 2–3 (mode 3 refused at
+identity), the IDENT fields, the record's arm, `ensure_audit` before every non-`SCORED`
+record (a post-staging pre-ARM fault now recorded as `STOP_AXI` with its words), and the
+D-s1 watchdog (prescaler 7 ∥ WD mode, load 1 250 000 035, flag-gated). Two from-scratch
+builds byte-identical: `47b8fa09…`, pinned in `manifests/l6_manifest.json` with
+`evidence/l6_build/` and `manifests/l6_bsp_inputs.json` (the same 65 files as L5).
+Found while wiring §3a: the L5 image's link-2 refusal path stopped before serving and
+the serve loop required `P3_RUNNING`, so it could never have served those words — a
+latent defect no session reached; fixed and pinned, not a withdrawal. The package is
+`docs/l6_compat_review_package.md`. `prereg.sha256` stays null; the runner refuses;
+no ruling, no board.

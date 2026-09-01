@@ -14,10 +14,20 @@
  *   b64d     < base64url lines    -> the decoded bytes as hex, or "bad-b64"
  *   rbcmd    < far hex lines      -> the 43-word readback command stream, hex
  *   cleanup  < (any line)         -> the 5-word cleanup stream, hex
+ *   pairseed < "master pair" lines  -> the 32-bit pair seed (hex)           [L6 §2]
+ *   arm      < "index mode" lines   -> the arm name, or "unassigned-mode"   [L6 §2]
+ *   candidate < "master index mode" -> "<arm> <pair_seed hex> <genome hex>" [L6 §2]
  */
 
 #include "p3_derive.h"
 #include "p3_data.h"
+
+/* the two-operator search (p3_search.c), linked in for the corpus twin */
+extern const char *const P3_ARM_NAME[2];
+uint32_t p3_pair_seed(uint32_t master_seed, uint32_t pair);
+int p3_arm_for(uint32_t index, uint32_t mode);
+int p3_search_next(uint32_t genome[P3_GENOME_WORDS], uint32_t master_seed, uint32_t index,
+                   uint32_t mode, int *arm_out);
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -165,6 +175,37 @@ int main(int argc, char **argv)
             p3_build_cleanup_command(cmd);
             for (i = 0; i < P3_CLEANUP_WORDS; i++)
                 printf("%08x%s", cmd[i], i + 1 == P3_CLEANUP_WORDS ? "\n" : " ");
+        } else if (!strcmp(mode, "pairseed")) {
+            unsigned long master = 0, pair = 0;
+            if (sscanf(line, "%lx %lu", &master, &pair) != 2) {
+                printf("bad-args\n");
+                continue;
+            }
+            printf("%08x\n", p3_pair_seed((uint32_t)master, (uint32_t)pair));
+        } else if (!strcmp(mode, "arm")) {
+            unsigned long index = 0, smode = 0;
+            int arm;
+            if (sscanf(line, "%lu %lu", &index, &smode) != 2) {
+                printf("bad-args\n");
+                continue;
+            }
+            arm = p3_arm_for((uint32_t)index, (uint32_t)smode);
+            printf("%s\n", arm < 0 ? "unassigned-mode" : P3_ARM_NAME[arm]);
+        } else if (!strcmp(mode, "candidate")) {
+            unsigned long master = 0, index = 0, smode = 0;
+            uint32_t genome[P3_GENOME_WORDS];
+            char hex[P3_GENOME_WORDS * 8 + 1];
+            int arm;
+            if (sscanf(line, "%lx %lu %lu", &master, &index, &smode) != 3) {
+                printf("bad-args\n");
+                continue;
+            }
+            if (p3_search_next(genome, (uint32_t)master, (uint32_t)index, (uint32_t)smode, &arm) != 0) {
+                printf("unassigned-mode\n");
+                continue;
+            }
+            p3_genome_to_hex(genome, hex);
+            printf("%s %08x %s\n", P3_ARM_NAME[arm], p3_pair_seed((uint32_t)master, (uint32_t)index / 2u), hex);
         } else if (!strcmp(mode, "ecc")) {
             uint32_t f[P3_FRAME_WORDS];
             if (read_words(line, f, P3_FRAME_WORDS) != 0) {

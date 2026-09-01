@@ -56,9 +56,14 @@ extern char inbyte(void);
 #define P3_MB (1024u * 1024u)
 #define P3_NONCACHEABLE 0x14de2u /* Xil_SetTlbAttributes: strongly-ordered, non-cacheable */
 #define P3_SENTINEL 0xA5A5A5A5u
-#define P3_WDT_LOAD 0u /* PINNED IN THE L5 MANIFEST: 3 x heartbeat at the private-timer
-                        * clock. Left zero here on purpose — a guessed period is worse
-                        * than an obviously unset one, and the value is a build input. */
+/* D-s1 (L6 prereg §3, owner 2026-09-01): the A9 private watchdog ON, 30.0 s, flag-gated.
+ * PINNED IN manifests/l6_manifest.json pinned_at_build: prescaler 7 → the timer counts at
+ * PERIPHCLK / 8 = 333 333 343 / 8 Hz (PERIPHCLK board-confirmed 2026-09-01-05), and
+ * 30.0 s × 41 666 667.9 Hz − 1 = 1 250 000 035. The ACTUAL value written is what the
+ * manifest and tests/test_firmware_audit.py pin, not the derivation. Watchdog (reset)
+ * mode, not timer mode: a timeout resets the PS and the collector sees the banner. */
+#define P3_WDT_LOAD 1250000035u
+#define P3_WDT_PRESCALER 7u
 
 /* ───────────────────────────── the PL's AXI window (L1 map) ───────────────────────── */
 
@@ -425,6 +430,21 @@ static int devcfg_dma(const p3_dma *t, uint32_t src_override)
 
 /* ───────────────────────────────── identity (§3b) ─────────────────────────────────── */
 
+/* the two-operator search (p3_search.c): its names, and the schedule mode the identity
+ * page carries in flags bits 2–3 (L6 prereg §2, manifests/l6_manifest.json identity_page) */
+extern const char *const P3_ARM_NAME[2];
+extern const char *const P3_MODE_NAME[3];
+extern int p3_search_next(uint32_t genome[P3_GENOME_WORDS], uint32_t master_seed,
+                          uint32_t index, uint32_t mode, int *arm_out);
+#define P3_MODE_SHIFT 2u
+#define P3_MODE_MASK 3u
+#define P3_MODE_UNASSIGNED 3u
+
+static uint32_t schedule_mode(void)
+{
+    return (S.page.flags >> P3_MODE_SHIFT) & P3_MODE_MASK;
+}
+
 static int establish_identity(void)
 {
     uint32_t page[P3_PAGE_WORDS];
@@ -442,10 +462,11 @@ static int establish_identity(void)
      * requires app_identity and this application never sent one. */
     {
         p3_wire_identity_in in;
-        const char *findings[5];
+        const char *findings[6];
         uint64_t nonce = pl_nonce();
         int nf = 0;
         uint32_t idcode = Xil_In32(SLCR_PSS_IDCODE);
+        uint32_t mode = schedule_mode();
 
         st = axi_read(P3_STATUS);
         if ((idcode & P3_IDCODE_MASK) != (P3_IDCODE & P3_IDCODE_MASK))
@@ -459,6 +480,8 @@ static int establish_identity(void)
         /* the nonce echo: a reconfiguration since the host's last look would have reset it */
         if (nonce != S.page.nonce_seen)
             findings[nf++] = "the nonce is not the host's last observation";
+        if (mode == P3_MODE_UNASSIGNED)
+            findings[nf++] = "schedule mode 3 is unassigned";
 
         memset(&in, 0, sizeof(in));
         in.pss_idcode = idcode;
@@ -471,6 +494,11 @@ static int establish_identity(void)
         in.app_epoch = 0;
         in.findings = nf ? findings : NULL;
         in.findings_n = nf;
+        /* app_identity 1.1.0 (L6 §2.4): the master seed, the mode, and the hash of the map
+         * data compiled into THIS image (p3_data.h), which the host regenerates */
+        in.master_seed = S.page.seed;
+        in.schedule_mode = mode == P3_MODE_UNASSIGNED ? "unassigned" : P3_MODE_NAME[mode];
+        in.operator_data_sha256 = P3_OPERATOR_DATA_SHA256;
         send_payload("IDENT", 0, p3_wire_identity(&in, g_payload, sizeof(g_payload)));
 
         if (nf)
@@ -711,9 +739,8 @@ static int arm_attempt(const char *commit_hex, const char tables_hex[6][17],
 
 /* ───────────────────────────────── the session ────────────────────────────────────── */
 
-/* The search is out of D1's scope; only its interface is fixed (§4.1). The reference
- * sampler lives in p3_search.c and returns non-zero at its own stop condition. */
-extern int p3_search_next(uint32_t genome[P3_GENOME_WORDS], uint32_t seed, uint32_t index);
+/* The search is out of D1's scope; only its interface is fixed (§4.1) — declared above
+ * with the schedule mode and the arm the L6 preregistration added to it. */
 
 /* ───────────────────────────── audit-on-request (§4.7) ────────────────────────────── */
 
@@ -748,7 +775,11 @@ static void serve_audit(int with_readback)
     uint32_t chunks = (total + P3_AUDIT_CHUNK - 1) / P3_AUDIT_CHUNK;
     uint32_t c;
 
-    for (c = 0; c < chunks && S.kind == P3_RUNNING; c++) {
+    /* Served whatever STOPPED the epoch, as long as the channel itself has not failed:
+     * a stop is recorded AFTER its raw words, never instead of them (§3a item 2). The
+     * L5 image gated this loop on P3_RUNNING, so a link-2 refusal — whose stop precedes
+     * its audit — could never actually serve its words; found while wiring §3a. */
+    for (c = 0; c < chunks && S.kind != P3_PROTOCOL; c++) {
         uint32_t off = c * (uint32_t)P3_AUDIT_CHUNK;
         uint32_t count = total - off;
         uint32_t i;
@@ -772,10 +803,18 @@ static void serve_audit(int with_readback)
                      p3_wire_audit(S.seq, c, chunks, off, count, total, span, g_words_b64,
                                    g_payload, sizeof(g_payload)));
     }
-    if (S.kind == P3_RUNNING) {
+    if (S.kind != P3_PROTOCOL) {
         S.audit_served = 1;
         S.audit_served_seq = S.seq;
     }
+}
+
+/* §3a item 2: every non-SCORED self-report is audited unconditionally, before its record,
+ * with or without an AUDITREQ — and exactly once per candidate. */
+static void ensure_audit(int with_readback)
+{
+    if (!(S.audit_served && S.audit_served_seq == S.seq))
+        serve_audit(with_readback);
 }
 
 /* One candidate's record, built by p3_wire so it carries `seq`, `verified` and the nested
@@ -793,7 +832,8 @@ static void emit_record(p3_wire_record_in *rec, const char *outcome)
 }
 
 /* returns 0 to continue the session, -1 when the epoch has ended */
-static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline)
+static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline,
+                         const char *arm_name)
 {
     char genome_hex[P3_GENOME_WORDS * 8 + 1];
     char type[16];
@@ -812,6 +852,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     memset(&rec, 0, sizeof(rec));
     rec.seq = S.seq;
     rec.genome = genome_hex;
+    rec.arm = arm_name; /* NULL on a baseline: the brackets carry no arm (§2.4) */
     send_payload("SIGNREQ", S.seq,
                  p3_wire_sign_request(S.page.token, 0, S.seq, genome_hex, pl_nonce(),
                                       g_payload, sizeof(g_payload)));
@@ -884,12 +925,12 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     if (link2_witness(staged, stream_h) != 0)
         return -1;
     if (strcmp(staged, commit) != 0) { /* the binding, BEFORE any DMA */
+        /* The staging streams exist, so this refusal is auditable and IS audited — with or
+         * without a request (§3a item 2): the application is asserting `staged != commit`
+         * and the host would otherwise have to take that on trust. The readback frames do
+         * not exist, hence a "streams" span. Words first, then the stop, then the record. */
+        ensure_audit(0);
         p3_stop(P3_STOPPED, "STOP_LINK2: staged frames are not the signed commit");
-        /* The staging streams exist, so this refusal is auditable and IS audited: the
-         * application is asserting `staged != commit` and the host would otherwise have to
-         * take that on trust. The readback frames do not exist, hence a "streams" span. */
-        if (S.audit_requested)
-            serve_audit(0);
         emit_record(&rec, "STOP_LINK2");
         return -1;
     }
@@ -914,6 +955,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     if (S.audit_requested)
         serve_audit(1);
     if (strcmp(readback, commit) != 0) {
+        ensure_audit(1); /* §3a item 2: a link-3 stop is audited whether or not it was asked */
         p3_stop(P3_STOPPED, "STOP_LINK3: the fabric did not read back as the candidate");
         emit_record(&rec, "STOP_LINK3");
         return -1;
@@ -921,8 +963,14 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     hb_before = axi_read(P3_HEARTBEAT);
     armed = arm_attempt(commit, (const char(*)[17])tables, tag, &nonce_before, &nonce_after,
                         &status, &fault, &writes_issued, &settle);
-    if (armed < 0)
-        return -1;                    /* the attempt was never made */
+    if (armed < 0) {
+        /* The attempt was never made: the pre-ARM check found a fault. The candidate HAS
+         * staged and read back, so this is a post-staging STOP_AXI — a raw self-report,
+         * auto-audited and recorded (§3a; validators.records.self_report_class). */
+        ensure_audit(1);
+        emit_record(&rec, "STOP_AXI");
+        return -1;
+    }
     rec.have_arm = 1;
     rec.nonce_before = nonce_before;
     rec.nonce_after = nonce_after;
@@ -937,6 +985,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     if (armed == 2) {
         /* The gate never settled within the bound. Neutral: the record carries the whole
          * poll and the epoch stops. Nothing is re-issued and nothing is claimed about why. */
+        ensure_audit(1);
         emit_record(&rec, "STOP_SETTLE");
         p3_stop(P3_STOPPED, "the ARM did not settle within the poll bound");
         return -1;
@@ -946,11 +995,13 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
          * ended on the old form of this check and kept nothing; the record goes out FIRST,
          * carrying every observation, and only then does the epoch stop. This records THAT
          * it happened and asserts nothing about why. */
+        ensure_audit(1);
         emit_record(&rec, "STOP_ARM");
         p3_stop(P3_STOPPED, "the gate settled and the nonce did not step: the PL did not consume this ARM");
         return -1;
     }
     if (!((status >> P3_ST_CFG_VALID_HW) & 1u)) {
+        ensure_audit(1);
         emit_record(&rec, "REFUSED_BY_PL");
         /* the fault code names the check that fired, not its cause (spec §4.6) */
         p3_stop(P3_STOPPED, "the PL refused the ARM");
@@ -1086,23 +1137,30 @@ int main(void)
     if (S.page.flags & 2u) {
         XScuWdt_Config *cfg = XScuWdt_LookupConfig(XPAR_PS7_SCUWDT_0_DEVICE_ID);
         XScuWdt_CfgInitialize(&S.wdt, cfg, cfg->BaseAddr);
+        /* D-s1: prescaler 7 and watchdog (reset) mode in one control write, then the
+         * pinned load, then enable. The mode bit can only be cleared through the disable
+         * register's magic sequence, which this application never writes. */
+        XScuWdt_SetControlReg(&S.wdt, (P3_WDT_PRESCALER << XSCUWDT_CONTROL_PRESCALER_SHIFT) |
+                                          XSCUWDT_CONTROL_WD_MODE_MASK);
         XScuWdt_LoadWdt(&S.wdt, P3_WDT_LOAD);
         XScuWdt_Start(&S.wdt);
     }
 
     memset(blank, 0, sizeof(blank)); /* the blank genome IS the pinned base */
 
-    if (run_candidate(blank, 1) == 0) { /* opening baseline = the session's positive control */
+    if (run_candidate(blank, 1, NULL) == 0) { /* opening baseline = the session's positive control */
         for (i = 0; S.kind == P3_RUNNING && (S.page.budget == 0u || i < S.page.budget); i++) {
+            int arm;
             /* the stop condition is checked BEFORE a candidate is proposed, so a normal
-             * end always reaches the closing brackets (§4.0) */
-            if (p3_search_next(genome, S.page.seed, i) != 0)
+             * end always reaches the closing brackets (§4.0); the arm comes from the
+             * schedule (mode from the identity page, refused there if unassigned) */
+            if (p3_search_next(genome, S.page.seed, i, schedule_mode(), &arm) != 0)
                 break;
-            if (run_candidate(genome, 0) != 0)
+            if (run_candidate(genome, 0, P3_ARM_NAME[arm]) != 0)
                 break;
         }
         if (S.kind == P3_RUNNING) {
-            if (run_candidate(blank, 1) == 0) { /* closing baseline = restore + score */
+            if (run_candidate(blank, 1, NULL) == 0) { /* closing baseline = restore + score */
                 S.closing_restore = 1;
                 closing_unsigned_control();
             }

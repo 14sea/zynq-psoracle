@@ -1,6 +1,6 @@
 # p3 firmware — host twin only.
 #
-# `make twin` builds the HOST driver (p3_twin.c + p3_derive.c) that the test suite drives
+# `make twin` builds the HOST driver (p3_twin.c + p3_derive.c + p3_search.c) that the test suite drives
 # over the pinned corpus. It is host tooling, not a board image.
 #
 # The board application (`p3_app.c`) is cross-compiled by `firmware/bsp/build.sh`, NOT here:
@@ -16,9 +16,9 @@ BUILD   ?= build
 twin: $(BUILD)/p3_twin
 wire: $(BUILD)/p3_wire_twin
 
-$(BUILD)/p3_twin: p3_twin.c p3_derive.c p3_derive.h p3_data.h
+$(BUILD)/p3_twin: p3_twin.c p3_derive.c p3_search.c p3_derive.h p3_data.h
 	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) -o $@ p3_twin.c p3_derive.c
+	$(CC) $(CFLAGS) -o $@ p3_twin.c p3_derive.c p3_search.c
 
 # The wire twin exposes p3_wire.c -- the application's ACTUAL serialisation -- so
 # tests/test_firmware_wire_contract.py can feed the bytes the board emits to the real

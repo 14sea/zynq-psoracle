@@ -659,5 +659,141 @@ class WireContract(unittest.TestCase):
             records.validate(rec)
 
 
+class L6WireContract(WireContract):
+    """L6 prereg §2.4 on the C bytes: IDENT 1.1.0 names the master seed, the schedule mode
+    and the operator-data hash; candidate records name their arm and the brackets none;
+    the sampled policy holds for a C-emitted session whose non-SCORED self-report at an
+    unsampled seq was auto-audited — and fails when it was not."""
+
+    MASTER = 0x1234
+    OP_SHA = "0c" * 32
+
+    def _ident(self, mode="abba", op_sha=None, master=None) -> str:
+        line, = self.twin(
+            f"ident token={TOKEN} idcode=0x03722093 uboot_epoch=7 carrier_sha256={CARRIER_SHA} "
+            f"nonce={SEED:016x} status=0x900 fclk0=50000000 master_seed={self.MASTER if master is None else master} "
+            f"schedule_mode={mode} operator_sha={self.OP_SHA if op_sha is None else op_sha}")
+        return line
+
+    def test_identity_1_1_carries_the_three_l6_fields(self):
+        ident = n.decode_payload(n.parse_line(self._ident())["payload"])
+        self.assertEqual(ident["schema_version"], "1.1.0")
+        records.validate(ident)                                   # 1.0.0 consumers still accept it
+        out = records.check_l6_identity(ident, self.MASTER, "abba", self.OP_SHA)
+        self.assertEqual(out["master_seed"], self.MASTER)
+        for wrong in ((self.MASTER + 1, "abba", self.OP_SHA), (self.MASTER, "random_safe_forced", self.OP_SHA),
+                      (self.MASTER, "abba", "0d" * 32)):
+            with self.assertRaises(records.RecordError):
+                records.check_l6_identity(ident, *wrong)
+
+    def _l6_session(self, genomes, arms, audit_seqs, stop_at=None):
+        """A C-emitted session: seq 1 baseline (no arm), candidates with `arms`, closing
+        baseline — or, with `stop_at`, a STOPPED epoch whose last record is a STOP_ARM at
+        that seq. Audits are served only for `audit_seqs`, plus the STOP_ARM unless
+        `stop_at` is negative (the withheld-words negative)."""
+        import l6_schedule as ls
+        signer = lambda req: sign_arm.sign_genome(self.holder, req["genome"], req["nonce"])  # noqa: E731
+        relay = n.NotaryRelay(TOKEN, signer, drop_budget=16, clock=lambda: 0.0)
+        collector = n.Collector(TOKEN, heartbeat_s=10, clock=lambda: 0.0)
+        collector.on_line(self._ident())
+        chain, seq, n_served = SEED, 0, 0
+        withhold = stop_at is not None and stop_at < 0
+        stop_seq = abs(stop_at) if stop_at is not None else None
+        candidates = [(self.blank, None)] + list(zip(genomes, arms)) + [(self.blank, None)]
+        for genome, arm in candidates:
+            seq += 1
+            genome_hex = gn.to_hex(genome)
+            req_line, = self.twin(f"signreq token={TOKEN} app_epoch=0 seq={seq} genome={genome_hex} nonce={chain:016x}")
+            reply = n.decode_payload(n.parse_line(relay.handle_line(req_line))["payload"])
+            verdict = self._verdict(genome)
+            tables = ",".join(reply["expected_tables"])
+            arm_kv = f" arm={arm}" if arm else ""
+            for hb_line in self.twin(*[f"hb token={TOKEN} seq={seq}"] * 16):
+                collector.on_line(hb_line)
+            stopping = stop_seq == seq
+            served = (seq in audit_seqs) or (stopping and not withhold)
+            if served:
+                n_served += 1
+                for audit_line in self.twin(*self._audit_cmds(seq, genome)):
+                    collector.on_line(audit_line)
+            common = (f"rec token={TOKEN} seq={seq} genome={genome_hex}{arm_kv} audited={int(served)} "
+                      f"commit={reply['commit']} tables={tables} tag={reply['tag']} staged={reply['commit']} "
+                      f"stream={verdict['sequence_sha256']} readback={reply['commit']} envelopes=3 audit_available=1 "
+                      f"nonce_before={chain:016x} fault_after=0 key_loaded=1 writes_issued=25 ")
+            if stopping:
+                rec_line, = self.twin(common + f"outcome=STOP_ARM nonce_after={chain:016x} {self.SETTLED}")
+                collector.on_line(rec_line)
+                # each twin call is its own process, so the serialiser's tally does not carry
+                # across records here; the counts are passed as the application would tally them
+                term_line, = self.twin(f"term token={TOKEN} kind=STOPPED reason=x last_seq={seq} "
+                                       f"closing_restore=1 audited={n_served} total={seq}")
+                collector.on_line(term_line)
+                break
+            nonce_after = nc.step(chain)
+            rec_line, = self.twin(common + f"outcome=SCORED nonce_after={nonce_after:016x} status_after=0xf54 "
+                                  f"hw_commit={reply['commit']} readout={tables} scores=18,22,20,20,20,18 hb_before=1 hb_after=2")
+            collector.on_line(rec_line)
+            chain = nonce_after
+        else:
+            close_line, = self.twin(f"closing token={TOKEN} seq={seq} nonce_before={chain:016x} "
+                                    f"nonce_after={nc.step(chain):016x} fault=13 status=0x982")
+            collector.on_line(close_line)
+            term_line, = self.twin(f"term token={TOKEN} kind=COMPLETED reason=budget last_seq={seq} "
+                                   f"scored={len(candidates)} refused_by_gate=0 closing_restore=1 "
+                                   f"closing_baseline=1 closing_unsigned=1 audited={n_served} total={seq} "
+                                   f"crc_dropped=0 drop_budget=16")
+            collector.on_line(term_line)
+        log = {"control_plane": "standalone", "app_identity": collector.app_identity,
+               "loop_records": collector.loop_records, "session_summary": collector.session_summary,
+               "notary_log": relay.notary_log()}
+        if collector.closing_negative is not None:
+            log["closing_negative"] = collector.closing_negative
+        return log, collector.audits
+
+    def test_candidate_records_name_the_arm_and_the_brackets_do_not(self):
+        import l6_schedule as ls
+        n_c = 3
+        sched = ls.schedule(self.MASTER, n_c, ls.MODE_ABBA)
+        genomes = [gn.corpus_genome(i, self.manifest) for i in (2, 3, 4)]
+        log, chunks = self._l6_session(genomes, [r["arm"] for r in sched], ls.all_seqs(n_c))
+        recs = log["loop_records"]
+        self.assertEqual([r.get("arm") for r in recs], [None, "random_safe", "map_guided", "map_guided", None])
+        self.assertTrue(all(r["schema_version"] == "1.1.0" for r in recs))
+        self._validate(log, chunks)
+        out = records.check_arm_schedule(log, sched, n_c)
+        self.assertEqual((out["checked"], out["brackets"]), ([2, 3, 4], [1, 5]))
+        swapped = ls.schedule(self.MASTER, n_c, ls.MODE_A_FORCED)
+        with self.assertRaises(records.RecordError) as cm:
+            records.check_arm_schedule(log, swapped, n_c)
+        self.assertIn("swapped", str(cm.exception))
+
+    def test_a_sampled_session_of_c_records_passes_and_the_two_negatives_fail(self):
+        import l6_schedule as ls
+        n_c = 3
+        sched = ls.schedule(self.MASTER, n_c, ls.MODE_ABBA)
+        arms = [r["arm"] for r in sched]
+        sampled = ls.sampled_audit_seqs(n_c)                    # {1, 2, 4, 5}: seq 3 unsampled
+        self.assertNotIn(3, sampled)
+        genomes = [gn.corpus_genome(i, self.manifest) for i in (2, 3, 4)]
+        # COMPLETED, seq 3 SCORED and unaudited: the sampled policy accepts it
+        log, chunks = self._l6_session(genomes, arms, sampled)
+        marks = self._validate(log, chunks)["marks"]
+        self.assertEqual(marks[3], "replayed-only")
+        out = records.check_audit_policy(log, marks, "sampled", sampled)
+        self.assertEqual(out["audited"], [1, 2, 4, 5]); self.assertEqual(out["audited_auto"], [])
+        # STOPPED at seq 3 with a STOP_ARM the firmware auto-audited: accepted as audited_auto
+        log, chunks = self._l6_session(genomes, arms, sampled, stop_at=3)
+        marks = self._validate(log, chunks)["marks"]
+        self.assertEqual(marks[3], "audited")
+        self.assertEqual(records.check_audit_policy(log, marks, "sampled", sampled)["audited_auto"], [3])
+        # the same STOP_ARM with its words withheld: an unaudited self-report → HOLD naming seq 3
+        log, chunks = self._l6_session(genomes, arms, sampled, stop_at=-3)
+        marks, _ = au.verify(log, chunks, self.manifest)
+        with self.assertRaises(records.RecordError) as cm:
+            records.check_audit_policy(log, marks, "sampled", sampled)
+        self.assertNotIsInstance(cm.exception, records.Falsified)
+        self.assertIn("[3]", str(cm.exception)); self.assertIn("§3a item 2", str(cm.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

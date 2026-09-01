@@ -11,6 +11,10 @@ SA=/home/test/Xilinx/2025.2/data/embeddedsw/lib/bsp/standalone_v9_4/src
 WD=/home/test/Xilinx/2025.2/data/embeddedsw/XilinxProcessorIPLib/drivers/scuwdt_v2_6/src
 BSP=$REPO/firmware/bsp
 OUT=$BSP/out
+# The image name: p3_app (the L5 line) or p3_app_l6 (the two-operator image, L6 §2).
+# Everything else — sources, flags, BSP inputs, linker script — is identical; only the
+# artefact names differ, so the two lines' pinned hashes cannot be confused on disk.
+IMAGE=${IMAGE:-p3_app}
 mkdir -p "$OUT"
 
 ARCH="-mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard"
@@ -56,15 +60,15 @@ CRTBEGIN=$("$CC" $ARCH -print-file-name=crtbegin.o)
 CRTEND=$("$CC" $ARCH -print-file-name=crtend.o)
 CRTN=$("$CC" $ARCH -print-file-name=crtn.o)
 "$CC" $ARCH -nostartfiles -Wl,--gc-sections -Wl,--build-id=none \
-      -Wl,-T,"$BSP/lscript.ld" -Wl,-Map,"$OUT/p3_app.map" \
-      -o "$OUT/p3_app.elf" "$CRTI" "$CRTBEGIN" "${OBJS[@]}" \
+      -Wl,-T,"$BSP/lscript.ld" -Wl,-Map,"$OUT/$IMAGE.map" \
+      -o "$OUT/$IMAGE.elf" "$CRTI" "$CRTBEGIN" "${OBJS[@]}" \
       -Wl,--start-group -lgcc -lc -lm -Wl,--end-group "$CRTEND" "$CRTN"
-echo "LINK OK -> $OUT/p3_app.elf"
-"$TC/bin/arm-none-eabi-size" "$OUT/p3_app.elf"
+echo "LINK OK -> $OUT/$IMAGE.elf"
+"$TC/bin/arm-none-eabi-size" "$OUT/$IMAGE.elf"
 
 # The shippable artefact is the raw binary the manifest pins and U-Boot loads at 0x02000000
 # (`loady` then `go`). It used to be produced by hand, which meant the pinned
 # app_image_sha256 was not reproducible from this script alone.
-"$TC/bin/arm-none-eabi-objcopy" -O binary "$OUT/p3_app.elf" "$OUT/p3_app.bin"
-echo "IMAGE  -> $OUT/p3_app.bin"
-sha256sum "$OUT/p3_app.bin"
+"$TC/bin/arm-none-eabi-objcopy" -O binary "$OUT/$IMAGE.elf" "$OUT/$IMAGE.bin"
+echo "IMAGE  -> $OUT/$IMAGE.bin"
+sha256sum "$OUT/$IMAGE.bin"

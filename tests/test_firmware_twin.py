@@ -162,5 +162,73 @@ class Twin(unittest.TestCase):
         self.assertEqual(out[0], "page-refused")
 
 
+@unittest.skipUnless(HAVE_CC, "no host C compiler: the C twin cannot be checked here")
+class OperatorTwin(unittest.TestCase):
+    """L6 prereg §2.3: the C operators, the pair seed and the arm schedule against the
+    Python reference (host/l6_operators.py, host/l6_schedule.py), over the whole 256-pair
+    corpus and beyond it. The C side is firmware/p3_search.c — the source the image links."""
+
+    @classmethod
+    def setUpClass(cls):
+        build = subprocess.run(["make", "twin"], cwd=FW, capture_output=True, text=True)
+        if build.returncode != 0:
+            raise AssertionError(f"the twin did not build:\n{build.stdout}\n{build.stderr}")
+        cls.corpus = json.loads((R / "fixtures/l6_operator_corpus_v1.json").read_text())
+
+    def test_whole_corpus_reproduces_arm_seed_and_genome(self):
+        import l6_operators as lo
+        entries = self.corpus["entries"]
+        self.assertGreaterEqual(len(entries), lo.CORPUS_N)
+        out = run_twin("candidate", [f"{e['master_seed']:x} {e['index']} 0" for e in entries])
+        self.assertEqual(len(out), len(entries))
+        arms = set()
+        for e, line in zip(entries, out):
+            arm, seed, genome = line.split()
+            self.assertEqual((arm, int(seed, 16), genome), (e["arm"], e["seed"], e["genome"]),
+                             f"master {e['master_seed']:#x} index {e['index']}")
+            arms.add(arm)
+        self.assertEqual(arms, {"random_safe", "map_guided"})
+
+    def test_pair_seed_matches_the_python_rule(self):
+        import l6_schedule as ls
+        cases = [(m, k) for m in (0, 1, 0x1234, 0xFFFFFFFF) for k in range(24)]
+        out = run_twin("pairseed", [f"{m:x} {k}" for m, k in cases])
+        for (m, k), line in zip(cases, out):
+            self.assertEqual(int(line, 16), ls.pair_seed(m, k), (m, k))
+
+    def test_arm_schedule_matches_all_three_modes_and_refuses_the_fourth(self):
+        import l6_schedule as ls
+        cases = [(i, mode) for mode in (0, 1, 2) for i in range(40)]
+        out = run_twin("arm", [f"{i} {mode}" for i, mode in cases])
+        for (i, mode), line in zip(cases, out):
+            want = ls.schedule(1, i + 1, ls.MODES[mode])[i]["arm"]
+            self.assertEqual(line, want, (i, mode))
+        self.assertEqual(run_twin("arm", ["0 3", "7 3"]), ["unassigned-mode"] * 2)
+        self.assertEqual(run_twin("candidate", ["1 0 3"]), ["unassigned-mode"])
+
+    def test_forced_modes_and_abba_differ_only_in_the_arm(self):
+        """The pair seed does not depend on the mode; a forced arm on the same index and
+        seed gives the same genome the interleaved schedule would give for that arm."""
+        import l6_operators as lo
+        import l6_schedule as ls
+        import p3_gate as g
+        data = lo.operator_data(g.load_manifest(), lo.load_local_map())
+        for i in range(8):
+            a, b, s = run_twin("candidate", [f"77 {i} 1", f"77 {i} 2", f"77 {i} 0"])
+            self.assertEqual(a.split()[0], "random_safe"); self.assertEqual(b.split()[0], "map_guided")
+            self.assertEqual(a.split()[1], b.split()[1])           # same pair seed
+            self.assertIn(s, (a, b))                                # abba picks one of the two
+            self.assertEqual(a.split()[2], lo.candidate(0x77, i, ls.MODE_A_FORCED, data)["genome_hex"])
+            self.assertEqual(b.split()[2], lo.candidate(0x77, i, ls.MODE_B_FORCED, data)["genome_hex"])
+
+    def test_the_header_carries_the_pinned_operator_data_hash(self):
+        import l6_operators as lo
+        import p3_gate as g
+        want = lo.operator_data_sha256(lo.operator_data(g.load_manifest(), lo.load_local_map()))
+        header = (FW / "p3_data.h").read_text()
+        self.assertIn(f'#define P3_OPERATOR_DATA_SHA256 "{want}"', header)
+        self.assertIn("#define P3_MUTATION_BITS 4", header)
+
+
 if __name__ == "__main__":
     unittest.main()

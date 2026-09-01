@@ -157,6 +157,9 @@ static void cmd_ident(void)
     in.app_epoch = (uint32_t)kv_u("app_epoch", 0);
     in.findings_n = kv_list("findings", findings, 8);
     in.findings = in.findings_n ? findings : NULL;
+    in.master_seed = (uint32_t)kv_u("master_seed", 0);
+    in.schedule_mode = kv_or("schedule_mode", "abba");
+    in.operator_data_sha256 = kv_or("operator_sha", "");
     emit("IDENT", (uint32_t)kv_u("seq", 0), in.token,
          p3_wire_identity(&in, g_plain, sizeof(g_plain)));
 }
@@ -187,6 +190,7 @@ static void cmd_rec(void)
     in.genome = kv_or("genome", "");
     in.outcome = kv_or("outcome", "SCORED");
     in.audited = (int)kv_u("audited", 0);
+    in.arm = kv("arm");                      /* absent -> a baseline record, no arm key */
 
     if (kv_has("finding_kinds")) {
         in.have_sign_refusal = 1;

@@ -122,12 +122,13 @@ class RegisterDiscipline(unittest.TestCase):
             self.assertRegex(APP, r"Xil_SetTlbAttributes\(" + buf)
 
     def test_the_watchdog_is_touched_only_under_the_identity_flag(self):
-        """Session 1 runs watchdog-off — identity page `flags.bit1 = 0` (docs/l5_prereg.md
-        §4, the owner's ruling on the D-c finding). With that bit clear the application must
-        not touch the SCU WDT at all, so both the arm and the kick are gated on it and
-        `P3_WDT_LOAD` is reachable only inside the gate. That matters: the load is 0 in this
-        image, which would be an immediate timeout if it were ever loaded ungated, so
-        enabling the watchdog is a firmware change (a prescaler write), never a flag flip."""
+        """D-s1 (L6 prereg §3, owner 2026-09-01): the watchdog is ON for L6, 30 s, and stays
+        gated by the identity page's `flags.bit1` so that a bit1 = 0 session behaves
+        exactly as L5 did. With the bit clear the application must not touch the SCU WDT
+        at all; with it set, ONE control write sets prescaler 7 and watchdog (reset) mode,
+        then the pinned load, then enable. The load value written is the manifest's."""
+        import json
+        l6 = json.loads((R / "manifests/l6_manifest.json").read_text())["pinned_at_build"]
         kick = APP_CODE[APP_CODE.index("static void kick_watchdog"):]
         kick = kick[:kick.index("\n}")]
         self.assertIn("if (S.page.flags & 2u)", kick)
@@ -137,13 +138,21 @@ class RegisterDiscipline(unittest.TestCase):
         arm = arm[:arm.index("\n    }")]
         self.assertEqual(re.findall(r"XScuWdt_\w+", arm),
                          ["XScuWdt_Config", "XScuWdt_LookupConfig", "XScuWdt_CfgInitialize",
-                          "XScuWdt_LoadWdt", "XScuWdt_Start"])
+                          "XScuWdt_SetControlReg", "XScuWdt_LoadWdt", "XScuWdt_Start"])
+        self.assertIn("XSCUWDT_CONTROL_WD_MODE_MASK", arm, "watchdog (reset) mode, not timer mode")
+        self.assertIn("P3_WDT_PRESCALER << XSCUWDT_CONTROL_PRESCALER_SHIFT", arm)
+        self.assertLess(arm.index("XScuWdt_SetControlReg"), arm.index("XScuWdt_LoadWdt"))
+        self.assertLess(arm.index("XScuWdt_LoadWdt"), arm.index("XScuWdt_Start"))
 
         # nothing outside those two gated regions may name the driver or the load value
-        self.assertEqual(len(re.findall(r"XScuWdt_\w+", APP_CODE)), 6)
+        self.assertEqual(len(re.findall(r"XScuWdt_\w+", APP_CODE)), 7)
         self.assertEqual(len(re.findall(r"P3_WDT_LOAD", arm)), 1)
         self.assertEqual(len(re.findall(r"P3_WDT_LOAD", APP_CODE)), 2)   # the #define + the use
-
+        # the ACTUAL values written are the manifest's pins (D-s1: not the derivation)
+        self.assertEqual(re.findall(r"#define P3_WDT_LOAD (\d+)u", APP_CODE), [str(l6["watchdog_load_value"])])
+        self.assertEqual(re.findall(r"#define P3_WDT_PRESCALER (\d+)u", APP_CODE), [str(l6["watchdog_prescaler"])])
+        self.assertTrue(l6["watchdog_enabled"])
+        self.assertNotIn("XScuWdt_Stop", APP_CODE); self.assertNotIn("XSCUWDT_DISABLE", APP_CODE)
 
 class DmaDiscipline(unittest.TestCase):
     def test_exactly_four_dma_transactions_are_declared(self):
@@ -244,6 +253,11 @@ class StateMachine(unittest.TestCase):
         self.assertIn("extern int p3_search_next(", APP)
         self.assertIn("p3_search_next", SOURCES["p3_search.c"])
         self.assertNotIn("score", SOURCES["p3_search.c"].lower().split("Determinism")[0])
+        # the two-operator search touches nothing but the genome words: no MMIO, no wire
+        search = CODE["p3_search.c"]
+        for bad in ("Xil_", "axi_", "send_", "p3_wire", "0x43C", "0xF8"):
+            self.assertNotIn(bad, search, f"p3_search.c must not contain {bad}")
+        self.assertIn("P3_MUTATION_BITS", search); self.assertIn("P3_LUT_BITS", search)
 
     def test_the_file_states_its_compile_standing(self):
         """The standing of this artifact is part of the artifact: as of the L5 build it is
@@ -311,17 +325,95 @@ class WireWiring(unittest.TestCase):
                         "the mark must be set after the words are sent, not before")
 
     def test_every_candidate_that_staged_is_auditable(self):
-        """The audit policy in the source: a candidate that staged gets its words served
-        before its record — including the link-2 refusal, whose whole claim is about the
-        staged words. A gate refusal staged nothing and is exempt (see check_audit_policy)."""
+        """§3a item 2 in the source: every non-SCORED self-report is audited UNCONDITIONALLY
+        (`ensure_audit`, with or without an AUDITREQ) before its record; a SCORED record is
+        audited iff it was requested. A gate refusal staged nothing and is exempt."""
         run = APP[APP.index("static int run_candidate"):]
         link2_stop = run.index('emit_record(&rec, "STOP_LINK2")')
-        self.assertLess(run.index("serve_audit(0)"), link2_stop,
+        self.assertLess(run.index("ensure_audit(0)"), link2_stop,
                         "the link-2 refusal must serve its staged words before its record")
-        for outcome in ("STOP_LINK3", "REFUSED_BY_PL", "SCORED"):
-            self.assertLess(run.index("serve_audit(1)"),
-                            run.index(f'emit_record(&rec, "{outcome}")'),
-                            f"{outcome} must be audited before its record is emitted")
+        self.assertLess(run.index("ensure_audit(0)"), run.index('p3_stop(P3_STOPPED, "STOP_LINK2'),
+                        "words first, then the stop: serve_audit no longer serves after a stop otherwise")
+        for outcome in ("STOP_LINK3", "STOP_AXI", "STOP_SETTLE", "STOP_ARM", "REFUSED_BY_PL"):
+            emit = run.index(f'emit_record(&rec, "{outcome}")')
+            before = run[:emit]
+            self.assertTrue(before.rstrip().endswith("ensure_audit(1);") or
+                            "ensure_audit(1);" in before[before.rindex("{"):],
+                            f"{outcome} must be auto-audited (ensure_audit(1)) immediately before its record")
+        scored = run.index('emit_record(&rec, "SCORED")')
+        self.assertLess(run.index("if (S.audit_requested)\n        serve_audit(1);"), scored)
+        self.assertNotIn("ensure_audit", run[run.index("rec.have_score = 1;"):scored],
+                         "a SCORED record is audited iff requested (the sampled schedule)")
+        ensure = APP[APP.index("static void ensure_audit"):]
+        ensure = ensure[:ensure.index("\n}")]
+        self.assertIn("S.audit_served && S.audit_served_seq == S.seq", ensure)
+
+    def test_serving_survives_a_stop_but_not_a_channel_failure(self):
+        """The L5 image gated the audit loop on P3_RUNNING, so a link-2 refusal (whose stop
+        preceded its audit) could never serve its words. Serving now stops only for a
+        PROTOCOL failure, and the mark is set on the same condition."""
+        serve = APP_CODE[APP_CODE.index("static void serve_audit"):]
+        body = serve[:serve.index("\n}\n")]
+        self.assertIn("c < chunks && S.kind != P3_PROTOCOL", body)
+        self.assertNotIn("S.kind == P3_RUNNING", body)
+        self.assertIn("if (S.kind != P3_PROTOCOL) {", body)
+
+    def test_a_post_staging_axi_fault_is_recorded_as_stop_axi_with_its_words(self):
+        """The pre-ARM fault check inside arm_attempt used to end the candidate with no
+        record. The candidate had staged and read back, so it is a raw self-report: it is
+        auto-audited and recorded as STOP_AXI (validators.records.self_report_class)."""
+        run = APP[APP.index("static int run_candidate"):]
+        block = run[run.index("if (armed < 0) {"):]
+        block = block[:block.index("\n    }")]
+        self.assertIn("ensure_audit(1);", block)
+        self.assertIn('emit_record(&rec, "STOP_AXI");', block)
+        self.assertLess(block.index("ensure_audit(1);"), block.index('emit_record(&rec, "STOP_AXI");'))
+
+    def test_exactly_sixteen_heartbeats_per_scored_record(self):
+        """The fixed protocol the timing breakdown and the structural gate rely on: one
+        heartbeat after the streams are built, one per envelope DMA (three), one per frame
+        readback (twelve) — 16, each carrying the candidate's seq. Structural: the counts
+        come from the loops' bounds and the call sites, not from a constant."""
+        import sys
+        sys.path.insert(0, str(R / "host"))
+        import l6_timing as lt
+        run = APP[APP.index("static int run_candidate"):]
+        pre_link2 = run[:run.index("link2_witness(staged, stream_h)")]
+        self.assertEqual(pre_link2.count("heartbeat();"), 1)
+        envelopes = APP[APP.index("static int write_envelopes"):]
+        envelopes = envelopes[:envelopes.index("\n}")]
+        self.assertIn("for (e = 0; e < P3_ENVELOPE_COUNT; e++)", envelopes)
+        self.assertEqual(envelopes.count("heartbeat();"), 1)
+        readback = APP[APP.index("static int link3_witness"):]
+        readback = readback[:readback.index("\n}")]
+        self.assertIn("for (i = 0; i < P3_TARGET_FRAMES; i++)", readback)
+        self.assertEqual(readback.count("heartbeat();"), 1)
+        self.assertIn("#define P3_ENVELOPE_COUNT 3", SOURCES["p3_derive.h"])
+        self.assertIn("#define P3_TARGET_FRAMES 12", SOURCES["p3_derive.h"])
+        self.assertEqual(1 + 3 + 12, lt.HB_PER_RECORD)
+        # no other heartbeat between the sign reply and the record on the SCORED path
+        after_link3 = run[run.index("link3_witness(readback)"):run.index('emit_record(&rec, "SCORED")')]
+        self.assertNotIn("heartbeat();", after_link3)
+        hb = APP[APP.index("static void heartbeat(void)"):]
+        self.assertIn('send_frame("HB", S.seq, "-")', hb[:hb.index("\n}")])   # the candidate's seq
+
+    def test_the_identity_names_the_master_seed_mode_and_operator_data(self):
+        ident = APP[APP.index("static int establish_identity"):]
+        ident = ident[:ident.index('send_payload("IDENT"')]
+        self.assertIn("in.master_seed = S.page.seed;", ident)
+        self.assertIn("in.operator_data_sha256 = P3_OPERATOR_DATA_SHA256;", ident)
+        self.assertIn("in.schedule_mode = mode == P3_MODE_UNASSIGNED", ident)
+        self.assertIn('"schedule mode 3 is unassigned"', ident)       # refused at identity
+        self.assertIn("#define P3_MODE_SHIFT 2u", APP); self.assertIn("#define P3_MODE_MASK 3u", APP)
+
+    def test_candidates_carry_the_scheduled_arm_and_baselines_none(self):
+        main = APP[APP.index("int main(void)"):]
+        self.assertIn("run_candidate(blank, 1, NULL)", main)
+        self.assertEqual(main.count("run_candidate(blank, 1, NULL)"), 2)
+        self.assertIn("p3_search_next(genome, S.page.seed, i, schedule_mode(), &arm)", main)
+        self.assertIn("run_candidate(genome, 0, P3_ARM_NAME[arm])", main)
+        run = APP[APP.index("static int run_candidate"):]
+        self.assertIn("rec.arm = arm_name;", run[:run.index('send_payload("SIGNREQ"')])
 
     def test_a_short_audit_cannot_be_served_as_a_full_one(self):
         """A link-2 refusal has no readback frames; serving stale ones would be worse than

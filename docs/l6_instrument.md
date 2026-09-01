@@ -172,8 +172,9 @@ discrimination test in both directions.
 Everything else in §5 stands as the owner ruled (accepted items marked). No firmware, no
 image, no ruling, no board.
 
-## 6. Not done here, by the boundary
+## 6. Not done here, by the boundary (superseded 2026-09-01 by the §2 batch)
 
-No `p3_app.c` change (§2.6a auto-audit, §2.6 watchdog prescaler, the two operators, the
-arm in the record, the IDENT fields), no `p3_data.h` regeneration, no build, no C twin of
-the operators/schedule, no wire-contract test for the new fields, no ruling, no board.
+At delivery this batch made no `p3_app.c` change, no `p3_data.h` regeneration, no build
+and no C twin. The §2 batch, authorised after the §4 PASS, did all of that:
+`docs/l6_compat_review_package.md`. Still not done, by the standing boundary: no ruling,
+no board, no C1/C2/S, no prereg freeze.

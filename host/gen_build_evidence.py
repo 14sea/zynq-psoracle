@@ -25,7 +25,10 @@ import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "firmware", "bsp", "out")
-EVID = os.path.join(REPO, "evidence", "l5_build")
+LINES = {"l5": {"image": "p3_app", "manifest": "l5_manifest.json", "bsp": "l5_bsp_inputs.json",
+                "evidence": "l5_build", "schema": "l5_build_evidence"},
+         "l6": {"image": "p3_app_l6", "manifest": "l6_manifest.json", "bsp": "l6_bsp_inputs.json",
+                "evidence": "l6_build", "schema": "l6_build_evidence"}}
 
 
 def sha(path):
@@ -42,36 +45,38 @@ def newest_test_report():
     return "evidence/tests/" + max(reps) if reps else None
 
 
-def main():
-    binp = os.path.join(OUT, "p3_app.bin")
-    elfp = os.path.join(OUT, "p3_app.elf")
-    mapp = os.path.join(OUT, "p3_app.map")
+def main(line="l5"):
+    L = LINES[line]
+    EVID = os.path.join(REPO, "evidence", L["evidence"])
+    binp = os.path.join(OUT, L["image"] + ".bin")
+    elfp = os.path.join(OUT, L["image"] + ".elf")
+    mapp = os.path.join(OUT, L["image"] + ".map")
     for p in (binp, elfp, mapp):
         if not os.path.isfile(p):
-            sys.exit("missing %s -- run firmware/bsp/build.sh first" % p)
+            sys.exit("missing %s -- run IMAGE=%s firmware/bsp/build.sh first" % (p, L["image"]))
 
     os.makedirs(EVID, exist_ok=True)
-    shutil.copyfile(mapp, os.path.join(EVID, "p3_app.map"))
+    shutil.copyfile(mapp, os.path.join(EVID, L["image"] + ".map"))
 
-    lm = json.loads(open(os.path.join(REPO, "manifests", "l5_manifest.json")).read())
+    lm = json.loads(open(os.path.join(REPO, "manifests", L["manifest"])).read())
     pab = lm["pinned_at_build"]
 
     dirty = bool(git("status", "--porcelain"))
     rep = newest_test_report()
     ev = {
-        "schema": "l5_build_evidence",
+        "schema": L["schema"],
         "schema_version": "1.0.0",
-        "purpose": "Post-build provenance for the pinned P3 L5 application image, "
-                   "regenerated after a clean rebuild (reviewer 2026-08-31).",
+        "purpose": "Post-build provenance for the pinned P3 %s application image, "
+                   "regenerated after a clean rebuild (reviewer 2026-08-31)." % line.upper(),
         "git": {"head": git("rev-parse", "HEAD"), "worktree_dirty": dirty},
         "toolchain": pab["toolchain"],
         "bsp_inputs": {
-            "manifest": "manifests/l5_bsp_inputs.json",
-            "manifest_sha256": sha(os.path.join(REPO, "manifests", "l5_bsp_inputs.json")),
-            "count": json.loads(open(os.path.join(REPO, "manifests", "l5_bsp_inputs.json")).read())["count"],
+            "manifest": "manifests/" + L["bsp"],
+            "manifest_sha256": sha(os.path.join(REPO, "manifests", L["bsp"])),
+            "count": json.loads(open(os.path.join(REPO, "manifests", L["bsp"])).read())["count"],
         },
         "image": {
-            "bin": "firmware/bsp/out/p3_app.bin",
+            "bin": "firmware/bsp/out/%s.bin" % L["image"],
             "bin_bytes": os.path.getsize(binp),
             "bin_sha256": sha(binp),
             "elf_sha256": sha(elfp),
@@ -79,7 +84,7 @@ def main():
             "expected_bin_sha256": pab["app_image_sha256"],
         },
         "linker_map": {
-            "path": "evidence/l5_build/p3_app.map",
+            "path": "evidence/%s/%s.map" % (L["evidence"], L["image"]),
             "sha256": sha(mapp),
         },
         "tests": {
@@ -93,8 +98,11 @@ def main():
         json.dump(ev, f, indent=2)
         f.write("\n")
     print("image reproduced byte-identical:", ev["image"]["reproduced_byte_identical"])
-    print("wrote evidence/l5_build/build_evidence.json + p3_app.map")
+    print("wrote evidence/%s/build_evidence.json + %s.map" % (L["evidence"], L["image"]))
 
 
 if __name__ == "__main__":
-    main()
+    line = sys.argv[1] if len(sys.argv) > 1 else "l5"
+    if line not in LINES:
+        sys.exit("usage: gen_build_evidence.py [l5|l6]")
+    main(line)

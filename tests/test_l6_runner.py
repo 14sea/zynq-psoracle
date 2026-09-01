@@ -115,8 +115,8 @@ class Refusals(unittest.TestCase):
         m = copy.deepcopy(L6M)
         if frozen:
             m["prereg"]["sha256"] = hashlib.sha256((R / "docs/l6_soak_prereg.md").read_bytes()).hexdigest()
-        if image:
-            m["pinned_at_build"]["app_image_sha256"] = self.image_sha
+        # the committed manifest now pins the real image; the fixture pins the stand-in or nulls it
+        m["pinned_at_build"]["app_image_sha256"] = self.image_sha if image else None
         if not watchdog:
             m["pinned_at_build"]["watchdog_enabled"] = False
         if calib:

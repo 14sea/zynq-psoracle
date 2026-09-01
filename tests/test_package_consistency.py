@@ -69,6 +69,48 @@ class PinnedImage(unittest.TestCase):
         self.assertEqual(inputs["count"], len(inputs["files"]))
 
 
+L6 = json.loads((R / "manifests/l6_manifest.json").read_text())
+L6_PINNED = L6["pinned_at_build"]
+L6_BUILT = R / "firmware/bsp/out/p3_app_l6.bin"
+L6_EVIDENCE = R / "evidence/l6_build/build_evidence.json"
+
+
+class PinnedL6Image(unittest.TestCase):
+    """The two-operator image (L6 §2): pinned, reproduced byte-identical, built from the
+    same identified BSP input set, and never confusable with the L5 image."""
+
+    def test_the_l6_pin_is_well_formed_and_is_not_the_l5_image(self):
+        sha = L6_PINNED["app_image_sha256"]
+        self.assertRegex(sha, r"^[0-9a-f]{64}$")
+        self.assertNotEqual(sha, PINNED["app_image_sha256"])
+        self.assertNotIn(sha, WITHDRAWN)
+
+    def test_the_built_l6_binary_matches_the_manifest(self):
+        if not L6_BUILT.is_file():
+            self.skipTest(f"{L6_BUILT} absent (out/ is gitignored); run IMAGE=p3_app_l6 firmware/bsp/build.sh")
+        self.assertEqual(hashlib.sha256(L6_BUILT.read_bytes()).hexdigest(), L6_PINNED["app_image_sha256"])
+
+    def test_the_l6_build_evidence_agrees_with_the_manifest(self):
+        ev = json.loads(L6_EVIDENCE.read_text())
+        self.assertEqual(ev["schema"], "l6_build_evidence")
+        self.assertEqual(ev["image"]["bin_sha256"], L6_PINNED["app_image_sha256"])
+        self.assertEqual(ev["image"]["expected_bin_sha256"], L6_PINNED["app_image_sha256"])
+        self.assertTrue(ev["image"]["reproduced_byte_identical"])
+        self.assertEqual(ev["image"]["elf_sha256"], L6_PINNED["elf_sha256"])
+        self.assertEqual(ev["toolchain"]["tarball_sha256"], L6_PINNED["toolchain"]["tarball_sha256"])
+        self.assertEqual(ev["bsp_inputs"]["manifest"], "manifests/l6_bsp_inputs.json")
+        self.assertEqual(ev["bsp_inputs"]["count"], L6_PINNED["bsp_inputs"]["count"])
+
+    def test_the_watchdog_pins_are_the_d_s1_values(self):
+        self.assertTrue(L6_PINNED["watchdog_enabled"])
+        self.assertEqual((L6_PINNED["watchdog_prescaler"], L6_PINNED["watchdog_load_value"]), (7, 1250000035))
+        # 30.0 s at PERIPHCLK/8, from the manifest's own clock — the derivation the pin was made from
+        self.assertAlmostEqual((L6_PINNED["watchdog_load_value"] + 1) * 8 / L6_PINNED["peripheral_clock_hz"], 30.0, places=6)
+
+    def test_the_runner_still_refuses_because_the_prereg_is_not_frozen(self):
+        self.assertIsNone(L6["prereg"]["sha256"], "the prereg is frozen by the owner after the compatibility review, not here")
+
+
 class WithdrawnHashesStayInHistory(unittest.TestCase):
     """A withdrawn image hash may appear ONLY where it is history.
 

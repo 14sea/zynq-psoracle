@@ -103,10 +103,15 @@ size_t p3_wire_identity(const p3_wire_identity_in *in, char *out, size_t max)
             w_fmt(&w, ",");
         w_str(&w, in->findings[i]);
     }
-    w_fmt(&w, "],\"nonce_at_start\":\"%016llx\",\"pss_idcode\":\"0x%08lx\",\"schema\":"
-              "\"app_identity\",\"schema_version\":\"1.0.0\",\"status_at_start\":\"0x%08lx\","
-              "\"token\":",
-          (unsigned long long)in->nonce_at_start, (unsigned long)in->pss_idcode,
+    /* sorted keys, as every payload: master_seed < nonce_at_start < operator_data_sha256
+     * < pss_idcode < schedule_mode < schema */
+    w_fmt(&w, "],\"master_seed\":%lu,\"nonce_at_start\":\"%016llx\",\"operator_data_sha256\":",
+          (unsigned long)in->master_seed, (unsigned long long)in->nonce_at_start);
+    w_str(&w, in->operator_data_sha256);
+    w_fmt(&w, ",\"pss_idcode\":\"0x%08lx\",\"schedule_mode\":", (unsigned long)in->pss_idcode);
+    w_str(&w, in->schedule_mode);
+    w_fmt(&w, ",\"schema\":\"app_identity\",\"schema_version\":\"1.1.0\",\"status_at_start\":"
+              "\"0x%08lx\",\"token\":",
           (unsigned long)in->status_at_start);
     w_str(&w, in->token);
     w_fmt(&w, ",\"uboot_epoch\":%lu}", (unsigned long)in->uboot_epoch);
@@ -223,7 +228,13 @@ size_t p3_wire_loop_record(const p3_wire_record_in *in, char *out, size_t max)
     int i;
 
     w_init(&w, out, max);
-    w_fmt(&w, "{\"evidence\":{");
+    w_fmt(&w, "{");
+    if (in->arm != NULL) { /* 1.1.0: "arm" sorts before "evidence"; absent on a baseline */
+        w_fmt(&w, "\"arm\":");
+        w_str(&w, in->arm);
+        w_fmt(&w, ",");
+    }
+    w_fmt(&w, "\"evidence\":{");
     if (in->have_sign_refusal) {
         w_fmt(&w, "\"sign_refusal\":{\"finding_kinds\":[");
         for (i = 0; i < in->finding_kinds_n; i++) {
@@ -262,7 +273,7 @@ size_t p3_wire_loop_record(const p3_wire_record_in *in, char *out, size_t max)
     w_str(&w, in->genome);
     w_fmt(&w, ",\"outcome\":");
     w_str(&w, in->outcome);
-    w_fmt(&w, ",\"schema\":\"loop_record\",\"schema_version\":\"1.0.0\",\"seq\":%lu,"
+    w_fmt(&w, ",\"schema\":\"loop_record\",\"schema_version\":\"1.1.0\",\"seq\":%lu,"
              "\"verified\":\"%s\"}",
           (unsigned long)in->seq, in->audited ? "audited" : "replayed-only");
     {

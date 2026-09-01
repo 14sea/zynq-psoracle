@@ -3,6 +3,7 @@
  * Source: zynq-fabricmap phenotype_manifest.json
  *   sha256 e45f466d082ccd6f227e6f9be4ce75a4e98c4caa708808c09a77ed32331c10ef
  * Canonical address order digest: 895baf85ed31df9beae28a533646182ffb8d0e0735c9849ede9641af81ee7458
+ * Operator data (local_map.json derivation) sha256: 0c9c82a812be754dbba83c02b24b4321a95af46464a201a6f3c51374f2c80d79
  *
  * The twelve target frames are the candidate's; the three flush frames are written
  * verbatim (the device's auto-increment reaches them after the four targets).
@@ -616,6 +617,35 @@ static const uint32_t P3_BASE_FLUSH[3][101] = {
         0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
         0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u,
     },
+};
+
+/* L6 two-operator image: the map data behind the map-guided operator, derived from the
+ * pinned local_map.json (clb_lut_init_v1) by host/l6_operators.py:operator_data.
+ * P3_OPERATOR_DATA_SHA256 is that derivation's hash; the IDENT names it and the host
+ * regenerates and compares it (prereg §2.1, §2.4). LUT order = sorted map keys. */
+#define P3_OPERATOR_DATA_SHA256 "0c9c82a812be754dbba83c02b24b4321a95af46464a201a6f3c51374f2c80d79"
+#define P3_MUTATION_BITS 4
+#define P3_LUT_COUNT 6
+#define P3_LUT_MAX_BITS 51
+static const char *const P3_LUT_KEYS[P3_LUT_COUNT] = {
+    "CLBLL_L.SLICEL_X0.ALUT",
+    "CLBLL_L.SLICEL_X0.DLUT",
+    "CLBLM_L.SLICEL_X1.ALUT",
+    "CLBLM_L.SLICEL_X1.DLUT",
+    "CLBLM_L.SLICEM_X0.ALUT",
+    "CLBLM_L.SLICEM_X0.DLUT",
+};
+static const uint16_t P3_LUT_LEN[P3_LUT_COUNT] = {
+    49, 49, 49, 51, 50, 44
+};
+/* genome bit index of INIT position j of LUT i (INIT-index order); unused tail is 0xFFFF */
+static const uint16_t P3_LUT_BITS[P3_LUT_COUNT][P3_LUT_MAX_BITS] = {
+    { 13, 36, 12, 35, 11, 10, 34, 86, 60, 85, 59, 84, 58, 83, 57, 9, 33, 8, 32, 7, 31, 6, 82, 81, 56, 55, 80, 5, 30, 29, 4, 28, 79, 54, 78, 53, 77, 76, 3, 2, 27, 1, 26, 0, 52, 51, 75, 74, 50, 65535, 65535 },
+    { 49, 25, 24, 48, 23, 47, 97, 73, 96, 72, 95, 71, 94, 70, 22, 46, 21, 45, 44, 43, 69, 68, 93, 67, 92, 20, 42, 19, 18, 41, 17, 40, 91, 66, 90, 65, 64, 89, 63, 16, 15, 39, 38, 14, 37, 88, 62, 87, 61, 65535, 65535 },
+    { 107, 133, 106, 132, 105, 185, 160, 184, 159, 183, 158, 182, 157, 104, 131, 130, 129, 181, 156, 155, 154, 180, 153, 103, 128, 102, 101, 127, 126, 179, 152, 178, 151, 177, 150, 100, 125, 99, 124, 98, 123, 176, 149, 175, 148, 174, 147, 173, 146, 65535, 65535 },
+    { 122, 121, 145, 120, 144, 119, 143, 172, 171, 197, 170, 196, 169, 118, 142, 117, 141, 116, 140, 195, 194, 168, 193, 167, 192, 115, 114, 139, 113, 112, 138, 191, 166, 165, 190, 189, 164, 111, 137, 110, 136, 109, 135, 108, 134, 188, 163, 187, 162, 186, 161 },
+    { 282, 257, 281, 256, 280, 279, 208, 231, 207, 206, 230, 255, 278, 254, 277, 253, 276, 252, 275, 229, 205, 228, 227, 204, 226, 251, 250, 274, 249, 273, 248, 272, 203, 225, 202, 224, 223, 201, 247, 271, 246, 270, 245, 200, 222, 199, 221, 220, 198, 219, 65535 },
+    { 269, 291, 268, 267, 266, 290, 218, 244, 243, 217, 242, 241, 265, 264, 289, 288, 216, 240, 239, 215, 238, 214, 237, 263, 287, 262, 286, 261, 285, 213, 236, 212, 235, 211, 260, 284, 259, 283, 258, 210, 234, 209, 233, 232, 65535, 65535, 65535, 65535, 65535, 65535, 65535 },
 };
 
 #endif /* P3_DATA_H */

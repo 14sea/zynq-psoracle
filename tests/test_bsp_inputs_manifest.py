@@ -91,5 +91,22 @@ class Manifest(unittest.TestCase):
             self.assertEqual(hashlib.sha256(data).hexdigest(), f["sha256"], f["path"])
 
 
+class L6InputsAreTheSameSet(unittest.TestCase):
+    """The two-operator image is built by the same build.sh from the same embeddedsw tree;
+    its input manifest is generated separately (host/gen_bsp_input_manifest.py l6) and
+    must name exactly the L5 set — a differing set would mean the build pulled something
+    the L5 review never saw."""
+
+    def test_l6_manifest_names_the_same_files_as_l5(self):
+        l6p = REPO / "manifests" / "l6_bsp_inputs.json"
+        self.assertTrue(l6p.is_file(), "manifests/l6_bsp_inputs.json is missing")
+        l5, l6 = json.loads(MANIFEST.read_text()), json.loads(l6p.read_text())
+        self.assertEqual(l6["schema"], "l6_bsp_inputs")
+        self.assertEqual(l6["count"], len(l6["files"]))
+        self.assertEqual([(f["path"], f["sha256"], f["bytes"]) for f in l5["files"]],
+                         [(f["path"], f["sha256"], f["bytes"]) for f in l6["files"]])
+        self.assertIn("l6_manifest.json", l6["purpose"])
+
+
 if __name__ == "__main__":
     unittest.main()
