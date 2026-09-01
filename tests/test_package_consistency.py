@@ -170,8 +170,11 @@ class DocumentsAgree(unittest.TestCase):
         # appear in the canonical table by accident.
         cells = row.split("|")
         state, adjudicated = cells[2], cells[3]
-        self.assertIn("PASS (scoped)", state, "the canonical L5 state is the owner's scoped PASS")
-        self.assertNotIn("HOLD", state)
+        # the state is what the field OPENS with; the history it goes on to tell may name
+        # the HOLDs that preceded the ruling (a blunt "no HOLD anywhere" tripped on exactly
+        # that and was pushed red — 0d52e5b — so the property is stated precisely here)
+        self.assertTrue(state.strip().startswith("**PASS (scoped)**"),
+                        "the canonical L5 state must open with the owner's scoped PASS")
         self.assertIn("owner", adjudicated); self.assertIn("2026-09-01", adjudicated)
         for scope_word in ("17A6", "956379fa", "a7c73d1f", "N = 8", "all-self-reporting",
                            "Not extrapolated"):
