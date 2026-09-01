@@ -1,6 +1,6 @@
-# L6 preregistration v0.3 — DRAFT (pull-protocol revision; NOT frozen)
+# L6 preregistration v0.3 — draft, MERGED INTO THE FROZEN TEXT 2026-09-01 (historical)
 
-> **Standing: DRAFT. This document freezes nothing and authorises nothing.** The frozen
+> **Standing: HISTORICAL. Every delta below was merged into the frozen `docs/l6_soak_prereg.md` v0.3 on 2026-09-01 (owner-authorised freeze batch); this file records what the draft asked for and is no longer an authority.** The frozen
 > v0.2 (`docs/l6_soak_prereg.md`, sha `90f5fa69…`) stands untouched; `host/l6_runner.py`
 > still binds to it and to the board-ready image `bd1454cd…`. This draft records ONLY the
 > deltas the pull protocol (`docs/l6_audit_pull_design.md`) requires; everything not named

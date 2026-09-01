@@ -145,7 +145,7 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
         audit_seqs = ls.all_seqs(n)
         inputs.update({"timeout_source": "CLI --session-timeout-s (no calibration exists yet)"})
     sched = ls.schedule(master_seed, n, mode)
-    expected = ls.expected_frames(n, audit_seqs)
+    expected = ls.expected_frames(n, audit_seqs, l6m["pinned_at_build"].get("protocol", "push-v1"))
     budget = ls.crc_budget(expected["total"])
     return {"session": session, "mode": mode, "master_seed": master_seed, "n": n, "schedule": sched,
             "audit_policy": audit_policy, "audit_seqs": audit_seqs, "expected_frames": expected,
@@ -362,6 +362,10 @@ def preflight(a) -> dict:
     wd = l6m["pinned_at_build"]
     if not wd["watchdog_enabled"] or wd["watchdog_load_value"] != 1250000035 or wd["watchdog_prescaler"] != 7:
         raise bsn.SessionRefusal("D-s1: the watchdog must be pinned ON with prescaler 7 and load 1250000035")
+    if not wd.get("board_ready"):
+        raise bsn.SessionRefusal("the pinned image is not marked board-ready (freeze batch 2026-09-01: one image, one authority)")
+    if wd.get("protocol") != "pull-v2":
+        raise bsn.SessionRefusal(f"the pinned image's protocol {wd.get('protocol')!r} is not the frozen prereg's pull-v2")
     # blocker 2: both rulings are bound to THIS session and to the frozen prereg + pinned image
     pinned_seed = l6m["sessions"][a.session].get("master_seed")
     bind_ruling(ruling, "whole-of-probe P3-L6", a.session, pinned_prereg, pinned, l6m_sha, pinned_seed)

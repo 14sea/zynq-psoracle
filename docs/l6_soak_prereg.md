@@ -1,10 +1,13 @@
-# L6 — calibration and soak of the P3 loop (preregistration v0.2, FROZEN 2026-09-01; D-s1..D-s4 ruled 2026-09-01)
+# L6 — calibration and soak of the P3 loop (preregistration v0.3, FROZEN 2026-09-01; D-s1..D-s4 ruled 2026-09-01; pull-protocol revision)
 
-> **Standing: FROZEN 2026-09-01 (host-only) — its sha256 is pinned in `manifests/l6_manifest.json`
-> `prereg.sha256` and `host/l6_runner.py` refuses any text that does not hash to it. Freezing
-> authorises nothing by itself: the two-operator image `bd1454cd…` passed the P3 compatibility
-> review (`docs/l6_compat_review_package.md`), and the board phase still waits for its own
-> ruling — no ruling exists, no board contact has happened.** Written 2026-09-01 on the `zynq-fabricmap` owner ruling recorded in
+> **Standing: v0.3, FROZEN 2026-09-01 (host-only) — its sha256 is pinned in
+> `manifests/l6_manifest.json` `prereg.sha256` and `host/l6_runner.py` refuses any text that
+> does not hash to it. v0.3 supersedes the frozen v0.2 (sha `90f5fa69…`, in git history):
+> after C1's three transport/instrument HOLDs and the byte-loss stop-loss, the audit
+> transport became the host-paced sparse pull (`docs/l6_audit_pull_design.md`, package
+> `docs/l6_pull_batch_package.md`, both review-passed) and the image became `e19e1b12…`
+> (pull-v2). Freezing authorises nothing by itself: the board phase still waits for its own
+> rulings — no ruling exists.** Written 2026-09-01 on the `zynq-fabricmap` owner ruling recorded in
 > `zynq-fabricmap/docs/claimb_resumption_memo.md` §0: Claim B's readback leg is
 > RESUMPTION-ELIGIBLE but stays PAUSED "until a calibration/soak preregistration has passed
 > and the two-operator image has completed P3 compatibility review", and "the first Claim B
@@ -13,9 +16,10 @@
 > Claim B's own preregistration, arms, budget and score stay `zynq-fabricmap`'s.
 
 Frozen when: committed with its content sha256 recorded in `manifests/l6_manifest.json` and
-every later artifact pinning that hash. **That is now the case** (2026-09-01, after the §4
-instrument batch PASS and the §2 image's compatibility review PASS); any edit from here is a
-new version with a new hash and a new freeze.
+every later artifact pinning that hash. **That is now the case for v0.3** (2026-09-01, after
+the pull-batch package review PASS); v0.2 was frozen the same day and is superseded, not
+erased — its hash and text live in git history and in the session evidence that ran under
+it. Any edit from here is a new version with a new hash and a new freeze.
 
 ## 0. The two questions, and what they are not
 
@@ -76,9 +80,21 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
    PERIPHCLK 333.33 MHz (board-confirmed), kicked at the same progress points as the
    heartbeat, selected by the identity page's `flags.bit1`; a session with bit1 = 0 must
    behave exactly as L5 did; the build and its tests pin the actual load value written.
-6a. **Unconditional audit for non-`SCORED` self-reports** (§3a item 2): the firmware serves
-   the raw words before emitting any `STOP_LINK2`/`STOP_LINK3`/`REFUSED_BY_PL`/`STOP_ARM`/
-   `STOP_SETTLE` record, with or without an `AUDITREQ`.
+6a. **The audit transport is the host-paced sparse pull** (v0.3; `docs/l6_audit_pull_design.md`).
+   For every candidate whose audit is due — a SCORED-path candidate the host selected by
+   `AUDITREQ` at sign time, and every non-`SCORED` self-report (`STOP_LINK2`/`STOP_LINK3`/
+   `REFUSED_BY_PL`/`STOP_ARM`/`STOP_SETTLE`/a post-staging `STOP_AXI`) **unconditionally**
+   (§3a item 2) — the application announces `AUDIT_READY {seq, span, total_words, chunks,
+   nonzero}` and serves `app_audit_chunk` 2.0.0 sparse-v1 chunks on each `AUDITGET`, as
+   often as asked, until `AUDITDONE` or `AUDITABORT` or its own bounded wait
+   (`P3_PULL_IDLE_POLLS`, a count of RX polls, like the settle poll) runs out. A sparse
+   chunk lists the non-zero words of one 384-position window as strictly ascending, unique
+   `(uint16 position, uint32 word)` pairs; an unlisted position is zero — lossless, the
+   host rebuilds every word and recomputes the three hashes unchanged. `verified: audited`
+   means `AUDITDONE` was received, nothing less. **A SCORED-path pull that does not
+   complete means NO ARM**: the record is the new outcome `STOP_AUDIT` (evidence: the
+   oracle self-report + `audit_stop {why, chunks_served}`, never `audited`, always a HOLD
+   under either policy) and the epoch stops (restore, TERM).
 7. Review by the owner against this list, item by item, before any L6 ruling; the image
    hash is then pinned in `manifests/l6_manifest.json` and this document is frozen.
 
@@ -89,7 +105,7 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
 | **D-s1** watchdog | **ON.** Prescaler 7, 30 s (`load 1 250 000 035` at PERIPHCLK 333.33 MHz, board-confirmed 2026-09-01-05). Arm and kick are gated by the identity page's `flags.bit1`; the **bit1 = 0 path keeps L5's behaviour exactly**. The build and its tests must pin the **actual** load value written, not the derivation. |
 | **D-s2** audit policy for the soak | **Sampled, accepted in principle, with the timing requirement of §3a as a condition.** The v0.1 wording "every non-`SCORED` self-reporting record audited" is **not implementable under the current wire protocol** (§3a) and is replaced by §3a's rule. |
 | **D-s3** soak duration | **2 h, accepted.** N = ⌊0.9 × min(rate_A, rate_B) × T⌋, with rate_A and rate_B imported **only** from the two calibration records (C1, C2) by their hashes. |
-| **D-s4** CRC budget | **Frame-count scaling, with a closed formula:** `budget = ceil(4 × expected_protocol_frames / 1000)`, where `expected_protocol_frames` is derived **before the session starts** from N, the audit schedule and the fixed brackets (`IDENT`×1, `SIGNREQ`×(N+2), `HB`×16 per candidate, `AUDIT`×8 per audited candidate, `REC`×(N+2), `CLOSE`×1, `TERM`×1) — **never from the count actually received**. Independently of the CRC total, **any missing `AUDIT`, `REC` or `TERM`** is the corresponding structural defect and is a HOLD even when the CRC drops are within budget. |
+| **D-s4** CRC budget | **Frame-count scaling, with a closed formula:** `budget = ceil(4 × expected_protocol_frames / 1000)`, where `expected_protocol_frames` is derived **before the session starts** from N, the audit schedule and the fixed brackets (`IDENT`×1, `SIGNREQ`×(N+2), `HB`×16 per candidate, `AUDIT_READY`×1 + `AUDIT`×8 per audited candidate — protocol `pull-v2`, `host/l6_schedule.expected_frames`; retransmitted chunks arrive on top and are what the budget is FOR; the host's `AUDITGET`/`AUDITDONE`/`AUDITABORT` are outbound and not budgeted — `REC`×(N+2), `CLOSE`×1, `TERM`×1) — **never from the count actually received**. Independently of the CRC total, **any missing `AUDIT`, `REC` or `TERM`** is the corresponding structural defect and is a HOLD even when the CRC drops are within budget. |
 
 ### 3a. The audit timing requirement (D-s2's blocker, and its resolution)
 
@@ -106,7 +122,7 @@ cannot be honoured after the fact.
 
 1. **`SCORED` candidates** are audited per the preregistered sampled schedule (every 16th by
    seq, plus the first and the last candidate and both baselines), requested by `AUDITREQ`
-   as today.
+   as today; the transport is §2.6a's pull.
 2. **Any outcome that produces a raw self-report and is not `SCORED`** — `STOP_LINK2`
    (streams span), `STOP_LINK3`, `REFUSED_BY_PL`, `STOP_ARM`, `STOP_SETTLE` (full span) — is
    audited **unconditionally by the firmware itself, before it emits the record, without
@@ -123,10 +139,10 @@ cannot be honoured after the fact.
    A second negative: auto-served words that do not recompute are `Falsified` (KILL), as for
    any served words.
 
-This is a **firmware change** (item 2) and therefore part of the two-operator image's P3
-compatibility review (§2), plus a validator change (the sampled policy with item 2's
-obligations). Both wait for the owner's authorisation of §4 and §2; nothing is implemented by
-this document.
+Implemented in the v0.3 image (`e19e1b12…`) and validators; the pull transport, its
+retries (≤ 2 per chunk, every failed attempt kept verbatim in `audits.json` `pulls[]` and
+CRC-budgeted, a timeout an attempt but not a drop), the one inbound CRC ledger
+(`host/l6_console.py`, authoritative for every frame type) and `STOP_AUDIT` are §2.6a's.
 
 ## 4. Instrument changes required before any L6 ruling (host-only, tested, reviewed)
 
@@ -179,6 +195,8 @@ from Claim B's schedule (recorded in the Claim B preregistration at freeze).
 2. the sampled policy of §3a (S) or all-self-reporting (C1/C2) satisfied by host-derived marks — every non-`SCORED` self-report auto-audited, every scheduled `SCORED` audited;
 3. a timing record for **every** candidate, and a rate report whose coefficient of variation
    over candidates is ≤ 0.10 (C1, C2) — larger is a HOLD with the distribution published;
+   the audit stage of the breakdown is `AUDIT_READY` → `AUDITDONE`/`AUDITABORT` on the
+   host clock, retries included; an unclosed pull keeps its wall time and no breakdown;
 4. for S: no heartbeat gap > 20 s (L2's guard), CRC drops within D-s4's closed-formula budget (and no missing `AUDIT`/`REC`/`TERM` regardless of it), wall time
    ≥ 0.9 T, and every `settle.polls` within [1, 10 × the C1/C2 median] — a slower gate is a
    finding, not a failure, but it stops the session as `STOP_SETTLE` would if it exceeds the

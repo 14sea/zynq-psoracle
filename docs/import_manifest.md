@@ -352,6 +352,9 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-01T192752Z.json` |
+| `evidence/tests/test_report_2026-09-01T192741Z.json` |
+| `evidence/tests/test_report_2026-09-01T192627Z.json` |
 | `evidence/tests/test_report_2026-09-01T191907Z.json` |
 | `evidence/tests/test_report_2026-09-01T191858Z.json` |
 | `evidence/tests/test_report_2026-09-01T191135Z.json` |
@@ -509,6 +512,8 @@ revisions and neither may be silently substituted for the other.
 | `manifests/l6_bsp_inputs.json` |
 | `evidence/l6_build/build_evidence.json` |
 | `evidence/l6_build/p3_app_l6.map` |
+| `evidence/l6_build/build_evidence_bd1454cd.json` |
+| `evidence/l6_build/p3_app_l6_bd1454cd.map` |
 | `docs/l6_c1_session1_findings.md` |
 | `host/l6_reader.py` |
 | `tests/test_l6_reader.py` |

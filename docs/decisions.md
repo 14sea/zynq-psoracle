@@ -1010,3 +1010,23 @@ exhaustion and the global CRC budget fired on the same line, the epoch said
 PROTOCOL_CRC_BUDGET while pulls[].why said exhaustion; the global authority now wins both
 texts, the attempts and raw lines stay, and _fail() is idempotent so only one AUDITABORT
 can ever be sent. Host/tests/docs only; firmware unchanged; e19e1b12… not rebuilt.
+
+## 2026-09-01 — pull package PASS; freeze batch: prereg v0.3 frozen, e19e1b12… promoted board-ready
+
+The owner passed the pull package (48 targeted + 770 full tests independently; A/B green;
+hashes undrifted) and approved the push of the four commits (origin/main = 3495b8a), then
+authorised the host-only freeze batch. Done here: the v0.3 deltas merged into
+docs/l6_soak_prereg.md as a standalone frozen text (§2.6a = the pull transport with
+STOP_AUDIT and the bounded wait; §3a item 1 via the pull; D-s4 = pull-v2 brackets with
+retransmissions on top; §6.3 = READY→DONE audit stage, unclosed pull → no breakdown) and
+its new sha pinned with the v0.2 lineage recorded; e19e1b12… promoted to pinned_at_build
+with board_ready: true and protocol pull-v2 (its first hardware evidence will be a session
+under a v0.3-bound ruling); bd1454cd… recorded under superseded_images — NOT defective,
+the image that ran C1 #1–#3 including a complete COMPLETED epoch; next_image removed (one
+image, one authority; evidence/l6_next_build/ is the candidate phase's record); the
+runner refuses a pin that is not board-ready or not pull-v2 and derives the D-s4 budget
+from the pull-v2 brackets (C1: 1785 expected inbound frames, budget 8); the bd1454cd…
+build evidence preserved as evidence/l6_build/build_evidence_bd1454cd.json and the
+directory regenerated for the promoted image citing a green report. No ruling, no board,
+no C1: the frozen-artifact short review comes first, then the owner rules the ruling pair
+and the power-cycle sequence.

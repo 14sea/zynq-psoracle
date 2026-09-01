@@ -93,23 +93,28 @@ class PinnedL6Image(unittest.TestCase):
         pinned one is historical and no longer reproducible from HEAD, as with L5)."""
         if not L6_BUILT.is_file():
             self.skipTest(f"{L6_BUILT} absent (out/ is gitignored); run IMAGE=p3_app_l6 firmware/bsp/build.sh")
-        want = (L6.get("next_image") or L6_PINNED)["app_image_sha256"]
+        want = (L6.get("next_image") or L6_PINNED)["app_image_sha256"]   # HEAD builds the newest pin
         self.assertEqual(hashlib.sha256(L6_BUILT.read_bytes()).hexdigest(), want)
 
-    def test_the_next_image_is_explicitly_not_board_ready(self):
+    def test_one_image_one_authority(self):
+        """After the promotion (freeze batch 2026-09-01) there is exactly one current
+        authority: pinned_at_build, board_ready, pull-v2, with the promotion recorded; a
+        candidate, when one exists again, is next_image with board_ready false."""
         nxt = L6.get("next_image")
         if nxt is None:
-            self.skipTest("no candidate image pinned")
+            self.assertTrue(L6_PINNED["board_ready"])
+            self.assertEqual(L6_PINNED["protocol"], "pull-v2")
+            self.assertIn("promoted", L6_PINNED["promoted_note"])
+            sup = L6_PINNED["superseded_images"]
+            self.assertTrue(sup and sup[0]["sha256"].startswith("bd1454cd"))
+            self.assertIn("NOT defective", sup[0]["why"])
+            e = json.loads((R / "evidence/l6_next_build/build_evidence.json").read_text())
+            self.assertEqual(e["image"]["bin_sha256"], L6_PINNED["app_image_sha256"],
+                             "the promoted pin is the candidate the review passed")
+            return
         self.assertFalse(nxt["board_ready"])
-        self.assertIn("NOT authorised", nxt["why_not_board_ready"])
-        self.assertEqual(nxt["prereg_required"], "v0.3")
         self.assertNotEqual(nxt["app_image_sha256"], L6_PINNED["app_image_sha256"],
                             "the candidate must never silently replace the board-ready pin")
-        ev = R / "evidence/l6_next_build/build_evidence.json"
-        if ev.is_file():
-            e = json.loads(ev.read_text())
-            self.assertEqual(e["image"]["bin_sha256"], nxt["app_image_sha256"])
-            self.assertTrue(e["image"]["reproduced_byte_identical"])
 
     def test_the_l6_build_evidence_agrees_with_the_manifest(self):
         ev = json.loads(L6_EVIDENCE.read_text())
@@ -213,6 +218,9 @@ class HardwareHistoryIsConsistent(unittest.TestCase):
         if self.SESSIONS:
             self.assertIn("RAN ON 17A6", standing)
             self.assertNotIn("Never run on hardware", standing)
+            # the sessions belong to the superseded image: the standing must attribute them
+            if L6_PINNED.get("superseded_images"):
+                self.assertIn(L6_PINNED["superseded_images"][0]["sha256"][:8], standing)
             self.assertEqual(len(history), len(self.SESSIONS), (history, self.SESSIONS))
             for h, d in zip(history, self.SESSIONS):
                 self.assertTrue((R / h["evidence"]).is_dir(), h)

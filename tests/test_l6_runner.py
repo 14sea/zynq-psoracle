@@ -49,8 +49,10 @@ class Plan(unittest.TestCase):
         self.assertEqual(p["audit_seqs"], ls.all_seqs(64))
         self.assertEqual(p["flags"], ls.FLAG_WATCHDOG | 1 << ls.MODE_FLAG_SHIFT)
         self.assertTrue(all(r["arm"] == ls.ARM_A for r in p["schedule"]))
-        self.assertEqual(p["expected_frames"]["total"], 1 + 66 + 66 * 16 + 66 * 8 + 66 + 1 + 1)
-        self.assertEqual(p["crc_budget"], 7)                            # ceil(4 × 1719 / 1000)
+        # pull-v2 brackets (v0.3): AUDIT_READY×1 + AUDIT×8 per audited record
+        self.assertEqual(p["expected_frames"]["protocol"], "pull-v2")
+        self.assertEqual(p["expected_frames"]["total"], 1 + 66 + 66 * 16 + 66 * 9 + 66 + 1 + 1)
+        self.assertEqual(p["crc_budget"], 8)                            # ceil(4 × 1785 / 1000)
 
     def test_c2_forces_map_guided(self):
         p = l6.plan_session(L6M, "C2", 0x4c364341, 7200.0, None, None)
@@ -152,7 +154,7 @@ class Refusals(unittest.TestCase):
                                            "R5_signer_in_pod_group")], "at": time.time()}))
 
     def manifest(self, *, frozen=True, image=True, watchdog=True, calib=None, carrier=None,
-                 duration=None, rebind=True) -> Path:
+                 duration=None, rebind=True, board_ready=True, protocol="pull-v2") -> Path:
         """Writes the fixture manifest and, by default, re-binds both rulings to its hash
         (as the owner would issue them against the committed manifest of the time); a
         tamper test passes rebind=False to keep the rulings bound to the earlier file."""
@@ -162,6 +164,8 @@ class Refusals(unittest.TestCase):
         m["pinned_at_build"]["app_image_sha256"] = self.image_sha if image else None
         if not watchdog:
             m["pinned_at_build"]["watchdog_enabled"] = False
+        m["pinned_at_build"]["board_ready"] = board_ready
+        m["pinned_at_build"]["protocol"] = protocol
         if calib:
             for k, sha in calib.items():
                 m["calibration"][k]["rate_report_sha256"] = sha
@@ -243,6 +247,12 @@ class Refusals(unittest.TestCase):
         """S rulings bound to the manifest currently on disk (tmp/l6_manifest.json)."""
         self.write_ruling("ruling.json", l6.RULING_TEXT, "S", master_seed=L6M["sessions"]["S"]["master_seed"])
         self.write_ruling("pk.json", l6.PROVISION_RULING_TEXT, "S")
+
+    def test_an_image_not_marked_board_ready_or_not_pull_v2_is_refused(self):
+        rc, err = self.run_main(self.args(manifest=self.manifest(board_ready=False)))
+        self.assertEqual(rc, 2); self.assertIn("not marked board-ready", err)
+        rc, err = self.run_main(self.args(manifest=self.manifest(protocol="push-v1")))
+        self.assertEqual(rc, 2); self.assertIn("not the frozen prereg's pull-v2", err)
 
     def test_the_soak_needs_both_pinned_calibration_records(self):
         self._s_rulings()
