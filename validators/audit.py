@@ -18,7 +18,9 @@ mark from what was verified here; the application's mark must agree or the log i
                    gapped, over-long, mis-spanned or mixed across seqs is a RecordError.
   * `recompute` -- the three hash domains from the words alone (fabricmap's `run_log`
                    domains via p3_gate: sequence over the streams' words, frames_hash over
-                   the parsed staged frames, frames_hash over the readback frames).
+                   the parsed staged frames, frames_hash over the readback frames). Past
+                   `assemble`, a failure is about CONTENT: words that do not parse as a
+                   staging, a repeated envelope, an incomplete target set — `Falsified`.
   * `verify`    -- per record: which hashes the words back, and whether they agree with
                    `evidence.app_oracle_record` (or, for STOP_LINK2, with the refusal's own
                    claim). Disagreement is `Falsified`. A short audit ("streams") behind a
@@ -137,11 +139,20 @@ def assemble(chunks: list[dict]) -> dict[int, dict]:
 
 
 def recompute(words: list[int], span: str, manifest: dict) -> dict:
-    """The hash domains the words support. Raises RecordError if the streams do not parse
-    (the words are not a staging the gate grammar describes)."""
+    """The hash domains the words support.
+
+    THE CLASSIFICATION BOUNDARY (design review round 2, 2026-09-01). This function is
+    reached only after `assemble()` accepted the chunk stream: the transport and accounting
+    layer is already clean. Everything that fails from here on is about the CONTENT the
+    application served — raw words that are not a staging the gate grammar describes, that
+    name the same envelope twice, or that do not stage all twelve target frames — and so
+    cannot support the hashes the record claimed. That is prereg §3's "audited raw words do
+    not recompute the compact record": `Falsified`, a KILL, never an instrument HOLD.
+    Only a caller-contract error (a word count that assemble() could not have produced)
+    stays a RecordError; a missing manifest is refused in `verify()` before we get here."""
     g, rl = _gate()
     if len(words) != SPAN_WORDS[span]:
-        raise RecordError(f"recompute: {len(words)} words for span {span!r}")
+        raise RecordError(f"recompute: {len(words)} words for span {span!r} (caller contract; assemble() enforces the span)")
     streams = [words[i * STREAM_WORDS:(i + 1) * STREAM_WORDS] for i in range(ENVELOPES)]
     out = {"staged_stream_sha256": hashlib.sha256(
         b"".join(w.to_bytes(4, "big") for s in streams for w in s)).hexdigest()}
@@ -152,15 +163,19 @@ def recompute(words: list[int], span: str, manifest: dict) -> dict:
         try:
             far, frames5 = g.parse_stream(s, far_sets)
         except ValueError as exc:
-            raise RecordError(f"audit stream {k} does not parse as a staging: {exc}") from None
+            raise Falsified(f"served raw words: audit stream {k} does not parse as a staging "
+                            f"({exc}) — the words cannot support the record's staged hashes "
+                            f"(prereg §3: audited words do not recompute the compact record)") from None
         if far in seen:
-            raise RecordError(f"audit stream {k} repeats envelope {far:#x}")
+            raise Falsified(f"served raw words: audit stream {k} repeats envelope {far:#x}, so the "
+                            f"streams do not stage the twelve target frames the record claims (prereg §3)")
         seen.append(far)
         env = next(e for e in g.envelopes(manifest) if e["far_set"] == far)
         for i, f in enumerate(env["targets"]):
             staged[f] = frames5[i]
     if len(staged) != TARGET_FRAMES:
-        raise RecordError(f"audit streams stage {len(staged)} target frames, not {TARGET_FRAMES}")
+        raise Falsified(f"served raw words stage {len(staged)} target frames, not {TARGET_FRAMES}: "
+                        f"the record's staged_sha256 cannot be recomputed from them (prereg §3)")
     out["staged_sha256"] = rl.frames_hash(staged)
     if span == "streams+readback":
         base, roles = g.gc.pinned_frames(manifest)

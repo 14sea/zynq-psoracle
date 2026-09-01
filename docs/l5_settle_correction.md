@@ -1,6 +1,6 @@
 # L5 design correction after session 3 — the settle poll, the tally, the classification
 
-**Standing: host-only, built, design review round 1 = HOLD on the audit gate (fixed, §3a), awaiting round 2; NOT run on hardware. No ruling requested; the
+**Standing: host-only, built, design review round 1 = HOLD on the audit gate (fixed, §3a), round 2 = HOLD on the Falsified/HOLD boundary inside the gate (fixed, §3a), awaiting round 3; NOT run on hardware. No ruling requested; the
 board is untouched since session 3.** This is the entry point for the design review that
 `docs/l5_prereg.md` §6 requires after three sessions without a `COMPLETED` end. Owner's
 authorisation and its scope: `docs/decisions.md`, entry "2026-09-01 — L5 session 3: HOLD".
@@ -49,6 +49,23 @@ afterwards — evidence, not a gate.
 | compare with the loop record; any mismatch is `Falsified` | `verify()`: per record, every hash the words can support vs `evidence.app_oracle_record`; a `STOP_LINK2`'s claim `staged != commit` checked against the words | `AlteredWords` (stream word, readback word, last word); contract test `test_one_flipped_word_in_the_c_chunked_audit_is_a_falsifier`; `Link2RefusalClaim` |
 | `verified: audited` derived by the host, never trusted | `validate_standalone_run_log(log, blank, seed, audits, manifest)` — `audits` is a **required** argument — derives every mark from `verify()`, refuses a record whose own mark disagrees, counts rule (ix) against the host's marks; `check_audit_policy(log, marks)` takes the host's marks | `test_a_record_marked_audited_with_no_words_served_is_refused` (the exact hole); `TheGateIsNotOptional` (signature, manifest required with words, runner passes `collector.audits` and the manifest) |
 | short link-2 audit disguised as full | a `streams`-span audit behind a record claiming a readback backs link 2 and nothing about link 3 → host mark `replayed-only`, log refused; `streams` words labelled `streams+readback` fail on `total_words` | `ShortAuditBehindAReadbackClaim`, `test_a_short_audit_cannot_claim_the_full_span`, contract `test_a_short_link2_audit_cannot_back_a_readback_claim` |
+
+**The classification boundary (round 2, 2026-09-01: HOLD → fixed).** `assemble()` is the
+line. Before it — chunk schema, numbering, offsets, counts, totals, base64 alphabet, cross-seq
+mixing — a defect is transport/accounting: `RecordError` → `HOLD instrument`, never promoted.
+After it, the words are complete and well-formed, and whatever fails is about their
+*content*: a stream that does not parse as a staging, a repeated envelope FAR, a target set
+that is not all twelve frames, or a hash that does not match — the record's hashes cannot be
+recomputed from what was served, which is prereg §3's falsifier: `Falsified` → `KILL`. A
+missing or invalid manifest is neither and stays `RecordError`.
+Proof: `tests/test_audit_gate.py` `ContentThatCannotSupportTheClaim` — full-length words with
+a destroyed sync word, a repeated envelope, and (by narrowing the envelope table) an
+incomplete target set are each `Falsified`, and through the whole log; the same stream with
+a missing chunk / wrong offset / bad base64 stays a plain `RecordError`; a missing manifest
+stays a plain `RecordError`. Contract test
+`test_full_length_words_that_do_not_parse_are_a_falsifier_not_a_hold` does it through the C
+chunker and asserts `classify_rejection` says `KILL falsified:`; the missing/duplicate-chunk
+contract test asserts `HOLD instrument:`.
 
 The contract test's whole-session path now has the C serialiser chunk the raw words
 (`twin audit …`, 384 words per chunk, base64url big-endian, as `p3_app.c` does) and the

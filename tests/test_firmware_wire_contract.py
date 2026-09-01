@@ -554,14 +554,31 @@ class WireContract(unittest.TestCase):
             self._validate(log, chunks)
         self.assertIn("staged_stream_sha256", str(cm.exception))
 
+    def test_full_length_words_that_do_not_parse_are_a_falsifier_not_a_hold(self):
+        """Round 2's boundary, through the C chunker: 2814 words, every chunk well-formed,
+        but stream 2's sync word destroyed — content, so KILL-class."""
+        words = self._raw_words(self.blank)
+        words[2 * 534 + 8] = 0
+        lines = self.twin(*self._audit_cmds(1, self.blank, words=words))
+        log, chunks = self._stop_arm_session(lines)
+        self.assertEqual(len(chunks), 8)
+        with self.assertRaises(records.Falsified) as cm:
+            self._validate(log, chunks)
+        self.assertIn("does not parse", str(cm.exception))
+        import l5_runner as lr
+        self.assertTrue(lr.classify_rejection(cm.exception).startswith("KILL falsified:"))
+
     def test_a_missing_or_duplicated_c_chunk_blocks_the_log(self):
         lines = self._blank_audit_lines()
+        import l5_runner as lr
         for variant, fragment in ((lines[:5] + lines[6:], "missing [5]"), (lines + [lines[2]], "duplicate")):
             log, chunks = self._stop_arm_session(variant)
             with self.assertRaises(records.RecordError) as cm:
                 self._validate(log, chunks)
             self.assertNotIsInstance(cm.exception, records.Falsified)
             self.assertIn(fragment, str(cm.exception))
+            self.assertTrue(lr.classify_rejection(cm.exception).startswith("HOLD instrument:"),
+                            "a transport defect must never be promoted to KILL")
 
     def test_a_short_link2_audit_cannot_back_a_readback_claim(self):
         """streams-only words, correctly labelled, behind a STOP_ARM that claims a readback

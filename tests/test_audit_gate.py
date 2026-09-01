@@ -182,6 +182,86 @@ class StructuralDefects(unittest.TestCase):
         self.assertIn("no loop record", str(cm.exception))
 
 
+class ContentThatCannotSupportTheClaim(unittest.TestCase):
+    """Design review round 2: once assemble() has accepted the chunk stream, words that do
+    not parse as a staging, that repeat an envelope, or that do not stage all twelve
+    target frames are CONTENT the record's hashes cannot be recomputed from — prereg §3,
+    Falsified — not an instrument HOLD. The boundary is assemble()."""
+
+    WORDS = None
+
+    @classmethod
+    def setUpClass(cls):
+        cls.WORDS = au.assemble(CHUNKS)[1]["words"]
+
+    def _rechunk(self, words: list[int]) -> list[dict]:
+        n = (len(words) + 383) // 384
+        return [{"schema": "app_audit_chunk", "schema_version": "1.0.0", "seq": 1,
+                 "span": "streams+readback", "chunk": c, "chunks": n, "word_offset": c * 384,
+                 "word_count": len(words[c * 384:(c + 1) * 384]), "total_words": len(words),
+                 "words": _reencode(words[c * 384:(c + 1) * 384])} for c in range(n)]
+
+    def _falsified(self, words, fragment):
+        chunks = self._rechunk(words)
+        au.assemble(chunks)                                    # the structural layer passes
+        with self.assertRaises(records.Falsified) as cm:
+            au.verify(LOG, chunks, MANIFEST)
+        self.assertIn(fragment, str(cm.exception))
+        with self.assertRaises(records.Falsified):             # …and so through the whole log
+            log = copy.deepcopy(LOG)
+            log["session_summary"]["audit"]["total"] = 1
+            arm = log["loop_records"][0]["evidence"]["arm"]
+            arm["settle"] = {"polls": 1, "polls_max": 1000000, "settled": True,
+                             "status_first": arm["status_after"], "status_last": arm["status_after"]}
+            records.validate_standalone_run_log(log, "00" * 32, 0x9E3779B97F4A7C15, chunks, MANIFEST)
+
+    def test_a_broken_stream_header_with_the_full_word_count_is_a_falsifier(self):
+        words = list(self.WORDS)
+        words[8] ^= 0xFFFFFFFF                                 # stream 0's sync word
+        self._falsified(words, "does not parse as a staging")
+
+    def test_a_repeated_envelope_with_the_full_word_count_is_a_falsifier(self):
+        words = list(self.WORDS)
+        words[534:1068] = words[0:534]                         # stream 1 := stream 0
+        self._falsified(words, "repeats envelope")
+
+    def test_an_incomplete_target_set_with_the_full_word_count_is_a_falsifier(self):
+        """Three distinct envelopes whose manifest rows stage fewer than twelve frames: the
+        completeness check itself, exercised by narrowing the envelope table."""
+        import unittest.mock as um
+        import p3_gate as pg
+        real = pg.envelopes(MANIFEST)
+        narrowed = [dict(e, targets=e["targets"][:3]) for e in real]     # 9 frames, not 12
+        with um.patch.object(pg, "envelopes", lambda m: narrowed):
+            chunks = self._rechunk(list(self.WORDS))
+            with self.assertRaises(records.Falsified) as cm:
+                au.verify(LOG, chunks, MANIFEST)
+        self.assertIn("9 target frames, not 12", str(cm.exception))
+
+    def test_the_structural_layer_is_still_a_plain_record_error(self):
+        """Discrimination for the boundary: the same defects BEFORE assemble() accepts the
+        stream stay RecordError and are never promoted to KILL."""
+        for chunks, fragment in (
+                ([c for c in CHUNKS if c["chunk"] != 5], "missing"),
+                (self._with(lambda cs: cs[2].__setitem__("word_offset", cs[2]["word_offset"] + 4)), "gap"),
+                (self._with(lambda cs: cs[0].__setitem__("words", cs[0]["words"][:-4] + "+/==")), "base64url")):
+            with self.assertRaises(records.RecordError) as cm:
+                au.verify(LOG, chunks, MANIFEST)
+            self.assertNotIsInstance(cm.exception, records.Falsified, fragment)
+            self.assertIn(fragment, str(cm.exception))
+
+    def test_a_missing_manifest_is_a_plain_record_error(self):
+        with self.assertRaises(records.RecordError) as cm:
+            au.verify(LOG, CHUNKS, None)
+        self.assertNotIsInstance(cm.exception, records.Falsified)
+
+    @staticmethod
+    def _with(mutate):
+        chunks = copy.deepcopy(CHUNKS)
+        mutate(chunks)
+        return chunks
+
+
 class ShortAuditBehindAReadbackClaim(unittest.TestCase):
     """A link-2-shaped audit (streams only) served for a record that claims a readback backs
     link 2 and nothing about link 3. The host derives replayed-only; the application's

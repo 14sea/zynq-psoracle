@@ -603,3 +603,20 @@ readback claim, a false `STOP_LINK2` claim. Session 3's real chunks are the posi
 fixture. `docs/l5_settle_correction.md` §3a.
 
 Standing unchanged otherwise: not pushed, no ruling, board untouched; round-2 review next.
+
+## 2026-09-01 — design review round 2: HOLD — one falsifier was still classed as an instrument error
+
+The audit gate was accepted as a gate (host-derived marks, required chunk input, three
+domains recomputed, hash mismatch `Falsified`, runner wiring, settle/tally/session-3
+classification all standing). The blocker was inside it: after `assemble()` had accepted
+the chunk stream, a staging that did not parse, a repeated envelope FAR, or an incomplete
+target set raised `RecordError`, which the runner classes `HOLD instrument` — but at that
+point the structural layer is clean and what fails is the *content* the application served,
+which cannot support the record's hashes: prereg §3's falsifier, a KILL.
+
+**Boundary fixed and pinned.** `assemble()` errors (chunk/schema/base64/offset/count) →
+`RecordError` → HOLD. After assembly: unparseable stream / repeated envelope / incomplete
+target set / hash mismatch → `Falsified` → KILL. Missing or invalid manifest → `RecordError`
+→ HOLD. Negative tests both sides of the line, including through the C chunker with the
+runner's own `classify_rejection` asserted (`docs/l5_settle_correction.md` §3a). Nothing
+else changed; image `a7c73d1f…` untouched. Not pushed, no ruling, board untouched; round 3.
