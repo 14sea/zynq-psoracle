@@ -35,14 +35,18 @@ import l6_schedule as ls  # noqa: E402
 import p3_genome as gn  # noqa: E402
 import p3_oracle as po  # noqa: E402
 
-MUTATION_BITS = 4          # per candidate, both arms — a draft pin (manifests/l6_manifest.json)
+MUTATION_BITS = 4          # per candidate, both arms — FROZEN for L6 as part of the operator
+                           # contract (operator_data_sha256 covers it): the operator's compute
+                           # time is inside `period`, so a calibration holds only for this value
 CORPUS_N = 256             # §2.3: N ≥ 256 (seed, index) pairs
 CORPUS_MASTER_SEEDS = (0x00000001, 0x1F123BB5, 0xDEADBEEF, 0xFFFFFFFF)
 OPERATOR_DATA_SCHEMA = "l6_operator_data"
 
 
 class Rng:
-    """xorshift64 state; `uniform(n)` is an unbiased draw in [0, n) from the upper 32 bits."""
+    """xorshift64 state seeded exactly as l6_schedule.pair_seed seeds: state =
+    ((seed32<<32) | seed32) ^ golden, 0 → golden, then WARMUP_STEPS steps; `next32` is one
+    step and the upper 32 bits; `uniform(n)` is an unbiased draw in [0, n) by rejection."""
 
     def __init__(self, seed32: int):
         if not 0 <= seed32 <= ls.MASK32:
@@ -172,7 +176,9 @@ def build_corpus(data: dict, n: int = CORPUS_N) -> dict:
                             "arm": c["arm"], "genome": c["genome_hex"]})
     return {"schema": "l6_operator_corpus", "schema_version": "1.0.0", "n": len(entries),
             "operator_data_sha256": operator_data_sha256(data), "mutation_bits": data["mutation_bits"],
-            "rule": "arm by A,B,B,A over seed pairs; pair seed = xorshift64(master_seed<<32 ^ (pair+1) ^ golden) >> 32",
+            "rule": ls.PAIR_SEED_RULE,
+            "arm_rule": "candidates 2k and 2k+1 form pair k; pair 0 = A,B; pair 1 = B,A; alternating (A,B,B,A)",
+            "operator_rng": "state = ((pair_seed<<32) | pair_seed) ^ golden, 0 -> golden, then 4 steps; draw = one step, upper 32 bits; uniform(n) by rejection below floor(2^32/n)*n",
             "entries": entries}
 
 

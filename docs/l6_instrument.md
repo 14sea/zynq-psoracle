@@ -1,4 +1,4 @@
-# L6 §4 — the host-only instrument batch (delivered 2026-09-01, awaiting owner review)
+# L6 §4 — the host-only instrument batch (delivered 2026-09-01; re-review HOLD corrected the same day, awaiting the short re-review)
 
 > **Standing: host-only.** Authorised by the owner on 2026-09-01 after the v0.2 review of
 > `docs/l6_soak_prereg.md` ("現在授權 §4 的 host-only 儀器批次"), with the boundary: host
@@ -73,45 +73,95 @@ pins that the committed draft refuses.
 None of these is in the preregistration's text; each is the smallest reading I could make
 and is isolated so a different ruling is a local change.
 
-1. **CoV is over `period`, not `wall`** (`cov_wall` reported alongside). Reason: N is
-   derived from the rate, the rate from the period, and §6.3 bounds "the coefficient of
-   variation over candidates" of the quantity the budget rests on. C2's operator compute
-   time is inside `period`, which is where §5 says it may differ.
-2. **Baselines carry no `arm`.** §2.4 says `loop_record.arm ∈ {random_safe, map_guided}`;
+1. **CoV is over `period`, not `wall`** (`cov_wall` reported alongside) — **accepted**,
+   with the correction of §7.3: only **steady-state** periods (both ends interior
+   candidates, N−1 of them) enter the rate, the CoV and N; the opening→first and
+   last→closing transitions are reported in `transitions_s` and enter nothing.
+2. **Baselines carry no `arm`** — **accepted**. §2.4 says `loop_record.arm ∈ {random_safe, map_guided}`;
    the blank baselines are brackets from no operator, so the validator requires the key
    absent on seq 1 and seq N+2 and present on every candidate. (Alternative: a third
    value `baseline`; rejected as widening the enum.)
-3. **Identity-page `flags` bits 2–3 = schedule mode** (0 abba, 1 random-safe forced,
+3. **Identity-page `flags` bits 2–3 = schedule mode** — **accepted**. (0 abba, 1 random-safe forced,
    2 map-guided forced, 3 refused); bit0 holdout and bit1 watchdog as before. A session
    with flags = 0 is bit-for-bit L5's word.
-4. **Pair seed** = upper 32 bits of xorshift64 after 4 warm-up steps over
-   `((master_seed<<32 | master_seed) ^ (pair+1)·golden)`. One step was not enough: it
+4. **Pair seed** — **accepted**; the rule is now stated once, exactly, as
+   `l6_schedule.PAIR_SEED_RULE` (upper 32 bits of the xorshift64 state after 4 steps from
+   `((master_seed<<32) | master_seed) ^ (((pair+1)·golden) mod 2^64)`, 0 → golden), and
+   the docstring, the corpus `rule` and the manifest quote it verbatim (§7.5). One step was not enough: it
    leaves the high half independent of the lowest bits, so pairs 0 and 1 produced the
    same seed and the same genome in the same arm (caught by the smoke, pinned by a test).
    The image's C twin must reproduce this exactly; the corpus is the contract.
-5. **`mutation_bits = 4` for both arms** is a draft pin for the instrument only; the rate
-   does not depend on it (every candidate rewrites all twelve frames). Claim B's own
-   preregistration fixes the arms' value at its freeze.
-6. **Timeout** = 1.25 × (N+2) × 3600/min(rate) + 600 s (§4.6 says "with margin"; the
+5. **`mutation_bits = 4` for both arms** — **overturned as "instrument-only" and FROZEN
+   as the operator contract** (§7.4): the operator's compute time is inside `period`, so
+   the rate does depend on it. `operator_data_sha256` covers it, the rate report carries
+   it, and the S runner refuses a calibration report under another contract. A Claim B
+   value change means C1/C2 are re-run; the old rates may not be reused.
+6. **Timeout** — **accepted** — = 1.25 × (N+2) × 3600/min(rate) + 600 s (§4.6 says "with margin"; the
    numbers are mine). C1/C2 have no calibration yet and take `--session-timeout-s`
    (default 7200 s), recorded as such.
-7. **`STOP_AXI` stays exempt wholesale** (`NO_SELF_REPORT_OUTCOMES` unchanged). §3a item 3
-   exempts a pre-staging `STOP_AXI`; the current firmware emits no `STOP_AXI` record at
-   all (an AXI fault ends the epoch), and the audit gate refuses served words for it, so a
-   post-staging variant would need a firmware decision first.
-8. **The 20 s gap rule is over consecutive received frames of any type**, not `HB`
-   frames only — the collector's silence rule is what the board must beat, and the host
-   hears every frame.
-9. **The preamble is duplicated**, not factored out of `host/l5_runner.py`: the L5 runner
+7. **`STOP_AXI` exemption** — **overturned** (§7.2): the exemption is by content
+   (`self_report_class`), never by name. A `STOP_AXI` without an `app_oracle_record` is a
+   pre-staging stop and exempt; one that carries an oracle record is a self-report,
+   must be auto-audited (missing → HOLD, words that do not recompute → KILL), and its
+   record alone is Falsified if its staging is not the signed commit.
+8. **The 20 s rule** — **overturned** (§7.1): it is the heartbeat invariant and is over
+   consecutive `HB` frames only; fewer than two `HB` frames leaves it unchecked, which is
+   a HOLD, never a pass. Any-frame gaps are kept as `liveness_gaps` (transport), and are
+   never reported as the heartbeat invariant.
+9. **The preamble is duplicated** — **accepted** —, not factored out of `host/l5_runner.py`: the L5 runner
    PASSED and has no host test of that preamble; editing it to share code would be a
    change without a gate.
-10. **IDENT field names** `master_seed` (int = the page's seed word), `schedule_mode`
+10. **IDENT field names** — **accepted, pending the §2 C twin** — `master_seed` (int = the page's seed word), `schedule_mode`
     (string), `operator_data_sha256` (64 hex) — additive `app_identity` 1.1.0;
     `loop_record` 1.1.0 adds `arm`. The C wire twin and the contract test are §2's.
-11. **`--master-seed` is a required CLI argument** (§0: seeds are host-supplied) and is
+11. **`--master-seed` is a required CLI argument** — **accepted** — (§0: seeds are host-supplied) and is
     written into `run_log.l6` and the summary; there is no default.
-12. **Default image path** `firmware/bsp/out/p3_app_l6.bin` — a name, so the L6 runner
+12. **Default image path** — **accepted** — `firmware/bsp/out/p3_app_l6.bin` — a name, so the L6 runner
     can never pick up the L5 image by omission (the hash check would refuse it anyway).
+
+## 7. Re-review 2026-09-01: HOLD, four semantic defects, corrected the same day
+
+The owner's re-review passed the architecture and the 83 targeted tests but found four
+places where the tests had not caught a weakened rule. Each is fixed with a
+discrimination test in both directions.
+
+1. **Heartbeat rule weakened.** `heartbeat_gaps` measured gaps between received frames of
+   any type; a counter-example with HB at 0 s and 40 s and AUDIT/REC traffic between
+   reported 10 s and would have passed. Now: `heartbeat_gaps` is over `HB` frames only,
+   `heartbeat_count < 2` is a HOLD ("not checkable"), and `liveness_gaps` keeps the
+   any-frame view as a transport record. Tests: the counter-example yields a 40 s
+   heartbeat gap and a 10 s liveness gap; a late `HB` inside dense traffic is caught; the
+   same delay on a `REC` is not a heartbeat finding; zero or one `HB` is a HOLD.
+2. **`STOP_AXI` exemption too wide.** It was by outcome name; a `STOP_AXI` carrying an
+   `app_oracle_record` and no audit was listed as exempt. Now: `records.self_report_class`
+   decides by content (`none` / `scored` / `auto`); `NO_SELF_REPORT_OUTCOMES` is
+   `REFUSED_BY_GATE` only; `STOP_AXI` joins `AUTO_AUDIT_OUTCOMES`; the audit gate refuses
+   served words only for a record that staged nothing; `_check_loop_record` validates a
+   post-staging `STOP_AXI`'s oracle record and raises `Falsified` if its staging is not
+   the commit; `structural_findings` uses the same classification. Tests, on session 3's
+   real words re-keyed and relabelled `STOP_AXI`: pre-staging → exempt and words for it
+   refused; post-staging without words → HOLD naming the seq; with words → `audited_auto`;
+   a flipped word → `Falsified`; staging ≠ commit → `Falsified` from the record alone.
+3. **Rate samples contaminated by the closing transition.** `period` included the
+   last-candidate → closing-baseline interval, and a test pinned it. Now: only
+   interior→interior transitions (N−1 steady-state periods) enter the rate, the CoV and
+   N; `transitions_s` reports opening→first and last→closing apart;
+   `steady_state_periods` is in the report. Test: a 300 s closing transition moves
+   neither the rate nor the CoV.
+4. **`mutation_bits` is a contract, not a draft.** The claim that the rate does not
+   depend on it was wrong: `period` deliberately contains the operator's compute, which
+   scales with it. Now: frozen at 4 for L6 in the manifest as an image/calibration
+   contract; the rate report carries the session's `operator_data_sha256` (which covers
+   `mutation_bits` and the map data); `plan_session` for S refuses a calibration report
+   whose contract is not the pin, naming the re-run obligation. Test: a C1 report under
+   another contract is refused.
+5. **Pair-seed description.** The corpus `rule` string and the `pair_seed` docstring
+   described a one-step formula that the code no longer implemented. Now one constant,
+   `PAIR_SEED_RULE`, states the exact formula; the docstring, the corpus, `Rng`'s
+   docstring and the manifest quote it; the corpus fixture is regenerated.
+
+Everything else in §5 stands as the owner ruled (accepted items marked). No firmware, no
+image, no ruling, no board.
 
 ## 6. Not done here, by the boundary
 

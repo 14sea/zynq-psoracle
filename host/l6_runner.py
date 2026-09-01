@@ -73,7 +73,12 @@ def plan_session(l6m: dict, session: str, master_seed: int, duration_s: float,
         if not calibration or set(calibration) != {"C1", "C2"}:
             raise ValueError("the soak needs both calibration reports (C1, C2)")
         rates = {}
+        contract = l6m["operator"]["operator_data_sha256"]
         for k, rep in calibration.items():
+            if rep.get("operator_data_sha256") != contract:
+                raise ValueError(f"calibration report {k} ran under operator contract "
+                                 f"{str(rep.get('operator_data_sha256'))[:16]}…, not the pinned {contract[:16]}… "
+                                 f"(mutation_bits / map data changed: C1/C2 must be re-run)")
             if rep.get("session") != k or rep.get("schedule_mode") != l6m["sessions"][k]["mode"]:
                 raise ValueError(f"calibration report {k} is not a {k} report of mode {l6m['sessions'][k]['mode']!r}")
             if not isinstance(rep.get("evals_per_hour"), (int, float)):

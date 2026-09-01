@@ -134,8 +134,23 @@ def periods(timing: dict[int, dict]) -> dict[int, float | None]:
 
 
 def heartbeat_gaps(frames: list[dict]) -> list[dict]:
-    """Every gap between consecutive received frames (any type) — the soak's "no heartbeat
-    gap > 20 s" condition is over what the host heard, not over HB frames alone."""
+    """Every gap between consecutive received HB frames — the heartbeat invariant the soak's
+    "no heartbeat gap > 20 s" condition is about (L2's guard). HB frames ONLY: a review
+    counter-example had heartbeats at 0 s and 40 s with AUDIT/REC traffic in between, and
+    an any-frame gap reported 10 s and would have passed it. Other frames are not
+    heartbeats; their gaps are `liveness_gaps`, a transport matter."""
+    hb = [f for f in frames if f["dir"] == "rx" and f["type"] == n.T_HB]
+    return [{"seq_before": hb[i - 1]["seq"], "seq_after": hb[i]["seq"], "gap_s": hb[i]["t_mono"] - hb[i - 1]["t_mono"]}
+            for i in range(1, len(hb))]
+
+
+def heartbeat_count(frames: list[dict]) -> int:
+    return sum(1 for f in frames if f["dir"] == "rx" and f["type"] == n.T_HB)
+
+
+def liveness_gaps(frames: list[dict]) -> list[dict]:
+    """Every gap between consecutive received frames of ANY type — what the collector's
+    silence rule sees. Reported for the transport record; never the heartbeat invariant."""
     rx = [f for f in frames if f["dir"] == "rx" and f["type"] not in ("CRC_DROP", "BAD_FRAME")]
     return [{"after": rx[i - 1]["type"], "seq": rx[i - 1]["seq"], "gap_s": rx[i]["t_mono"] - rx[i - 1]["t_mono"]}
             for i in range(1, len(rx))]

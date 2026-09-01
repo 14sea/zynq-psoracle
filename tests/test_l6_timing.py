@@ -106,12 +106,24 @@ class StageAttribution(unittest.TestCase):
             self.assertAlmostEqual(sum(tt["breakdown"].values()), tt["wall"], msg=seq)
         self.assertTrue(all(v is not None for s, v in lt.periods(tim).items() if s < 10))
 
-    def test_heartbeat_gaps_cover_every_received_frame(self):
+    def test_heartbeat_gaps_are_between_hb_frames_only(self):
         fr = frames_for(1, 0.0)
         gaps = lt.heartbeat_gaps(fr)
-        self.assertEqual(len(gaps), len([f for f in fr if f["dir"] == "rx"]) - 1)
-        self.assertTrue(all(g["gap_s"] == 1.0 or g["gap_s"] == 2.0 for g in gaps))   # the tx reply is skipped
+        self.assertEqual(len(gaps), 15)                       # 16 HB → 15 gaps, all 1 s
+        self.assertTrue(all(g["gap_s"] == 1.0 for g in gaps))
+        self.assertEqual(lt.heartbeat_count(fr), 16)
 
+    def test_the_review_counter_example_is_a_40_s_heartbeat_gap(self):
+        """HB at 0 s and 40 s with AUDIT/REC traffic every 10 s in between: the any-frame gap
+        is 10 s and the heartbeat gap is 40 s. The invariant must see 40."""
+        mk = lambda t, ty, seq: {"dir": "rx", "type": ty, "seq": seq, "t_mono": t, "t_wall": t}  # noqa: E731
+        fr = [mk(0.0, n.T_HB, 1), mk(10.0, n.T_AUDIT, 1), mk(20.0, n.T_REC, 1), mk(30.0, n.T_SIGNREQ, 2), mk(40.0, n.T_HB, 2)]
+        self.assertEqual([g["gap_s"] for g in lt.heartbeat_gaps(fr)], [40.0])
+        self.assertEqual(max(g["gap_s"] for g in lt.liveness_gaps(fr)), 10.0)
+
+    def test_no_heartbeats_yield_no_gaps_not_a_pass(self):
+        fr = [{"dir": "rx", "type": n.T_REC, "seq": 1, "t_mono": 0.0, "t_wall": 0.0}]
+        self.assertEqual(lt.heartbeat_gaps(fr), []); self.assertEqual(lt.heartbeat_count(fr), 0)
 
 if __name__ == "__main__":
     unittest.main()

@@ -35,7 +35,7 @@ import hashlib
 import sys
 from pathlib import Path
 
-from .records import Falsified, RecordError, NO_SELF_REPORT_OUTCOMES
+from .records import Falsified, RecordError, self_report_class
 
 STREAM_WORDS = 534
 ENVELOPES = 3
@@ -269,8 +269,9 @@ def verify(log: dict, chunks: list[dict], manifest: dict | None) -> tuple[dict[i
             marks[seq] = "replayed-only"
             detail[seq] = {"served": False}
             continue
-        if out in NO_SELF_REPORT_OUTCOMES:
-            raise RecordError(f"seq {seq}: audit words served for a {out} candidate, which staged nothing")
+        if self_report_class(r) == "none":
+            raise RecordError(f"seq {seq}: audit words served for a {out} candidate that staged nothing "
+                              f"(no oracle self-report)")
         span, words = served[seq]["span"], served[seq]["words"]
         got = recompute(words, span, manifest)
         d = {"served": True, "span": span, "words": len(words), "recomputed": got, "compared": {}}

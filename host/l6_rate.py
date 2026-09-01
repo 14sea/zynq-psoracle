@@ -14,7 +14,8 @@ Definitions (also written into every report):
                   and, on a COMPLETED epoch, the closing baseline (the last seq);
   wall            t_rec − t_signreq of a record (the candidate's evaluation, host-observed);
   period          t_signreq(seq+1) − t_signreq(seq): the inter-proposal interval, i.e. the
-                  evaluation PLUS the application's work between records (operator time);
+                  evaluation PLUS the application's work between records (operator time),
+                  counted only when BOTH ends are interior candidates (steady state);
   evals_per_hour  3600 / mean(period) over the candidates that have a successor;
   cov             sample standard deviation / mean, over the same periods (the quantity
                   N is derived from is the one whose spread §6.3 bounds); cov_wall is
@@ -45,9 +46,10 @@ NON_FAILURE = ("SCORED", "REFUSED_BY_GATE")
 DEFINITIONS = {
     "candidates": "the interior records: every seq except the opening baseline (seq 1) and, on a COMPLETED epoch, the closing baseline (the last seq)",
     "wall": "t_rec - t_signreq of a record: the candidate's evaluation as the host observed it",
-    "period": "t_signreq(seq+1) - t_signreq(seq): the inter-proposal interval = the evaluation plus the application's work between records (operator time)",
-    "evals_per_hour": "3600 / mean(period) over the candidates that have a successor",
-    "cov": "sample standard deviation / mean over the same periods (the quantity N is derived from is the one whose spread prereg §6.3 bounds); cov_wall alongside",
+    "period": "t_signreq(seq+1) - t_signreq(seq): the inter-proposal interval = the evaluation plus the application's work between records (operator time); STEADY STATE ONLY: both seq and seq+1 interior candidates (N-1 periods). The opening->first and last->closing transitions are in transitions_s and never in the rate, the CoV or N",
+    "evals_per_hour": "3600 / mean(period) over the steady-state periods",
+    "cov": "sample standard deviation / mean over the steady-state periods (the quantity N is derived from is the one whose spread prereg §6.3 bounds); cov_wall alongside",
+    "operator_data_sha256": "the operator contract (map data + mutation_bits) the session ran under, from the IDENT; a calibration is valid only for the same contract",
     "failure": "a candidate whose outcome is neither SCORED nor REFUSED_BY_GATE; failure_rate = failures / candidates",
     "resolution": "every boundary is known to one runner poll interval (~0.02 s); see timing.clocks",
 }
@@ -61,8 +63,10 @@ def _stats(values: list[float]) -> dict:
     if not values:
         return {"n": 0, "mean": None, "stdev": None, "cov": None, "min": None, "max": None, "median": None}
     mean = statistics.fmean(values)
-    sd = statistics.stdev(values) if len(values) > 1 else 0.0
-    return {"n": len(values), "mean": mean, "stdev": sd, "cov": (sd / mean) if mean else None,
+    # one sample has no spread to report: stdev and cov are None, not 0.0 — a CoV of 0.0
+    # from a single period would pass the ≤ 0.10 bound on no evidence (caught in review)
+    sd = statistics.stdev(values) if len(values) > 1 else None
+    return {"n": len(values), "mean": mean, "stdev": sd, "cov": (sd / mean) if (sd is not None and mean) else None,
             "min": min(values), "max": max(values), "median": statistics.median(values)}
 
 
@@ -87,16 +91,23 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
     brackets = {first} | ({last} if kind == "COMPLETED" and last != first else set())
     candidates = [s for s in seqs if s not in brackets]
     per = lt.periods(tim)
+    interior = set(candidates)
+    # steady state: both ends of the transition are interior candidates (N−1 periods); the
+    # opening→first and last→closing transitions are reported apart and never enter the
+    # rate, the CoV or N (review 2026-09-01: the closing baseline's cost is not a candidate's)
+    steady = {s: per[s] for s in candidates if (s + 1) in interior and per.get(s) is not None}
+    transitions = {"opening_to_first_s": per.get(first) if candidates and candidates[0] == first + 1 else None,
+                   "last_to_closing_s": per.get(candidates[-1]) if candidates and kind == "COMPLETED" else None}
     rows = []
     for s in candidates:
         t = tim[s]
         arm = records[s].get("arm")
         settle = records[s].get("evidence", {}).get("arm", {}).get("settle", {}).get("polls")
         rows.append({"seq": s, "outcome": records[s]["outcome"], "arm": arm, "wall_s": t["wall"],
-                     "period_s": per.get(s), "breakdown_s": t.get("breakdown"),
+                     "period_s": steady.get(s), "breakdown_s": t.get("breakdown"),
                      "hb_count": t.get("hb_count"), "audit_chunks": t.get("audit_chunks"), "settle_polls": settle})
     walls = [r["wall_s"] for r in rows]
-    per_vals = [r["period_s"] for r in rows if r["period_s"] is not None]
+    per_vals = [steady[s] for s in candidates if s in steady]
     wall_stats, period_stats = _stats(walls), _stats(per_vals)
     failures = [r["seq"] for r in rows if r["outcome"] not in NON_FAILURE]
     counts = {}
@@ -113,6 +124,8 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
             "epoch_end": run_log["session_summary"]["epoch_end"], "run_log_sha256": run_log_sha256,
             "records": len(seqs), "brackets": sorted(brackets), "candidates": len(candidates),
             "evals_per_hour": evals_per_hour, "cov": period_stats["cov"], "cov_wall": wall_stats["cov"],
+            "steady_state_periods": len(per_vals), "transitions_s": transitions,
+            "operator_data_sha256": run_log.get("app_identity", {}).get("operator_data_sha256"),
             "failure_rate": (len(failures) / len(rows)) if rows else None, "failures": failures,
             "outcome_counts": counts, "period_s": period_stats, "wall_s": wall_stats, "stages_s": stages,
             "settle_polls": _stats([float(v) for v in settle_vals]) | {"values_are_reads": True},

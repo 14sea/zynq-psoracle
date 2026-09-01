@@ -48,6 +48,10 @@ GOLDEN = 0x9E3779B97F4A7C15
 MASK32 = 0xFFFFFFFF
 MASK64 = 0xFFFFFFFFFFFFFFFF
 WARMUP_STEPS = 4
+PAIR_SEED_RULE = ("pair_seed(master_seed, pair) = upper 32 bits of the xorshift64 state after 4 steps "
+                  "from x0 = ((master_seed<<32) | master_seed) ^ (((pair+1) * golden) mod 2^64), "
+                  "with x0 = golden if that is 0; golden = 0x9E3779B97F4A7C15; "
+                  "step: x ^= x<<13; x ^= x>>7; x ^= x<<17 (mod 2^64)")
 
 
 def flags_for(mode: str, watchdog: bool, holdout: bool = False) -> int:
@@ -80,8 +84,12 @@ def arm_abba(index: int) -> str:
 
 
 def pair_seed(master_seed: int, pair: int) -> int:
-    """The 32-bit operator seed of pair k: one xorshift64 step over (master_seed, k), the
-    same generator the PL's nonce and the L5 sampler use (one implementation, one twin)."""
+    """The 32-bit operator seed of pair k. Exactly PAIR_SEED_RULE: x0 = ((master_seed<<32)
+    | master_seed) ^ (((k+1) × golden) mod 2^64), x0 = golden if that is 0, then
+    WARMUP_STEPS = 4 xorshift64 steps (the PL's nonce generator, `validators.nonce.step`,
+    one implementation), and the upper 32 bits of the result. The seed sits in both halves
+    and the state is warmed up because a single step leaves the upper 32 bits independent
+    of the lowest bits, so pairs differing only there would share a seed."""
     if not 0 <= master_seed <= MASK32:
         raise ValueError("master_seed must be a 32-bit value (it travels in the identity page)")
     if pair < 0:

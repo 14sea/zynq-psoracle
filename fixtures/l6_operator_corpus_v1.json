@@ -4,7 +4,9 @@
  "n": 256,
  "operator_data_sha256": "0c9c82a812be754dbba83c02b24b4321a95af46464a201a6f3c51374f2c80d79",
  "mutation_bits": 4,
- "rule": "arm by A,B,B,A over seed pairs; pair seed = xorshift64(master_seed<<32 ^ (pair+1) ^ golden) >> 32",
+ "rule": "pair_seed(master_seed, pair) = upper 32 bits of the xorshift64 state after 4 steps from x0 = ((master_seed<<32) | master_seed) ^ (((pair+1) * golden) mod 2^64), with x0 = golden if that is 0; golden = 0x9E3779B97F4A7C15; step: x ^= x<<13; x ^= x>>7; x ^= x<<17 (mod 2^64)",
+ "arm_rule": "candidates 2k and 2k+1 form pair k; pair 0 = A,B; pair 1 = B,A; alternating (A,B,B,A)",
+ "operator_rng": "state = ((pair_seed<<32) | pair_seed) ^ golden, 0 -> golden, then 4 steps; draw = one step, upper 32 bits; uniform(n) by rejection below floor(2^32/n)*n",
  "entries": [
   {
    "master_seed": 1,

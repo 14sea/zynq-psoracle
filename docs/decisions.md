@@ -700,3 +700,22 @@ day: `docs/l6_instrument.md` maps every item to its file and its test and lists 
 choices the review should confirm or overturn. `manifests/l6_manifest.json` is a DRAFT
 whose image, frozen-prereg and calibration pins are null, and `host/l6_runner.py` refuses
 to run on it — pinned by a test. The §2 firmware/image work waits for the review.
+
+## 2026-09-01 — §4 batch re-review: HOLD on four semantic defects; corrected host-only
+
+The owner's re-review of the §4 batch (`451f8b2`, not pushed): architecture right, 83
+targeted tests green, but the tests had not stopped four rules from being weaker than the
+preregistration — the heartbeat gap measured over frames of any type (a 40 s HB gap
+filled with AUDIT/REC read as 10 s); `STOP_AXI` exempted from audit by name rather than
+by "no raw self-report"; the last-candidate → closing-baseline transition inside the rate
+and the CoV (and a test pinning it); and `mutation_bits = 4` called instrument-only when
+the rate's `period` deliberately contains the operator's compute. Rulings: HB frames only
+and an unchecked invariant is a HOLD; exemption by content, post-staging `STOP_AXI`
+auto-audited (missing → HOLD, mismatch → KILL) with discrimination tests both ways;
+steady-state periods only (N−1), the transitions reported apart; `mutation_bits = 4`
+frozen as the image/calibration contract, a change means C1/C2 re-run. CoV over `period`,
+baselines without `arm`, flags bits 2–3, the four-step pair seed (with the rule text made
+exact), the timeout formula, the copied preamble, the 1.1 schema fields, `--master-seed`
+and the L6 image path were accepted. All five corrections landed the same day
+(`docs/l6_instrument.md` §7); push and the §2 firmware/image batch wait for the short
+re-review.

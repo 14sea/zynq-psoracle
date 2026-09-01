@@ -31,9 +31,12 @@ L6M = json.loads((R / "manifests/l6_manifest.json").read_text())
 LOAD = 1250000035
 
 
-def report(session: str, rate: float, median_polls: float = 16.0) -> dict:
+CONTRACT = L6M["operator"]["operator_data_sha256"]
+
+
+def report(session: str, rate: float, median_polls: float = 16.0, contract: str = CONTRACT) -> dict:
     return {"schema": "l6_rate_report", "session": session, "schedule_mode": L6M["sessions"][session]["mode"],
-            "evals_per_hour": rate, "settle_polls": {"median": median_polls}}
+            "evals_per_hour": rate, "settle_polls": {"median": median_polls}, "operator_data_sha256": contract}
 
 
 class Plan(unittest.TestCase):
@@ -69,6 +72,14 @@ class Plan(unittest.TestCase):
             l6.plan_session(L6M, "S", 5, 7200.0, {"C1": bad, "C2": report("C2", 100.0)}, None)
         with self.assertRaises(ValueError):
             l6.plan_session(L6M, "S", 5, 7200.0, None, None)
+
+    def test_soak_refuses_a_calibration_under_another_operator_contract(self):
+        """mutation_bits (and the map data) are the operator contract: a calibration run
+        under a different operator_data_sha256 cannot budget this soak (owner 2026-09-01)."""
+        with self.assertRaises(ValueError) as cm:
+            l6.plan_session(L6M, "S", 5, 7200.0, {"C1": report("C1", 120.0, contract="00" * 32),
+                                                   "C2": report("C2", 100.0)}, None)
+        self.assertIn("operator contract", str(cm.exception)); self.assertIn("re-run", str(cm.exception))
 
     def test_master_seed_is_32_bit_and_n_is_never_typed(self):
         with self.assertRaises(ValueError):
@@ -217,12 +228,33 @@ class Checks(unittest.TestCase):
         base = dict(log=self.log, frames=self.frames, crc_dropped=0, crc_budget=6, span_s=7000.0, duration_s=7200.0,
                     hb_gap_max_s=20.0, settle_median_calib=16.0, settle_bound_factor=10, wall_fraction_min=0.9)
         self.assertEqual(lc.soak_findings(**base), [])
-        gap = copy.deepcopy(self.frames); gap[-1]["t_mono"] += 25.0
-        self.assertIn("gap", lc.soak_findings(**{**base, "frames": gap})[0])
         self.assertIn("CRC drops 7 exceed", lc.soak_findings(**{**base, "crc_dropped": 7})[0])
         self.assertIn("wall time", lc.soak_findings(**{**base, "span_s": 6000.0})[0])
         slow = copy.deepcopy(self.log); slow["loop_records"][1]["evidence"]["arm"]["settle"]["polls"] = 161
         self.assertIn("settle.polls 161", lc.soak_findings(**{**base, "log": slow})[0])
+
+    def test_heartbeat_gap_is_over_hb_frames_only(self):
+        base = dict(log=self.log, crc_dropped=0, crc_budget=6, span_s=7000.0, duration_s=7200.0,
+                    hb_gap_max_s=20.0, settle_median_calib=16.0, settle_bound_factor=10, wall_fraction_min=0.9)
+        # the review counter-example: HB at 0 and 40 s, AUDIT/REC/SIGNREQ every 10 s between
+        mk = lambda t, ty, seq: {"dir": "rx", "type": ty, "seq": seq, "t_mono": t, "t_wall": t}  # noqa: E731
+        fr = [mk(0.0, "HB", 1), mk(10.0, "AUDIT", 1), mk(20.0, "REC", 1), mk(30.0, "SIGNREQ", 2), mk(40.0, "HB", 2)]
+        found = lc.soak_findings(**{**base, "frames": fr})
+        self.assertEqual(len(found), 1); self.assertIn("heartbeat gap", found[0]); self.assertIn("40.0 s", found[0])
+        # a late HB inside otherwise dense traffic is caught; the same shift on a REC is not a heartbeat matter
+        late_hb = copy.deepcopy(self.frames)
+        hb = [f for f in late_hb if f["type"] == "HB"][-1]; hb["t_mono"] += 25.0
+        self.assertTrue(any("heartbeat gap" in f for f in lc.soak_findings(**{**base, "frames": late_hb})))
+        late_rec = copy.deepcopy(self.frames)
+        rec = [f for f in late_rec if f["type"] == "REC"][-1]; rec["t_mono"] += 25.0
+        self.assertEqual(lc.soak_findings(**{**base, "frames": late_rec}), [])
+
+    def test_too_few_heartbeats_is_a_hold_not_a_pass(self):
+        base = dict(log=self.log, crc_dropped=0, crc_budget=6, span_s=7000.0, duration_s=7200.0,
+                    hb_gap_max_s=20.0, settle_median_calib=16.0, settle_bound_factor=10, wall_fraction_min=0.9)
+        for fr in ([], [{"dir": "rx", "type": "HB", "seq": 1, "t_mono": 0.0, "t_wall": 0.0}]):
+            found = lc.soak_findings(**{**base, "frames": fr})
+            self.assertTrue(any("not checkable" in f for f in found), found)
 
     def test_median_from_a_calibration_report(self):
         self.assertEqual(lc.median_settle_polls_from_report({"settle_polls": {"median": 16.0}}), 16.0)

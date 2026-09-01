@@ -42,8 +42,8 @@ def structural_findings(log: dict, chunks: list[dict], requested_audit_seqs: set
         served = {}
     for seq in sorted(by_seq):
         r = by_seq[seq]
-        needs = ((r["outcome"] == "SCORED" and seq in requested_audit_seqs)
-                 or (r["outcome"] in records.AUTO_AUDIT_OUTCOMES))
+        cls = records.self_report_class(r)
+        needs = (cls == "scored" and seq in requested_audit_seqs) or cls == "auto"
         if needs and seq not in served:
             out.append(f"missing AUDIT for seq {seq} ({r['outcome']}, "
                        f"{'requested' if seq in requested_audit_seqs else '§3a auto'})")
@@ -81,15 +81,19 @@ def calibration_findings(rate_report: dict, cov_max: float) -> list[str]:
 def soak_findings(log: dict, frames: list[dict], crc_dropped: int, crc_budget: int,
                   span_s: float, duration_s: float, hb_gap_max_s: float,
                   settle_median_calib: float, settle_bound_factor: int, wall_fraction_min: float) -> list[str]:
-    """S (§6.4): no gap > hb_gap_max_s between received frames, CRC drops within the
+    """S (§6.4): no gap > hb_gap_max_s between consecutive HB frames (HB only; at least two
+    HB frames or the invariant is unchecked and that is a HOLD), CRC drops within the
     closed-formula budget, wall time ≥ wall_fraction_min × T, every settle.polls within
     [1, settle_bound_factor × the C1/C2 median]."""
     out = []
+    n_hb = lt.heartbeat_count(frames)
+    if n_hb < 2:
+        out.append(f"heartbeat invariant not checkable: {n_hb} HB frame(s) received (an empty set is not a pass)")
     gaps = [g for g in lt.heartbeat_gaps(frames) if g["gap_s"] > hb_gap_max_s]
     if gaps:
         worst = max(gaps, key=lambda g: g["gap_s"])
-        out.append(f"{len(gaps)} frame gap(s) > {hb_gap_max_s} s (worst {worst['gap_s']:.1f} s after "
-                   f"{worst['after']} seq {worst['seq']})")
+        out.append(f"{len(gaps)} heartbeat gap(s) > {hb_gap_max_s} s (worst {worst['gap_s']:.1f} s between HB of "
+                   f"seq {worst['seq_before']} and seq {worst['seq_after']})")
     if crc_dropped > crc_budget:
         out.append(f"CRC drops {crc_dropped} exceed the D-s4 budget {crc_budget}")
     if span_s < wall_fraction_min * duration_s:

@@ -1,7 +1,7 @@
 {
   "schema": "l6_manifest",
   "schema_version": "0.1.0",
-  "status": "DRAFT — host-only. The §4 instrument batch is implemented against this draft; nothing here authorises a build, a ruling or board contact. `pinned_at_build.app_image_sha256` and `prereg.sha256` are null until the two-operator image (§2) is built, reviewed and pinned and the preregistration is frozen; host/l6_runner.py refuses to run while either is null.",
+  "status": "DRAFT — host-only. The §4 instrument batch is implemented against this draft (re-review HOLD corrections of 2026-09-01 included); nothing here authorises a build, a ruling or board contact. `pinned_at_build.app_image_sha256` and `prereg.sha256` are null until the two-operator image (§2) is built, reviewed and pinned and the preregistration is frozen; host/l6_runner.py refuses to run while either is null.",
   "prereg": {
     "path": "docs/l6_soak_prereg.md",
     "version": "v0.2",
@@ -53,7 +53,7 @@
       "A": "random_safe",
       "B": "map_guided"
     },
-    "pair_seed": "xorshift64 warm-up over ((master_seed<<32 | master_seed) ^ (pair+1)*golden), upper 32 bits — host/l6_schedule.py:pair_seed, twin required in the image",
+    "pair_seed": "host/l6_schedule.py:PAIR_SEED_RULE — upper 32 bits of the xorshift64 state after 4 steps from ((master_seed<<32) | master_seed) ^ (((pair+1) * golden) mod 2^64), 0 -> golden; twin required in the image",
     "seq_index": "seq 1 = opening baseline, seq i+2 = candidate index i, seq N+2 = closing baseline",
     "twin_corpus": "fixtures/l6_operator_corpus_v1.json (N = 256 (master_seed, index) pairs, both arms)"
   },
@@ -66,14 +66,14 @@
       "map_id": "clb_lut_init_v1"
     },
     "mutation_bits": 4,
-    "mutation_bits_note": "DRAFT pin, both arms: random-safe = 4 addresses uniform without replacement over the 292; map-guided = one LUT uniform over the map's six, then 4 of its mapped INIT positions. The rate does not depend on it (every candidate rewrites all twelve frames); Claim B's own preregistration fixes its value for the arms at its freeze — this pin is for the instrument's twin and calibration only."
+    "mutation_bits_note": "FROZEN for L6 (owner 2026-09-01), both arms — an image/calibration CONTRACT, not a draft: random-safe = 4 addresses uniform without replacement over the 292; map-guided = one LUT uniform over the map's six, then 4 of its mapped INIT positions. The operator's compute time is inside the rate's `period`, so a calibration holds only for this value; operator_data_sha256 covers mutation_bits and the S runner refuses calibration reports whose operator_data_sha256 is not this pin. If Claim B changes the value, C1/C2 must be re-run under the new contract; the old rates may not be reused."
   },
   "audit": {
     "policy": "sampled",
     "every": 16,
     "scheduled": "every 16th seq + first and last candidate (seq 2, N+1) + both baselines (seq 1, N+2) — host/l6_schedule.py:sampled_audit_seqs, requested by AUDITREQ",
     "auto": "§3a item 2: every non-SCORED self-report (STOP_LINK2, STOP_LINK3, REFUSED_BY_PL, STOP_ARM, STOP_SETTLE) audited unconditionally by the firmware before its record — a firmware change for the §2 image; the validator requires it now (validators.records.check_audit_policy policy='sampled')",
-    "exempt": "REFUSED_BY_GATE and a pre-staging STOP_AXI (no raw words exist)",
+    "exempt": "REFUSED_BY_GATE, and a STOP_AXI that carries no app_oracle_record (pre-staging: no raw words exist). A STOP_AXI WITH an oracle record is a self-report and is auto-audited like the others (validators.records.self_report_class)",
     "calibration_sessions_policy": "all-self-reporting (C1, C2)"
   },
   "frames": {
@@ -107,7 +107,7 @@
     },
     "S": {
       "mode": "abba",
-      "n": "floor(0.9 × min(rate_C1, rate_C2) × T)",
+      "n": "floor(0.9 × min(rate_C1, rate_C2) × T), rates over steady-state periods only (interior→interior transitions)",
       "duration_s": 7200,
       "audit": "sampled",
       "watchdog": true
@@ -125,7 +125,8 @@
       20,
       20,
       18
-    ]
+    ],
+    "hb_gap_note": "HB frames only (L2's guard); fewer than two HB frames = unchecked = HOLD; any-frame gaps are reported as transport liveness, never as the heartbeat invariant"
   },
   "calibration": {
     "C1": {

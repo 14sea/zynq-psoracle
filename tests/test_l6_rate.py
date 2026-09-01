@@ -72,18 +72,54 @@ class Numbers(unittest.TestCase):
     def test_the_four_numbers_from_a_synthetic_timed_log(self):
         rep = lr.rate_report(timed_log(), "C1", "ab" * 32)
         self.assertEqual(rep["brackets"], [1, 4]); self.assertEqual(rep["candidates"], 2)
-        # candidate 2: wall 26 (16 HB + 8 AUDIT + reply + REC), period 40; candidate 3 (refused):
-        # wall 2, period 35 → mean period 37.5 → 96 evals/h
         rows = {r["seq"]: r for r in rep["per_candidate"]}
+        # candidate 2: wall 26 (16 HB + 8 AUDIT + reply + REC); candidate 3 (refused): wall 2.
+        # SIGNREQs at 0, 30, 70, 105 s. Steady-state periods = interior→interior only:
+        # 2→3 = 40 s. The 1→2 (30 s) and 3→4 (35 s, into the closing baseline) transitions
+        # are reported apart and enter nothing.
         self.assertEqual(rows[2]["wall_s"], 26.0); self.assertEqual(rows[2]["period_s"], 40.0)
-        self.assertEqual(rows[3]["wall_s"], 2.0); self.assertEqual(rows[3]["period_s"], 35.0)
-        self.assertAlmostEqual(rep["evals_per_hour"], 3600 / 37.5)
-        self.assertAlmostEqual(rep["cov"], (2.5 * (2 ** 0.5)) / 37.5)    # sample stdev of {40, 35}
+        self.assertEqual(rows[3]["wall_s"], 2.0); self.assertIsNone(rows[3]["period_s"])
+        self.assertEqual(rep["steady_state_periods"], 1)
+        self.assertEqual(rep["transitions_s"], {"opening_to_first_s": 30.0, "last_to_closing_s": 35.0})
+        self.assertAlmostEqual(rep["evals_per_hour"], 3600 / 40.0)
+        self.assertIsNone(rep["cov"])                                    # one period: no CoV, never 0.0 (a HOLD downstream)
+        self.assertIsNone(rep["period_s"]["stdev"])
         self.assertEqual(rep["failure_rate"], 0.0)                       # a gate refusal is not a failure
         self.assertEqual(rep["outcome_counts"], {"SCORED": 1, "REFUSED_BY_GATE": 1})
         self.assertEqual(rep["stages_s"]["link3"]["mean"], 12.0)
         self.assertEqual(rep["run_log_sha256"], "ab" * 32)
         self.assertIn("period", rep["definitions"])
+
+    def test_the_closing_transition_never_enters_rate_or_cov(self):
+        """Three interior candidates (seq 2, 3, 4) at 30 s periods; the last→closing
+        transition is made 300 s long. Rate and CoV must not move."""
+        log = copy.deepcopy(d1.make_log())
+        extra = copy.deepcopy(log["loop_records"][1]); extra["seq"] = 5
+        for k in ("sign_reply", "app_oracle_record"):
+            extra["evidence"][k]["seq"] = 5
+        log["loop_records"][3]["seq"] = 4        # was the closing baseline at seq 4 → candidate
+        log["loop_records"][3]["evidence"]["sign_reply"]["seq"] = 4
+        log["loop_records"][3]["evidence"]["app_oracle_record"]["seq"] = 4
+        log["loop_records"].append(extra)          # seq 5 = closing baseline (any SCORED record will do here)
+        frames, t = [], 0.0
+        for seq, gap in ((1, 30.0), (2, 30.0), (3, 30.0), (4, 300.0), (5, 0.0)):
+            rec = next(r for r in log["loop_records"] if r["seq"] == seq)
+            if rec["outcome"] == "REFUSED_BY_GATE":
+                frames += [{"dir": "rx", "type": "SIGNREQ", "seq": seq, "t_mono": t, "t_wall": t},
+                           {"dir": "rx", "type": "REC", "seq": seq, "t_mono": t + 2, "t_wall": t + 2}]
+            else:
+                frames += frames_for(seq, t)
+            t += gap
+        tim = lt.record_timing(frames, [1, 2, 3, 4, 5])
+        log["timing"] = {"clocks": lt.CLOCKS, "records": {str(k): v for k, v in tim.items()}}
+        rep = lr.rate_report(log)
+        self.assertEqual(rep["candidates"], 3); self.assertEqual(rep["steady_state_periods"], 2)
+        self.assertAlmostEqual(rep["evals_per_hour"], 120.0); self.assertEqual(rep["cov"], 0.0)
+        self.assertEqual(rep["transitions_s"]["last_to_closing_s"], 300.0)
+
+    def test_the_operator_contract_travels_with_the_report(self):
+        log = timed_log(); log["app_identity"]["operator_data_sha256"] = "0c" * 32
+        self.assertEqual(lr.rate_report(log)["operator_data_sha256"], "0c" * 32)
 
     def test_a_stop_is_a_failure_and_a_stopped_epoch_keeps_its_last_candidate(self):
         log = timed_log()

@@ -351,7 +351,16 @@ def _check_loop_record(r):
     reply = validate(ev["sign_reply"])
     if reply["seq"] != r["seq"]:
         raise RecordError("sign_reply seq differs from the loop_record's")
-    if out == "STOP_AXI" or out == "STOP_LINK2":
+    if out == "STOP_AXI":
+        _forbid(ev, ("arm", "score"), out)
+        if "app_oracle_record" in ev:       # a post-staging stop: its self-report is checked
+            oracle = validate(ev["app_oracle_record"])
+            if oracle["seq"] != r["seq"]:
+                raise RecordError("app_oracle_record seq differs from the loop_record's")
+            if oracle["staged_sha256"] != reply["commit"]:
+                raise Falsified("staged_sha256 != the signed commit — link 2's binding failed, this record cannot stand (prereg §3: a candidate past link 2 while staged != commit)")
+        return
+    if out == "STOP_LINK2":
         _forbid(ev, ("arm", "score"), out)
         return
     _need(ev, ("app_oracle_record",), out)
@@ -550,20 +559,37 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int,
             "audited": audited, "chain_length": attempts, "marks": marks, "audit": audit_detail}
 
 
-# Candidates whose record makes no oracle self-report: there are no raw words behind them,
-# so "audit them" is not a thing that can be done. A gate refusal staged nothing and is
-# corroborated by the notary_log itself (rule vii); STOP_AXI never reached staging.
-NO_SELF_REPORT_OUTCOMES = ("REFUSED_BY_GATE", "STOP_AXI")
-# L6 prereg §3a item 2: the outcomes that produce a raw self-report and are not SCORED —
-# under the sampled policy the firmware audits these unconditionally, before the record.
-AUTO_AUDIT_OUTCOMES = ("STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL", "STOP_ARM", "STOP_SETTLE")
+# A gate refusal makes no oracle self-report: nothing was staged, no raw words exist, and
+# the notary_log itself corroborates it (rule vii). STOP_AXI is exempt ONLY while it is a
+# pre-staging stop, i.e. carries no `app_oracle_record` (L6 prereg §3a item 3); a STOP_AXI
+# that carries one is a raw self-report like any other and must be auto-audited (review
+# 2026-09-01: exempting the outcome by NAME let a post-staging STOP_AXI with an unaudited
+# oracle record through). The classification is by content, `self_report_class`.
+NO_SELF_REPORT_OUTCOMES = ("REFUSED_BY_GATE",)
+# L6 prereg §3a item 2: the non-SCORED outcomes that may carry a raw self-report — under
+# the sampled policy the firmware audits these unconditionally, before the record.
+AUTO_AUDIT_OUTCOMES = ("STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL", "STOP_ARM", "STOP_SETTLE", "STOP_AXI")
 AUDIT_POLICIES = ("all-self-reporting", "sampled")
 ARMS = ("random_safe", "map_guided")                       # L6 prereg §2.4
 L6_IDENTITY_FIELDS = ("master_seed", "schedule_mode", "operator_data_sha256")
 
 
+def self_report_class(r: dict) -> str:
+    """What a record claims that only raw words can back: "none" (a gate refusal, or a
+    pre-staging STOP_AXI with no oracle record), "scored" (a SCORED record's oracle
+    claim), or "auto" (a non-SCORED record that staged: an oracle record, or STOP_LINK2's
+    staged != commit claim). Decided from the record's content, never from its name alone."""
+    out = r["outcome"]
+    ev = r.get("evidence", {})
+    if out in NO_SELF_REPORT_OUTCOMES:
+        return "none"
+    if out == "STOP_LINK2" or "app_oracle_record" in ev:
+        return "scored" if out == "SCORED" else "auto"
+    return "none"
+
+
 def _self_reporting(r: dict) -> bool:
-    return "app_oracle_record" in r.get("evidence", {}) or r["outcome"] == "STOP_LINK2"
+    return self_report_class(r) != "none"
 
 
 def check_audit_policy(log: dict, marks: dict, policy: str = "all-self-reporting",
@@ -596,7 +622,7 @@ def check_audit_policy(log: dict, marks: dict, policy: str = "all-self-reporting
     offenders, offenders_auto = [], []
     for r in log["loop_records"]:
         seq = r["seq"]
-        if r["outcome"] in NO_SELF_REPORT_OUTCOMES or not _self_reporting(r):
+        if not _self_reporting(r):
             exempt.append(seq)
             continue
         audited = marks.get(seq) == "audited"

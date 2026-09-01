@@ -127,6 +127,80 @@ class Section3aOnRealData(unittest.TestCase):
             au.verify(log_with([rec]), chunks, MANIFEST)
 
 
+class StopAxiByContent(unittest.TestCase):
+    """§3a item 3 exempts a PRE-staging STOP_AXI; a STOP_AXI that carries an oracle record
+    staged and is a self-report like any other (review 2026-09-01: the exemption was by
+    name and let a post-staging STOP_AXI with an unaudited oracle record through)."""
+
+    def pre(self, seq=UNSAMPLED) -> dict:
+        r = d1.scored(seq, d1.G_CAND, d1.CAND, d1.SEED)
+        r["outcome"] = "STOP_AXI"
+        for k in ("app_oracle_record", "arm", "score"):
+            del r["evidence"][k]
+        return r
+
+    def post(self, seq=UNSAMPLED) -> tuple[dict, list[dict]]:
+        rec, chunks = rekeyed_stop_arm(seq)
+        rec["outcome"] = "STOP_AXI"
+        del rec["evidence"]["arm"]            # no ARM attempt: the AXI fault came after staging
+        return rec, chunks
+
+    def test_classification_is_by_content(self):
+        self.assertEqual(records.self_report_class(self.pre()), "none")
+        self.assertEqual(records.self_report_class(self.post()[0]), "auto")
+        self.assertEqual(records.self_report_class(d1.refused(3, d1.G_CAND)), "none")
+        self.assertEqual(records.self_report_class(d1.scored(3, d1.G_CAND, d1.CAND, d1.SEED)), "scored")
+
+    def test_pre_staging_stop_axi_is_exempt_and_may_not_be_audited(self):
+        rec = self.pre(); records.validate(rec)
+        out = records.check_audit_policy(log_with([rec]), {UNSAMPLED: "replayed-only"}, "sampled", ls.sampled_audit_seqs(N))
+        self.assertEqual(out["exempt_no_self_report"], [UNSAMPLED])
+        _, chunks = rekeyed_stop_arm(UNSAMPLED)
+        with self.assertRaises(records.RecordError) as cm:
+            au.verify(log_with([rec]), chunks, MANIFEST)     # words for a record that staged nothing
+        self.assertIn("staged nothing", str(cm.exception))
+
+    def test_post_staging_stop_axi_without_audit_is_a_hold(self):
+        rec, _ = self.post(); records.validate(rec)
+        log = log_with([rec])
+        marks, _ = au.verify(log, [], MANIFEST)
+        with self.assertRaises(records.RecordError) as cm:
+            records.check_audit_policy(log, marks, "sampled", ls.sampled_audit_seqs(N))
+        self.assertNotIsInstance(cm.exception, records.Falsified)
+        self.assertIn(f"[{UNSAMPLED}]", str(cm.exception)); self.assertIn("§3a item 2", str(cm.exception))
+
+    def test_post_staging_stop_axi_with_recomputing_words_is_audited(self):
+        rec, chunks = self.post()
+        log = log_with([rec])
+        marks, _ = au.verify(log, chunks, MANIFEST)
+        self.assertEqual(marks[UNSAMPLED], "audited")
+        out = records.check_audit_policy(log, marks, "sampled", ls.sampled_audit_seqs(N))
+        self.assertEqual(out["audited_auto"], [UNSAMPLED])
+
+    def test_post_staging_stop_axi_with_wrong_words_is_a_kill(self):
+        rec, chunks = self.post()
+        c = next(c for c in chunks if c["chunk"] == 0)
+        words = au._decode_words(c["words"], "fixture"); words[10] ^= 1; c["words"] = _reencode(words)
+        with self.assertRaises(records.Falsified):
+            au.verify(log_with([rec]), chunks, MANIFEST)
+
+    def test_post_staging_stop_axi_whose_staging_is_not_the_commit_is_falsified_by_the_record_alone(self):
+        rec, _ = self.post()
+        rec["evidence"]["app_oracle_record"]["staged_sha256"] = "ee" * 32
+        with self.assertRaises(records.Falsified):
+            records.validate(rec)
+
+    def test_structural_check_requires_the_auto_audit_by_content(self):
+        import l6_checks as lc
+        rec, chunks = self.post()
+        log = {"loop_records": [rec], "session_summary": {"written_by": "app"}}
+        fr = [{"dir": "rx", "type": "SIGNREQ", "seq": UNSAMPLED, "t_mono": 0.0, "t_wall": 0.0}]
+        self.assertEqual(lc.structural_findings(log, chunks, set(), fr), [])
+        self.assertTrue(any("§3a auto" in f for f in lc.structural_findings(log, [], set(), fr)))
+        self.assertEqual(lc.structural_findings({"loop_records": [self.pre()], "session_summary": {"written_by": "app"}},
+                                                [], set(), fr), [])
+
+
 class ArmAware(unittest.TestCase):
     def setUp(self):
         self.n = 4
