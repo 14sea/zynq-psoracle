@@ -225,18 +225,64 @@ class ContentThatCannotSupportTheClaim(unittest.TestCase):
         words[534:1068] = words[0:534]                         # stream 1 := stream 0
         self._falsified(words, "repeats envelope")
 
-    def test_an_incomplete_target_set_with_the_full_word_count_is_a_falsifier(self):
-        """Three distinct envelopes whose manifest rows stage fewer than twelve frames: the
-        completeness check itself, exercised by narrowing the envelope table."""
+    def test_a_narrowed_envelope_table_is_a_host_defect_not_a_falsifier(self):
+        """Round 3 correction: under a valid manifest, three parseable distinct envelopes ×
+        four targets = twelve frames, always — so 'fewer than twelve' cannot be served by
+        the board. Narrowing the envelope table breaks the HOST's interpretation, and the
+        envelope contract catches it first: RecordError, and the runner says HOLD."""
         import unittest.mock as um
         import p3_gate as pg
+        import l5_runner as lr
         real = pg.envelopes(MANIFEST)
         narrowed = [dict(e, targets=e["targets"][:3]) for e in real]     # 9 frames, not 12
         with um.patch.object(pg, "envelopes", lambda m: narrowed):
             chunks = self._rechunk(list(self.WORDS))
-            with self.assertRaises(records.Falsified) as cm:
+            with self.assertRaises(records.RecordError) as cm:
                 au.verify(LOG, chunks, MANIFEST)
-        self.assertIn("9 target frames, not 12", str(cm.exception))
+        self.assertNotIsInstance(cm.exception, records.Falsified)
+        self.assertIn("invalid manifest", str(cm.exception))
+        self.assertTrue(lr.classify_rejection(cm.exception).startswith("HOLD instrument:"))
+
+    def test_every_envelope_contract_clause_is_a_host_defect(self):
+        """Each clause of the manifest contract, broken one at a time: RecordError, never
+        Falsified — the board served the same valid words throughout."""
+        import unittest.mock as um
+        import p3_gate as pg
+        real = pg.envelopes(MANIFEST)
+        variants = {
+            "two envelopes": real[:2],
+            "duplicate far_set": [real[0], dict(real[1], far_set=real[0]["far_set"]), real[2]],
+            "five targets": [dict(real[0], targets=real[0]["targets"] + [0x7FFFFFF])] + real[1:],
+            # twelve unique targets in all, but 5/3/4 across the envelopes: only the
+            # "exactly four each" clause can see this one (its mutant survived otherwise)
+            "5/3/4 redistribution": [dict(real[0], targets=real[0]["targets"] + [real[1]["targets"][0]]),
+                                     dict(real[1], targets=real[1]["targets"][1:]), real[2]],
+            "repeated target FAR": [dict(real[0], targets=real[0]["targets"][:3] + [real[1]["targets"][0]])] + real[1:],
+            "not the pinned roles": [dict(real[0], targets=real[0]["targets"][:3] + [0x7FFFFFF])] + real[1:],
+        }
+        chunks = self._rechunk(list(self.WORDS))
+        for name, envs in variants.items():
+            with um.patch.object(pg, "envelopes", lambda m, envs=envs: envs):
+                with self.assertRaises(records.RecordError, msg=name) as cm:
+                    au.verify(LOG, chunks, MANIFEST)
+            self.assertNotIsInstance(cm.exception, records.Falsified, name)
+            self.assertIn("invalid manifest", str(cm.exception), name)
+        with um.patch.object(pg, "envelopes", lambda m: (_ for _ in ()).throw(KeyError("write_envelope"))):
+            with self.assertRaises(records.RecordError) as cm:
+                au.verify(LOG, chunks, MANIFEST)
+        self.assertNotIsInstance(cm.exception, records.Falsified)
+        self.assertIn("cannot be read", str(cm.exception))
+
+    def test_the_contract_is_checked_before_any_served_word_is_interpreted(self):
+        """A broken manifest AND unparseable words: the host-side finding wins, so a host
+        defect can never be reported as a board falsifier."""
+        import unittest.mock as um
+        import p3_gate as pg
+        words = list(self.WORDS); words[8] ^= 0xFFFFFFFF
+        with um.patch.object(pg, "envelopes", lambda m: pg.envelopes(MANIFEST)[:2]):
+            with self.assertRaises(records.RecordError) as cm:
+                au.verify(LOG, self._rechunk(words), MANIFEST)
+        self.assertNotIsInstance(cm.exception, records.Falsified)
 
     def test_the_structural_layer_is_still_a_plain_record_error(self):
         """Discrimination for the boundary: the same defects BEFORE assemble() accepts the

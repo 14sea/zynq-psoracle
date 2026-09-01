@@ -1,6 +1,6 @@
 # L5 design correction after session 3 — the settle poll, the tally, the classification
 
-**Standing: host-only, built, design review round 1 = HOLD on the audit gate (fixed, §3a), round 2 = HOLD on the Falsified/HOLD boundary inside the gate (fixed, §3a), awaiting round 3; NOT run on hardware. No ruling requested; the
+**Standing: host-only, built, design review round 1 = HOLD on the audit gate (fixed, §3a), round 2 = HOLD on the Falsified/HOLD boundary inside the gate (fixed, §3a), round 3 = HOLD on the twelve-frame clause of that boundary (corrected, §3a: manifest contract is host-side), awaiting round 4; NOT run on hardware. No ruling requested; the
 board is untouched since session 3.** This is the entry point for the design review that
 `docs/l5_prereg.md` §6 requires after three sessions without a `COMPLETED` end. Owner's
 authorisation and its scope: `docs/decisions.md`, entry "2026-09-01 — L5 session 3: HOLD".
@@ -58,11 +58,23 @@ After it, the words are complete and well-formed, and whatever fails is about th
 that is not all twelve frames, or a hash that does not match — the record's hashes cannot be
 recomputed from what was served, which is prereg §3's falsifier: `Falsified` → `KILL`. A
 missing or invalid manifest is neither and stays `RecordError`.
+*Round 3 correction (2026-09-01).* "Fewer than twelve target frames" is **not** a
+board-constructible falsifier: under a valid manifest, three parseable streams with three
+distinct envelopes × four targets each stage twelve frames, always, and a repeated envelope
+is already caught. So `recompute()` now checks the **manifest-derived envelope contract
+first** (`_envelope_contract`: exactly three unique `far_set`s, exactly four targets each,
+twelve unique target FARs equal to the pinned roles' targets; a manifest that cannot be
+parsed) — that is host interpretation, `RecordError` → HOLD — and a frame count other than
+twelve past that contract is a **host implementation invariant** failure, `RecordError`,
+deliberately not `Falsified`. The narrowed-envelope-table test was reversed accordingly and
+each contract clause is tested one at a time; a broken manifest together with unparseable
+words yields the host-side finding, so a host defect can never be reported as a board
+falsifier.
 Proof: `tests/test_audit_gate.py` `ContentThatCannotSupportTheClaim` — full-length words with
-a destroyed sync word, a repeated envelope, and (by narrowing the envelope table) an
-incomplete target set are each `Falsified`, and through the whole log; the same stream with
-a missing chunk / wrong offset / bad base64 stays a plain `RecordError`; a missing manifest
-stays a plain `RecordError`. Contract test
+a destroyed sync word or a repeated envelope are `Falsified`, directly and through the whole
+log; a narrowed envelope table, every other contract clause, an unreadable envelope table,
+a missing manifest, and the same stream with a missing chunk / wrong offset / bad base64 are
+each a plain `RecordError` and classify `HOLD instrument`. Contract test
 `test_full_length_words_that_do_not_parse_are_a_falsifier_not_a_hold` does it through the C
 chunker and asserts `classify_rejection` says `KILL falsified:`; the missing/duplicate-chunk
 contract test asserts `HOLD instrument:`.

@@ -20,7 +20,8 @@ mark from what was verified here; the application's mark must agree or the log i
                    domains via p3_gate: sequence over the streams' words, frames_hash over
                    the parsed staged frames, frames_hash over the readback frames). Past
                    `assemble`, a failure is about CONTENT: words that do not parse as a
-                   staging, a repeated envelope, an incomplete target set — `Falsified`.
+                   staging, a repeated envelope — `Falsified`. The manifest's own envelope
+                   contract is checked first and is host-side: RecordError.
   * `verify`    -- per record: which hashes the words back, and whether they agree with
                    `evidence.app_oracle_record` (or, for STOP_LINK2, with the refusal's own
                    claim). Disagreement is `Falsified`. A short audit ("streams") behind a
@@ -138,6 +139,38 @@ def assemble(chunks: list[dict]) -> dict[int, dict]:
     return out
 
 
+def _envelope_contract(g, manifest: dict) -> list[dict]:
+    """The manifest-derived envelope contract the recompute rests on, checked BEFORE any
+    served word is interpreted (design review round 3, 2026-09-01): exactly three unique
+    envelope FAR sets, exactly four target frames each, twelve unique target FARs in all,
+    and those twelve equal to the pinned frame roles' targets. A manifest that fails this,
+    or that cannot be parsed, is a HOST-side defect — RecordError, never a falsifier: the
+    board served nothing wrong. With this contract holding, three parseable streams with
+    three distinct envelopes necessarily stage twelve frames, so "fewer than twelve" past
+    this point can only be a host implementation invariant failure, also RecordError."""
+    try:
+        envs = g.envelopes(manifest)
+        base, roles = g.gc.pinned_frames(manifest)
+    except Exception as exc:  # noqa: BLE001 — any manifest parse failure is one finding
+        raise RecordError(f"invalid manifest: the envelope table cannot be read: {exc}") from None
+    far_sets = [e["far_set"] for e in envs]
+    if len(envs) != ENVELOPES or len(set(far_sets)) != ENVELOPES:
+        raise RecordError(f"invalid manifest: {len(envs)} envelopes with far_sets {sorted(map(hex, far_sets))}, "
+                          f"contract is exactly {ENVELOPES} unique")
+    bad = [hex(e["far_set"]) for e in envs if len(e["targets"]) != TARGET_FRAMES // ENVELOPES]
+    if bad:
+        raise RecordError(f"invalid manifest: envelopes {bad} do not stage exactly "
+                          f"{TARGET_FRAMES // ENVELOPES} target frames each")
+    targets = [f for e in envs for f in e["targets"]]
+    if len(targets) != TARGET_FRAMES or len(set(targets)) != TARGET_FRAMES:
+        raise RecordError(f"invalid manifest: {len(targets)} target FARs ({len(set(targets))} unique), "
+                          f"contract is exactly {TARGET_FRAMES} unique")
+    pinned = {f for f, r in roles.items() if r == "target"}
+    if set(targets) != pinned:
+        raise RecordError("invalid manifest: the envelope table's target FARs are not the pinned target roles")
+    return envs
+
+
 def recompute(words: list[int], span: str, manifest: dict) -> dict:
     """The hash domains the words support.
 
@@ -148,15 +181,19 @@ def recompute(words: list[int], span: str, manifest: dict) -> dict:
     name the same envelope twice, or that do not stage all twelve target frames — and so
     cannot support the hashes the record claimed. That is prereg §3's "audited raw words do
     not recompute the compact record": `Falsified`, a KILL, never an instrument HOLD.
-    Only a caller-contract error (a word count that assemble() could not have produced)
-    stays a RecordError; a missing manifest is refused in `verify()` before we get here."""
+    Two things stay RecordError because they are the HOST's, not the board's: the
+    manifest-derived envelope contract (`_envelope_contract`, checked first) and a
+    caller-contract word count; a missing manifest is refused in `verify()` before we get
+    here. With the contract holding, "fewer than twelve frames" cannot be produced by
+    served content and is a host invariant failure — RecordError (round 3)."""
     g, rl = _gate()
+    envs = _envelope_contract(g, manifest)          # host side first: RecordError territory
     if len(words) != SPAN_WORDS[span]:
         raise RecordError(f"recompute: {len(words)} words for span {span!r} (caller contract; assemble() enforces the span)")
     streams = [words[i * STREAM_WORDS:(i + 1) * STREAM_WORDS] for i in range(ENVELOPES)]
     out = {"staged_stream_sha256": hashlib.sha256(
         b"".join(w.to_bytes(4, "big") for s in streams for w in s)).hexdigest()}
-    far_sets = {e["far_set"] for e in g.envelopes(manifest)}
+    far_sets = {e["far_set"] for e in envs}
     staged: dict[int, list[int]] = {}
     seen = []
     for k, s in enumerate(streams):
@@ -170,12 +207,15 @@ def recompute(words: list[int], span: str, manifest: dict) -> dict:
             raise Falsified(f"served raw words: audit stream {k} repeats envelope {far:#x}, so the "
                             f"streams do not stage the twelve target frames the record claims (prereg §3)")
         seen.append(far)
-        env = next(e for e in g.envelopes(manifest) if e["far_set"] == far)
+        env = next(e for e in envs if e["far_set"] == far)
         for i, f in enumerate(env["targets"]):
             staged[f] = frames5[i]
     if len(staged) != TARGET_FRAMES:
-        raise Falsified(f"served raw words stage {len(staged)} target frames, not {TARGET_FRAMES}: "
-                        f"the record's staged_sha256 cannot be recomputed from them (prereg §3)")
+        # unreachable while the envelope contract holds (three distinct parseable envelopes
+        # × four targets = twelve): a host implementation invariant, not something the board
+        # can make happen — so RecordError, deliberately not Falsified (round 3)
+        raise RecordError(f"host invariant: {len(staged)} target frames staged under a valid envelope "
+                          f"contract, not {TARGET_FRAMES}")
     out["staged_sha256"] = rl.frames_hash(staged)
     if span == "streams+readback":
         base, roles = g.gc.pinned_frames(manifest)

@@ -620,3 +620,22 @@ target set / hash mismatch → `Falsified` → KILL. Missing or invalid manifest
 → HOLD. Negative tests both sides of the line, including through the C chunker with the
 runner's own `classify_rejection` asserted (`docs/l5_settle_correction.md` §3a). Nothing
 else changed; image `a7c73d1f…` untouched. Not pushed, no ruling, board untouched; round 3.
+
+## 2026-09-01 — design review round 3: HOLD — the twelve-frame clause crossed the boundary the other way
+
+Round 2's parse-failure and repeated-envelope branches were accepted as `Falsified`. The
+third branch — "fewer than twelve target frames" — was tested by narrowing the manifest's
+envelope table (mocked `p3_gate.envelopes`, three targets each → nine frames) and asserted
+`Falsified`. The reviewer corrected their own round-2 requirement: under a valid manifest
+that state is not constructible from served content (three parseable distinct envelopes ×
+four targets = twelve, duplicates already caught), so what the test broke was the host's
+interpretation, which by the pinned boundary is `RecordError` → HOLD.
+
+**Fixed.** `recompute()` now validates the manifest-derived envelope contract *before*
+interpreting any served word (`_envelope_contract`: exactly three unique far_sets, four
+targets each, twelve unique target FARs equal to the pinned roles; unreadable table →
+RecordError), and a frame count other than twelve after that contract is a host
+implementation invariant → RecordError, not Falsified. Header destruction and repeated
+envelope keep their KILL discrimination tests. Each contract clause is tested one at a time
+as HOLD; a broken manifest with unparseable words yields the host-side finding first.
+No firmware or image change (`a7c73d1f…`). Not pushed, no ruling, board untouched; round 4.
