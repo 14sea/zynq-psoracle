@@ -156,6 +156,38 @@ class HardwareHistoryIsConsistent(unittest.TestCase):
     say so, and no row may carry both a session record and its denial."""
 
     SESSIONS = sorted(p.name for p in (R / "evidence").glob("l6_17A6_*"))
+    COUNT_KEYS = ("scored_records", "opening_baselines", "scheduled_candidates", "closing_baselines")
+
+    @staticmethod
+    def counts_from_run_log(d: Path) -> dict:
+        """Derived from the evidence, not typed: a SCORED record without an arm is a
+        baseline (seq 1 opening; the last seq on a COMPLETED epoch closing); with an arm it
+        is a scheduled candidate. C1 #1's review caught "23 candidates" for 23 SCORED
+        records of which one was the opening baseline."""
+        log = json.loads((d / "run_log.json").read_text())
+        recs = log["loop_records"]
+        completed = log["session_summary"]["epoch_end"]["kind"] == "COMPLETED"
+        last = max(r["seq"] for r in recs) if recs else 0
+        scored = [r for r in recs if r["outcome"] == "SCORED"]
+        opening = sum(1 for r in scored if r.get("arm") is None and r["seq"] == 1)
+        closing = sum(1 for r in scored if r.get("arm") is None and completed and r["seq"] == last and last != 1)
+        scheduled = sum(1 for r in recs if r.get("arm") is not None)
+        assert opening + closing + scheduled == len(recs), "every record is a baseline or a scheduled candidate"
+        return {"scored_records": len(scored), "opening_baselines": opening,
+                "scheduled_candidates": scheduled, "closing_baselines": closing}
+
+    def test_the_count_derivation_reads_c1_1_as_the_review_did(self):
+        c = self.counts_from_run_log(R / "evidence/l6_17A6_2026-09-01-06-C1")
+        self.assertEqual(c, {"scored_records": 23, "opening_baselines": 1, "scheduled_candidates": 22, "closing_baselines": 0})
+
+    def test_no_authoritative_text_calls_records_candidates_or_clears_an_incomplete_image(self):
+        row = next(l for l in (R / "docs/status.md").read_text().splitlines()
+                   if l.startswith("| L6 calibration + soak |"))
+        for text, where in ((row, "status row"), (L6_PINNED["standing"], "manifest standing"),
+                            ((R / "docs/l6_c1_session1_findings.md").read_text(), "findings")):
+            self.assertNotIn("23 candidates", text, where)
+            self.assertNotIn("without defect", text, where)
+            self.assertNotIn("showed no defect", text, where)
 
     def test_the_manifest_standing_matches_the_evidence_on_disk(self):
         standing = L6_PINNED["standing"]
@@ -168,6 +200,8 @@ class HardwareHistoryIsConsistent(unittest.TestCase):
                 self.assertTrue((R / h["evidence"]).is_dir(), h)
                 self.assertIn(h["ruling"], d)
                 self.assertRegex(h["outcome"], r"^(PASS|HOLD|KILL)")
+                self.assertEqual({k: h[k] for k in self.COUNT_KEYS}, self.counts_from_run_log(R / h["evidence"]),
+                                 f"{h['session']}: the history's counts are not the run log's")
         else:
             self.assertEqual(history, [])
 

@@ -71,14 +71,18 @@
         "why": "DEFECTIVE — must not run. Deterministic pre-init watchdog defect: with flags.bit1 = 1 the IDENT frame's kick called XScuWdt_RestartWdt on an instance not yet CfgInitialize'd (BaseAddr 0, IsReady unset), and the driver's assert waits forever — the image hangs after IDENT, before the opening baseline. Found in the owner's compatibility review 2026-09-01 (blocker 1); never run on hardware. Fixed by gating the kick on S.wdt_started, set only after CfgInitialize → SetControlReg → LoadWdt → Start, with init failure fail-closed."
       }
     ],
-    "standing": "BUILT, PINNED, compatibility review PASS (owner 2026-09-01, host-only, scoped). RAN ON 17A6 in C1 #1 (ruling 2026-09-01-06, evidence/l6_17A6_2026-09-01-06-C1/): identified, watchdog ON, 23 candidates SCORED with 16 HB and 8 audit chunks each, then a transport HOLD (one contiguous byte loss on the console; docs/l6_c1_session1_findings.md). No calibration is pinned; the image itself showed no defect.",
+    "standing": "BUILT, PINNED, compatibility review PASS (owner 2026-09-01, host-only, scoped). RAN ON 17A6 in C1 #1 (ruling 2026-09-01-06, evidence/l6_17A6_2026-09-01-06-C1/): identified, watchdog ON, 23 SCORED records: one opening baseline plus 22 scheduled random-safe candidates, each with 16 HB and 8 audit chunks, then a transport HOLD (one contiguous byte loss on the console; docs/l6_c1_session1_findings.md). No calibration is pinned. No image defect was observed in the completed prefix before the transport HOLD.",
     "hardware_history": [
       {
         "session": "C1 #1",
         "ruling": "2026-09-01-06",
         "evidence": "evidence/l6_17A6_2026-09-01-06-C1/",
         "outcome": "HOLD (transport)",
-        "records": 23
+        "scored_records": 23,
+        "opening_baselines": 1,
+        "scheduled_candidates": 22,
+        "closing_baselines": 0,
+        "note": "counts derived from run_log.json and checked by tests/test_package_consistency.py::HardwareHistoryIsConsistent"
       }
     ]
   },

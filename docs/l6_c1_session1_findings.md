@@ -16,8 +16,8 @@ Evidence `evidence/l6_17A6_2026-09-01-06-C1/`; rulings `rulings/p3_l6_2026-09-01
 | image | `bd1454cd…` (the two-operator image), pinned; loaded and entered with `go` |
 | preflight | every gate passed: ruling text and bindings (session C1, master seed 1278624577, prereg `90f5fa69…`, image `bd1454cd…`, manifest `63ab9374…`), P3-K ruling present and unconsumed, frozen carrier by file hash, boundary bound to the invocation |
 | identity | IDENT 1.1.0: `master_seed 1278624577`, `schedule_mode random_safe_forced`, `operator_data_sha256 0c9c82a8…`, no findings — the compiled-in map data is the pinned derivation |
-| watchdog | `flags.bit1 = 1` (flags word `0x6`): the first session with the watchdog ON; the application ran 23 candidates under it without a timeout, so the pre-init kick defect of `47b8fa09…` is confirmed absent on hardware |
-| records | seq 1 (opening baseline, scores `[18, 22, 20, 20, 20, 18]`) and seq 2–23, all `SCORED`, each with 16 HB and 8 audit chunks, `arm = random_safe` on every candidate and none on the baseline |
+| watchdog | `flags.bit1 = 1` (flags word `0x6`): the first session with the watchdog ON; the application emitted 23 SCORED records: one opening baseline plus 22 scheduled random-safe candidates under it without a timeout; the pre-init kick defect of `47b8fa09…` did not occur in this prefix |
+| records | 23 SCORED records: one opening baseline plus 22 scheduled random-safe candidates: seq 1 (opening baseline, no arm, scores `[18, 22, 20, 20, 20, 18]`) and seq 2–23 (`arm = random_safe`), each with 16 HB and 8 audit chunks |
 | end | `CRASHED: unparseable frame` at seq 24 (collector §3c); `crc_dropped 0`, `bad_frames 1`, `disruptions []`, `transport_rereads []` |
 | adjudication | `HOLD instrument: run_log rejected: audit seq 24: chunk numbers must be exactly 0..7: missing [4, 5, 6, 7]` — the validator's transport-class RecordError (not `Falsified`) |
 
@@ -69,11 +69,13 @@ session moves ~1.6 MB of audit frames over a link that has now shown one byte dr
 
 ## 5. What this session does and does not establish
 
-- Establishes on hardware: the two-operator image boots, identifies, runs the random-safe
-  schedule with the watchdog ON, emits 1.1.0 records the collector parses, and 23 candidates
-  scored in a row with correct baselines — the §2 image is not the reason for the HOLD.
-- Does not establish: C1 (no calibration record; `calibration.C1` stays null), anything about
-  the map-guided arm, anything about the soak, any Claim B datum.
+- Observed on hardware in the completed prefix: the two-operator image boots, identifies,
+  runs the random-safe schedule with the watchdog ON, emits 1.1.0 records the collector
+  parses, and produced 23 SCORED records: one opening baseline plus 22 scheduled random-safe candidates, the baseline scoring exactly. No image defect was observed in the completed prefix before the transport HOLD; an incomplete session
+  cannot say more about the image than that.
+- Does not establish: C1 (no calibration record; `calibration.C1` stays null), that the
+  image is free of defects (the session did not complete), anything about the map-guided
+  arm, anything about the soak, any Claim B datum.
 
 ## 6. Options for the owner (not decided here)
 
