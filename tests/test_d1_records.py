@@ -104,8 +104,9 @@ def make_log():
 
 class HappyPath(unittest.TestCase):
     def test_completed_session_validates(self):
-        out = records.validate_standalone_run_log(make_log(), BLANK, SEED)
-        self.assertEqual(out, {"scored": 3, "audited": 0, "chain_length": 4})
+        out = records.validate_standalone_run_log(make_log(), BLANK, SEED, audits=[])
+        self.assertEqual({k: out[k] for k in ("scored", "audited", "chain_length")},
+                         {"scored": 3, "audited": 0, "chain_length": 4})
 
     def test_stopped_session_without_closing_arm_validates(self):
         log = make_log()
@@ -116,7 +117,7 @@ class HappyPath(unittest.TestCase):
         s["epoch_end"] = {"kind": "STOPPED", "reason": "LINK3_MISMATCH", "last_seq": 2}
         s["closing"] = {"restore": "done", "baseline": "not_reached", "unsigned_control": "not_reached"}
         s["audit"] = {"audited": 0, "total": 2}
-        out = records.validate_standalone_run_log(log, BLANK, SEED)
+        out = records.validate_standalone_run_log(log, BLANK, SEED, audits=[])
         self.assertEqual(out["chain_length"], 2)
 
 
@@ -125,7 +126,7 @@ class RuleNegatives(unittest.TestCase):
         log = make_log()
         mutate(log)
         with self.assertRaises(records.RecordError) as cm:
-            records.validate_standalone_run_log(log, BLANK, SEED)
+            records.validate_standalone_run_log(log, BLANK, SEED, audits=[])
         self.assertIn(fragment, str(cm.exception))
 
     def test_vii_missing_notary_entry(self):

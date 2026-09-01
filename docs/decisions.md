@@ -571,3 +571,35 @@ Image `a7c73d1f…` (byte-identical across two from-scratch builds) supersedes `
 `COMPLETED`); the three-sessions stop-loss remains in force. No ruling is requested; the
 board is untouched. Next: design review of this batch (`docs/l5_settle_correction.md`),
 then — only if it passes — a new preregistered session.
+
+## 2026-09-01 — design review round 1 of the correction batch: HOLD — the audit gate was a mark, not a check
+
+The settle correction passed item by item (strobe once; read-only poll; L3's settle
+condition; `STOP_SETTLE` / `STOP_ARM` separated; full poll evidence on timeout; nonce chain
+distinguishes unchanged / one step / a jump; the tally on the record path; session 3's
+accounting defect classifies HOLD; `a7c73d1f…` reproducible, the old image identifiable).
+
+**Blocker.** `host/l5_runner.py` wrote `collector.audits` to `audits.json` and then called
+`validate_standalone_run_log()` and `check_audit_policy()` — and the latter only checked
+that self-reporting records carried `"verified": "audited"`. Nothing verified chunk
+numbering, offsets or totals, reassembled the words, checked span, recomputed
+`staged_sha256` / `staged_stream_sha256` / `readback_sha256`, or compared with
+`evidence.app_oracle_record`. An application serving arbitrary chunks and marking its
+records audited could have been reported PASS — directly against prereg §3's "audited raw
+words do not recompute the compact record" — and the new `Falsified` class did not cover
+that falsifier. Sessions 1 and 3 were recomputed by hand; valid evidence, not a gate.
+
+**Fixed (host-only).** `validators/audit.py` (assembler, recompute, verify);
+`validate_standalone_run_log` now takes the served chunks as a **required** argument and
+the manifest, derives every record's mark from the host's own recomputation, refuses a
+record whose mark disagrees, and counts rule (ix) against the host's marks; a hash that does
+not recompute is `Falsified`; `check_audit_policy` takes the host's marks. The runner passes
+`collector.audits` and the frame manifest and records the per-seq verification in the
+summary. The contract test's session now has the C code chunk real words and the host
+recompute them. Negative tests: any flipped word (stream, readback, last), chunk missing /
+duplicated / gapped / overlapping / over-long / mis-spanned / wrong total / cross-seq /
+bad alphabet, a record marked audited with nothing served, a streams-only audit behind a
+readback claim, a false `STOP_LINK2` claim. Session 3's real chunks are the positive
+fixture. `docs/l5_settle_correction.md` §3a.
+
+Standing unchanged otherwise: not pushed, no ruling, board untouched; round-2 review next.

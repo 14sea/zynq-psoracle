@@ -184,7 +184,7 @@ class DocumentsAgree(unittest.TestCase):
         policy = PINNED["audit_policy"]["policy"]
         from validators import records
         self.assertEqual(records.check_audit_policy(
-            {"loop_records": []})["policy"], policy)
+            {"loop_records": []}, {})["policy"], policy)
         self.assertIn(policy, (R / "docs/l5_prereg.md").read_text())
 
 

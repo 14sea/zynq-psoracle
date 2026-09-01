@@ -44,6 +44,10 @@ while the interlock's hardware enforcement (L3) and its refusals (L4) continue t
 - The nonce chain across the session's ARM attempts is not the model's xorshift from
   `NONCE_SEED` — the PL did not consume attempts as the model says it does.
 - An audited candidate's raw words do not recompute the hashes its compact record claimed.
+  *(Enforced since 2026-09-01 by `validators/audit.py` inside `validate_standalone_run_log`:
+  the words are reassembled and all three hash domains recomputed on the host; the record's
+  own `verified` mark is derived, never trusted. Before that date this item was written but
+  not machine-checked — sessions 1 and 3 were recomputed by hand.)*
 - A candidate reaches a DMA while `staged_sha256 != commit`.
 - The application ARMs anything after a PL fault, or writes any address outside the pinned
   map (visible as an `STOP_AXI` that did not stop the epoch).

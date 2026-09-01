@@ -1,0 +1,236 @@
+"""The audit gate: raw words served by the application, reassembled and recomputed on the
+host, compared with the compact record that claimed them.
+
+WHY THIS FILE EXISTS. Until the design review of 2026-09-01 the runner wrote the served
+chunks to `audits.json` and then checked only that every self-reporting record carried
+`"verified": "audited"` -- the application's OWN mark. Nothing reassembled the words or
+recomputed a single hash, so an application that served any bytes at all and marked its
+records audited could have been reported PASS. That contradicted the preregistration's
+own falsifier ("an audited candidate's raw words do not recompute the hashes its compact
+record claimed") and left it unenforced. Sessions 1 and 3 were recomputed by hand,
+afterwards; that is evidence, not a gate.
+
+This module is the gate. `validate_standalone_run_log` calls it and DERIVES every record's
+mark from what was verified here; the application's mark must agree or the log is refused.
+
+  * `assemble`  -- closed reassembly per seq: schema, span, chunk numbering, offsets,
+                   counts, total, alphabet; anything missing, duplicated, overlapping,
+                   gapped, over-long, mis-spanned or mixed across seqs is a RecordError.
+  * `recompute` -- the three hash domains from the words alone (fabricmap's `run_log`
+                   domains via p3_gate: sequence over the streams' words, frames_hash over
+                   the parsed staged frames, frames_hash over the readback frames).
+  * `verify`    -- per record: which hashes the words back, and whether they agree with
+                   `evidence.app_oracle_record` (or, for STOP_LINK2, with the refusal's own
+                   claim). Disagreement is `Falsified`. A short audit ("streams") behind a
+                   record that claims a readback backs nothing about link 3, so the host
+                   derives `replayed-only` for it, whatever the application wrote.
+"""
+from __future__ import annotations
+
+import base64
+import hashlib
+import sys
+from pathlib import Path
+
+from .records import Falsified, RecordError, NO_SELF_REPORT_OUTCOMES
+
+STREAM_WORDS = 534
+ENVELOPES = 3
+FRAME_WORDS = 101
+TARGET_FRAMES = 12
+STREAM_SPAN = ENVELOPES * STREAM_WORDS                     # 1602
+SPAN_WORDS = {"streams": STREAM_SPAN,                       # a link-2 refusal: no readback exists
+              "streams+readback": STREAM_SPAN + TARGET_FRAMES * FRAME_WORDS}   # 2814
+CHUNK_KEYS = ("schema", "schema_version", "seq", "span", "chunk", "chunks", "word_offset",
+              "word_count", "total_words", "words")
+_B64 = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+
+
+def _gate():
+    """p3_gate lives in host/; fabricmap's run_log beneath it. Imported lazily so the
+    validators package stays importable on its own."""
+    r = Path(__file__).resolve().parent.parent
+    for p in (r / "host", r):
+        if str(p) not in sys.path:
+            sys.path.insert(0, str(p))
+    import p3_gate as g  # noqa: E402
+    import run_log as rl  # noqa: E402
+    return g, rl
+
+
+def _decode_words(b64: str, where: str) -> list[int]:
+    if not isinstance(b64, str) or not b64:
+        raise RecordError(f"{where}: words must be a non-empty base64url string")
+    body = b64.rstrip("=")
+    bad = set(body) - _B64
+    if bad:
+        raise RecordError(f"{where}: words contain characters outside base64url: {sorted(bad)}")
+    try:
+        raw = base64.urlsafe_b64decode(body + "=" * (-len(body) % 4))
+    except Exception as exc:  # noqa: BLE001 — any decode failure is one finding
+        raise RecordError(f"{where}: words do not decode: {exc}") from None
+    if len(raw) % 4:
+        raise RecordError(f"{where}: decoded bytes ({len(raw)}) are not whole 32-bit words")
+    return [int.from_bytes(raw[i:i + 4], "big") for i in range(0, len(raw), 4)]
+
+
+def assemble(chunks: list[dict]) -> dict[int, dict]:
+    """Closed reassembly: returns {seq: {"span", "words", "chunks"}} or raises RecordError
+    naming the first defect. Order of arrival is irrelevant; chunk NUMBERS are not."""
+    by_seq: dict[int, list[dict]] = {}
+    for i, c in enumerate(chunks):
+        where = f"audit chunk #{i}"
+        if not isinstance(c, dict):
+            raise RecordError(f"{where}: not an object")
+        missing = [k for k in CHUNK_KEYS if k not in c]
+        if missing:
+            raise RecordError(f"{where}: missing {missing}")
+        if c["schema"] != "app_audit_chunk" or c["schema_version"] != "1.0.0":
+            raise RecordError(f"{where}: schema {c['schema']!r}/{c['schema_version']!r} is not app_audit_chunk/1.0.0")
+        for k in ("seq", "chunk", "chunks", "word_offset", "word_count", "total_words"):
+            if not isinstance(c[k], int) or isinstance(c[k], bool) or c[k] < 0:
+                raise RecordError(f"{where}: {k} must be a non-negative integer")
+        if c["span"] not in SPAN_WORDS:
+            raise RecordError(f"{where}: span {c['span']!r} is not one of {sorted(SPAN_WORDS)}")
+        by_seq.setdefault(c["seq"], []).append(c)
+    out: dict[int, dict] = {}
+    for seq, group in sorted(by_seq.items()):
+        where = f"audit seq {seq}"
+        spans = {c["span"] for c in group}
+        counts = {c["chunks"] for c in group}
+        totals = {c["total_words"] for c in group}
+        if len(spans) != 1 or len(counts) != 1 or len(totals) != 1:
+            raise RecordError(f"{where}: chunks disagree on span/chunks/total_words "
+                              f"({sorted(spans)}, {sorted(counts)}, {sorted(totals)})")
+        span, n_chunks, total = spans.pop(), counts.pop(), totals.pop()
+        if total != SPAN_WORDS[span]:
+            raise RecordError(f"{where}: total_words {total} is not the pinned {SPAN_WORDS[span]} for span {span!r}")
+        if n_chunks < 1:
+            raise RecordError(f"{where}: chunks must be >= 1")
+        numbers = sorted(c["chunk"] for c in group)
+        if len(set(numbers)) != len(numbers):
+            dup = sorted({x for x in numbers if numbers.count(x) > 1})
+            raise RecordError(f"{where}: duplicate chunk numbers {dup}")
+        if numbers != list(range(n_chunks)):
+            missing = sorted(set(range(n_chunks)) - set(numbers))
+            extra = sorted(set(numbers) - set(range(n_chunks)))
+            raise RecordError(f"{where}: chunk numbers must be exactly 0..{n_chunks - 1}: "
+                              f"missing {missing}, out of range {extra}")
+        words: list[int] = []
+        for c in sorted(group, key=lambda c: c["chunk"]):
+            cw = f"{where} chunk {c['chunk']}"
+            if c["word_offset"] != len(words):
+                raise RecordError(f"{cw}: word_offset {c['word_offset']} but {len(words)} words precede it "
+                                  f"({'overlap' if c['word_offset'] < len(words) else 'gap'})")
+            decoded = _decode_words(c["words"], cw)
+            if len(decoded) != c["word_count"]:
+                raise RecordError(f"{cw}: word_count {c['word_count']} but {len(decoded)} words decoded")
+            if c["word_count"] == 0:
+                raise RecordError(f"{cw}: empty chunk")
+            words += decoded
+            if len(words) > total:
+                raise RecordError(f"{cw}: {len(words)} words exceed total_words {total}")
+        if len(words) != total:
+            raise RecordError(f"{where}: {len(words)} words reassembled, total_words says {total}")
+        out[seq] = {"span": span, "words": words, "chunks": n_chunks}
+    return out
+
+
+def recompute(words: list[int], span: str, manifest: dict) -> dict:
+    """The hash domains the words support. Raises RecordError if the streams do not parse
+    (the words are not a staging the gate grammar describes)."""
+    g, rl = _gate()
+    if len(words) != SPAN_WORDS[span]:
+        raise RecordError(f"recompute: {len(words)} words for span {span!r}")
+    streams = [words[i * STREAM_WORDS:(i + 1) * STREAM_WORDS] for i in range(ENVELOPES)]
+    out = {"staged_stream_sha256": hashlib.sha256(
+        b"".join(w.to_bytes(4, "big") for s in streams for w in s)).hexdigest()}
+    far_sets = {e["far_set"] for e in g.envelopes(manifest)}
+    staged: dict[int, list[int]] = {}
+    seen = []
+    for k, s in enumerate(streams):
+        try:
+            far, frames5 = g.parse_stream(s, far_sets)
+        except ValueError as exc:
+            raise RecordError(f"audit stream {k} does not parse as a staging: {exc}") from None
+        if far in seen:
+            raise RecordError(f"audit stream {k} repeats envelope {far:#x}")
+        seen.append(far)
+        env = next(e for e in g.envelopes(manifest) if e["far_set"] == far)
+        for i, f in enumerate(env["targets"]):
+            staged[f] = frames5[i]
+    if len(staged) != TARGET_FRAMES:
+        raise RecordError(f"audit streams stage {len(staged)} target frames, not {TARGET_FRAMES}")
+    out["staged_sha256"] = rl.frames_hash(staged)
+    if span == "streams+readback":
+        base, roles = g.gc.pinned_frames(manifest)
+        targets = sorted(f for f, r in roles.items() if r == "target")
+        tail = words[STREAM_SPAN:]
+        read = {far: tail[i * FRAME_WORDS:(i + 1) * FRAME_WORDS] for i, far in enumerate(targets)}
+        out["readback_sha256"] = rl.frames_hash(read)
+    else:
+        out["readback_sha256"] = None
+    return out
+
+
+def verify(log: dict, chunks: list[dict], manifest: dict | None) -> tuple[dict[int, str], dict[int, dict]]:
+    """Host-derived marks for every loop record, and the per-seq verification detail.
+
+    marks[seq] is "audited" only when words were served for seq AND every hash the record
+    claims that the words can support recomputes to the record's value. A mismatch is a
+    Falsified (prereg §3). Words that back nothing the record claims (a short audit behind a
+    readback claim) leave the mark "replayed-only" and the detail says why."""
+    served = assemble(chunks) if chunks else {}
+    if served and manifest is None:
+        raise RecordError("audit chunks were served but no manifest was given to recompute them")
+    marks: dict[int, str] = {}
+    detail: dict[int, dict] = {}
+    by_seq = {r["seq"]: r for r in log["loop_records"]}
+    for seq in served:
+        if seq not in by_seq:
+            raise RecordError(f"audit words served for seq {seq}, which has no loop record")
+    for seq, r in sorted(by_seq.items()):
+        out = r["outcome"]
+        if seq not in served:
+            marks[seq] = "replayed-only"
+            detail[seq] = {"served": False}
+            continue
+        if out in NO_SELF_REPORT_OUTCOMES:
+            raise RecordError(f"seq {seq}: audit words served for a {out} candidate, which staged nothing")
+        span, words = served[seq]["span"], served[seq]["words"]
+        got = recompute(words, span, manifest)
+        d = {"served": True, "span": span, "words": len(words), "recomputed": got, "compared": {}}
+        ev = r["evidence"]
+        commit = ev["sign_reply"]["commit"]
+        if out == "STOP_LINK2":
+            # the record's whole claim is staged != commit; the words must bear it out
+            d["compared"]["staged_sha256 != commit"] = got["staged_sha256"] != commit
+            if got["staged_sha256"] == commit:
+                raise Falsified(f"seq {seq}: STOP_LINK2 claimed staged != commit, but the served "
+                                f"staging recomputes to the signed commit {commit[:16]}…")
+            marks[seq] = "audited"
+            detail[seq] = d
+            continue
+        oracle = ev.get("app_oracle_record")
+        if oracle is None:
+            raise RecordError(f"seq {seq}: audit words served but the {out} record carries no app_oracle_record")
+        for k in ("staged_stream_sha256", "staged_sha256"):
+            d["compared"][k] = got[k] == oracle[k]
+            if got[k] != oracle[k]:
+                raise Falsified(f"seq {seq}: served raw words recompute {k} = {got[k][:16]}…, "
+                                f"the record claimed {oracle[k][:16]}… (prereg §3: audited words do not "
+                                f"recompute the compact record)")
+        if span == "streams+readback":
+            d["compared"]["readback_sha256"] = got["readback_sha256"] == oracle["readback_sha256"]
+            if got["readback_sha256"] != oracle["readback_sha256"]:
+                raise Falsified(f"seq {seq}: served readback frames recompute readback_sha256 = "
+                                f"{got['readback_sha256'][:16]}…, the record claimed "
+                                f"{oracle['readback_sha256'][:16]}… (prereg §3)")
+            marks[seq] = "audited"
+        else:
+            # a streams-only audit behind a record that claims a readback backs link 2 but
+            # nothing about link 3: not audited, and the detail says so
+            marks[seq] = "replayed-only"
+            d["short"] = "streams-only audit cannot back the readback_sha256 this record claims"
+        detail[seq] = d
+    return marks, detail

@@ -1,6 +1,6 @@
 # L5 design correction after session 3 — the settle poll, the tally, the classification
 
-**Standing: host-only, built, NOT reviewed, NOT run on hardware. No ruling requested; the
+**Standing: host-only, built, design review round 1 = HOLD on the audit gate (fixed, §3a), awaiting round 2; NOT run on hardware. No ruling requested; the
 board is untouched since session 3.** This is the entry point for the design review that
 `docs/l5_prereg.md` §6 requires after three sessions without a `COMPLETED` end. Owner's
 authorisation and its scope: `docs/decisions.md`, entry "2026-09-01 — L5 session 3: HOLD".
@@ -31,6 +31,29 @@ the nonce on `sh_done` in state 1, the application read it immediately after the
 | reproducibility | `rm -rf firmware/bsp/out && bash firmware/bsp/build.sh` twice: byte-identical |
 | size | +16 384 bytes vs `10044abe…`: `.text` +0x1f8, `.rodata` +0xf8, `.data` end crossed `0x02010000`, the 16 KiB-aligned `.mmu_tbl` moved to `0x02014000`, objcopy pads the page — layout, not code (linker map in `evidence/l5_build/p3_app.map`) |
 | toolchain / BSP inputs | unchanged, pinned as before (`manifests/l5_manifest.json`, `manifests/l5_bsp_inputs.json`) |
+
+## 3a. The audit gate (design review round 1, 2026-09-01: HOLD → fixed)
+
+The review found that the runner wrote the served chunks to `audits.json` and then trusted
+the record's own `"verified": "audited"`: nothing reassembled the words or recomputed a
+hash, so the preregistration's falsifier "audited raw words do not recompute the compact
+record" was written but unenforced, and an application that served anything and marked
+itself audited could have been reported PASS. Sessions 1 and 3 were recomputed by hand
+afterwards — evidence, not a gate.
+
+| ruling item | change | proof |
+|---|---|---|
+| assembler, closed per `seq/span/chunk/chunks/word_offset/word_count/total_words` | `validators/audit.py` `assemble()` | `tests/test_audit_gate.py` `Session3RealData` (the board's own 8 chunks reassemble to 2814 words; arrival order irrelevant, chunk numbers not) |
+| refuse missing / duplicate / overlap / gap / over-long / wrong span / wrong total / cross-seq | every defect is a `RecordError` naming it, never a partial audit and never `Falsified` (nothing was recomputed) | `StructuralDefects` (13 cases) + contract test `test_a_missing_or_duplicated_c_chunk_blocks_the_log` through the C chunker |
+| recompute the three hash domains from the raw words | `recompute()`: `staged_stream_sha256` (sha256 over the streams' words), `staged_sha256` (`frames_hash` of the parsed staged frames), `readback_sha256` (`frames_hash` of the readback frames, full span only) — fabricmap's `run_log` domains via `p3_gate` | `test_the_three_hashes_recompute_to_the_record` on session 3's words |
+| compare with the loop record; any mismatch is `Falsified` | `verify()`: per record, every hash the words can support vs `evidence.app_oracle_record`; a `STOP_LINK2`'s claim `staged != commit` checked against the words | `AlteredWords` (stream word, readback word, last word); contract test `test_one_flipped_word_in_the_c_chunked_audit_is_a_falsifier`; `Link2RefusalClaim` |
+| `verified: audited` derived by the host, never trusted | `validate_standalone_run_log(log, blank, seed, audits, manifest)` — `audits` is a **required** argument — derives every mark from `verify()`, refuses a record whose own mark disagrees, counts rule (ix) against the host's marks; `check_audit_policy(log, marks)` takes the host's marks | `test_a_record_marked_audited_with_no_words_served_is_refused` (the exact hole); `TheGateIsNotOptional` (signature, manifest required with words, runner passes `collector.audits` and the manifest) |
+| short link-2 audit disguised as full | a `streams`-span audit behind a record claiming a readback backs link 2 and nothing about link 3 → host mark `replayed-only`, log refused; `streams` words labelled `streams+readback` fail on `total_words` | `ShortAuditBehindAReadbackClaim`, `test_a_short_audit_cannot_claim_the_full_span`, contract `test_a_short_link2_audit_cannot_back_a_readback_claim` |
+
+The contract test's whole-session path now has the C serialiser chunk the raw words
+(`twin audit …`, 384 words per chunk, base64url big-endian, as `p3_app.c` does) and the
+host assemble and recompute them — so a green session there means the C chunking and the
+host gate agree on real words, not that a mark was present.
 
 ## 4. What this batch does not do
 

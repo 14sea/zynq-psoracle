@@ -237,11 +237,16 @@ def run_l5(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         blank_commit = g.gate(g.build_streams(
             gn.frames_from_genome(gn.blank_genome(phen), phen), phen), phen)["candidate_sha256"]
         try:
-            summary["run_log_validation"] = records.validate_standalone_run_log(
-                log, blank_commit, cfg["seed_nonce"])
+            # The audit gate is INSIDE the validator (design review 2026-09-01): the served
+            # chunks are reassembled and recomputed there, every record's mark is derived
+            # on the host, and a mismatch is Falsified. Nothing here trusts the application.
+            v = records.validate_standalone_run_log(
+                log, blank_commit, cfg["seed_nonce"], collector.audits, phen)
+            summary["run_log_validation"] = {k: v[k] for k in ("scored", "audited", "chain_length")}
+            summary["audit_verification"] = {str(k): d for k, d in v["audit"].items()}
             if cfg["audit_all"]:
                 # the session-1 audit condition, checked rather than asserted in prose
-                summary["audit_policy"] = records.check_audit_policy(log)
+                summary["audit_policy"] = records.check_audit_policy(log, v["marks"])
             summary["outcome"] = outcome_for(collector.epoch_end)
         except records.RecordError as exc:
             summary["run_log_validation"] = f"REJECTED: {exc}"

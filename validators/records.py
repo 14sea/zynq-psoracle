@@ -448,11 +448,20 @@ def _check_session_summary(r):
         raise RecordError("crc_dropped exceeds the drop budget but the epoch did not end PROTOCOL")
 
 
-def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int) -> dict:
-    """Rules (vii)–(ix) over one standalone session (spec §7). `blank_commit` is the blank
-    candidate's gate hash; `nonce_seed` the carrier's NONCE_SEED. Raises RecordError naming
-    the rule; returns {scored, audited, chain_length}."""
+def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int,
+                                audits: list[dict], manifest: dict | None = None) -> dict:
+    """Rules (vii)–(ix) over one standalone session (spec §7), WITH the audit gate.
+    `blank_commit` is the blank candidate's gate hash; `nonce_seed` the carrier's
+    NONCE_SEED; `audits` the served audit chunks (an empty list when none were served —
+    it is not optional, so that no caller can forget the gate); `manifest` the frame
+    manifest the words are recomputed against (required when chunks were served).
+
+    Every record's `verified` mark is DERIVED here from the served words (validators.audit)
+    and the application's own mark must agree with it — the mark is never taken on trust.
+    Served words that do not recompute the record's hashes are `Falsified` (prereg §3).
+    Raises RecordError naming the rule; returns {scored, audited, chain_length, marks, audit}."""
     from . import nonce as nc
+    from . import audit as au
     for k in ("app_identity", "notary_log", "loop_records", "session_summary"):
         if k not in log:
             raise RecordError(f"standalone run log missing {k!r}")
@@ -467,6 +476,15 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int) -
         if r["seq"] in by_seq:
             raise RecordError(f"two loop_records share seq {r['seq']}")
         by_seq[r["seq"]] = r
+    # the audit gate: host-derived marks, and the application's marks must agree
+    marks, audit_detail = au.verify(log, audits, manifest)
+    for seq in sorted(by_seq):
+        if by_seq[seq]["verified"] != marks[seq]:
+            raise RecordError(
+                f"(ix) seq {seq}: the record says verified {by_seq[seq]['verified']!r} but the host "
+                f"{'verified the served words' if marks[seq] == 'audited' else 'could not verify it'}: "
+                f"host-derived mark is {marks[seq]!r}"
+                + (f" — {audit_detail[seq]['short']}" if audit_detail[seq].get("short") else ""))
     notary_by_seq = {e["seq"]: e for e in notary["entries"]}
     # (vii) every ARM-carrying record has a notary entry binding the same seq, commit, nonce
     chain = nonce_seed & 0xFFFFFFFFFFFFFFFF
@@ -522,14 +540,14 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int) -
             raise RecordError("(viii) the last scored record is not the closing baseline (blank candidate)")
     elif closing_neg is not None:
         raise RecordError(f"(viii) {kind}: a closing ARM control cannot exist after a stop")
-    # (ix) audit accounting
-    audited = sum(1 for r in records if r["verified"] == "audited")
+    # (ix) audit accounting — against the HOST-derived marks
+    audited = sum(1 for m in marks.values() if m == "audited")
     if summary["audit"]["audited"] != audited:
-        raise RecordError(f"(ix) summary says {summary['audit']['audited']} audited, records mark {audited}")
+        raise RecordError(f"(ix) summary says {summary['audit']['audited']} audited, the host verified {audited}")
     if summary["audit"]["total"] != len(records):
         raise RecordError("(ix) audit total != number of loop records")
     return {"scored": sum(1 for r in records if r["outcome"] == "SCORED"),
-            "audited": audited, "chain_length": attempts}
+            "audited": audited, "chain_length": attempts, "marks": marks, "audit": audit_detail}
 
 
 # Candidates whose record makes no oracle self-report: there are no raw words behind them,
@@ -538,7 +556,7 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int) -
 NO_SELF_REPORT_OUTCOMES = ("REFUSED_BY_GATE", "STOP_AXI")
 
 
-def check_audit_policy(log: dict, policy: str = "all-self-reporting") -> dict:
+def check_audit_policy(log: dict, marks: dict, policy: str = "all-self-reporting") -> dict:
     """The session-1 audit condition, machine-checked instead of asserted in prose.
 
     The preregistration used to say "every candidate is audited". That is not a condition
@@ -546,7 +564,9 @@ def check_audit_policy(log: dict, policy: str = "all-self-reporting") -> dict:
     no raw words exist for it. The condition that IS meaningful, and that this checks, is
     that every candidate which made a claim the host cannot otherwise verify -- i.e. every
     record carrying an `app_oracle_record`, and every candidate that staged and then
-    refused itself at link 2 -- was backed by raw words the application actually served.
+    refused itself at link 2 -- was backed by raw words the application actually served
+    AND the host recomputed. `marks` are the HOST-derived marks returned by
+    `validate_standalone_run_log` (validators.audit); the record's own mark is not consulted.
 
     Returns the accounting; raises RecordError naming the offenders.
     """
@@ -560,7 +580,7 @@ def check_audit_policy(log: dict, policy: str = "all-self-reporting") -> dict:
             exempt.append(r["seq"])
             continue
         must.append(r["seq"])
-        if r["verified"] != "audited":
+        if marks.get(r["seq"]) != "audited":
             offenders.append(r["seq"])
     if offenders:
         raise RecordError(

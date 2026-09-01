@@ -201,7 +201,7 @@ class RefLoopSession(unittest.TestCase):
         log = loop.run([gn.corpus_genome(2, self.manifest)])
         self.assertEqual(log["session_summary"]["epoch_end"]["kind"], "COMPLETED")
         log["notary_log"] = relay.notary_log()
-        out = records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        out = records.validate_standalone_run_log(log, self.blank_commit, SEED, audits=[])
         self.assertEqual(out["scored"], 3)                  # opening, candidate, closing
         self.assertEqual(out["chain_length"], 4)            # + the closing unsigned control
         # the scores the fake PL produced are the oracle's own prediction (baseline check)
@@ -220,7 +220,7 @@ class RefLoopSession(unittest.TestCase):
         log["notary_log"] = relay.notary_log()
         self.assertEqual(log["session_summary"]["epoch_end"]["kind"], "COMPLETED")
         self.assertEqual(log["loop_records"][1]["outcome"], "REFUSED_BY_GATE")
-        records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        records.validate_standalone_run_log(log, self.blank_commit, SEED, audits=[])
 
     def test_link2_corruption_stops_before_any_dma(self):
         board, relay, loop = self.make()
@@ -318,7 +318,7 @@ class SettlePoll(unittest.TestCase):
         self.assertEqual((settle["polls"], settle["settled"]), (N + 1, True))
         self.assertTrue(int(settle["status_first"], 16) >> po.ST["gate_busy"] & 1, "the first read saw busy")
         self.assertFalse(int(settle["status_last"], 16) >> po.ST["gate_busy"] & 1)
-        records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        records.validate_standalone_run_log(log, self.blank_commit, SEED, audits=[])
 
     def test_a_gate_that_never_settles_ends_stop_settle_with_the_poll_recorded(self):
         class BusyForever(FakeStandalonePL):
@@ -341,7 +341,7 @@ class SettlePoll(unittest.TestCase):
         s = rec["evidence"]["arm"]["settle"]
         self.assertEqual((s["polls"], s["polls_max"], s["settled"]), (rf.SETTLE_POLLS_MAX, rf.SETTLE_POLLS_MAX, False))
         self.assertEqual(rec["evidence"]["arm"]["nonce_after"], rec["evidence"]["arm"]["nonce_before"])
-        out = records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        out = records.validate_standalone_run_log(log, self.blank_commit, SEED, audits=[])
         self.assertEqual(out["chain_length"], 0)
         self.assertEqual(log["session_summary"]["audit"]["total"], len(log["loop_records"]))
 
@@ -357,7 +357,7 @@ class SettlePoll(unittest.TestCase):
         self.assertEqual(rec["outcome"], "STOP_ARM")
         self.assertTrue(rec["evidence"]["arm"]["settle"]["settled"])
         self.assertIn("gate settled and the nonce did not step", log["session_summary"]["epoch_end"]["reason"])
-        self.assertEqual(records.validate_standalone_run_log(log, self.blank_commit, SEED)["chain_length"], 0)
+        self.assertEqual(records.validate_standalone_run_log(log, self.blank_commit, SEED, audits=[])["chain_length"], 0)
 
     def test_the_strobe_is_written_once_however_long_the_poll(self):
         class CountingBusy(FakeStandalonePL):

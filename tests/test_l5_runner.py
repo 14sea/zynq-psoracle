@@ -137,8 +137,9 @@ class RejectionClassification(unittest.TestCase):
         blank = g.gate(g.build_streams(gn.frames_from_genome(gn.blank_genome(phen), phen), phen),
                        phen)["candidate_sha256"]
         seed = int(json.loads((R / "manifests/l5_manifest.json").read_text())["carrier"]["nonce_seed"], 16)
+        chunks = json.loads((R / "evidence/l5_17A6_2026-09-01-03/audits.json").read_text())["chunks"]
         with self.assertRaises(records.RecordError) as cm:
-            records.validate_standalone_run_log(log, blank, seed)
+            records.validate_standalone_run_log(log, blank, seed, chunks, phen)
         self.assertNotIsInstance(cm.exception, records.Falsified)
         self.assertTrue(lr.classify_rejection(cm.exception).startswith("HOLD instrument:"))
 

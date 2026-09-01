@@ -25,6 +25,7 @@ test would have caught the defect it was written for.
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import subprocess
@@ -36,6 +37,7 @@ from pathlib import Path
 R = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(R)); sys.path.insert(0, str(R / "host"))
 from validators import nonce as nc  # noqa: E402
+from validators import audit as au  # noqa: E402
 from validators import records  # noqa: E402
 from validators import signer as sg  # noqa: E402
 import l5_notary as n  # noqa: E402
@@ -96,9 +98,44 @@ class WireContract(unittest.TestCase):
         frames = gn.frames_from_genome(genome, cls.manifest)
         return g.gate(g.build_streams(frames, cls.manifest), cls.manifest)
 
+    # ------------------------------------------------------------------ audit words ---
+
+    AUDIT_CHUNK = 384   # words per chunk, as firmware p3_app.c P3_AUDIT_CHUNK
+
+    @classmethod
+    def _raw_words(cls, genome: int, span: str = "streams+readback") -> list[int]:
+        """The raw words the application would hold for this candidate: the three staging
+        streams it built (re-read verbatim by a faithful board) followed, for a full span,
+        by the twelve target frames read back — FAR order, as the firmware serves them."""
+        frames = gn.frames_from_genome(genome, cls.manifest)
+        words = [w for s in g.build_streams(frames, cls.manifest) for w in s["words"]]
+        if span == "streams+readback":
+            words += [w for far in sorted(frames) for w in frames[far]]
+        assert len(words) == au.SPAN_WORDS[span]
+        return words
+
+    def _audit_cmds(self, seq: int, genome: int, span: str = "streams+readback",
+                    words: list[int] | None = None) -> list[str]:
+        """Twin `audit` commands: the C serialiser chunks these words exactly as the board
+        does (base64url, big-endian, 384 words per chunk)."""
+        words = self._raw_words(genome, span) if words is None else words
+        total = len(words)
+        n = (total + self.AUDIT_CHUNK - 1) // self.AUDIT_CHUNK
+        cmds = []
+        for c in range(n):
+            off = c * self.AUDIT_CHUNK
+            part = words[off:off + self.AUDIT_CHUNK]
+            b64 = base64.urlsafe_b64encode(b"".join(w.to_bytes(4, "big") for w in part)).decode()
+            cmds.append(f"audit token={TOKEN} seq={seq} chunk={c} chunks={n} word_offset={off} "
+                        f"word_count={len(part)} total_words={total} span={span} words={b64}")
+        return cmds
+
+    def _validate(self, log: dict, chunks: list[dict]) -> dict:
+        return records.validate_standalone_run_log(log, self.blank_commit, SEED, chunks, self.manifest)
+
     # ------------------------------------------------------------------ the session ---
 
-    def _session(self, genomes: list[int]) -> dict:
+    def _session(self, genomes: list[int]) -> tuple[dict, list[dict]]:
         """Run a whole COMPLETED session whose records are produced by the C code."""
         signer = lambda req: sign_arm.sign_genome(  # noqa: E731
             self.holder, req["genome"], req["nonce"])
@@ -131,6 +168,9 @@ class WireContract(unittest.TestCase):
             # application now emits one at every progress point
             hb_line, = self.twin(f"hb token={TOKEN} seq={seq}")
             collector.on_line(hb_line)
+            # the application serves the raw words BEFORE the record that will claim them
+            for audit_line in self.twin(*self._audit_cmds(seq, genome)):
+                collector.on_line(audit_line)
             rec_line, = self.twin(
                 f"rec token={TOKEN} seq={seq} genome={genome_hex} outcome=SCORED audited=1 "
                 f"commit={reply['commit']} tables={tables} tag={reply['tag']} "
@@ -154,23 +194,27 @@ class WireContract(unittest.TestCase):
             f"total={len(candidates)} crc_dropped=0 drop_budget=16")
         collector.on_line(term_line)
 
-        return {"control_plane": "standalone", "app_identity": collector.app_identity,
-                "loop_records": collector.loop_records,
-                "closing_negative": collector.closing_negative,
-                "session_summary": collector.session_summary,
-                "notary_log": relay.notary_log()}
+        return ({"control_plane": "standalone", "app_identity": collector.app_identity,
+                 "loop_records": collector.loop_records,
+                 "closing_negative": collector.closing_negative,
+                 "session_summary": collector.session_summary,
+                 "notary_log": relay.notary_log()}, collector.audits)
 
     # ------------------------------------------------------------------ the checks ----
 
     def test_a_full_session_of_c_emitted_records_passes_the_real_validator(self):
-        log = self._session([gn.corpus_genome(2, self.manifest)])
-        out = records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        log, chunks = self._session([gn.corpus_genome(2, self.manifest)])
+        self.assertEqual(len(chunks), 3 * 8, "eight C-chunked audit frames per candidate")
+        out = self._validate(log, chunks)
         self.assertEqual(out["scored"], 3)          # opening baseline, candidate, closing
-        self.assertEqual(out["audited"], 3)         # session 1 audits every candidate
+        self.assertEqual(out["audited"], 3)         # the HOST verified all three
         self.assertEqual(out["chain_length"], 4)    # + the closing unsigned control
+        for seq in (1, 2, 3):
+            self.assertEqual(out["marks"][seq], "audited")
+            self.assertTrue(all(out["audit"][seq]["compared"].values()))
 
     def test_the_c_code_sends_an_identity_the_validator_accepts(self):
-        log = self._session([])
+        log, _ = self._session([])
         ident = records.validate(log["app_identity"])
         self.assertEqual(ident["token"], TOKEN)
         self.assertEqual(ident["control_plane"], "standalone")
@@ -178,7 +222,7 @@ class WireContract(unittest.TestCase):
 
     def test_records_carry_seq_verified_and_nested_evidence(self):
         """The three fields the old flat payload omitted."""
-        log = self._session([])
+        log, _ = self._session([])
         for rec in log["loop_records"]:
             self.assertIn("seq", rec)
             self.assertIn(rec["verified"], ("audited", "replayed-only"))
@@ -194,7 +238,7 @@ class WireContract(unittest.TestCase):
         self.assertIsNotNone(collector.poll(now=90.0), "silence past 3H must still crash")
 
     def test_the_closing_control_is_filed_as_closing_negative_not_a_loop_record(self):
-        log = self._session([])
+        log, _ = self._session([])
         self.assertIsNotNone(log["closing_negative"])
         self.assertEqual(log["closing_negative"]["fault"], records.EXPECTED_FAULT["unsigned"])
         self.assertNotIn("CLOSING_CONTROL", [r["outcome"] for r in log["loop_records"]])
@@ -277,10 +321,14 @@ class WireContract(unittest.TestCase):
         for ln in lines:
             collector.on_line(ln)
         self.assertIsNotNone(collector.session_summary, "no TERM reached the collector")
-        return {"control_plane": "standalone", "app_identity": collector.app_identity,
-                "loop_records": collector.loop_records,
-                "session_summary": collector.session_summary,
-                "notary_log": relay.notary_log()}
+        return ({"control_plane": "standalone", "app_identity": collector.app_identity,
+                 "loop_records": collector.loop_records,
+                 "session_summary": collector.session_summary,
+                 "notary_log": relay.notary_log()}, collector.audits)
+
+    def _blank_audit_lines(self, seq: int = 1, span: str = "streams+readback") -> list[str]:
+        """The C-chunked raw words for the blank candidate, as the board would serve them."""
+        return self.twin(*self._audit_cmds(seq, self.blank, span))
 
     # -- the settle poll (session 3, 2026-09-01) ---------------------------------------
 
@@ -311,15 +359,15 @@ class WireContract(unittest.TestCase):
         term_cmd = (f"term token={TOKEN} kind=STOPPED reason=did-not-settle last_seq=1 "
                     f"closing_restore=1 crc_dropped=0 drop_budget=16")
         rec_line, term_line = self.twin(rec_cmd, term_cmd)
-        log = self._terminal_log(relay, [rec_line, term_line])
+        log, chunks = self._terminal_log(relay, self._blank_audit_lines() + [rec_line, term_line])
         rec = log["loop_records"][0]
         self.assertEqual(rec["outcome"], "STOP_SETTLE")
         self.assertEqual(rec["evidence"]["arm"]["settle"]["settled"], False)
         self.assertEqual(rec["evidence"]["arm"]["settle"]["polls"], 1000000)
-        out = records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        out = self._validate(log, chunks)
         self.assertEqual(out["chain_length"], 0)
         self.assertEqual(out["audited"], 1)
-        records.check_audit_policy(log)
+        records.check_audit_policy(log, out["marks"])
 
     def test_a_stop_settle_with_the_nonce_stepped_validates_and_consumes_one(self):
         """busy never clears but the nonce DID step (the gate is stuck after sh_done): the
@@ -328,8 +376,8 @@ class WireContract(unittest.TestCase):
         rec_cmd = self._arm_rec_cmd(reply, verdict, gh, "STOP_SETTLE", f"{nc.step(SEED):016x}", self.NEVER)
         term_cmd = f"term token={TOKEN} kind=STOPPED reason=did-not-settle last_seq=1 closing_restore=1"
         rec_line, term_line = self.twin(rec_cmd, term_cmd)
-        log = self._terminal_log(relay, [rec_line, term_line])
-        out = records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        log, chunks = self._terminal_log(relay, self._blank_audit_lines() + [rec_line, term_line])
+        out = self._validate(log, chunks)
         self.assertEqual(out["chain_length"], 1)
 
     def test_a_stop_settle_whose_nonce_jumped_is_a_falsifier(self):
@@ -374,9 +422,9 @@ class WireContract(unittest.TestCase):
                    f"fault_after=0 key_loaded=1 writes_issued=25 {self.SETTLED}")
         term_cmd = f"term token={TOKEN} kind=STOPPED reason=x last_seq=1 closing_restore=1"
         rec_line, term_line = self.twin(rec_cmd, term_cmd)
-        log = self._terminal_log(relay, [rec_line, term_line])
+        log, chunks = self._terminal_log(relay, self._blank_audit_lines() + [rec_line, term_line])
         with self.assertRaises(records.Falsified) as cm:
-            records.validate_standalone_run_log(log, self.blank_commit, SEED)
+            self._validate(log, chunks)
         self.assertIn("(vii)", str(cm.exception))
 
     # -- the TERM's audit block comes from the serialiser's tally (session 3) -----------
@@ -390,9 +438,9 @@ class WireContract(unittest.TestCase):
         term_cmd = (f"term token={TOKEN} kind=STOPPED reason=nonce-did-not-step last_seq=1 "
                     f"closing_restore=1 crc_dropped=0 drop_budget=16")
         rec_line, term_line = self.twin(rec_cmd, term_cmd)   # ONE process: the tally carries
-        log = self._terminal_log(relay, [rec_line, term_line])
+        log, chunks = self._terminal_log(relay, self._blank_audit_lines() + [rec_line, term_line])
         self.assertEqual(log["session_summary"]["audit"], {"audited": 1, "total": 1})
-        out = records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        out = self._validate(log, chunks)
         self.assertEqual((out["chain_length"], out["audited"]), (0, 1))
 
     def test_a_term_that_undercounts_or_overcounts_is_rejected_as_accounting(self):
@@ -402,9 +450,9 @@ class WireContract(unittest.TestCase):
             term_cmd = (f"term token={TOKEN} kind=STOPPED reason=x last_seq=1 "
                         f"closing_restore=1 audited=1 total={total}")
             rec_line, term_line = self.twin(rec_cmd, term_cmd)
-            log = self._terminal_log(relay, [rec_line, term_line])
+            log, chunks = self._terminal_log(relay, self._blank_audit_lines() + [rec_line, term_line])
             with self.assertRaises(records.RecordError) as cm:
-                records.validate_standalone_run_log(log, self.blank_commit, SEED)
+                self._validate(log, chunks)
             self.assertNotIsInstance(cm.exception, records.Falsified, f"total={total} is a HOLD, not a KILL")
             self.assertIn("(ix)", str(cm.exception) if "(ix)" in str(cm.exception) else "(ix) " + str(cm.exception))
 
@@ -414,8 +462,9 @@ class WireContract(unittest.TestCase):
         rec_cmd = rec_cmd.replace("audited=1", "audited=0")
         term_cmd = f"term token={TOKEN} kind=STOPPED reason=x last_seq=1 closing_restore=1"
         rec_line, term_line = self.twin(rec_cmd, term_cmd)
-        log = self._terminal_log(relay, [rec_line, term_line])
+        log, chunks = self._terminal_log(relay, [rec_line, term_line])
         self.assertEqual(log["session_summary"]["audit"], {"audited": 0, "total": 1})
+        self._validate(log, chunks)      # no words served, none claimed: consistent
 
     def test_a_stop_arm_record_from_the_c_code_validates(self):
         rec = self._stop_arm_record(f"{SEED:016x}")        # unchanged nonce
@@ -453,6 +502,8 @@ class WireContract(unittest.TestCase):
             f"carrier_sha256={CARRIER_SHA} nonce={SEED:016x} status=0x900 fclk0=50000000")
         collector = n.Collector(TOKEN, heartbeat_s=10, clock=lambda: 0.0)
         collector.on_line(ident_line)
+        for audit_line in self._blank_audit_lines():
+            collector.on_line(audit_line)
         term_line, = self.twin(
             f"term token={TOKEN} kind=STOPPED reason=nonce-did-not-step last_seq=1 "
             f"scored=0 refused_by_gate=0 closing_restore=1 audited=1 total=1 "
@@ -461,17 +512,78 @@ class WireContract(unittest.TestCase):
         log = {"control_plane": "standalone", "app_identity": collector.app_identity,
                "loop_records": [rec], "session_summary": collector.session_summary,
                "notary_log": relay.notary_log()}
-        out = records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        out = self._validate(log, collector.audits)
         self.assertEqual(out["chain_length"], 0, "a non-consumed ARM must not count")
         self.assertEqual(out["scored"], 0)
-        self.assertEqual(out["audited"], 1, "the candidate staged, so it is still audited")
-        records.check_audit_policy(log)      # STOP_ARM self-reports, so it must be audited
+        self.assertEqual(out["audited"], 1, "the candidate staged and its words recompute")
+        records.check_audit_policy(log, out["marks"])   # STOP_ARM self-reports, so it must be audited
+
+    # -- the audit GATE: served words recomputed on the host (design review 2026-09-01) --
+
+    def _stop_arm_session(self, audit_lines: list[str]) -> tuple[dict, list[dict]]:
+        relay, reply, verdict, gh = self._one_candidate()
+        rec_cmd = self._arm_rec_cmd(reply, verdict, gh, "STOP_ARM", f"{SEED:016x}", self.SETTLED)
+        term_cmd = f"term token={TOKEN} kind=STOPPED reason=x last_seq=1 closing_restore=1"
+        rec_line, term_line = self.twin(rec_cmd, term_cmd)
+        return self._terminal_log(relay, audit_lines + [rec_line, term_line])
+
+    def test_a_record_marked_audited_with_no_words_served_is_refused(self):
+        """THE hole the review found: the application says 'audited', nothing was served,
+        and the old gate believed it. The host now derives the mark and refuses."""
+        log, chunks = self._stop_arm_session([])
+        self.assertEqual(chunks, [])
+        self.assertEqual(log["loop_records"][0]["verified"], "audited")
+        with self.assertRaises(records.RecordError) as cm:
+            self._validate(log, chunks)
+        self.assertNotIsInstance(cm.exception, records.Falsified)
+        self.assertIn("host-derived mark is 'replayed-only'", str(cm.exception))
+
+    def test_one_flipped_word_in_the_c_chunked_audit_is_a_falsifier(self):
+        words = self._raw_words(self.blank)
+        words[1602 + 505] ^= 1 << 9                       # a readback frame word
+        lines = self.twin(*self._audit_cmds(1, self.blank, words=words))
+        log, chunks = self._stop_arm_session(lines)
+        with self.assertRaises(records.Falsified) as cm:
+            self._validate(log, chunks)
+        self.assertIn("readback_sha256", str(cm.exception))
+        words = self._raw_words(self.blank)
+        words[40] ^= 1                                    # a staging-stream word
+        lines = self.twin(*self._audit_cmds(1, self.blank, words=words))
+        log, chunks = self._stop_arm_session(lines)
+        with self.assertRaises(records.Falsified) as cm:
+            self._validate(log, chunks)
+        self.assertIn("staged_stream_sha256", str(cm.exception))
+
+    def test_a_missing_or_duplicated_c_chunk_blocks_the_log(self):
+        lines = self._blank_audit_lines()
+        for variant, fragment in ((lines[:5] + lines[6:], "missing [5]"), (lines + [lines[2]], "duplicate")):
+            log, chunks = self._stop_arm_session(variant)
+            with self.assertRaises(records.RecordError) as cm:
+                self._validate(log, chunks)
+            self.assertNotIsInstance(cm.exception, records.Falsified)
+            self.assertIn(fragment, str(cm.exception))
+
+    def test_a_short_link2_audit_cannot_back_a_readback_claim(self):
+        """streams-only words, correctly labelled, behind a STOP_ARM that claims a readback
+        and marks itself audited: the host derives replayed-only and refuses the log."""
+        lines = self._blank_audit_lines(span="streams")
+        log, chunks = self._stop_arm_session(lines)
+        with self.assertRaises(records.RecordError) as cm:
+            self._validate(log, chunks)
+        self.assertNotIsInstance(cm.exception, records.Falsified)
+        self.assertIn("streams-only audit cannot back the readback_sha256", str(cm.exception))
+
+    def test_the_gate_result_names_what_was_compared(self):
+        log, chunks = self._stop_arm_session(self._blank_audit_lines())
+        out = self._validate(log, chunks)
+        self.assertEqual(out["audit"][1]["compared"],
+                         {"staged_stream_sha256": True, "staged_sha256": True, "readback_sha256": True})
 
     # -- the audit policy the preregistration can actually require ---------------------
 
     def test_the_audit_policy_holds_for_a_session_of_c_emitted_records(self):
-        log = self._session([gn.corpus_genome(2, self.manifest)])
-        out = records.check_audit_policy(log)
+        log, chunks = self._session([gn.corpus_genome(2, self.manifest)])
+        out = records.check_audit_policy(log, self._validate(log, chunks)["marks"])
         self.assertEqual(len(out["audited"]), 3)
         self.assertEqual(out["exempt_no_self_report"], [])
 
@@ -483,7 +595,8 @@ class WireContract(unittest.TestCase):
              "evidence": {"app_oracle_record": {}}},
             {"seq": 2, "outcome": "REFUSED_BY_GATE", "verified": "replayed-only",
              "evidence": {"sign_refusal": {}}}]}
-        self.assertEqual(records.check_audit_policy(log)["exempt_no_self_report"], [2])
+        marks = {1: "audited", 2: "replayed-only"}
+        self.assertEqual(records.check_audit_policy(log, marks)["exempt_no_self_report"], [2])
 
     def test_an_unaudited_self_report_is_refused(self):
         """Discrimination: the policy must reject exactly what it exists to catch."""
@@ -491,7 +604,7 @@ class WireContract(unittest.TestCase):
             {"seq": 1, "outcome": "SCORED", "verified": "replayed-only",
              "evidence": {"app_oracle_record": {}}}]}
         with self.assertRaises(records.RecordError):
-            records.check_audit_policy(log)
+            records.check_audit_policy(log, {1: "replayed-only"})
 
     def test_a_link2_refusal_must_be_audited_because_it_staged(self):
         """STOP_LINK2 asserts `staged != commit`; the host cannot check that claim without
@@ -500,7 +613,7 @@ class WireContract(unittest.TestCase):
             {"seq": 1, "outcome": "STOP_LINK2", "verified": "replayed-only",
              "evidence": {"sign_reply": {}}}]}
         with self.assertRaises(records.RecordError):
-            records.check_audit_policy(log)
+            records.check_audit_policy(log, {1: "replayed-only"})
 
     def test_every_c_line_survives_the_real_frame_parser(self):
         log_lines = self.twin(
