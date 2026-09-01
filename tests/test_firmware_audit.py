@@ -293,10 +293,12 @@ class WireWiring(unittest.TestCase):
         self.assertNotIn("CLOSING_CONTROL", APP_CODE)
 
     def test_every_emitted_outcome_is_a_real_loop_outcome(self):
+        import sys
+        sys.path.insert(0, str(R))
+        from validators.records import LOOP_OUTCOMES     # the one vocabulary, not a copy
         outcomes = set(re.findall(r'emit_record\(&rec, "([A-Z_]+)"\)', APP))
         self.assertTrue(outcomes, "no records are emitted at all")
-        self.assertLessEqual(outcomes, {"SCORED", "REFUSED_BY_GATE", "STOP_LINK2",
-                                        "STOP_LINK3", "REFUSED_BY_PL", "STOP_AXI"})
+        self.assertLessEqual(outcomes, set(LOOP_OUTCOMES))
 
     def test_the_audited_mark_means_words_were_served(self):
         """Rule (ix): `verified: audited` must mean the raw words were actually served for
@@ -328,6 +330,32 @@ class WireWiring(unittest.TestCase):
         body = serve[:serve.index("\n}\n")]
         self.assertIn('span = with_readback ? "streams+readback" : "streams"', body)
         self.assertIn("total = with_readback ? (uint32_t)P3_AUDIT_WORDS", body)
+
+    def test_the_arm_failure_path_keeps_its_observations(self):
+        """Session 1's instrumentation gap: arm_attempt read STATUS and FAULT after the
+        strobe and discarded them when the nonce had not stepped. Every observation must now
+        be written through on all paths, and the record must go out BEFORE the epoch stops."""
+        fn = APP[APP.index("static int arm_attempt"):]
+        body = fn[:fn.index("\n}\n")]
+        for obs in ("*status = axi_read(P3_STATUS)", "*fault = axi_read(P3_FAULT)",
+                    "*ctrl_before = axi_read(P3_CTRL)", "*ctrl_after = axi_read(P3_CTRL)"):
+            self.assertIn(obs, body, f"{obs} is no longer observed")
+        self.assertNotIn("nonce did not step", body,
+                         "arm_attempt must report the non-consumed ARM, not stop on it: "
+                         "the caller records the evidence and then stops")
+        self.assertEqual(body.count("p3_stop"), 1,
+                         "the only stop inside arm_attempt is the pre-ARM fault check, "
+                         "where the attempt is never made at all")
+        run = APP[APP.index("static int run_candidate"):]
+        emit = run.index('emit_record(&rec, "STOP_ARM")')
+        stop = run.index('p3_stop(P3_STOPPED, "the nonce did not step')
+        self.assertLess(emit, stop, "the STOP_ARM record must be emitted before the stop")
+
+    def test_the_arm_record_carries_the_ctrl_readback(self):
+        run = APP[APP.index("static int run_candidate"):]
+        block = run[:run.index('emit_record(&rec, "STOP_ARM")')]
+        for f in ("rec.ctrl_before", "rec.ctrl_after", "rec.writes_issued"):
+            self.assertIn(f, block, f"{f} is not carried into the record")
 
     def test_the_hardware_witness_is_read_not_echoed(self):
         """Rules (ii)/(iii) compare the PL's own registers with the signed values; echoing

@@ -223,6 +223,76 @@ class WireContract(unittest.TestCase):
         self.assertEqual(f["span"], "streams+readback")
         self.assertLess(s["total_words"], f["total_words"])
 
+    # -- STOP_ARM: the state session 1 hit, which the schema could not express ----------
+
+    def _stop_arm_record(self, nonce_after_hex: str) -> dict:
+        """One C-emitted STOP_ARM record: an ARM was written, the nonce is unchanged."""
+        signer = lambda req: sign_arm.sign_genome(  # noqa: E731
+            self.holder, req["genome"], req["nonce"])
+        relay = n.NotaryRelay(TOKEN, signer, drop_budget=16, clock=lambda: 0.0)
+        genome_hex = gn.to_hex(self.blank)
+        req_line, = self.twin(f"signreq token={TOKEN} app_epoch=0 seq=1 "
+                              f"genome={genome_hex} nonce={SEED:016x}")
+        reply = n.decode_payload(n.parse_line(relay.handle_line(req_line))["payload"])
+        verdict = self._verdict(self.blank)
+        tables = ",".join(reply["expected_tables"])
+        line, = self.twin(
+            f"rec token={TOKEN} seq=1 genome={genome_hex} outcome=STOP_ARM audited=1 "
+            f"commit={reply['commit']} tables={tables} tag={reply['tag']} "
+            f"staged={reply['commit']} stream={verdict['sequence_sha256']} "
+            f"readback={reply['commit']} envelopes=3 audit_available=1 "
+            f"nonce_before={SEED:016x} nonce_after={nonce_after_hex} "
+            f"status_after=0x900 fault_after=0 key_loaded=1 "
+            f"ctrl_before=0x0 ctrl_after=0x0 writes_issued=25")
+        return n.decode_payload(n.parse_line(line)["payload"])
+
+    def test_a_stop_arm_record_from_the_c_code_validates(self):
+        rec = self._stop_arm_record(f"{SEED:016x}")        # unchanged nonce
+        records.validate(rec)
+        arm = rec["evidence"]["arm"]
+        self.assertEqual(arm["nonce_after"], arm["nonce_before"])
+        # the observations session 1 threw away are all present
+        for k in ("status_after", "fault_after", "ctrl_before", "ctrl_after",
+                  "writes_issued", "key_loaded_observed"):
+            self.assertIn(k, arm)
+        self.assertEqual(arm["writes_issued"], 25)          # 20 payload + 4 tag + strobe
+
+    def test_a_stop_arm_whose_nonce_stepped_is_rejected(self):
+        """Discrimination: if the nonce stepped, the PL DID consume the ARM and the record
+        is REFUSED_BY_PL or SCORED. STOP_ARM must not become a catch-all."""
+        stepped = nc.step(SEED)
+        rec = self._stop_arm_record(f"{stepped:016x}")
+        with self.assertRaises(records.RecordError):
+            records.validate(rec)
+
+    def test_a_stop_arm_consumes_no_nonce_in_the_chain(self):
+        """The PL never stepped it, so rule (vii)'s chain must not advance either."""
+        rec = self._stop_arm_record(f"{SEED:016x}")
+        signer = lambda req: sign_arm.sign_genome(  # noqa: E731
+            self.holder, req["genome"], req["nonce"])
+        relay = n.NotaryRelay(TOKEN, signer, drop_budget=16, clock=lambda: 0.0)
+        req_line, = self.twin(f"signreq token={TOKEN} app_epoch=0 seq=1 "
+                              f"genome={gn.to_hex(self.blank)} nonce={SEED:016x}")
+        relay.handle_line(req_line)
+        ident_line, = self.twin(
+            f"ident token={TOKEN} idcode=0x03722093 uboot_epoch=7 "
+            f"carrier_sha256={CARRIER_SHA} nonce={SEED:016x} status=0x900 fclk0=50000000")
+        collector = n.Collector(TOKEN, heartbeat_s=10, clock=lambda: 0.0)
+        collector.on_line(ident_line)
+        term_line, = self.twin(
+            f"term token={TOKEN} kind=STOPPED reason=nonce-did-not-step last_seq=1 "
+            f"scored=0 refused_by_gate=0 closing_restore=1 audited=1 total=1 "
+            f"crc_dropped=0 drop_budget=16")
+        collector.on_line(term_line)
+        log = {"control_plane": "standalone", "app_identity": collector.app_identity,
+               "loop_records": [rec], "session_summary": collector.session_summary,
+               "notary_log": relay.notary_log()}
+        out = records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        self.assertEqual(out["chain_length"], 0, "a non-consumed ARM must not count")
+        self.assertEqual(out["scored"], 0)
+        self.assertEqual(out["audited"], 1, "the candidate staged, so it is still audited")
+        records.check_audit_policy(log)      # STOP_ARM self-reports, so it must be audited
+
     # -- the audit policy the preregistration can actually require ---------------------
 
     def test_the_audit_policy_holds_for_a_session_of_c_emitted_records(self):

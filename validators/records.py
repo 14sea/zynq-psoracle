@@ -209,7 +209,14 @@ def validate_run_log(log: dict) -> dict:
 # ------------------------------------------------------- standalone plane (D1) — records
 
 
-LOOP_OUTCOMES = ("SCORED", "REFUSED_BY_GATE", "STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL", "STOP_AXI")
+# STOP_ARM: an ARM was written and the PL did not consume it — the nonce did not step.
+# Added as INSTRUMENTATION after session 1 (2026-09-01), where the board entered exactly
+# this state and the schema could not express it: REFUSED_BY_PL requires the nonce to have
+# stepped, so the application had no legal record to emit and the observations were lost.
+# It records that the state occurred; it asserts NOTHING about why, and no other rule is
+# relaxed to accommodate it.
+LOOP_OUTCOMES = ("SCORED", "REFUSED_BY_GATE", "STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL",
+                 "STOP_AXI", "STOP_ARM")
 EPOCH_END_KINDS = ("COMPLETED", "STOPPED", "PROTOCOL", "CRASHED")
 VERIFIED_MARKS = ("audited", "replayed-only")     # rule (ix): a bounded guarantee, said out loud
 CLOSING_STEPS = ("restore", "baseline", "unsigned_control")
@@ -322,13 +329,21 @@ def _check_loop_record(r):
         if oracle["readback_sha256"] == reply["commit"]:
             raise RecordError("STOP_LINK3 with readback == commit is a contradiction")
         return
-    # REFUSED_BY_PL and SCORED both carry an ARM attempt
+    # STOP_ARM, REFUSED_BY_PL and SCORED all carry an ARM attempt
     if oracle["readback_sha256"] != reply["commit"]:
         raise RecordError(f"{out} requires readback == commit (no ARM without link 3)")
     _need(ev, ("arm",), out)
     arm = ev["arm"]
     _need(arm, ("nonce_before", "nonce_after", "status_after", "fault_after", "key_loaded_observed"), out)
     _hex(arm["nonce_before"], 16, "nonce_before"); _hex(arm["nonce_after"], 16, "nonce_after")
+    if out == "STOP_ARM":
+        # the defining observation: the PL did not consume the attempt
+        _forbid(ev, ("score",), out)
+        if int(arm["nonce_after"], 16) != int(arm["nonce_before"], 16):
+            raise RecordError(
+                "STOP_ARM but the nonce stepped — the PL DID consume this ARM, so the "
+                "outcome is REFUSED_BY_PL or SCORED, not STOP_ARM")
+        return
     if int(arm["nonce_after"], 16) != nc.step(int(arm["nonce_before"], 16)):
         raise RecordError("the nonce did not step by the model across this ARM attempt")
     if out == "REFUSED_BY_PL":
@@ -425,8 +440,11 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int) -
                 raise RecordError(f"(vii) seq {seq}: the nonce signed is not the nonce the ARM consumed")
             if int(arm["nonce_before"], 16) != chain:
                 raise RecordError(f"(vii) seq {seq}: nonce_before is not the model chain value {chain:016x}")
-            chain = nc.step(chain)
-            attempts += 1
+            # A STOP_ARM consumed nothing: the PL never stepped the nonce, so the chain does
+            # not advance and no attempt is counted. Anything else advances both.
+            if r["outcome"] != "STOP_ARM":
+                chain = nc.step(chain)
+                attempts += 1
     # closing negative control consumes the last nonce (COMPLETED only)
     kind = summary["epoch_end"]["kind"]
     closing_neg = log.get("closing_negative")

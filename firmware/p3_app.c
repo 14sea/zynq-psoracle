@@ -164,8 +164,8 @@ static void p3_stop(p3_end_kind kind, const char *reason)
 static int axi_readable(uint32_t off)
 {
     if (off == P3_STATUS || off == P3_FAULT || off == P3_HEARTBEAT || off == P3_NONCE_LO ||
-        off == P3_NONCE_HI)
-        return 1;
+        off == P3_NONCE_HI || off == P3_CTRL)
+        return 1;   /* CTRL read-back: instrumentation for the ARM path (session 1) */
     if ((off & 3u) != 0u)
         return 0;
     if (off >= P3_SCORE0 && off < P3_SCORE0 + 6u * 4u)
@@ -594,9 +594,15 @@ static int link3_witness(char *readback_hex)
 
 /* the ARM transaction: 24 staged words then the strobe. The tag is the notary's; this
  * application cannot produce one — it holds no key and has no path to the key register. */
+/* Returns 0 when the PL consumed the attempt (the nonce stepped), 1 when it did NOT, and
+ * -1 only when the attempt was not made at all. Every observation is written through the
+ * out-parameters on ALL THREE paths: session 1 stopped on the nonce check and threw away
+ * the STATUS and FAULT it had just read, which were the two most diagnostic values it had.
+ * The caller decides what to record; this function loses nothing. */
 static int arm_attempt(const char *commit_hex, const char tables_hex[6][17],
                        const char *tag_hex, uint64_t *nonce_before, uint64_t *nonce_after,
-                       uint32_t *status, uint32_t *fault)
+                       uint32_t *status, uint32_t *fault, uint32_t *ctrl_before,
+                       uint32_t *ctrl_after, int *writes_issued)
 {
     uint32_t words[24];
     uint8_t tag[16];
@@ -608,6 +614,8 @@ static int arm_attempt(const char *commit_hex, const char tables_hex[6][17],
         return -1;
     }
     *nonce_before = pl_nonce();
+    *ctrl_before = axi_read(P3_CTRL);
+    *writes_issued = 0;
     hex_to_words_be(commit_hex, words, 8);
     for (i = 0; i < 6; i++) {
         uint64_t t = hex_to_u64(tables_hex[i]);
@@ -625,20 +633,24 @@ static int arm_attempt(const char *commit_hex, const char tables_hex[6][17],
     words[22] = (uint32_t)(t1 >> 32);
     words[23] = (uint32_t)t1;
 
-    for (i = 0; i < 20; i++)
+    for (i = 0; i < 20; i++) {
         axi_write(P3_PAYLOAD0 + 4u * (uint32_t)i, words[i]);
-    for (i = 0; i < 4; i++)
+        (*writes_issued)++;
+    }
+    for (i = 0; i < 4; i++) {
         axi_write(P3_TAG0 + 4u * (uint32_t)i, words[20 + i]);
+        (*writes_issued)++;
+    }
     axi_write(P3_CTRL, P3_ARM_STROBE);
+    (*writes_issued)++;
 
     *status = axi_read(P3_STATUS);
     *fault = axi_read(P3_FAULT);
+    *ctrl_after = axi_read(P3_CTRL);
     *nonce_after = pl_nonce();
-    if (*nonce_after == *nonce_before) {
-        p3_stop(P3_STOPPED, "the nonce did not step: the PL did not consume this ARM");
-        return -1;
-    }
-    return 0;
+    /* The caller emits a STOP_ARM record carrying everything above; it is NOT this
+     * function's business to decide that the observations are uninteresting. */
+    return (*nonce_after == *nonce_before) ? 1 : 0;
 }
 
 /* ───────────────────────────────── the session ────────────────────────────────────── */
@@ -737,8 +749,8 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     const char *payload;
     size_t jn;
     uint64_t nonce_before, nonce_after;
-    uint32_t status, fault, hb_before;
-    int i, n;
+    uint32_t status, fault, hb_before, ctrl_before, ctrl_after;
+    int i, n, armed, writes_issued;
 
     S.seq++;
     p3_genome_to_hex(genome, genome_hex);
@@ -852,15 +864,27 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
         return -1;
     }
     hb_before = axi_read(P3_HEARTBEAT);
-    if (arm_attempt(commit, (const char(*)[17])tables, tag, &nonce_before, &nonce_after,
-                    &status, &fault) != 0)
-        return -1;
+    armed = arm_attempt(commit, (const char(*)[17])tables, tag, &nonce_before, &nonce_after,
+                        &status, &fault, &ctrl_before, &ctrl_after, &writes_issued);
+    if (armed < 0)
+        return -1;                    /* the attempt was never made */
     rec.have_arm = 1;
     rec.nonce_before = nonce_before;
     rec.nonce_after = nonce_after;
     rec.status_after = status;
     rec.fault_after = fault;
+    rec.ctrl_before = ctrl_before;
+    rec.ctrl_after = ctrl_after;
+    rec.writes_issued = writes_issued;
     rec.key_loaded_observed = (int)((status >> P3_ST_KEY_LOADED) & 1u);
+    if (armed == 1) {
+        /* The PL did not consume the ARM. Session 1 (2026-09-01) ended here and kept
+         * nothing; the record goes out FIRST, carrying every observation, and only then
+         * does the epoch stop. This records THAT it happened and asserts nothing about why. */
+        emit_record(&rec, "STOP_ARM");
+        p3_stop(P3_STOPPED, "the nonce did not step: the PL did not consume this ARM");
+        return -1;
+    }
     if (!((status >> P3_ST_CFG_VALID_HW) & 1u)) {
         emit_record(&rec, "REFUSED_BY_PL");
         /* the fault code names the check that fired, not its cause (spec §4.6) */
@@ -905,14 +929,28 @@ static void closing_unsigned_control(void)
 {
     static const char zero_tag[] = "00000000000000000000000000000000";
     uint64_t nb, na;
-    uint32_t status, fault;
+    uint32_t status, fault, ctrl_before, ctrl_after;
+    int writes_issued;
     if (!S.have_last_reply) {
         p3_stop(P3_STOPPED, "no signed candidate to build the closing control from");
         return;
     }
-    if (arm_attempt(S.last_commit, (const char(*)[17])S.last_tables, zero_tag, &nb, &na,
-                    &status, &fault) != 0)
-        return;
+    /* A closing control the PL never consumed is a different fact from one it refused, and
+     * it must be said so. It is NOT emitted as a CLOSE frame: rule (viii) rejects a closing
+     * ARM control on a stopped epoch, so the observation travels as the epoch's reason
+     * rather than as a record the validator would have to be loosened to accept. */
+    {
+        int armed = arm_attempt(S.last_commit, (const char(*)[17])S.last_tables, zero_tag,
+                                &nb, &na, &status, &fault, &ctrl_before, &ctrl_after,
+                                &writes_issued);
+        if (armed == 1) {
+            p3_stop(P3_STOPPED,
+                    "the closing unsigned ARM was not consumed: the nonce did not step");
+            return;
+        }
+        if (armed != 0)
+            return;
+    }
     if ((status >> P3_ST_CFG_VALID_HW) & 1u) {
         p3_stop(P3_STOPPED, "KILL: the closing unsigned ARM validated");
         return;

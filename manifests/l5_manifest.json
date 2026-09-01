@@ -71,10 +71,10 @@
     "boundary_record_max_age_h": 6
   },
   "pinned_at_build": {
-    "app_image_sha256": "d3828a8c0ab8a0df0793f26ec9eb1210ce8c1a3a6de271f3932d5bc9947abdce",
+    "app_image_sha256": "8390c4636e7801c89a779f6d162fef682596aa823b389b08ce3ae6e037fb6880",
     "app_image": "firmware/bsp/out/p3_app.bin (raw binary, 81940 bytes, loaded at 0x02000000, `go`)",
-    "app_image_final_because": "REBUILT 2026-08-31 (round 4) after the audit-timing correction: a candidate that ends at link 2 now has its staged words served before its record, and the audit span is explicit so a short audit cannot pass as a full one. Two clean builds are byte-identical; firmware/bsp/build.sh emits the .bin itself.",
-    "elf_sha256": "3feba8443d2bbc7808c539df8ac9f88032a22d7ad03cbf60abbf4653731ce83f",
+    "app_image_final_because": "REBUILT 2026-09-01 for the instrumentation batch authorised after session 1's HOLD: the ARM path now preserves STATUS, FAULT, CTRL before/after, the write count and both nonces on every path, and a non-consumed ARM is recorded as STOP_ARM instead of vanishing. No behaviour that a session performs was changed, and nothing was changed to explain session 1's result. Two clean builds are byte-identical.",
+    "elf_sha256": "38479c62bf720fe53d425e9e4fd47138e39ae66530ae9ca298a96e01d6494b4f",
     "toolchain": {
       "name": "xpack-dev-tools/arm-none-eabi-gcc",
       "version": "14.2.1-1.1",
@@ -131,6 +131,10 @@
       {
         "sha256": "b279459cf0c1df0aa14a3c63906d33fdc9aca82e6c819a286898e43f06424caf",
         "why": "superseded by the audit-timing correction (a link-2 refusal was unauditable); no defect in what it did emit \u2014 see docs/l5_wire_findings.md \u00a77"
+      },
+      {
+        "sha256": "d3828a8c0ab8a0df0793f26ec9eb1210ce8c1a3a6de271f3932d5bc9947abdce",
+        "why": "superseded by the session-1 instrumentation batch. NOT defective: this is the image that produced the session-1 evidence (evidence/l5_17A6_2026-09-01-01/, HOLD STOPPED at the ARM), and it stays identifiable for that reason \u2014 see docs/l5_session1_findings.md"
       }
     ],
     "audit_policy": {

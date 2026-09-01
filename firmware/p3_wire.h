@@ -98,6 +98,11 @@ typedef struct {
     uint64_t nonce_before, nonce_after;
     uint32_t status_after, fault_after;
     int key_loaded_observed;
+    /* Session 1 (2026-09-01) stopped because the nonce did not step, and STATUS/FAULT were
+     * read and then thrown away on that path. These are recorded on EVERY ARM attempt,
+     * whatever the outcome: the failing path gets the same evidence as the passing one. */
+    uint32_t ctrl_before, ctrl_after;
+    int writes_issued;   /* payload + tag + strobe actually handed to Xil_Out32 */
 
     int have_score;
     const char *hw_candidate_commit;             /* 64 hex */

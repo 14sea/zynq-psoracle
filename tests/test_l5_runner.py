@@ -88,6 +88,27 @@ class Reader(unittest.TestCase):
         self.assertFalse(t.written[0].rstrip("\n").endswith("\r"))
 
 
+class Verdict(unittest.TestCase):
+    """A non-consumed ARM must never be reported as a pass. Session 1 ended exactly this
+    way, so the mapping is tested rather than trusted."""
+
+    def test_only_a_completed_epoch_is_a_pass(self):
+        self.assertEqual(lr.outcome_for({"kind": "COMPLETED", "reason": "budget"}), "PASS")
+
+    def test_a_stopped_epoch_is_a_hold_and_carries_its_reason(self):
+        v = lr.outcome_for({"kind": "STOPPED",
+                            "reason": "the nonce did not step: the PL did not consume this ARM"})
+        self.assertTrue(v.startswith("HOLD STOPPED"))
+        self.assertIn("did not consume", v)
+        self.assertNotIn("PASS", v)
+
+    def test_protocol_and_crashed_are_holds_too(self):
+        for kind in ("PROTOCOL", "CRASHED"):
+            v = lr.outcome_for({"kind": kind, "reason": "x"})
+            self.assertTrue(v.startswith(f"HOLD {kind}"))
+            self.assertNotEqual(v, "PASS")
+
+
 class ImagePinning(unittest.TestCase):
     """The refusal must be REACHED and be ABOUT the image — a run that stops earlier (a
     missing ruling, say) would also return 2 and would prove nothing."""

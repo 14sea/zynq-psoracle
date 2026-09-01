@@ -90,6 +90,17 @@ def send_raw_line(transport, line: str) -> None:
     transport._serial.write(data.encode("ascii"))  # noqa: SLF001 — see docstring
 
 
+def outcome_for(epoch_end: dict) -> str:
+    """The session verdict. Only a COMPLETED epoch can be a PASS — a STOPPED one (including
+    the STOP_ARM case session 1 hit), a PROTOCOL one and a CRASHED one are all HOLDs. Named
+    and tested rather than inlined, so "does a non-consumed ARM report PASS?" is answered by
+    a test instead of by reading the expression."""
+    kind = epoch_end["kind"]
+    if kind == "COMPLETED":
+        return "PASS"
+    return f"HOLD {kind}: {epoch_end.get('reason')}"
+
+
 def build_page(token: str, uboot_epoch: int, image_sha: str, carrier_sha: str, nonce: int,
                status: int, seed: int, budget: int, flags: int, fclk0_hz: int) -> list[int]:
     return rf.build_identity_page(token, uboot_epoch, int(image_sha[-8:], 16), carrier_sha,
@@ -217,9 +228,7 @@ def run_l5(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
             if cfg["audit_all"]:
                 # the session-1 audit condition, checked rather than asserted in prose
                 summary["audit_policy"] = records.check_audit_policy(log)
-            summary["outcome"] = ("PASS" if collector.epoch_end["kind"] == "COMPLETED"
-                                  else f"HOLD {collector.epoch_end['kind']}: "
-                                       f"{collector.epoch_end.get('reason')}")
+            summary["outcome"] = outcome_for(collector.epoch_end)
         except records.RecordError as exc:
             summary["run_log_validation"] = f"REJECTED: {exc}"
             summary["outcome"] = f"KILL run_log rejected: {exc}"

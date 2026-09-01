@@ -14,9 +14,12 @@ application's framed output had never been checked against the host validator th
 it (the rehearsal exercised the *Python* reference loop), so the image could not have
 produced a session the host could adjudicate.
 
-**Pinned image: `d3828a8c…`.** `7540239f…` and `b279459c…` are withdrawn — see
-`docs/l5_wire_findings.md` §7 for why each was replaced. Round 4 also corrected the audit
-condition, which round 3 showed was unimplementable as written.
+At the time this package was written the image was `d3828a8c…`, with `7540239f…` and
+`b279459c…` already withdrawn. **That is a historical statement, not the current pinning** —
+a superseded package must not announce a baseline. For the image in force see
+`docs/l5_post_build_package.md` and `manifests/l5_manifest.json`; for why each image was
+replaced, `docs/l5_wire_findings.md` §7. Round 4 also corrected the audit condition, which
+round 3 showed was unimplementable as written.
 
 What to review, in order:
 

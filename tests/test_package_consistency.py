@@ -94,6 +94,8 @@ class WithdrawnHashesStayInHistory(unittest.TestCase):
         "docs/l5_review_package.md": "superseded package, kept as record",
         "docs/l5_review_result.md": "the round-2 review, verbatim",
         "docs/l5_prereg.md": "the image-change-on-record paragraph",
+        "docs/l5_session1_findings.md": "names the image that RAN session 1 — that is the "
+                                        "record, and it must stay identifiable",
         "tests/test_package_consistency.py": "this guard names them to test itself",
     }
     # evidence/ is recorded observation: never edited, never scanned
@@ -155,8 +157,12 @@ class DocumentsAgree(unittest.TestCase):
         row = next(l for l in (R / "docs/status.md").read_text().splitlines()
                    if l.startswith("| L5 the loop |"))
         self.assertIn(PINNED["app_image_sha256"][:8], row)
-        self.assertIn("never run on hardware", row,
-                      "the table must keep saying the firmware has not run")
+        # This used to assert "never run on hardware". Session 1 ran, so that premise
+        # expired and the guard was RETARGETED rather than deleted: the rung's state field
+        # must still say HOLD, so a pass cannot appear in the canonical table by drift.
+        state = row.split("|")[2]
+        self.assertIn("HOLD", state,
+                      "L5 is not adjudicated; the canonical table must not imply otherwise")
 
     def test_the_drift_guard_catches_the_drift_it_exists_for(self):
         """Discrimination. Verified live once by editing the preregistration to name a

@@ -420,3 +420,36 @@ fails, so the two most diagnostic values are exactly the ones not preserved.
 
 Both rulings are consumed; a retry needs a power cycle and new ones. No firmware or spec
 change has been made in response to this result.
+
+## 2026-09-01 — the session-1 instrumentation batch (authorised; no retry)
+
+Authorised scope after session 1's HOLD: fix the instrumentation, do not retry, do not
+change the specification to explain the result. Done, and nothing beyond it.
+
+The gap was not merely that values were discarded — the state was **unrepresentable**.
+`REFUSED_BY_PL` requires the nonce to have stepped, so an ARM the PL did not consume had no
+legal record and the application's only option was to stop silently. Therefore:
+
+- `arm_attempt` now writes every observation through on all paths (`STATUS`, `FAULT`, `CTRL`
+  before and after, the write count, both nonces) and no longer decides to stop: it reports,
+  the caller records and then stops. `CTRL` became readable to the application; the RTL
+  already exposed it read-only and L3's host read it over `md.l`.
+- **`STOP_ARM` added to `LOOP_OUTCOMES` as instrumentation.** It records that an ARM was
+  written and not consumed and asserts nothing about why. It demands the full ARM evidence,
+  forbids a score, requires `nonce_after == nonce_before`, and **consumes no nonce in rule
+  (vii)'s chain** — the PL never stepped it, so neither does the model. A `STOP_ARM` whose
+  nonce *did* step is rejected, so it cannot become a catch-all for awkward results.
+- The verdict is the named `outcome_for()`: only `COMPLETED` is a `PASS`, tested directly.
+
+Three of my own tests failed correctly during this batch and were repaired rather than
+bypassed: one duplicated the outcome vocabulary instead of importing it, one banned every
+`p3_stop` in `arm_attempt` including the legitimate pre-ARM fault check, and one asserted
+"the firmware has never run on hardware" — a premise session 1 expired. That last guard was
+**retargeted, not deleted**: the canonical table's L5 state must still read HOLD.
+
+Image `d3828a8c…` is withdrawn as **superseded, not defective**, and stays identifiable
+because the session-1 evidence belongs to it. Pinned image is now `8390c463…`,
+byte-identical across clean rebuilds. 392 tests / 0 skipped.
+
+Standing: not pushed (`6a300f8` and this batch), no new ruling, board untouched since
+session 1, no ARM re-issued. The root cause of the non-consumed ARM remains undetermined.

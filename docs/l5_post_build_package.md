@@ -1,4 +1,4 @@
-# L5 post-build evidence package — baseline `d3828a8c…`
+# L5 post-build evidence package — baseline `8390c463…`
 
 **Standing: host-only. Nothing pushed, no `P3-L5`/`P3-K` ruling, no board contact. The
 firmware has never run on hardware — every result below is host-side.**
@@ -11,8 +11,8 @@ earlier rounds.
 
 | | value |
 |---|---|
-| application image | **`d3828a8c0ab8a0df0793f26ec9eb1210ce8c1a3a6de271f3932d5bc9947abdce`** |
-| | `firmware/bsp/out/p3_app.bin`, 81 940 bytes → `0x0200_0000`, entered with `go` |
+| application image | **`8390c4636e7801c89a779f6d162fef682596aa823b389b08ce3ae6e037fb6880`** |
+| | `firmware/bsp/out/p3_app.bin` → `0x0200_0000`, entered with `go` |
 | ELF | `manifests/l5_manifest.json` `pinned_at_build.elf_sha256` |
 | toolchain | xPack `arm-none-eabi-gcc` 14.2.1-1.1, tarball sha256 `ed8c7d20…` (verified against the vendor's `.sha`) |
 | BSP inputs | 65 Xilinx `embeddedsw` files (`standalone_v9_4`, `scuwdt_v2_6`), each pinned by path/size/sha256 in `manifests/l5_bsp_inputs.json` |
@@ -35,6 +35,7 @@ longer a matter of trust.
 |---|---|
 | `7540239f…` | its framed output could never have produced an adjudicable session |
 | `b279459c…` | no defect in what it emitted, but a link-2 refusal was unauditable |
+| `d3828a8c…` | **not defective** — the image that ran session 1 and produced its evidence; superseded by the instrumentation batch. It stays identifiable because the session-1 record belongs to it |
 
 ## 2. Post-build evidence
 
@@ -46,7 +47,7 @@ longer a matter of trust.
 
 `evidence/tests/` — the fail-closed report from `host/run_tests.sh`
 (`host/test_report.py`: atomic write → manifest registration → `git add`; any failure exits 3
-whatever the suite said). **384 tests, 0 skipped, `boundary_available: true`.**
+whatever the suite said). **Suite green with 0 skipped; the count is in the report rather than repeated here.**
 
 ## 3. What is actually proven, and by what
 
@@ -90,6 +91,28 @@ Both directions were verified live rather than asserted: the guard was run again
 defect before it was fixed (it named `manifests/l5_bsp_inputs.json` *and* the generator), and
 the earlier drift check was verified by temporarily editing the preregistration to name a
 withdrawn hash. Both discriminations are now permanent tests.
+
+### What the session-1 instrumentation batch changed
+
+Session 1 ended `HOLD STOPPED` because the PL did not consume the ARM, and the application
+had **no legal record to emit**: `REFUSED_BY_PL` requires the nonce to have stepped, so the
+state was unrepresentable and the `STATUS`/`FAULT` it had just read were discarded. This
+batch closes that, and nothing else:
+
+- `arm_attempt` writes every observation through on all paths — `STATUS`, `FAULT`,
+  `CTRL` before and after, the number of writes issued, both nonces — and no longer decides
+  to stop: it reports, the caller records and then stops.
+- `CTRL` became readable to the application (the RTL already exposed it read-only; L3's host
+  read it over `md.l`).
+- `STOP_ARM` was added to `LOOP_OUTCOMES` **as instrumentation**: it records that an ARM was
+  written and not consumed, and asserts nothing about why. It requires the full ARM evidence,
+  forbids a score, requires `nonce_after == nonce_before`, and **consumes no nonce in rule
+  (vii)'s chain**. A `STOP_ARM` whose nonce *did* step is rejected, so it cannot become a
+  catch-all.
+- The verdict mapping is now the named `outcome_for()`: only `COMPLETED` is a `PASS`.
+
+**No rule was relaxed and no specification was changed to explain session 1's result.** The
+root cause remains undetermined and is not guessed at.
 
 ## 5. Limitations, stated as limitations
 
