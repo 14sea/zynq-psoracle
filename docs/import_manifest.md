@@ -352,6 +352,7 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-01T071516Z.json` |
 | `evidence/tests/test_report_2026-08-31T192905Z.json` |
 | `evidence/tests/test_report_2026-08-31T190537Z.json` |
 | `evidence/tests/test_report_2026-08-31T182343Z.json` |
@@ -421,6 +422,8 @@ revisions and neither may be silently substituted for the other.
 | `host/l5_runner.py` |
 | `tests/test_l5_runner.py` |
 | `docs/l5_wire_findings.md` |
+| `tests/test_package_consistency.py` |
+| `docs/l5_post_build_package.md` |
 
 ## Deliberately NOT imported
 

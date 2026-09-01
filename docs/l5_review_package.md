@@ -1,7 +1,8 @@
 # L5 post-build review package — RESUBMITTED 2026-08-31 (round 3)
 
-> **Read this first.** The sections below are the round-2 package and are **historical**.
-> The canonical status table is `docs/status.md`.
+> **SUPERSEDED.** The current package is `docs/l5_post_build_package.md` (baseline
+> `d3828a8c…`). Everything below is the record of rounds 2–3 and is **historical**; the
+> canonical status table is `docs/status.md`.
 
 ## Round 3: what changed since the package you passed
 

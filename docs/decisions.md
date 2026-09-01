@@ -342,3 +342,24 @@ unaudited. Marking a gate refusal `audited` would have been a false claim and wa
 Image `b279459c…` withdrawn in favour of `d3828a8c…` (no defect in what it emitted; the
 link-2 refusal was simply unauditable). 373 tests / 0 skipped. Not pushed, no ruling, no
 board contact; the firmware has still never run.
+
+## 2026-09-01 — round 4 accepted; the post-build package is submitted on baseline d3828a8c…
+
+The reviewer accepted round 4 and asked for the new build baseline plus one complete
+post-build evidence package before push, rulings or board contact.
+
+Baseline verified from scratch, not incrementally: `rm -rf firmware/bsp/out` followed by
+`build.sh` reproduces `d3828a8c…` byte-for-byte, and both the `.bin` and `.elf` hashes agree
+with the manifest. `docs/l5_post_build_package.md` is the single entry point: the baseline
+and its inputs, the post-build evidence, what is actually proven and by what, the audit
+condition, six limitations stated as limitations, and the ordered sequence if it passes.
+
+Added `tests/test_package_consistency.py` because the drift it guards against happened
+twice in this batch: `status.md`'s L5 row accumulated contradictory text from three rounds,
+and the preregistration and review package each kept a superseded image hash after a
+rebuild. The guard was verified live — the preregistration was temporarily edited to name a
+withdrawn hash and the test failed as it should — and that discrimination is now a
+permanent test rather than a claim.
+
+382 tests / 0 skipped. Nothing pushed, no ruling, no board contact; the firmware has still
+never run on hardware.
