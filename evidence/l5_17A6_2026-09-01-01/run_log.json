@@ -1,0 +1,79 @@
+{
+  "control_plane": "standalone",
+  "app_identity": {
+    "app_epoch": 0,
+    "carrier_sha256": "956379fa8d23f8a6f1e0c80fe18b8c4aee68e76cc650499911a4bdb7807e610a",
+    "control_plane": "standalone",
+    "fclk0_hz_decoded": 50000000,
+    "findings": [],
+    "nonce_at_start": "9e3779b97f4a7c15",
+    "pss_idcode": "0x13722093",
+    "schema": "app_identity",
+    "schema_version": "1.0.0",
+    "status_at_start": "0x00000900",
+    "token": "d1d14076386b4f0a2573d0ba33ec552f",
+    "uboot_epoch": 0
+  },
+  "loop_records": [],
+  "session_summary": {
+    "audit": {
+      "audited": 0,
+      "total": 0
+    },
+    "closing": {
+      "baseline": "not_reached",
+      "restore": "done",
+      "unsigned_control": "not_reached"
+    },
+    "counts": {
+      "refused_by_gate": 0,
+      "scored": 0
+    },
+    "crc_dropped": 0,
+    "drop_budget": 16,
+    "epoch_end": {
+      "kind": "STOPPED",
+      "last_seq": 1,
+      "reason": "the nonce did not step: the PL did not consume this ARM"
+    },
+    "schema": "session_summary",
+    "schema_version": "1.0.0",
+    "token": "d1d14076386b4f0a2573d0ba33ec552f",
+    "written_by": "app"
+  },
+  "notary_log": {
+    "schema": "notary_log",
+    "schema_version": "1.0.0",
+    "token": "d1d14076386b4f0a2573d0ba33ec552f",
+    "entries": [
+      {
+        "seq": 1,
+        "at": 1788247819.496168,
+        "request": {
+          "app_epoch": 0,
+          "genome": "00000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "nonce": "9e3779b97f4a7c15",
+          "schema": "sign_request",
+          "schema_version": "1.0.0",
+          "seq": 1,
+          "token": "d1d14076386b4f0a2573d0ba33ec552f"
+        },
+        "answer": {
+          "schema": "sign_reply",
+          "schema_version": "1.0.0",
+          "seq": 1,
+          "commit": "3e24d93665bb9f29fb43290283a0c01327acd6048b9e979d247e248ee232679b",
+          "expected_tables": [
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000"
+          ],
+          "tag": "fa0b80ac5537299038fc30344eb23edd"
+        }
+      }
+    ]
+  }
+}

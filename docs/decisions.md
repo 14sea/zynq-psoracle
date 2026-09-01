@@ -391,3 +391,32 @@ The image is untouched (`d3828a8c…`, evidence regenerated and still matching);
 descriptive metadata changed. A manual repo-wide sweep corroborates the guard: every
 remaining occurrence is in a historical context. 384 tests / 0 skipped. Nothing pushed, no
 ruling, no board contact.
+
+## 2026-09-01 — L5 session 1: the firmware ran, and stopped at the ARM
+
+The post-build package passed, the owner approved the push (done: `90566b4..200065b`) and
+supplied both rulings; the first L5 session ran on 17A6.
+
+**Outcome: HOLD (STOPPED at seq 1) — the nonce did not step, so the PL never consumed the
+ARM.** Classified per prereg §5. No falsification condition was met, so it is not a KILL.
+Full account in `docs/l5_session1_findings.md`.
+
+Two results worth keeping regardless of the stop. The **blocking preflight** was performed:
+`CPU_CLK_CTRL = 0x1f000200` → CPU_6x4x = 666.67 MHz, exactly the assumed value, so the
+manifest's PERIPHCLK figure now rests on a measurement (the 6:2:1 selection bit at SLCR
+0x1C4 remains unread and is recorded as still open). And the **audit mechanism was proven
+on silicon**: the eight served chunks reassemble to 2814 raw words which independently
+recompute both link-2 and link-3 hashes to the signed commit. The audit is checkable, and it
+checked out — the first time that has been demonstrated against real hardware data.
+
+Three hypotheses for the ARM were tested against source and refuted (the application's own
+write allowlist; a cacheable PL window — the BSP maps 0x4000_0000–0x7FFF_FFFF Strongly
+Ordered; wrong offsets or strobe value — identical to the L3 sequence that armed five
+times). **The root cause is not determined and is not being guessed at.**
+
+One instrumentation gap is recorded for whoever takes the next attempt: `arm_attempt` reads
+`STATUS` and `FAULT` right after the strobe and then discards them when the nonce check
+fails, so the two most diagnostic values are exactly the ones not preserved.
+
+Both rulings are consumed; a retry needs a power cycle and new ones. No firmware or spec
+change has been made in response to this result.
