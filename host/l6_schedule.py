@@ -41,6 +41,10 @@ AUDIT_EVERY = 16
 FRAMES_PER_SESSION = {"IDENT": 1, "CLOSE": 1, "TERM": 1}
 FRAMES_PER_RECORD = {"SIGNREQ": 1, "HB": 16, "REC": 1}
 FRAMES_PER_AUDITED = {"AUDIT": 8}
+# the pull protocol (docs/l6_audit_pull_design.md): inbound frames per audited record are
+# one AUDIT_READY plus the chunks; the host's AUDITGET/AUDITDONE are outbound and not budgeted
+PROTOCOLS = {"push-v1": {"per_audited": {"AUDIT": 8}},
+             "pull-v2": {"per_audited": {"AUDIT_READY": 1, "AUDIT": 8}}}
 CRC_PER_MILLE = 4                      # budget = ceil(4 × expected / 1000)
 SOAK_FRACTION = 0.9                    # D-s3: N = ⌊0.9 × min(rate) × T⌋
 TIMEOUT_MARGIN, TIMEOUT_FIXED_S = 1.25, 600.0
@@ -150,7 +154,7 @@ def all_seqs(n: int) -> set[int]:
 # ------------------------------------------------------------------ D-s4
 
 
-def expected_frames(n: int, audited_seqs: set[int]) -> dict:
+def expected_frames(n: int, audited_seqs: set[int], protocol: str = "push-v1") -> dict:
     """The frame count a COMPLETED session of N candidates emits, by the fixed brackets.
     `audited_seqs` is the set of seqs the host WILL request an audit for (the sampled
     schedule, or every seq for all-self-reporting) — the §3a item-2 auto-audits of
@@ -160,9 +164,11 @@ def expected_frames(n: int, audited_seqs: set[int]) -> dict:
     by_type = dict(FRAMES_PER_SESSION)
     for t, per in FRAMES_PER_RECORD.items():
         by_type[t] = per * records
-    for t, per in FRAMES_PER_AUDITED.items():
+    if protocol not in PROTOCOLS:
+        raise ValueError(f"protocol {protocol!r} is not one of {sorted(PROTOCOLS)}")
+    for t, per in PROTOCOLS[protocol]["per_audited"].items():
         by_type[t] = per * audited
-    return {"n": n, "records": records, "audited_records": audited,
+    return {"n": n, "records": records, "audited_records": audited, "protocol": protocol,
             "by_type": by_type, "total": sum(by_type.values())}
 
 

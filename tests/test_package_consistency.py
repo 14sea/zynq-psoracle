@@ -89,9 +89,27 @@ class PinnedL6Image(unittest.TestCase):
             self.assertRegex(w["sha256"], r"^[0-9a-f]{64}$"); self.assertTrue(w["why"].strip())
 
     def test_the_built_l6_binary_matches_the_manifest(self):
+        """With a next_image pinned, HEAD's sources build THAT image (the board-ready
+        pinned one is historical and no longer reproducible from HEAD, as with L5)."""
         if not L6_BUILT.is_file():
             self.skipTest(f"{L6_BUILT} absent (out/ is gitignored); run IMAGE=p3_app_l6 firmware/bsp/build.sh")
-        self.assertEqual(hashlib.sha256(L6_BUILT.read_bytes()).hexdigest(), L6_PINNED["app_image_sha256"])
+        want = (L6.get("next_image") or L6_PINNED)["app_image_sha256"]
+        self.assertEqual(hashlib.sha256(L6_BUILT.read_bytes()).hexdigest(), want)
+
+    def test_the_next_image_is_explicitly_not_board_ready(self):
+        nxt = L6.get("next_image")
+        if nxt is None:
+            self.skipTest("no candidate image pinned")
+        self.assertFalse(nxt["board_ready"])
+        self.assertIn("NOT authorised", nxt["why_not_board_ready"])
+        self.assertEqual(nxt["prereg_required"], "v0.3")
+        self.assertNotEqual(nxt["app_image_sha256"], L6_PINNED["app_image_sha256"],
+                            "the candidate must never silently replace the board-ready pin")
+        ev = R / "evidence/l6_next_build/build_evidence.json"
+        if ev.is_file():
+            e = json.loads(ev.read_text())
+            self.assertEqual(e["image"]["bin_sha256"], nxt["app_image_sha256"])
+            self.assertTrue(e["image"]["reproduced_byte_identical"])
 
     def test_the_l6_build_evidence_agrees_with_the_manifest(self):
         ev = json.loads(L6_EVIDENCE.read_text())

@@ -127,6 +127,12 @@ typedef struct {
     int settled;                /* !gate_busy && !scorer_busy && (fault || scorer_done) */
     uint32_t status_first;      /* STATUS on the first read after the strobe (session 3's value) */
 
+    /* STOP_AUDIT (L6 pull): the host-paced audit did not complete before the ARM — retries
+     * exhausted, an AUDITABORT, or the board's bounded wait ran out. No ARM was attempted. */
+    int have_audit_stop;
+    const char *audit_stop_why;
+    uint32_t audit_chunks_served;
+
     int have_score;
     const char *hw_candidate_commit;             /* 64 hex */
     const char *readout[P3_WIRE_SCORES];         /* 16 hex each */
@@ -135,6 +141,26 @@ typedef struct {
 } p3_wire_record_in;
 
 size_t p3_wire_loop_record(const p3_wire_record_in *in, char *out, size_t max);
+
+/* ------------------------------------------------------------------ audit pull (L6) -- */
+
+/* The host-paced sparse audit (docs/l6_audit_pull_design.md). AUDIT_READY announces the
+ * transaction's binding (seq, span, total_words, chunks); each AUDIT chunk repeats it and
+ * carries the NON-ZERO words of one WINDOW of positions as packed (uint16 position,
+ * uint32 word) pairs, ascending, base64url — an unlisted position is zero. */
+#define P3_WIRE_SPARSE_WINDOW 384u
+#define P3_WIRE_SPARSE_ENCODING "sparse-v1"
+
+size_t p3_wire_audit_ready(uint32_t seq, const char *span, uint32_t total_words, uint32_t chunks,
+                           uint32_t nonzero, char *out, size_t max);
+
+/* entries for positions [lo, hi) from a word accessor; returns the base64url length, 0 on overflow */
+size_t p3_wire_sparse_entries(uint32_t (*word)(uint32_t), uint32_t lo, uint32_t hi,
+                              char *b64_out, size_t max);
+
+size_t p3_wire_audit_sparse(uint32_t seq, uint32_t chunk, uint32_t chunks, const char *span,
+                            uint32_t total_words, uint32_t lo, uint32_t hi, const char *entries_b64,
+                            char *out, size_t max);
 
 /* ------------------------------------------------------------------ audit ----------- */
 

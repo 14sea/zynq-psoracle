@@ -961,3 +961,21 @@ lossless sparse-v1 words (unlisted = zero, ascending unique positions), host reb
 the recorded deletions recovered by one retry, exhaustion HOLD, valid-CRC wrong content
 Falsified, retransmission in the cost. Next: the owner rules on adoption, the new
 firmware/image and prereg version; no board, no ruling until then.
+
+## 2026-09-01 — pull-batch closing review: the four blockers closed; candidate image built
+
+Per the owner's HOLD on the design batch: (1) loss denominators corrected — 626 CRC-valid
+full-size lines, 630 transmission opportunities (a merged line counts as two), the JSON
+caveat fixed; (2) the benefit restated as ≈ 80 % (corpus over C1 #3's 64 complete audits:
+ratio 0.192–0.201, sparse 4 291–4 493 B, longest reply 676 B); (3) the transaction closed —
+one seq, one span/total/chunks binding, host-side binding of token/frame seq/payload
+seq/READY triple/requested chunk; (4) the model rebuilt as a real two-sided wire state
+machine with lost/duplicated READY/GET/DONE, malformed-during-pull = retry, exhaustion →
+AUDITABORT → STOP_AUDIT with no ARM, the board's bounded wait, sampled + §3a selection.
+Beyond the blockers, the batch the owner authorised: the firmware pull in p3_app.c (the
+C encoder bit-identical to Python on real words; the C pull lines drive the real host
+puller), STOP_AUDIT in the validators, the console-session pull integration with the one
+ledger, pull-v2 D-s4 brackets, mutation-grade static tests, two byte-identical builds →
+next_image e19e1b12… pinned NOT board-ready, and the prereg v0.3 DRAFT (not frozen). The
+runner still binds v0.2 + bd1454cd…; no ruling, no board. docs/l6_pull_batch_package.md
+is the review's entry point.

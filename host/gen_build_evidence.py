@@ -28,7 +28,9 @@ OUT = os.path.join(REPO, "firmware", "bsp", "out")
 LINES = {"l5": {"image": "p3_app", "manifest": "l5_manifest.json", "bsp": "l5_bsp_inputs.json",
                 "evidence": "l5_build", "schema": "l5_build_evidence"},
          "l6": {"image": "p3_app_l6", "manifest": "l6_manifest.json", "bsp": "l6_bsp_inputs.json",
-                "evidence": "l6_build", "schema": "l6_build_evidence"}}
+                "evidence": "l6_build", "schema": "l6_build_evidence"},
+         "l6next": {"image": "p3_app_l6", "manifest": "l6_manifest.json", "bsp": "l6_bsp_inputs.json",
+                    "evidence": "l6_next_build", "schema": "l6_next_build_evidence", "pin_key": "next_image"}}
 
 
 def sha(path):
@@ -73,7 +75,9 @@ def main(line="l5", report=None):
     shutil.copyfile(mapp, os.path.join(EVID, L["image"] + ".map"))
 
     lm = json.loads(open(os.path.join(REPO, "manifests", L["manifest"])).read())
-    pab = lm["pinned_at_build"]
+    pab = lm[L.get("pin_key", "pinned_at_build")]
+    if "toolchain" not in pab:
+        pab = dict(pab, toolchain=lm["pinned_at_build"]["toolchain"])
 
     dirty = bool(git("status", "--porcelain"))
     if report == "pending":

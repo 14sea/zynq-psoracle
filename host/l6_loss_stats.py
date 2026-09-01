@@ -17,7 +17,7 @@ from pathlib import Path
 
 R = Path(__file__).resolve().parent.parent
 SESSIONS = ["evidence/l6_17A6_2026-09-01-06-C1", "evidence/l6_17A6_2026-09-01-07-C1", "evidence/l6_17A6_2026-09-01-08-C1"]
-FULL_LINE_MIN = 2900          # a complete 384-word audit chunk line is 3015–3020 bytes
+FULL_WORDS = 384              # a full-size chunk carries 384 words; the 8th chunk of a span carries the remainder
 
 
 def payload(line: bytes) -> dict | None:
@@ -45,7 +45,8 @@ def analyse(d: Path) -> dict:
     lines = raw.split(b"\n")
     tl = json.loads((d / "timeline.json").read_text())
     out = {"session": d.name, "bytes_received": len(raw), "lines": len(lines),
-           "frames_by_type": {}, "audit_lines_full": 0, "audit_words": 0, "audit_zero_words": 0, "loss_events": []}
+           "frames_by_type": {}, "audit_lines_full_valid": 0, "audit_lines_valid": 0,
+           "audit_words": 0, "audit_zero_words": 0, "loss_events": []}
     normal_len = {}
     for ln in lines:
         if not ln.startswith(b"P3L5 "):
@@ -55,14 +56,17 @@ def analyse(d: Path) -> dict:
         out["frames_by_type"][ty] = out["frames_by_type"].get(ty, 0) + 1
         if ty != "AUDIT":
             continue
-        if len(ln) >= FULL_LINE_MIN:
-            out["audit_lines_full"] += 1
         body, _, crc = ln.rpartition(b" ")
         ok = format(zlib.crc32(body) & 0xFFFFFFFF, "08x").encode() == crc and len(parts) == 6
         p = payload(ln) if ok else None
         if p is not None:
+            out["audit_lines_valid"] += 1
             words = base64.urlsafe_b64decode(p["words"] + "==")
             n = len(words) // 4
+            # a complete line = CRC-valid, well-shaped AND a full 384-word chunk (the merged
+            # 6002-byte line of C1 #1 is neither, and is not counted here — review 2026-09-01)
+            if p.get("word_count") == FULL_WORDS and n == FULL_WORDS:
+                out["audit_lines_full_valid"] += 1
             out["audit_words"] += n
             out["audit_zero_words"] += sum(1 for i in range(n) if words[4 * i:4 * i + 4] == b"\0\0\0\0")
             normal_len[p["chunk"]] = max(normal_len.get(p["chunk"], 0), len(ln))
@@ -87,6 +91,16 @@ def analyse(d: Path) -> dict:
             ev["bytes_missing"] = normal_len[chunk] - len(ln)
         out["loss_events"].append(ev)
     out["timeline"] = {"crc_dropped": tl["crc_dropped"], "bad_frames": tl["bad_frames"]}
+    # transmission opportunities: every full-size chunk the board SENT, whether or not it
+    # arrived whole — from the run log's records (8 chunks per audited record, 7 full-size)
+    log = json.loads((d / "run_log.json").read_text())
+    audited = [r for r in log["loop_records"] if r["outcome"] != "REFUSED_BY_GATE"]
+    # the record after the crash never arrived in C1 #1: its chunks 0-3 did, so count the
+    # chunks actually on the wire, full-size ones only, from the console (valid or not)
+    # a merged line (two chunks fused by a boundary loss) is TWO transmitted chunks
+    sent_full = sum((2 if len(ln) > 4000 else 1) for ln in lines if ln.startswith(b"P3L5 AUDIT") and len(ln) >= 2700)
+    out["full_size_chunks_on_wire"] = sent_full
+    out["records_with_audit"] = len(audited)
     out["audit_zero_fraction"] = (out["audit_zero_words"] / out["audit_words"]) if out["audit_words"] else None
     return out
 
@@ -95,21 +109,27 @@ def main() -> int:
     per = [analyse(R / s) for s in SESSIONS]
     total = {"bytes_received": sum(p["bytes_received"] for p in per),
              "audit_frames": sum(p["frames_by_type"].get("AUDIT", 0) for p in per),
-             "audit_lines_full": sum(p["audit_lines_full"] for p in per),
+             "audit_lines_valid": sum(p["audit_lines_valid"] for p in per),
+             "audit_lines_full_valid": sum(p["audit_lines_full_valid"] for p in per),
+             "full_size_chunks_on_wire": sum(p["full_size_chunks_on_wire"] for p in per),
              "loss_events": sum(len(p["loss_events"]) for p in per),
              "audit_words": sum(p["audit_words"] for p in per),
              "audit_zero_words": sum(p["audit_zero_words"] for p in per)}
     total["audit_zero_fraction"] = total["audit_zero_words"] / total["audit_words"] if total["audit_words"] else None
-    total["loss_events_per_full_audit_line"] = total["loss_events"] / total["audit_lines_full"] if total["audit_lines_full"] else None
+    total["loss_events_per_full_size_chunk_on_wire"] = (total["loss_events"] / total["full_size_chunks_on_wire"]
+                                                        if total["full_size_chunks_on_wire"] else None)
     total["loss_events_per_MB"] = total["loss_events"] / (total["bytes_received"] / 1e6) if total["bytes_received"] else None
     rep = {"schema": "l6_console_loss_stats", "schema_version": "1.0.0", "sessions": per, "total": total,
-           "caveat": "three events in three sessions: no position-specific inference (two on chunk 3 is not a chunk-3 fault); "
-                     "all three fell inside complete ~3 KB audit lines; C1 #2 read nothing and contributes no bytes"}
+           "caveat": "three loss events across C1 #1 and C1 #3; C1 #2 read nothing and contributes no bytes. No "
+                     "position-specific inference (two on chunk 3 is not a chunk-3 fault); all three fell inside full-size "
+                     "(384-word) audit chunk lines. 'audit_lines_full_valid' counts CRC-valid, well-shaped, 384-word lines only; "
+                     "'full_size_chunks_on_wire' counts every full-size chunk line the board sent (valid or not) — the "
+                     "transmission opportunities the loss rate is over"}
     out = R / "evidence/l6_console_loss_stats.json"
     out.write_text(json.dumps(rep, indent=2) + "\n")
     print(json.dumps(total, indent=1))
     for p in per:
-        print(p["session"], "bytes", p["bytes_received"], "audit", p["frames_by_type"].get("AUDIT", 0), "full", p["audit_lines_full"],
+        print(p["session"], "bytes", p["bytes_received"], "audit", p["frames_by_type"].get("AUDIT", 0), "full_valid", p["audit_lines_full_valid"], "full_on_wire", p["full_size_chunks_on_wire"],
               "zero", None if p["audit_zero_fraction"] is None else round(p["audit_zero_fraction"], 4), "events", p["loss_events"])
     return 0
 

@@ -352,6 +352,8 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-01T184834Z.json` |
+| `evidence/tests/test_report_2026-09-01T184824Z.json` |
 | `evidence/tests/test_report_2026-09-01T182129Z.json` |
 | `evidence/tests/test_report_2026-09-01T181507Z.json` |
 | `evidence/tests/test_report_2026-09-01T180634Z.json` |
@@ -516,6 +518,11 @@ revisions and neither may be silently substituted for the other.
 | `host/l6_audit_pull.py` |
 | `tests/test_l6_audit_pull.py` |
 | `docs/l6_audit_pull_design.md` |
+| `tests/test_l6_sparse.py` |
+| `docs/l6_pull_batch_package.md` |
+| `docs/l6_soak_prereg_v0.3_draft.md` |
+| `evidence/l6_next_build/build_evidence.json` |
+| `evidence/l6_next_build/p3_app_l6.map` |
 | `evidence/boundary/principal_boundary_2026-09-01-08.json` |
 | `evidence/l6_17A6_2026-09-01-08-C1/L6_0_preflight.json` |
 | `evidence/l6_17A6_2026-09-01-08-C1/L6_1_identity_page.json` |

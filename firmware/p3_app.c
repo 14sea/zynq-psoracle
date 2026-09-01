@@ -42,6 +42,7 @@
 
 extern void outbyte(char c);
 extern char inbyte(void);
+extern int console_rx_ready(void); /* BSP glue (firmware/bsp/src/console.c): RX FIFO non-empty? */
 
 /* ───────────────────────────────── memory map (docs/l5_design.md §2) ───────────────── */
 
@@ -102,6 +103,13 @@ extern char inbyte(void);
  * silence threshold. It is a count, not a clock: the global timer's rate follows
  * CPU_6x4x, and liveness must not depend on that constant (see heartbeat()). */
 #define P3_SETTLE_POLLS_MAX 1000000u
+/* The bound on waiting for the host's next AUDITGET/AUDITDONE/AUDITABORT during an audit
+ * pull (L6, docs/l6_audit_pull_design.md): polls of the RX FIFO, a COUNT not a clock, as
+ * the settle poll is. One strongly-ordered UART status read is ~100–200 ns, so this is a
+ * few seconds — below the collector's 30 s silence rule and the 30 s watchdog (which
+ * remain the last resort for a stall inside a line). A lost host frame therefore never
+ * leaves the application waiting forever: the pull aborts and no ARM is attempted. */
+#define P3_PULL_IDLE_POLLS 50000000u
 
 #define SLCR_PSS_IDCODE 0xF8000530u /* READ ONLY — this application writes no SLCR word */
 #define P3_IDCODE_MASK 0x0FFFFFFFu
@@ -155,8 +163,10 @@ static struct {
     uint32_t readback[P3_TARGET_FRAMES][P3_FRAME_WORDS];
     uint32_t scored, refused;  /* the TERM's audit block comes from p3_wire_tally(), not here */
     int audit_requested;       /* an AUDITREQ arrived in this candidate's exchange */
-    int audit_served;          /* the host asked and we served raw words for … */
-    uint32_t audit_served_seq; /* … this candidate (rule ix: the mark means served) */
+    int audit_served;          /* the host pulled every chunk and sent AUDITDONE for … */
+    uint32_t audit_served_seq; /* … this candidate (rule ix: the mark means served AND done) */
+    uint32_t audit_chunks_served; /* chunk replies sent in this candidate's pull (retries included) */
+    const char *audit_stop_why;   /* why the pull ended without AUDITDONE, for the STOP_AUDIT record */
     uint32_t crc_dropped;
     uint32_t envelope_int_sts[P3_ENVELOPE_COUNT];
     int closing_restore, closing_baseline, closing_unsigned;
@@ -367,6 +377,26 @@ static int json_hex(const char *json, const char *key, char *out, size_t len)
     }
     out[len] = 0;
     return p[len] == '"' ? 0 : -1;
+}
+
+/* an unsigned integer field: digits after the key, terminated by , or } */
+static int json_uint(const char *json, const char *key, uint32_t *out)
+{
+    const char *p = strstr(json, key);
+    uint32_t v = 0;
+    int n = 0;
+    if (!p)
+        return -1;
+    p += strlen(key);
+    while (*p >= '0' && *p <= '9' && n < 10) {
+        v = v * 10u + (uint32_t)(*p - '0');
+        p++;
+        n++;
+    }
+    if (n == 0 || (*p != ',' && *p != '}'))
+        return -1;
+    *out = v;
+    return 0;
 }
 
 /* the six tables are one JSON array; they must be walked in order, not searched for */
@@ -755,10 +785,7 @@ static int arm_attempt(const char *commit_hex, const char tables_hex[6][17],
 #define P3_AUDIT_STREAM_WORDS (P3_ENVELOPE_COUNT * P3_STREAM_WORDS)
 #define P3_AUDIT_FRAME_WORDS (P3_TARGET_FRAMES * P3_FRAME_WORDS)
 #define P3_AUDIT_WORDS (P3_AUDIT_STREAM_WORDS + P3_AUDIT_FRAME_WORDS)
-#define P3_AUDIT_CHUNK 384 /* 1536 B raw -> 2048 B base64, well inside g_payload */
-
-static uint8_t g_chunk[P3_AUDIT_CHUNK * 4];
-static char g_words_b64[P3_AUDIT_CHUNK * 4 * 2];
+static char g_words_b64[4096]; /* one chunk's sparse entries: at most 384 × 6 bytes → 3072 b64 chars */
 
 static uint32_t audit_word(uint32_t i)
 {
@@ -768,58 +795,90 @@ static uint32_t audit_word(uint32_t i)
     return S.readback[i / P3_FRAME_WORDS][i % P3_FRAME_WORDS];
 }
 
-/* `with_readback` is 0 for a candidate that ended at link 2: its staging streams exist but
- * its readback frames do not, and serving stale frames as if they were this candidate's
- * would be worse than serving none. The `span` field says which it is, so a short audit is
- * never mistaken for a full one. */
-static void serve_audit(int with_readback)
+/* A line from the host, waited for with a BOUND: -2 when the host stayed quiet for
+ * P3_PULL_IDLE_POLLS polls of the RX FIFO, otherwise recv_line()'s result. */
+static int recv_line_bounded(char *out, size_t max, uint32_t idle_polls)
 {
-    uint32_t total = with_readback ? (uint32_t)P3_AUDIT_WORDS
-                                   : (uint32_t)P3_AUDIT_STREAM_WORDS;
-    const char *span = with_readback ? "streams+readback" : "streams";
-    uint32_t chunks = (total + P3_AUDIT_CHUNK - 1) / P3_AUDIT_CHUNK;
-    uint32_t c;
-
-    /* Served whatever STOPPED the epoch, as long as the channel itself has not failed:
-     * a stop is recorded AFTER its raw words, never instead of them (§3a item 2). The
-     * L5 image gated this loop on P3_RUNNING, so a link-2 refusal — whose stop precedes
-     * its audit — could never actually serve its words; found while wiring §3a. */
-    for (c = 0; c < chunks && S.kind != P3_PROTOCOL; c++) {
-        uint32_t off = c * (uint32_t)P3_AUDIT_CHUNK;
-        uint32_t count = total - off;
-        uint32_t i;
-        size_t b64n;
-
-        if (count > (uint32_t)P3_AUDIT_CHUNK)
-            count = (uint32_t)P3_AUDIT_CHUNK;
-        for (i = 0; i < count; i++) { /* big-endian, as the host decodes them */
-            uint32_t w = audit_word(off + i);
-            g_chunk[4 * i] = (uint8_t)(w >> 24);
-            g_chunk[4 * i + 1] = (uint8_t)(w >> 16);
-            g_chunk[4 * i + 2] = (uint8_t)(w >> 8);
-            g_chunk[4 * i + 3] = (uint8_t)w;
-        }
-        b64n = p3_base64url(g_chunk, count * 4u, g_words_b64);
-        if (b64n == 0u) {
-            p3_stop(P3_PROTOCOL, "PROTOCOL: the audit chunk did not encode");
-            return;
-        }
-        send_payload("AUDIT", S.seq,
-                     p3_wire_audit(S.seq, c, chunks, off, count, total, span, g_words_b64,
-                                   g_payload, sizeof(g_payload)));
+    uint32_t idle = 0;
+    while (!console_rx_ready()) {
+        if (++idle > idle_polls)
+            return -2;
     }
-    if (S.kind != P3_PROTOCOL) {
-        S.audit_served = 1;
-        S.audit_served_seq = S.seq;
-    }
+    return recv_line(out, max);
 }
 
-/* §3a item 2: every non-SCORED self-report is audited unconditionally, before its record,
- * with or without an AUDITREQ — and exactly once per candidate. */
-static void ensure_audit(int with_readback)
+static void serve_sparse_chunk(uint32_t chunk, uint32_t chunks, uint32_t total, const char *span)
 {
-    if (!(S.audit_served && S.audit_served_seq == S.seq))
-        serve_audit(with_readback);
+    uint32_t lo = chunk * P3_WIRE_SPARSE_WINDOW;
+    uint32_t hi = lo + P3_WIRE_SPARSE_WINDOW < total ? lo + P3_WIRE_SPARSE_WINDOW : total;
+    size_t n = p3_wire_sparse_entries(audit_word, lo, hi, g_words_b64, sizeof(g_words_b64));
+    if (n == 0u)
+        g_words_b64[0] = 0; /* an all-zero window: no entries, which is legal and exact */
+    send_payload("AUDIT", S.seq,
+                 p3_wire_audit_sparse(S.seq, chunk, chunks, span, total, lo, hi, g_words_b64,
+                                      g_payload, sizeof(g_payload)));
+    S.audit_chunks_served++;
+}
+
+/* The host-paced audit pull (docs/l6_audit_pull_design.md). Announces the transaction
+ * (AUDIT_READY), then answers every AUDITGET with the sparse chunk asked for — as often
+ * as asked: a chunk the host lost is simply asked for again — until AUDITDONE (0: the
+ * words were pulled and verified, the record may say audited) or AUDITABORT / the bounded
+ * wait running out (-1: the record says replayed-only; on the SCORED path the caller
+ * emits STOP_AUDIT and makes NO ARM). `with_readback` is 0 at a link-2 refusal, whose
+ * readback frames do not exist. Once per candidate: a second call is a no-op success. */
+static int audit_pull(int with_readback)
+{
+    uint32_t total = with_readback ? (uint32_t)P3_AUDIT_WORDS : (uint32_t)P3_AUDIT_STREAM_WORDS;
+    const char *span = with_readback ? "streams+readback" : "streams";
+    uint32_t chunks = (total + P3_WIRE_SPARSE_WINDOW - 1u) / P3_WIRE_SPARSE_WINDOW;
+    uint32_t nonzero = 0, i, seqv, chunk;
+    char type[16];
+    const char *payload;
+    size_t jn;
+    int n;
+
+    if (S.audit_served && S.audit_served_seq == S.seq)
+        return 0;
+    for (i = 0; i < total; i++)
+        if (audit_word(i))
+            nonzero++;
+    S.audit_chunks_served = 0;
+    S.audit_stop_why = NULL;
+    send_payload("AUDIT_READY", S.seq,
+                 p3_wire_audit_ready(S.seq, span, total, chunks, nonzero, g_payload, sizeof(g_payload)));
+    for (;;) {
+        if (S.kind == P3_PROTOCOL)
+            return -1; /* the channel itself failed while sending */
+        n = recv_line_bounded(g_line, sizeof(g_line), P3_PULL_IDLE_POLLS);
+        if (n == -2) {
+            S.audit_stop_why = "the host went quiet during the audit pull (bounded wait ran out)";
+            return -1;
+        }
+        if (n < 0)
+            continue; /* an over-long line is not a host frame; keep waiting, within the bound */
+        payload = parse_frame(g_line, S.seq, type, sizeof(type));
+        if (!payload)
+            continue; /* a broken host line: ignore it, the host retries on its own timeout */
+        jn = p3_base64url_decode(payload, (uint8_t *)g_json, sizeof(g_json) - 1u);
+        if (jn == 0u)
+            continue;
+        g_json[jn] = 0;
+        if (json_uint(g_json, "\"seq\":", &seqv) != 0 || seqv != S.seq)
+            continue; /* bound to THIS candidate: another seq's frame is not answered */
+        if (strcmp(type, "AUDITGET") == 0) {
+            if (json_uint(g_json, "\"chunk\":", &chunk) == 0 && chunk < chunks)
+                serve_sparse_chunk(chunk, chunks, total, span);
+        } else if (strcmp(type, "AUDITDONE") == 0) {
+            S.audit_served = 1;
+            S.audit_served_seq = S.seq;
+            return 0;
+        } else if (strcmp(type, "AUDITABORT") == 0) {
+            S.audit_stop_why = "the host aborted the audit pull";
+            return -1;
+        }
+        /* any other type during a pull (a stray AUDITREQ, say) is ignored */
+    }
 }
 
 /* One candidate's record, built by p3_wire so it carries `seq`, `verified` and the nested
@@ -934,7 +993,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
          * without a request (§3a item 2): the application is asserting `staged != commit`
          * and the host would otherwise have to take that on trust. The readback frames do
          * not exist, hence a "streams" span. Words first, then the stop, then the record. */
-        ensure_audit(0);
+        (void)audit_pull(0); /* §3a item 2: pulled unconditionally; the mark follows the pull */
         p3_stop(P3_STOPPED, "STOP_LINK2: staged frames are not the signed commit");
         emit_record(&rec, "STOP_LINK2");
         return -1;
@@ -957,12 +1016,21 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     /* the words exist now, so an audit promised in this exchange is served BEFORE the
      * record that will claim it — including on the STOP_LINK3 path, where the raw words
      * are exactly what a reviewer would want */
-    if (S.audit_requested)
-        serve_audit(1);
     if (strcmp(readback, commit) != 0) {
-        ensure_audit(1); /* §3a item 2: a link-3 stop is audited whether or not it was asked */
+        (void)audit_pull(1); /* §3a item 2: a link-3 stop is audited whether or not it was asked */
         p3_stop(P3_STOPPED, "STOP_LINK3: the fabric did not read back as the candidate");
         emit_record(&rec, "STOP_LINK3");
+        return -1;
+    }
+    /* The SCORED path's audit, iff the host asked at sign time (all-self-reporting, or the
+     * sampled schedule). It happens BEFORE the ARM; a pull that does not complete means
+     * NO ARM: the candidate ends as STOP_AUDIT and the epoch stops (restore, TERM). */
+    if (S.audit_requested && audit_pull(1) != 0) {
+        rec.have_audit_stop = 1;
+        rec.audit_stop_why = S.audit_stop_why ? S.audit_stop_why : "the audit pull did not complete";
+        rec.audit_chunks_served = S.audit_chunks_served;
+        emit_record(&rec, "STOP_AUDIT");
+        p3_stop(P3_STOPPED, "the audit pull did not complete: no ARM was attempted");
         return -1;
     }
     hb_before = axi_read(P3_HEARTBEAT);
@@ -972,7 +1040,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
         /* The attempt was never made: the pre-ARM check found a fault. The candidate HAS
          * staged and read back, so this is a post-staging STOP_AXI — a raw self-report,
          * auto-audited and recorded (§3a; validators.records.self_report_class). */
-        ensure_audit(1);
+        (void)audit_pull(1); /* §3a item 2: the words persist; the mark follows the pull */
         emit_record(&rec, "STOP_AXI");
         return -1;
     }
@@ -990,7 +1058,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     if (armed == 2) {
         /* The gate never settled within the bound. Neutral: the record carries the whole
          * poll and the epoch stops. Nothing is re-issued and nothing is claimed about why. */
-        ensure_audit(1);
+        (void)audit_pull(1); /* §3a item 2: the words persist; the mark follows the pull */
         emit_record(&rec, "STOP_SETTLE");
         p3_stop(P3_STOPPED, "the ARM did not settle within the poll bound");
         return -1;
@@ -1000,13 +1068,13 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
          * ended on the old form of this check and kept nothing; the record goes out FIRST,
          * carrying every observation, and only then does the epoch stop. This records THAT
          * it happened and asserts nothing about why. */
-        ensure_audit(1);
+        (void)audit_pull(1); /* §3a item 2: the words persist; the mark follows the pull */
         emit_record(&rec, "STOP_ARM");
         p3_stop(P3_STOPPED, "the gate settled and the nonce did not step: the PL did not consume this ARM");
         return -1;
     }
     if (!((status >> P3_ST_CFG_VALID_HW) & 1u)) {
-        ensure_audit(1);
+        (void)audit_pull(1); /* §3a item 2: the words persist; the mark follows the pull */
         emit_record(&rec, "REFUSED_BY_PL");
         /* the fault code names the check that fired, not its cause (spec §4.6) */
         p3_stop(P3_STOPPED, "the PL refused the ARM");

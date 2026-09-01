@@ -29,6 +29,7 @@ from pathlib import Path
 R = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(R / "host"))
 import l5_notary as n  # noqa: E402
+import l6_audit_pull as ap  # noqa: E402
 import l6_timing as lt  # noqa: E402
 
 
@@ -38,6 +39,11 @@ class ConsoleSession:
         self.token, self.collector, self.relay, self.timeline = token, collector, relay, timeline
         self.audit_seqs, self.crc_budget, self.send = audit_seqs, crc_budget, send
         self.audit_sent_for: set[int] = set()
+        # the host-paced pull (docs/l6_audit_pull_design.md): created on AUDIT_READY, fed
+        # every line while pending, torn down on AUDITDONE/AUDITABORT; verified chunks go
+        # to collector.audits, every failed attempt to `pull_ledgers`
+        self.puller: ap.PullHost | None = None
+        self.pull_ledgers: list[dict] = []
 
     @property
     def crc_dropped(self) -> int:
@@ -48,12 +54,36 @@ class ConsoleSession:
     def ended(self) -> bool:
         return self.collector.epoch_end is not None
 
+    def _pull_send(self, line: str) -> None:
+        f = n.parse_line(line)
+        self.send(line, f["type"], f["seq"])
+
+    def _pull_settle(self) -> None:
+        """After feeding the puller a line: harvest verified chunks, tear down when over."""
+        pl = self.puller
+        if pl is None:
+            return
+        for c in pl.chunks():
+            if c not in self.collector.audits:
+                self.collector.audits.append(c)
+        if not pl.pending:
+            self.pull_ledgers.append({"seq": pl.seq, "done": pl.done, "failed": pl.failed, "why": pl.fail_reason,
+                                      "attempts": pl.ledger.attempts, "crc_dropped": pl.ledger.crc_dropped,
+                                      "timeouts": pl.ledger.timeouts, "lines_kept": pl.ledger.lines_kept})
+            self.puller = None
+
+    def tick(self, dt_s: float) -> None:
+        if self.puller is not None:
+            self.puller.tick(dt_s)
+            self._pull_settle()
+
     def on_line(self, line: str, t_mono: float, t_wall: float) -> None:
         if self.ended:
             return                                  # after the end nothing is evidence
         self.timeline.observe(line, t_mono, t_wall)   # the ledger: frames, CRC drops, bad frames
         if not line.startswith(n.MAGIC):
             return                                  # console noise
+        pulling = self.puller is not None and self.puller.pending
         try:
             f = n.parse_line(line)
         except n.CrcError:
@@ -61,9 +91,29 @@ class ConsoleSession:
             if self.timeline.crc_dropped > self.crc_budget:
                 self.collector.epoch_end = {"kind": "PROTOCOL", "last_seq": self.collector.last_rec_seq,
                                             "reason": f"PROTOCOL_CRC_BUDGET: {self.timeline.crc_dropped} > {self.crc_budget}"}
+                if pulling:
+                    self.puller._fail(f"PROTOCOL_CRC_BUDGET: {self.timeline.crc_dropped} > {self.crc_budget}")
+                    self._pull_settle()
+                return
+            if pulling:
+                self.puller.on_line(line)           # a failed attempt of the chunk asked for → retry
+                self._pull_settle()
             return
         except n.FrameError:
+            if pulling:
+                self.puller.on_line(line)           # during a pull a malformed line is a retry, not CRASHED
+                self._pull_settle()
+                return
             self.collector.on_line(line)            # its rule: a malformed frame is CRASHED
+            return
+        if f["type"] == ap.T_READY and self.puller is None:
+            self.puller = ap.PullHost(self.token, f["seq"], send=self._pull_send)
+            self.puller.on_line(line)
+            self._pull_settle()
+            return
+        if pulling and f["type"] in (n.T_AUDIT, ap.T_READY):
+            self.puller.on_line(line)               # verified chunks reach collector.audits via _pull_settle
+            self._pull_settle()
             return
         self.collector.on_line(line)
         if f["type"] != n.T_SIGNREQ:

@@ -1,7 +1,7 @@
 {
   "schema": "l6_manifest",
   "schema_version": "0.1.0",
-  "status": "FROZEN preregistration (prereg.sha256 set 2026-09-01) + pinned two-operator image bd1454cd… (compatibility review PASS). Board phase opened 2026-09-01; C1 #1 = HOLD (transport), calibration.C1 still null. This manifest still authorises no ruling and no board contact by itself: each of C1, C2 and S needs its own `whole-of-probe P3-L6` and `provisioning P3-K` rulings bound to that session and to these pins, issued one session at a time (staged batch: C1 PASS → pin C1 → C2 PASS → pin C2 → derive N → S); calibration.C1/C2 pins are null until C1 and C2 have run.",
+  "status": "FROZEN preregistration (prereg.sha256 set 2026-09-01) + pinned two-operator image bd1454cd… (compatibility review PASS). Board phase opened 2026-09-01; C1 #3 HOLD ended it (byte-loss stop-loss); the pull-protocol candidate image is pinned under next_image, NOT board-ready; C1 #1 = HOLD (transport), calibration.C1 still null. This manifest still authorises no ruling and no board contact by itself: each of C1, C2 and S needs its own `whole-of-probe P3-L6` and `provisioning P3-K` rulings bound to that session and to these pins, issued one session at a time (staged batch: C1 PASS → pin C1 → C2 PASS → pin C2 → derive N → S); calibration.C1/C2 pins are null until C1 and C2 have run.",
   "prereg": {
     "path": "docs/l6_soak_prereg.md",
     "version": "v0.2",
@@ -256,5 +256,16 @@
     "signer_user": "== --signer-user",
     "key": "== <boundary.key_store>/K.bin (== --key)",
     "note": "the D4 boundary record is bound to the invocation, not only to itself (board-phase preflight blocker 3)"
+  },
+  "next_image": {
+    "app_image_sha256": "e19e1b1289ddd9e04bb68f52a42af39d1ec2053055a190a2f2493d8f0447b7de",
+    "elf_sha256": "2951cd58aede9b63dcf716b2d274dbc25ae854fa25d741671ab1bc04ceb76977",
+    "app_image_bytes": 98324,
+    "board_ready": false,
+    "why_not_board_ready": "the pull-protocol candidate image (L6 §2 correction batch): built twice byte-identical from the corrected sources, never run, NOT authorised for the board — it requires prereg v0.3 (docs/l6_soak_prereg_v0.3_draft.md, NOT frozen), the whole-package review of docs/l6_pull_batch_package.md, and its own pinning + rulings. host/l6_runner.py refuses it because pinned_at_build.app_image_sha256 is still bd1454cd….",
+    "prereg_required": "v0.3",
+    "protocol": "pull-v2",
+    "build": "IMAGE=p3_app_l6 bash firmware/bsp/build.sh; evidence/l6_next_build/",
+    "operator_data_sha256_compiled_in": "0c9c82a812be754dbba83c02b24b4321a95af46464a201a6f3c51374f2c80d79"
   }
 }

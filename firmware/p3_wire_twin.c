@@ -16,6 +16,8 @@
  *   audit  k=v ...                                   -> AUDIT frame
  *   term   k=v ...                                   -> TERM frame
  *   hb     token=<32hex> seq=<n>                     -> HB frame
+ *   ready  k=v ...                                   -> AUDIT_READY frame (L6 pull)
+ *   sparse file=<hex words, one line> seq= chunk= span=  -> a sparse-v1 AUDIT chunk from the C encoder
  *
  * Every frame command prints the complete framed line exactly as the board would emit it
  * (payload base64url-encoded by p3_derive's own encoder). `!` prefixes an error.
@@ -233,6 +235,11 @@ static void cmd_rec(void)
         in.status_first = kv_has("status_first") ? (uint32_t)kv_u("status_first", 0)
                                                  : in.status_after;
     }
+    if (kv_has("audit_stop_why")) {
+        in.have_audit_stop = 1;
+        in.audit_stop_why = kv("audit_stop_why");
+        in.audit_chunks_served = (uint32_t)kv_u("audit_chunks_served", 0);
+    }
     if (kv_has("hw_commit")) {
         in.have_score = 1;
         in.hw_candidate_commit = kv("hw_commit");
@@ -247,6 +254,65 @@ static void cmd_rec(void)
     }
     emit("REC", in.seq, kv_or("token", ""),
          p3_wire_loop_record(&in, g_plain, sizeof(g_plain)));
+}
+
+static uint32_t g_words[2814];
+static uint32_t g_words_n;
+
+static uint32_t sparse_word(uint32_t i)
+{
+    return i < g_words_n ? g_words[i] : 0u;
+}
+
+static void cmd_ready(void)
+{
+    uint32_t seq = (uint32_t)kv_u("seq", 1);
+    emit("AUDIT_READY", seq, kv_or("token", ""),
+         p3_wire_audit_ready(seq, kv_or("span", "streams+readback"), (uint32_t)kv_u("total_words", 2814),
+                             (uint32_t)kv_u("chunks", 8), (uint32_t)kv_u("nonzero", 0),
+                             g_plain, sizeof(g_plain)));
+}
+
+static void cmd_sparse(void)
+{
+    static char entries[4096];
+    const char *path = kv("file");
+    uint32_t seq = (uint32_t)kv_u("seq", 1), chunk = (uint32_t)kv_u("chunk", 0);
+    const char *span = kv_or("span", "streams+readback");
+    uint32_t total = (uint32_t)kv_u("total_words", 2814), lo, hi, chunks;
+    FILE *f;
+    unsigned int v;
+
+    if (path == NULL) {
+        printf("!sparse-needs-file\n");
+        return;
+    }
+    f = fopen(path, "r");
+    if (f == NULL) {
+        printf("!sparse-file\n");
+        return;
+    }
+    g_words_n = 0;
+    while (g_words_n < 2814u && fscanf(f, "%8x", &v) == 1)
+        g_words[g_words_n++] = (uint32_t)v;
+    fclose(f);
+    chunks = (total + P3_WIRE_SPARSE_WINDOW - 1u) / P3_WIRE_SPARSE_WINDOW;
+    lo = chunk * P3_WIRE_SPARSE_WINDOW;
+    hi = lo + P3_WIRE_SPARSE_WINDOW < total ? lo + P3_WIRE_SPARSE_WINDOW : total;
+    if (p3_wire_sparse_entries(sparse_word, lo, hi, entries, sizeof(entries)) == 0 && hi > lo) {
+        /* zero length is legal only when the window is all zero */
+        uint32_t i, nz = 0;
+        for (i = lo; i < hi; i++)
+            if (sparse_word(i))
+                nz++;
+        if (nz) {
+            printf("!sparse-overflow\n");
+            return;
+        }
+        entries[0] = 0;
+    }
+    emit("AUDIT", seq, kv_or("token", ""),
+         p3_wire_audit_sparse(seq, chunk, chunks, span, total, lo, hi, entries, g_plain, sizeof(g_plain)));
 }
 
 static void cmd_audit(void)
@@ -357,6 +423,10 @@ int main(void)
             cmd_closing();
         else if (strcmp(cmd, "hb") == 0)
             cmd_hb();
+        else if (strcmp(cmd, "ready") == 0)
+            cmd_ready();
+        else if (strcmp(cmd, "sparse") == 0)
+            cmd_sparse();
         else
             printf("!unknown-command\n");
     }

@@ -21,6 +21,16 @@
 
 void outbyte(char c);
 char inbyte(void);
+int console_rx_ready(void);
+
+/* Non-blocking: is a byte waiting in the RX FIFO? The L6 audit pull waits for the host's
+ * next AUDITGET/AUDITDONE with a BOUNDED number of these polls (p3_app.c P3_PULL_IDLE_POLLS)
+ * so that a lost host frame can never leave the application waiting forever. Same
+ * register, same discipline as inbyte(): a read of the status register, nothing written. */
+int console_rx_ready(void)
+{
+    return (Xil_In32(UART_SR) & UART_SR_RXEMPTY) ? 0 : 1;
+}
 
 void outbyte(char c)
 {

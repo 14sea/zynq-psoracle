@@ -258,6 +258,15 @@ size_t p3_wire_loop_record(const p3_wire_record_in *in, char *out, size_t max)
         w_arm(&w, in);
         first = 0;
     }
+    if (in->have_audit_stop) {
+        if (!first)
+            w_fmt(&w, ",");
+        w_fmt(&w, "\"audit_stop\":{\"chunks_served\":%lu,\"why\":",
+              (unsigned long)in->audit_chunks_served);
+        w_str(&w, in->audit_stop_why);
+        w_fmt(&w, "}");
+        first = 0;
+    }
     if (in->have_score) {
         if (!first)
             w_fmt(&w, ",");
@@ -301,6 +310,66 @@ void p3_wire_tally_reset(void)
 {
     g_tally_records = 0u;
     g_tally_audited = 0u;
+}
+
+/* ------------------------------------------------------------------ audit pull (L6) -- */
+
+size_t p3_wire_audit_ready(uint32_t seq, const char *span, uint32_t total_words, uint32_t chunks,
+                           uint32_t nonzero, char *out, size_t max)
+{
+    p3_w w;
+
+    w_init(&w, out, max);
+    w_fmt(&w, "{\"chunks\":%lu,\"nonzero\":%lu,\"schema\":\"audit_ready\",\"schema_version\":"
+              "\"1.0.0\",\"seq\":%lu,\"span\":",
+          (unsigned long)chunks, (unsigned long)nonzero, (unsigned long)seq);
+    w_str(&w, span);
+    w_fmt(&w, ",\"total_words\":%lu}", (unsigned long)total_words);
+    return w_done(&w);
+}
+
+size_t p3_wire_sparse_entries(uint32_t (*word)(uint32_t), uint32_t lo, uint32_t hi,
+                              char *b64_out, size_t max)
+{
+    /* at most WINDOW pairs of 6 bytes; encoded 4/3 of that */
+    static uint8_t packed[P3_WIRE_SPARSE_WINDOW * 6u];
+    size_t n = 0;
+    uint32_t pos;
+
+    if (hi - lo > P3_WIRE_SPARSE_WINDOW)
+        return 0;
+    for (pos = lo; pos < hi; pos++) {
+        uint32_t v = word(pos);
+        if (v == 0u)
+            continue;
+        packed[n++] = (uint8_t)(pos >> 8);
+        packed[n++] = (uint8_t)pos;
+        packed[n++] = (uint8_t)(v >> 24);
+        packed[n++] = (uint8_t)(v >> 16);
+        packed[n++] = (uint8_t)(v >> 8);
+        packed[n++] = (uint8_t)v;
+    }
+    if (((n + 2u) / 3u) * 4u + 1u > max)
+        return 0;
+    return p3_base64url(packed, n, b64_out);
+}
+
+size_t p3_wire_audit_sparse(uint32_t seq, uint32_t chunk, uint32_t chunks, const char *span,
+                            uint32_t total_words, uint32_t lo, uint32_t hi, const char *entries_b64,
+                            char *out, size_t max)
+{
+    p3_w w;
+
+    w_init(&w, out, max);
+    w_fmt(&w, "{\"chunk\":%lu,\"chunks\":%lu,\"encoding\":\"%s\",\"entries\":",
+          (unsigned long)chunk, (unsigned long)chunks, P3_WIRE_SPARSE_ENCODING);
+    w_str(&w, entries_b64);
+    w_fmt(&w, ",\"schema\":\"app_audit_chunk\",\"schema_version\":\"2.0.0\",\"seq\":%lu,\"span\":",
+          (unsigned long)seq);
+    w_str(&w, span);
+    w_fmt(&w, ",\"total_words\":%lu,\"window\":[%lu,%lu]}", (unsigned long)total_words,
+          (unsigned long)lo, (unsigned long)hi);
+    return w_done(&w);
 }
 
 /* ------------------------------------------------------------------ audit ----------- */

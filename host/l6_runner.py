@@ -238,6 +238,7 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         while collector.epoch_end is None and time.monotonic() < deadline:
             for line, t_mono, t_wall in reader.poll():
                 console.on_line(line, t_mono, t_wall)
+            console.tick(0.02)                       # the pull's chunk timeout advances with the loop
             if reader.saw_uboot_banner():
                 collector.on_banner()
             collector.poll()
@@ -264,7 +265,7 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         if collector.closing_negative is not None:
             log["closing_negative"] = collector.closing_negative
         pr.write_record(out_dir, "run_log", log)
-        pr.write_record(out_dir, "audits", {"chunks": collector.audits})
+        pr.write_record(out_dir, "audits", {"chunks": collector.audits, "pulls": console.pull_ledgers})
         blank_commit = g.gate(g.build_streams(gn.frames_from_genome(gn.blank_genome(phen), phen), phen),
                               phen)["candidate_sha256"]
         findings = []

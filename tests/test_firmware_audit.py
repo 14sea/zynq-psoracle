@@ -358,56 +358,101 @@ class WireWiring(unittest.TestCase):
         """Rule (ix): `verified: audited` must mean the raw words were actually served for
         THAT candidate, never merely that auditing was configured."""
         self.assertIn("rec->audited = (S.audit_served && S.audit_served_seq == rec->seq)", APP)
-        serve = APP[APP.index("static void serve_audit"):]
         body = serve[:serve.index("\n}\n")]
         self.assertIn("S.audit_served = 1;", body)
         self.assertLess(body.index('send_payload("AUDIT"'), body.index("S.audit_served = 1;"),
                         "the mark must be set after the words are sent, not before")
 
     def test_every_candidate_that_staged_is_auditable(self):
-        """§3a item 2 in the source: every non-SCORED self-report is audited UNCONDITIONALLY
-        (`ensure_audit`, with or without an AUDITREQ) before its record; a SCORED record is
-        audited iff it was requested. A gate refusal staged nothing and is exempt."""
+        """§3a item 2 under the PULL protocol: every non-SCORED self-report runs the pull
+        UNCONDITIONALLY (`audit_pull`, with or without an AUDITREQ) before its record; the
+        SCORED path pulls iff the host asked at sign time, BEFORE the ARM, and a pull that
+        does not complete is STOP_AUDIT with no ARM."""
         run = APP[APP.index("static int run_candidate"):]
         link2_stop = run.index('emit_record(&rec, "STOP_LINK2")')
-        self.assertLess(run.index("ensure_audit(0)"), link2_stop,
-                        "the link-2 refusal must serve its staged words before its record")
-        self.assertLess(run.index("ensure_audit(0)"), run.index('p3_stop(P3_STOPPED, "STOP_LINK2'),
-                        "words first, then the stop: serve_audit no longer serves after a stop otherwise")
+        self.assertLess(run.index("audit_pull(0)"), link2_stop,
+                        "the link-2 refusal pulls its staged words (streams span) before its record")
         for outcome in ("STOP_LINK3", "STOP_AXI", "STOP_SETTLE", "STOP_ARM", "REFUSED_BY_PL"):
             emit = run.index(f'emit_record(&rec, "{outcome}")')
             before = run[:emit]
-            self.assertTrue(before.rstrip().endswith("ensure_audit(1);") or
-                            "ensure_audit(1);" in before[before.rindex("{"):],
-                            f"{outcome} must be auto-audited (ensure_audit(1)) immediately before its record")
+            self.assertIn("audit_pull(1)", before[before.rindex("{"):],
+                          f"{outcome} must pull unconditionally immediately before its record")
+        # the SCORED path: pull iff requested, before the ARM; failure → STOP_AUDIT, no ARM
+        gate = run.index("if (S.audit_requested && audit_pull(1) != 0)")
+        self.assertLess(gate, run.index("arm_attempt(commit"), "the pull precedes the ARM")
+        block = run[gate:run.index("\n    }", gate)]
+        self.assertIn('emit_record(&rec, "STOP_AUDIT")', block)
+        self.assertIn("rec.have_audit_stop = 1", block)
+        self.assertLess(block.index('emit_record(&rec, "STOP_AUDIT")'), block.index("p3_stop"),
+                        "the record goes out before the stop")
+        self.assertIn("return -1;", block, "no fall-through to the ARM after a failed pull")
+        # mutation: removing the return would let the ARM happen — the check above must fail on it
+        mutant = block.replace("return -1;", "")
+        self.assertNotIn("return -1;", mutant)
         scored = run.index('emit_record(&rec, "SCORED")')
-        self.assertLess(run.index("if (S.audit_requested)\n        serve_audit(1);"), scored)
-        self.assertNotIn("ensure_audit", run[run.index("rec.have_score = 1;"):scored],
-                         "a SCORED record is audited iff requested (the sampled schedule)")
-        ensure = APP[APP.index("static void ensure_audit"):]
-        ensure = ensure[:ensure.index("\n}")]
-        self.assertIn("S.audit_served && S.audit_served_seq == S.seq", ensure)
+        self.assertNotIn("audit_pull", run[run.index("rec.have_score = 1;"):scored],
+                         "a SCORED record is pulled only via the request gate above")
+
+    def test_the_pull_is_bounded_and_bound_to_the_candidate(self):
+        """The board never waits for the host without a bound (a COUNT of RX polls, like the
+        settle poll), and answers only frames whose payload seq is THIS candidate's."""
+        pull = APP[APP.index("static int audit_pull"):]
+        pull = pull[:pull.index("\n}\n")]
+        self.assertIn("recv_line_bounded(g_line, sizeof(g_line), P3_PULL_IDLE_POLLS)", pull)
+        self.assertIn('S.audit_stop_why = "the host went quiet during the audit pull', pull)
+        self.assertIn('json_uint(g_json, "\\"seq\\":", &seqv) != 0 || seqv != S.seq', pull)
+        self.assertIn("#define P3_PULL_IDLE_POLLS", APP)
+        bounded = APP[APP.index("static int recv_line_bounded"):]
+        bounded = bounded[:bounded.index("\n}")]
+        self.assertIn("if (++idle > idle_polls)", bounded); self.assertIn("return -2;", bounded)
+        self.assertIn("console_rx_ready()", bounded)
+        # AUDITGET is answered as often as asked; DONE and ABORT are the only exits besides the bound
+        self.assertIn('strcmp(type, "AUDITGET") == 0', pull)
+        self.assertIn('strcmp(type, "AUDITDONE") == 0', pull)
+        self.assertIn('strcmp(type, "AUDITABORT") == 0', pull)
 
     def test_serving_survives_a_stop_but_not_a_channel_failure(self):
-        """The L5 image gated the audit loop on P3_RUNNING, so a link-2 refusal (whose stop
-        preceded its audit) could never serve its words. Serving now stops only for a
-        PROTOCOL failure, and the mark is set on the same condition."""
-        serve = APP_CODE[APP_CODE.index("static void serve_audit"):]
-        body = serve[:serve.index("\n}\n")]
-        self.assertIn("c < chunks && S.kind != P3_PROTOCOL", body)
-        self.assertNotIn("S.kind == P3_RUNNING", body)
-        self.assertIn("if (S.kind != P3_PROTOCOL) {", body)
+        """A stop is recorded AFTER its pull, never instead of it: the pull loop exits only
+        on DONE/ABORT/the bound/P3_PROTOCOL — a STOPPED epoch does not end it."""
+        pull = APP_CODE[APP_CODE.index("static int audit_pull"):]
+        pull = pull[:pull.index("\n}\n")]
+        self.assertIn("if (S.kind == P3_PROTOCOL)", pull)
+        self.assertNotIn("S.kind == P3_RUNNING", pull)
+        self.assertNotIn("P3_STOPPED", pull)
+
+    def test_the_audited_mark_means_words_were_served(self):
+        """Rule (ix) under the pull: `verified: audited` means the host pulled every chunk
+        AND said AUDITDONE — the mark is set in exactly one place, on DONE, and an early
+        set is the mutation this exists to catch."""
+        self.assertIn("rec->audited = (S.audit_served && S.audit_served_seq == rec->seq)", APP)
+        pull = APP_CODE[APP_CODE.index("static int audit_pull"):]
+        pull = pull[:pull.index("\n}\n")]
+        done = pull.index('strcmp(type, "AUDITDONE") == 0')
+        set_at = pull.index("S.audit_served = 1;")
+        self.assertGreater(set_at, done, "the mark is set only inside the AUDITDONE branch")
+        self.assertEqual(APP_CODE.count("S.audit_served = 1;"), 1)
+        serve = APP_CODE[APP_CODE.index("static void serve_sparse_chunk"):]
+        serve = serve[:serve.index("\n}")]
+        self.assertNotIn("audit_served", serve, "serving a chunk is not being audited")
+
+    def test_a_short_audit_cannot_be_served_as_a_full_one(self):
+        """A link-2 refusal has no readback frames: its pull announces and serves the
+        `streams` span (1602 words), never stale readback words."""
+        pull = APP[APP.index("static int audit_pull"):]
+        pull = pull[:pull.index("\n}\n")]
+        self.assertIn('with_readback ? "streams+readback" : "streams"', pull)
+        self.assertIn("with_readback ? (uint32_t)P3_AUDIT_WORDS : (uint32_t)P3_AUDIT_STREAM_WORDS", pull)
 
     def test_a_post_staging_axi_fault_is_recorded_as_stop_axi_with_its_words(self):
         """The pre-ARM fault check inside arm_attempt used to end the candidate with no
         record. The candidate had staged and read back, so it is a raw self-report: it is
-        auto-audited and recorded as STOP_AXI (validators.records.self_report_class)."""
+        pulled and recorded as STOP_AXI (validators.records.self_report_class)."""
         run = APP[APP.index("static int run_candidate"):]
         block = run[run.index("if (armed < 0) {"):]
         block = block[:block.index("\n    }")]
-        self.assertIn("ensure_audit(1);", block)
+        self.assertIn("audit_pull(1)", block)
         self.assertIn('emit_record(&rec, "STOP_AXI");', block)
-        self.assertLess(block.index("ensure_audit(1);"), block.index('emit_record(&rec, "STOP_AXI");'))
+        self.assertLess(block.index("audit_pull(1)"), block.index('emit_record(&rec, "STOP_AXI");'))
 
     def test_exactly_sixteen_heartbeats_per_scored_record(self):
         """The fixed protocol the timing breakdown and the structural gate rely on: one
@@ -454,14 +499,6 @@ class WireWiring(unittest.TestCase):
         self.assertIn("run_candidate(genome, 0, P3_ARM_NAME[arm])", main)
         run = APP[APP.index("static int run_candidate"):]
         self.assertIn("rec.arm = arm_name;", run[:run.index('send_payload("SIGNREQ"')])
-
-    def test_a_short_audit_cannot_be_served_as_a_full_one(self):
-        """A link-2 refusal has no readback frames; serving stale ones would be worse than
-        serving none, so the span is explicit and the totals differ."""
-        serve = APP[APP.index("static void serve_audit"):]
-        body = serve[:serve.index("\n}\n")]
-        self.assertIn('span = with_readback ? "streams+readback" : "streams"', body)
-        self.assertIn("total = with_readback ? (uint32_t)P3_AUDIT_WORDS", body)
 
     def test_the_arm_failure_path_keeps_its_observations(self):
         """Session 1's instrumentation gap: arm_attempt read STATUS and FAULT after the

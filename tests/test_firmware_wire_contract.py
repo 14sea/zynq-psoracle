@@ -795,5 +795,74 @@ class L6WireContract(WireContract):
         self.assertIn("[3]", str(cm.exception)); self.assertIn("§3a item 2", str(cm.exception))
 
 
+class PullWireContract(WireContract):
+    """The pull protocol's C bytes (L6 §2 correction batch): AUDIT_READY and the sparse
+    chunks emitted by firmware/p3_wire.c, fed to the real host puller and the real sparse
+    assembler; a STOP_AUDIT record from the C serialiser through the real validator."""
+
+    def _sparse_lines(self, seq: int, genome: int) -> list[str]:
+        import tempfile
+        words = self._raw_words(genome)
+        with tempfile.NamedTemporaryFile("w", suffix=".hex", delete=False) as f:
+            f.write(" ".join(f"{w:08x}" for w in words))
+            path = f.name
+        nz = sum(1 for w in words if w)
+        cmds = [f"ready token={TOKEN} seq={seq} span=streams+readback total_words=2814 chunks=8 nonzero={nz}"]
+        cmds += [f"sparse file={path} seq={seq} chunk={c} span=streams+readback token={TOKEN}" for c in range(8)]
+        lines = self.twin(*cmds)
+        os.unlink(path)
+        return lines
+
+    def test_the_c_pull_lines_drive_the_real_host_puller_to_done(self):
+        import l6_audit_pull as apm
+        lines = self._sparse_lines(1, self.blank)
+        sent = []
+        host = apm.PullHost(TOKEN, 1, send=sent.append)
+        host.on_line(lines[0])                               # READY binds the transaction
+        self.assertEqual(host.state, "WAIT_CHUNK")
+        for chunk_line in lines[1:]:
+            host.on_line(chunk_line)
+        self.assertTrue(host.done)
+        self.assertEqual([n.parse_line(l)["type"] for l in sent],
+                         ["AUDITGET"] * 8 + ["AUDITDONE"])
+        got = au.assemble(host.chunks())[1]
+        self.assertEqual(got["words"], self._raw_words(self.blank))
+
+    def test_the_c_sparse_chunks_recompute_the_gate_hashes(self):
+        lines = self._sparse_lines(3, self.blank)
+        payloads = [n.decode_payload(n.parse_line(l)["payload"]) for l in lines[1:]]
+        words = au.assemble(payloads)[3]["words"]
+        got = au.recompute(words, "streams+readback", self.manifest)
+        verdict = self._verdict(self.blank)
+        self.assertEqual(got["staged_sha256"], verdict["candidate_sha256"])
+        self.assertEqual(got["staged_stream_sha256"], verdict["sequence_sha256"])
+
+    def test_a_c_emitted_stop_audit_record_validates_and_is_a_hold(self):
+        relay, reply, verdict, gh = self._one_candidate()
+        line, = self.twin(
+            f"rec token={TOKEN} seq=1 genome={gh} outcome=STOP_AUDIT audited=0 "
+            f"commit={reply['commit']} tables={','.join(reply['expected_tables'])} tag={reply['tag']} "
+            f"staged={reply['commit']} stream={verdict['sequence_sha256']} readback={reply['commit']} "
+            f"envelopes=3 audit_available=1 audit_stop_why=host-aborted audit_chunks_served=5 arm=random_safe")
+        rec = n.decode_payload(n.parse_line(line)["payload"])
+        records.validate(rec)
+        self.assertEqual(rec["evidence"]["audit_stop"], {"chunks_served": 5, "why": "host-aborted"})
+        self.assertEqual(rec["verified"], "replayed-only")
+        self.assertNotIn("arm", rec["evidence"], "no ARM evidence: none was attempted")
+        with self.assertRaises(records.RecordError):
+            records.check_audit_policy({"loop_records": [rec]}, {1: "replayed-only"})
+
+    def test_a_c_stop_audit_that_claims_audited_is_refused(self):
+        relay, reply, verdict, gh = self._one_candidate()
+        line, = self.twin(
+            f"rec token={TOKEN} seq=1 genome={gh} outcome=STOP_AUDIT audited=1 "
+            f"commit={reply['commit']} tables={','.join(reply['expected_tables'])} tag={reply['tag']} "
+            f"staged={reply['commit']} stream={verdict['sequence_sha256']} readback={reply['commit']} "
+            f"envelopes=3 audit_available=1 audit_stop_why=x audit_chunks_served=0")
+        with self.assertRaises(records.RecordError) as cm:
+            records.validate(n.decode_payload(n.parse_line(line)["payload"]))
+        self.assertIn("cannot be marked audited", str(cm.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -46,6 +46,15 @@ SPAN_WORDS = {"streams": STREAM_SPAN,                       # a link-2 refusal: 
               "streams+readback": STREAM_SPAN + TARGET_FRAMES * FRAME_WORDS}   # 2814
 CHUNK_KEYS = ("schema", "schema_version", "seq", "span", "chunk", "chunks", "word_offset",
               "word_count", "total_words", "words")
+# app_audit_chunk 2.0.0 — the host-paced sparse pull (docs/l6_audit_pull_design.md): a chunk
+# is a fixed WINDOW of positions; `entries` lists the NON-ZERO words of that window as packed
+# (uint16 position, uint32 word) pairs, positions absolute in the span, strictly ascending
+# and unique; an unlisted position is zero by definition. Lossless: the host rebuilds every
+# word and the three hash domains are recomputed exactly as for a dense chunk set.
+SPARSE_WINDOW = 384
+SPARSE_ENCODING = "sparse-v1"
+SPARSE_KEYS = ("schema", "schema_version", "encoding", "seq", "span", "chunk", "chunks", "total_words",
+               "window", "entries")
 _B64 = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
 
 
@@ -77,9 +86,139 @@ def _decode_words(b64: str, where: str) -> list[int]:
     return [int.from_bytes(raw[i:i + 4], "big") for i in range(0, len(raw), 4)]
 
 
+def sparse_chunk_count(total_words: int) -> int:
+    return (total_words + SPARSE_WINDOW - 1) // SPARSE_WINDOW
+
+
+def sparse_window(chunk: int, total_words: int) -> tuple[int, int]:
+    return chunk * SPARSE_WINDOW, min((chunk + 1) * SPARSE_WINDOW, total_words)
+
+
+def decode_entries(b64: str, window_start: int, window_end: int) -> list[tuple[int, int]]:
+    """Strict: base64url alphabet, whole 6-byte pairs, positions inside the window, strictly
+    ascending and unique, no listed zero. An accepted chunk means exactly one set of words."""
+    import struct
+    if not isinstance(b64, str):
+        raise RecordError("sparse entries must be a string")
+    body = b64.rstrip("=")
+    bad = set(body) - _B64
+    if bad:
+        raise RecordError(f"sparse entries: characters outside base64url: {sorted(bad)}")
+    try:
+        raw = base64.urlsafe_b64decode(body + "=" * (-len(body) % 4))
+    except Exception as exc:  # noqa: BLE001
+        raise RecordError(f"sparse entries do not decode: {exc}") from None
+    if len(raw) % 6:
+        raise RecordError(f"sparse entries: {len(raw)} bytes are not whole (uint16, uint32) pairs")
+    entries = [struct.unpack(">HI", raw[i:i + 6]) for i in range(0, len(raw), 6)]
+    last = -1
+    for pos, word in entries:
+        if not window_start <= pos < window_end:
+            raise RecordError(f"sparse entries: position {pos} outside the chunk window [{window_start}, {window_end})")
+        if pos <= last:
+            raise RecordError(f"sparse entries: position {pos} not strictly ascending after {last} (duplicate or disorder)")
+        if word == 0:
+            raise RecordError(f"sparse entries: position {pos} lists a zero word (unlisted means zero)")
+        last = pos
+    return entries
+
+
+def encode_entries(words: list[int], window_start: int, window_end: int) -> str:
+    """The reference encoder (the firmware's twin): the non-zero words of one window."""
+    import struct
+    out = bytearray()
+    for pos in range(window_start, min(window_end, len(words))):
+        if words[pos]:
+            out += struct.pack(">HI", pos, words[pos] & 0xFFFFFFFF)
+    return base64.urlsafe_b64encode(bytes(out)).decode()
+
+
+def build_sparse_chunk(seq: int, chunk: int, span: str, words: list[int]) -> dict:
+    total = SPAN_WORDS[span]
+    if len(words) != total:
+        raise ValueError(f"{len(words)} words for span {span!r}")
+    lo, hi = sparse_window(chunk, total)
+    return {"schema": "app_audit_chunk", "schema_version": "2.0.0", "encoding": SPARSE_ENCODING, "seq": seq,
+            "chunk": chunk, "chunks": sparse_chunk_count(total), "span": span, "total_words": total,
+            "window": [lo, hi], "entries": encode_entries(words, lo, hi)}
+
+
+def check_sparse_chunk(c: dict, where: str = "audit chunk") -> None:
+    """One 2.0.0 chunk's own shape: keys, versions, pinned span/total, chunk range, exact
+    window, strict entries. Completeness across a seq is `_assemble_sparse`'s question."""
+    if not isinstance(c, dict):
+        raise RecordError(f"{where}: not an object")
+    missing = [k for k in SPARSE_KEYS if k not in c]
+    if missing:
+        raise RecordError(f"{where}: missing {missing}")
+    if c["schema"] != "app_audit_chunk" or c["schema_version"] != "2.0.0" or c["encoding"] != SPARSE_ENCODING:
+        raise RecordError(f"{where}: not an app_audit_chunk 2.0.0 {SPARSE_ENCODING} chunk")
+    for k in ("seq", "chunk", "chunks", "total_words"):
+        if not isinstance(c[k], int) or isinstance(c[k], bool) or c[k] < 0:
+            raise RecordError(f"{where}: {k} must be a non-negative integer")
+    if c["span"] not in SPAN_WORDS or c["total_words"] != SPAN_WORDS[c["span"]]:
+        raise RecordError(f"{where}: span {c['span']!r} / total_words {c['total_words']} not the pinned pair")
+    if c["chunks"] != sparse_chunk_count(c["total_words"]):
+        raise RecordError(f"{where}: chunks {c['chunks']} != {sparse_chunk_count(c['total_words'])} for {c['total_words']} words")
+    if not 0 <= c["chunk"] < c["chunks"]:
+        raise RecordError(f"{where}: chunk {c['chunk']} out of range 0..{c['chunks'] - 1}")
+    if list(c["window"]) != list(sparse_window(c["chunk"], c["total_words"])):
+        raise RecordError(f"{where}: window {c['window']} is not {list(sparse_window(c['chunk'], c['total_words']))}")
+    decode_entries(c["entries"], *sparse_window(c["chunk"], c["total_words"]))
+
+
+def _assemble_sparse(chunks: list[dict]) -> dict[int, dict]:
+    """Closed reassembly of 2.0.0 chunks: every chunk 0..n-1 exactly once (a byte-identical
+    duplicate is a retry's echo and is fine; a different one is refused), every chunk of a
+    seq bound to ONE span/total_words/chunks, windows exact, entries strict."""
+    by_seq: dict[int, dict[int, dict]] = {}
+    for i, c in enumerate(chunks):
+        where = f"audit chunk #{i}"
+        check_sparse_chunk(c, where)
+        group = by_seq.setdefault(c["seq"], {})
+        first = next(iter(group.values()), None)
+        if first is not None and (first["span"], first["total_words"], first["chunks"]) != (c["span"], c["total_words"], c["chunks"]):
+            raise RecordError(f"audit seq {c['seq']}: chunk {c['chunk']} names span/total/chunks "
+                              f"{(c['span'], c['total_words'], c['chunks'])}, the seq's first chunk names "
+                              f"{(first['span'], first['total_words'], first['chunks'])} — one transaction, one binding")
+        prev = group.get(c["chunk"])
+        if prev is not None and prev != c:
+            raise RecordError(f"audit seq {c['seq']}: chunk {c['chunk']} served twice with different content")
+        group[c["chunk"]] = c
+    out = {}
+    for seq, got in sorted(by_seq.items()):
+        first = next(iter(got.values()))
+        want = set(range(first["chunks"]))
+        if set(got) != want:
+            raise RecordError(f"audit seq {seq}: chunk numbers must be exactly 0..{first['chunks'] - 1}: "
+                              f"missing {sorted(want - set(got))}, out of range {sorted(set(got) - want)}")
+        words = [0] * first["total_words"]
+        for ch in sorted(got):
+            lo, hi = got[ch]["window"]
+            for pos, w in decode_entries(got[ch]["entries"], lo, hi):
+                words[pos] = w
+        out[seq] = {"span": first["span"], "words": words, "chunks": first["chunks"], "encoding": SPARSE_ENCODING}
+    return out
+
+
 def assemble(chunks: list[dict]) -> dict[int, dict]:
     """Closed reassembly: returns {seq: {"span", "words", "chunks"}} or raises RecordError
-    naming the first defect. Order of arrival is irrelevant; chunk NUMBERS are not."""
+    naming the first defect. Order of arrival is irrelevant; chunk NUMBERS are not. Dense
+    1.0.0 chunks and sparse 2.0.0 chunks may not be mixed within one seq; each seq's chunks
+    are assembled by their own version's rules."""
+    sparse = [c for c in chunks if isinstance(c, dict) and c.get("schema_version") == "2.0.0"]
+    plain = [c for c in chunks if not (isinstance(c, dict) and c.get("schema_version") == "2.0.0")]
+    out = _assemble_dense(plain) if plain else {}
+    if sparse:
+        got = _assemble_sparse(sparse)
+        for seq in got:
+            if seq in out:
+                raise RecordError(f"audit seq {seq}: dense and sparse chunks mixed in one seq")
+        out.update(got)
+    return out
+
+
+def _assemble_dense(chunks: list[dict]) -> dict[int, dict]:
     by_seq: dict[int, list[dict]] = {}
     for i, c in enumerate(chunks):
         where = f"audit chunk #{i}"

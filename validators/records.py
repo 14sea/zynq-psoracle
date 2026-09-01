@@ -233,8 +233,14 @@ def validate_run_log(log: dict) -> dict:
 # STOP_ARM means "the gate SETTLED and the nonce did not step", which is a different fact
 # from "we did not wait". STOP_SETTLE is neutral: it consumes the nonce in the chain iff the
 # nonce is observed stepped, forbids a score, and claims nothing about why.
+# STOP_AUDIT (L6 pull protocol, docs/l6_audit_pull_design.md): the host-paced audit of a
+# candidate that had staged and read back could not be completed (retries exhausted, the
+# host aborted, or the board's bounded wait for the host ran out) BEFORE the ARM. The
+# application then makes no ARM attempt and the epoch stops (restore, TERM). The record
+# carries the oracle self-report and can never be marked audited, so the sampled and the
+# all-self-reporting policies both refuse the log: it is always a HOLD, never a pass.
 LOOP_OUTCOMES = ("SCORED", "REFUSED_BY_GATE", "STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL",
-                 "STOP_AXI", "STOP_ARM", "STOP_SETTLE")
+                 "STOP_AXI", "STOP_ARM", "STOP_SETTLE", "STOP_AUDIT")
 EPOCH_END_KINDS = ("COMPLETED", "STOPPED", "PROTOCOL", "CRASHED")
 VERIFIED_MARKS = ("audited", "replayed-only")     # rule (ix): a bounded guarantee, said out loud
 CLOSING_STEPS = ("restore", "baseline", "unsigned_control")
@@ -362,6 +368,18 @@ def _check_loop_record(r):
         return
     if out == "STOP_LINK2":
         _forbid(ev, ("arm", "score"), out)
+        return
+    if out == "STOP_AUDIT":
+        # staged and (usually) read back; the audit failed before any ARM: no arm, no score
+        _forbid(ev, ("arm", "score"), out)
+        _need(ev, ("app_oracle_record", "audit_stop"), out)
+        oracle = validate(ev["app_oracle_record"])
+        if oracle["seq"] != r["seq"]:
+            raise RecordError("app_oracle_record seq differs from the loop_record's")
+        if oracle["staged_sha256"] != reply["commit"]:
+            raise Falsified("staged_sha256 != the signed commit — link 2's binding failed, this record cannot stand (prereg §3: a candidate past link 2 while staged != commit)")
+        if r["verified"] != "replayed-only":
+            raise RecordError("STOP_AUDIT: an audit that did not complete cannot be marked audited")
         return
     _need(ev, ("app_oracle_record",), out)
     oracle = validate(ev["app_oracle_record"])
@@ -568,7 +586,7 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int,
 NO_SELF_REPORT_OUTCOMES = ("REFUSED_BY_GATE",)
 # L6 prereg §3a item 2: the non-SCORED outcomes that may carry a raw self-report — under
 # the sampled policy the firmware audits these unconditionally, before the record.
-AUTO_AUDIT_OUTCOMES = ("STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL", "STOP_ARM", "STOP_SETTLE", "STOP_AXI")
+AUTO_AUDIT_OUTCOMES = ("STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL", "STOP_ARM", "STOP_SETTLE", "STOP_AXI", "STOP_AUDIT")
 AUDIT_POLICIES = ("all-self-reporting", "sampled")
 ARMS = ("random_safe", "map_guided")                       # L6 prereg §2.4
 L6_IDENTITY_FIELDS = ("master_seed", "schedule_mode", "operator_data_sha256")
