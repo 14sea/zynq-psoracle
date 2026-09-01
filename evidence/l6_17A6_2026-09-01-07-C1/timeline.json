@@ -1,0 +1,12 @@
+{
+  "schema": "l6_timeline",
+  "schema_version": "1.0.0",
+  "clocks": {
+    "mono": "time.monotonic() on the host, seconds",
+    "wall": "time.time() on the host, seconds since the epoch",
+    "resolution_s": "one runner poll interval (~0.02 s): every line a poll returned shares its stamp"
+  },
+  "crc_dropped": 0,
+  "bad_frames": 0,
+  "frames": []
+}

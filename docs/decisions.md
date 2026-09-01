@@ -894,3 +894,17 @@ same kind stops board repeats (stop-loss) and moves to transport/protocol design
 Delivered here: `host/l6_reader.py`, the runner switched to it, `tests/test_l6_reader.py`,
 the manifest `standing`/`hardware_history` and the canonical row corrected,
 `HardwareHistoryIsConsistent` guard, `docs/l6_instrument.md` §3 corrected.
+
+## 2026-09-01 — C1 #2 (ruling 2026-09-01-07): HOLD — the host collector's silence clock; not transport
+
+Owner: C1 #1 record precision PASS, push approved, one power cycle and C1 #2 only, with
+the stop-loss on a repeated byte loss. Power cycle, boundary PASS, preflight PASS, image
+loaded, `go` — and the runner ended the epoch 0.4 s later: `CRASHED: silence > 30s`,
+console 0 bytes. Cause: the `Collector` is built before the preamble, so its silence clock
+was four minutes old at `go`; the blocking `drain()` had always refreshed it with the
+IDENT burst before the first `poll()`, and the non-blocking reader of `1de813b` removed
+that accident. Fixed host-only: silence is measured from `go`
+(`collector.last_heard = collector.clock()` right after it), with a test on the real
+Collector and a placement test. The same construction order in `host/l5_runner.py` is
+recorded, not edited. Not a byte loss — the owner's stop-loss is not met; but the next
+session is the third without COMPLETED, prereg §7's design-review trigger, for the owner.

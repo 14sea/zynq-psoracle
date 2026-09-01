@@ -225,6 +225,13 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         reader = lrd.L6LineReader(session.transport._serial)  # noqa: SLF001 — same handle, same epoch
         l5.send_raw_line(session.transport, f"go {l5.APP_LOAD_ADDR:#x}")
         t_go = time.monotonic()
+        # The collector was constructed before the preamble (minutes of carrier ymodem); its
+        # silence clock starts NOW, when the application is handed the console. With the
+        # blocking drain() the first poll only ran after the IDENT burst had refreshed the
+        # clock, which hid this; with the non-blocking reader the first poll returned empty
+        # and the preamble's minutes read as "silence > 30 s" — C1 #2 (2026-09-01-07) ended
+        # 0.4 s after `go` on exactly that, with nothing heard. Silence is measured from `go`.
+        collector.last_heard = collector.clock()
         deadline = t_go + plan["session_timeout_s"]
         audit_sent_for = set()
         while collector.epoch_end is None and time.monotonic() < deadline:

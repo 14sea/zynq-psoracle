@@ -127,5 +127,38 @@ class RunnerWiring(unittest.TestCase):
         self.assertNotIn("t_mono, t_wall = time.monotonic(), time.time()", loop)
 
 
+class SilenceClockStartsAtGo(unittest.TestCase):
+    """C1 #2 (2026-09-01-07): the collector is built before the preamble; with the
+    non-blocking reader the first poll after `go` found nothing yet and the collector read
+    the preamble's minutes as silence — CRASHED 0.4 s after `go`, console empty. The
+    silence clock must start when the console is handed over."""
+
+    def test_the_mechanism_and_the_fix_on_the_real_collector(self):
+        import l5_notary as n
+        now = {"t": 0.0}
+        collector = n.Collector("ab" * 16, heartbeat_s=10, clock=lambda: now["t"])
+        now["t"] = 240.0                       # four minutes of carrier ymodem
+        # without the reset, the first empty poll after `go` is a crash
+        self.assertIsNotNone(collector.poll(), "the preamble's silence must NOT count — but it does without the reset")
+        collector = n.Collector("ab" * 16, heartbeat_s=10, clock=lambda: now["t"])
+        now["t"] = 240.0
+        collector.last_heard = collector.clock()          # the fix: measured from `go`
+        now["t"] = 240.02                                 # the first poll, 20 ms later, nothing yet
+        self.assertIsNone(collector.poll())
+        now["t"] = 269.0                                  # 29 s of real silence: still live
+        self.assertIsNone(collector.poll())
+        now["t"] = 271.0                                  # 31 s: the rule fires on REAL silence
+        self.assertEqual(collector.poll()["kind"], "CRASHED")
+
+    def test_the_runner_resets_the_silence_clock_right_after_go(self):
+        import l6_runner as l6
+        src = inspect.getsource(l6.run_l6)
+        i_go = src.index('f"go {l5.APP_LOAD_ADDR:#x}"')
+        i_reset = src.index("collector.last_heard = collector.clock()")
+        i_loop = src.index("while collector.epoch_end is None")
+        self.assertLess(i_go, i_reset); self.assertLess(i_reset, i_loop)
+        self.assertLess(src.index("collector = n.Collector("), i_go, "the collector is built before the preamble")
+
+
 if __name__ == "__main__":
     unittest.main()
