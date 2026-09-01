@@ -499,10 +499,16 @@ given, all five items:
 4. **`tests/test_axi_map_vs_rtl.py`** is the permanent guard. Both maps are parsed from their
    own sources — the app's `axi_readable`/`axi_writable` bodies and the RTL's `ra`/`wa`
    decode — so neither side is a copy that can drift. `app − RTL` must be empty on **read and
-   write**; `RTL − app` is reported and asserted to be exactly the key window (D4). The
-   parsers are themselves guarded with minimum-cardinality and anchor checks, because two
-   empty sets would otherwise compare equal and pass vacuously. Discrimination verified live:
-   reintroducing the session-2 read fails two tests and names `0x2000`.
+   write**; `RTL − app` is a **closed set** — empty on read, exactly the key window
+   `{0x2160, 0x2164, 0x2168, 0x216C}` on write (D4). The first version of this guard only
+   asserted the key window was *contained* in the difference; the reviewer (2026-09-01) held
+   the package on that gap, since one more writable offset decoded by the RTL and never named
+   by the app would have passed. It now asserts equality. The parsers are themselves guarded
+   with minimum-cardinality and anchor checks, because two empty sets would otherwise compare
+   equal and pass vacuously. Discrimination verified live, both directions: reintroducing the
+   session-2 read fails and names `0x2000`; adding `wa == 16'h2170` to the real RTL fails and
+   names `0x2170`. The same mutations are also applied to an in-memory copy of the RTL inside
+   the suite, so the discrimination is re-checked on every run, not only in this note.
 5. Image rebuilt: **`10044abe…`**, byte-identical across two from-scratch builds. `8390c463…`
    is withdrawn as **DEFECTIVE — must not be run**; it crashes at every ARM.
 

@@ -109,10 +109,16 @@ owner's ruling the RTL contract was **not** widened to suit the instrument:
 - the genuinely readable observations are kept: `STATUS`, `FAULT`, `writes_issued`, and both
   nonces;
 - **`tests/test_axi_map_vs_rtl.py`** parses the app's allowlist and the RTL's decode from
-  their own sources and requires `app − RTL` to be **empty on both read and write**. It is
-  discrimination-checked: reintroducing the session-2 read makes it fail, naming `0x2000`.
-  Its parsers are themselves guarded, so a broken regex cannot make the comparison pass
-  vacuously.
+  their own sources and requires `app − RTL` to be **empty on both read and write**, and
+  `RTL − app` to be a **closed set**: empty on read, exactly D4's key window
+  `{0x2160, 0x2164, 0x2168, 0x216C}` on write. It is discrimination-checked both ways:
+  reintroducing the session-2 read fails naming `0x2000`; an extra RTL decode (`wa ==
+  16'h2170`) fails naming `0x2170` — verified live against the real file and re-checked on
+  every run against a mutated in-memory copy. Its parsers are themselves guarded, so a
+  broken regex cannot make the comparison pass vacuously.
+  *Review round 2026-09-01 (owner): HOLD on exactly this — the first version asserted
+  containment, not equality, so the "only difference is deliberate" claim was not yet
+  enforced. Test-only fix; the firmware image is unchanged, `10044abe…` still pinned.*
 
 This does **not** explain session 1 — that ran `d3828a8c…`, built before the `CTRL` read
 existed. Session 1's non-stepping nonce remains open and unexplained.
