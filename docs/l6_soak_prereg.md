@@ -1,4 +1,4 @@
-# L6 — calibration and soak of the P3 loop (preregistration, DRAFT v0.1, host-only)
+# L6 — calibration and soak of the P3 loop (preregistration, DRAFT v0.2, host-only; D-s1..D-s4 ruled 2026-09-01)
 
 > **Standing: DRAFT. Host-only. This document authorises nothing — no build, no ruling, no
 > board contact.** Written 2026-09-01 on the `zynq-fabricmap` owner ruling recorded in
@@ -67,21 +67,61 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
    the settle poll (strobe once, bounded read-only wait), the serialiser tally, the audit
    service, the MMIO allowlists against the RTL (`tests/test_axi_map_vs_rtl.py`), the DMA
    order, no ICAPE2, no SLCR write, the identity-page flag gating of the watchdog.
-6. **Watchdog** per D-s1 (§3). If enabled, it is enabled the way the D-c finding specified
-   (prescaler 7, load 1 250 000 035 → 30.0 s at PERIPHCLK 333.33 MHz, now board-confirmed),
-   kicked at the same progress points as the heartbeat, and the identity page's `flags.bit1`
-   selects it; a session with bit1 = 0 must behave exactly as L5 did.
+6. **Watchdog** per D-s1 (§3, ruled ON): prescaler 7, load 1 250 000 035 → 30.0 s at
+   PERIPHCLK 333.33 MHz (board-confirmed), kicked at the same progress points as the
+   heartbeat, selected by the identity page's `flags.bit1`; a session with bit1 = 0 must
+   behave exactly as L5 did; the build and its tests pin the actual load value written.
+6a. **Unconditional audit for non-`SCORED` self-reports** (§3a item 2): the firmware serves
+   the raw words before emitting any `STOP_LINK2`/`STOP_LINK3`/`REFUSED_BY_PL`/`STOP_ARM`/
+   `STOP_SETTLE` record, with or without an `AUDITREQ`.
 7. Review by the owner against this list, item by item, before any L6 ruling; the image
    hash is then pinned in `manifests/l6_manifest.json` and this document is frozen.
 
-## 3. Decisions the owner takes before freeze
+## 3. Decisions — RULED by the owner, 2026-09-01
 
-| id | decision | author's recommendation |
-|---|---|---|
-| **D-s1** watchdog | off (L5's D-c option 2) or on (option 1, §2.6) for unattended hours | **on** for the soak and on for calibration too, so that the soaked configuration is the one Claim B runs; a stall > 30 s then reboots into U-Boot, the collector sees the banner and declares `CRASHED`, and the epoch is sealed exactly as today |
-| **D-s2** audit policy for the soak | `all-self-reporting` (L5) or **sampled** | **sampled**: every non-`SCORED` self-reporting record (`STOP_LINK2`, `STOP_LINK3`, `REFUSED_BY_PL`, `STOP_ARM`, `STOP_SETTLE`) audited; every 16th `SCORED` by seq, plus the first and the last candidate and both baselines; host-derived marks as now; the policy is machine-checked by an extension of `check_audit_policy` with discrimination tests both ways. Calibration sessions stay `all-self-reporting` |
-| **D-s3** soak duration | T | **2 h** for the first soak (autoehw's multi-hour precedent), with N derived as ⌊0.9 × rate × T⌋ from calibration, never from a wall-clock guess |
-| **D-s4** CRC budget scaling | per-session 16 (L5) or per-frame-count | **per 1 000 frames received: 4**, applied per session; the L5 figure was for ~350 frames |
+| id | ruling |
+|---|---|
+| **D-s1** watchdog | **ON.** Prescaler 7, 30 s (`load 1 250 000 035` at PERIPHCLK 333.33 MHz, board-confirmed 2026-09-01-05). Arm and kick are gated by the identity page's `flags.bit1`; the **bit1 = 0 path keeps L5's behaviour exactly**. The build and its tests must pin the **actual** load value written, not the derivation. |
+| **D-s2** audit policy for the soak | **Sampled, accepted in principle, with the timing requirement of §3a as a condition.** The v0.1 wording "every non-`SCORED` self-reporting record audited" is **not implementable under the current wire protocol** (§3a) and is replaced by §3a's rule. |
+| **D-s3** soak duration | **2 h, accepted.** N = ⌊0.9 × min(rate_A, rate_B) × T⌋, with rate_A and rate_B imported **only** from the two calibration records (C1, C2) by their hashes. |
+| **D-s4** CRC budget | **Frame-count scaling, with a closed formula:** `budget = ceil(4 × expected_protocol_frames / 1000)`, where `expected_protocol_frames` is derived **before the session starts** from N, the audit schedule and the fixed brackets (`IDENT`×1, `SIGNREQ`×(N+2), `HB`×16 per candidate, `AUDIT`×8 per audited candidate, `REC`×(N+2), `CLOSE`×1, `TERM`×1) — **never from the count actually received**. Independently of the CRC total, **any missing `AUDIT`, `REC` or `TERM`** is the corresponding structural defect and is a HOLD even when the CRC drops are within budget. |
+
+### 3a. The audit timing requirement (D-s2's blocker, and its resolution)
+
+**The blocker.** Under the current wire protocol the host's `AUDITREQ` is attached to the
+sign reply, i.e. it reaches the application **before staging**, and the application serves
+raw words only `if (S.audit_requested)` (`firmware/p3_app.c`, the `serve_audit` call sites).
+There is no evidence ring: once a candidate's outcome is known, its words are gone if they
+were not requested. So under a sampled schedule, a candidate the schedule did **not** select
+that then turns out to be `STOP_LINK2`, `STOP_LINK3`, `REFUSED_BY_PL`, `STOP_ARM` or
+`STOP_SETTLE` can no longer be audited — "all non-`SCORED` self-reporting records audited"
+cannot be honoured after the fact.
+
+**The rule, fixed here:**
+
+1. **`SCORED` candidates** are audited per the preregistered sampled schedule (every 16th by
+   seq, plus the first and the last candidate and both baselines), requested by `AUDITREQ`
+   as today.
+2. **Any outcome that produces a raw self-report and is not `SCORED`** — `STOP_LINK2`
+   (streams span), `STOP_LINK3`, `REFUSED_BY_PL`, `STOP_ARM`, `STOP_SETTLE` (full span) — is
+   audited **unconditionally by the firmware itself, before it emits the record, without
+   waiting for an `AUDITREQ`**. The words are served from the same buffers and in the same
+   chunk format; the record then goes out as now.
+3. **`REFUSED_BY_GATE`** and a **`STOP_AXI` before staging** stay exempt under the existing
+   rule (nothing was staged; no raw words exist).
+4. **Marks are derived by the host from raw recomputation** (`validators/audit.py` inside
+   `validate_standalone_run_log`); the firmware's own mark is never trusted, exactly as now.
+5. **Negative test, required before any L6 ruling:** a candidate that the sampled schedule
+   did not select and that later ends in one of the outcomes of item 2, whose words were
+   **not** auto-served, must make the session a **HOLD** (an unaudited self-report under the
+   policy), and the discrimination test must show the check firing on exactly that record.
+   A second negative: auto-served words that do not recompute are `Falsified` (KILL), as for
+   any served words.
+
+This is a **firmware change** (item 2) and therefore part of the two-operator image's P3
+compatibility review (§2), plus a validator change (the sampled policy with item 2's
+obligations). Both wait for the owner's authorisation of §4 and §2; nothing is implemented by
+this document.
 
 ## 4. Instrument changes required before any L6 ruling (host-only, tested, reviewed)
 
@@ -94,15 +134,18 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
    breakdown, evaluations per hour, the coefficient of variation, and the failure rate —
    the four numbers Claim B's §6 calibration asks for. Pure function, tested on session 4's
    log (it must refuse: no timestamps) and on a synthetic timed log.
-3. **Sampled audit policy** (D-s2) in `validators/records.py`, with the host gate unchanged.
+3. **Sampled audit policy** (D-s2, as fixed by §3a) in `validators/records.py`, with the host gate unchanged; the policy check must know the schedule and must require the §3a item-2 auto-audit for every non-`SCORED` self-report.
 4. **Arm-aware validator**: `loop_record.arm` required and checked against the schedule
    (§2.4); `check_audit_policy` and the chain unchanged.
 5. **Ruling text** `whole-of-probe P3-L6` checked by `host/l6_runner.py` (the L5 runner with
    `--duration`, the sampled policy, timestamps and the rate report; nothing else), plus
    `provisioning P3-K` per session as always. Old texts are refused.
-6. **Budget arithmetic in the runner**: N is an input pinned from the calibration record's
-   hash, never typed by hand; the session timeout is derived from N and the measured rate
-   with margin, and is recorded.
+6. **Budget arithmetic in the runner**: N is an input pinned from the **two** calibration
+   records' hashes (D-s3), never typed by hand; the session timeout is derived from N and the
+   measured rates with margin, and is recorded.
+7. **Expected-frame-count and CRC budget** (D-s4): computed before the session from N, the
+   schedule and the brackets, recorded in the summary with the formula's inputs; the
+   collector's structural checks (missing `AUDIT`/`REC`/`TERM`) stay independent of it.
 
 ## 5. Sessions — fixed in advance
 
@@ -110,7 +153,7 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
 |---|---|---|---|---|---|---|
 | **C1** calibration, random-safe schedule forced | two-operator | 64 | all-self-reporting | D-s1 | rate + breakdown + failure rate, arm A | `P3-L6` + `P3-K` |
 | **C2** calibration, map-guided schedule forced | two-operator | 64 | all-self-reporting | D-s1 | same, arm B (operator compute time may differ) | `P3-L6` + `P3-K` |
-| **S** soak, A,B,B,A schedule | two-operator | ⌊0.9 × min(rate_A, rate_B) × T⌋ | sampled (D-s2) | D-s1 | Q2 | `P3-L6` + `P3-K` |
+| **S** soak, A,B,B,A schedule | two-operator | ⌊0.9 × min(rate_A, rate_B) × T⌋, rates by C1/C2 record hash | sampled per §3a | D-s1 | Q2 | `P3-L6` + `P3-K` |
 
 Each session: power cycle → boundary verifier as the runner → identity → carrier load
 (sha-gated) → provisioning → image load (sha-gated) → `dcache off` → identity page (master
@@ -128,10 +171,10 @@ from Claim B's schedule (recorded in the Claim B preregistration at freeze).
    `[18, 22, 20, 20, 20, 18]`, (ii)/(iii) for every `SCORED`, the nonce chain over every
    attempt, the closing unsigned ARM refused `F_ARM_AUTH`, every audited candidate
    recomputing on the host, `validate_standalone_run_log` accepting, zero disruptions;
-2. the sampled policy (S) or all-self-reporting (C1/C2) satisfied by host-derived marks;
+2. the sampled policy of §3a (S) or all-self-reporting (C1/C2) satisfied by host-derived marks — every non-`SCORED` self-report auto-audited, every scheduled `SCORED` audited;
 3. a timing record for **every** candidate, and a rate report whose coefficient of variation
    over candidates is ≤ 0.10 (C1, C2) — larger is a HOLD with the distribution published;
-4. for S: no heartbeat gap > 20 s (L2's guard), CRC drops within D-s4's budget, wall time
+4. for S: no heartbeat gap > 20 s (L2's guard), CRC drops within D-s4's closed-formula budget (and no missing `AUDIT`/`REC`/`TERM` regardless of it), wall time
    ≥ 0.9 T, and every `settle.polls` within [1, 10 × the C1/C2 median] — a slower gate is a
    finding, not a failure, but it stops the session as `STOP_SETTLE` would if it exceeds the
    bound;
