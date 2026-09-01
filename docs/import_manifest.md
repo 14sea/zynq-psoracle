@@ -352,6 +352,7 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-01T182129Z.json` |
 | `evidence/tests/test_report_2026-09-01T181507Z.json` |
 | `evidence/tests/test_report_2026-09-01T180634Z.json` |
 | `evidence/tests/test_report_2026-09-01T175438Z.json` |
@@ -507,6 +508,14 @@ revisions and neither may be silently substituted for the other.
 | `tests/test_l6_reader.py` |
 | `docs/l6_c1_session2_findings.md` |
 | `docs/l6_c1_session3_findings.md` |
+| `host/l6_console.py` |
+| `tests/test_l6_console.py` |
+| `host/l6_loss_stats.py` |
+| `evidence/l6_console_loss_stats.json` |
+| `docs/l6_console_loss_summary.md` |
+| `host/l6_audit_pull.py` |
+| `tests/test_l6_audit_pull.py` |
+| `docs/l6_audit_pull_design.md` |
 | `evidence/boundary/principal_boundary_2026-09-01-08.json` |
 | `evidence/l6_17A6_2026-09-01-08-C1/L6_0_preflight.json` |
 | `evidence/l6_17A6_2026-09-01-08-C1/L6_1_identity_page.json` |

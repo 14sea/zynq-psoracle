@@ -940,3 +940,24 @@ CRC-failed frame of any type — a broken SIGNREQ included — ever reaches
 `NotaryRelay.handle_line()`; the D-s4 budget was never enforced and the summary's relay
 count is always zero; the timeline is the only true counter — a host fix for the review. Informational, not pinned: 1586 evals/h, CoV 0.019, audit
 1.85 s of a 2.27 s period. `docs/l6_c1_session3_findings.md` lists the options.
+
+## 2026-09-01 — design review after the stop-loss: the host-only batch delivered
+
+Owner's rulings: C1 #3 HOLD (transport); the byte-loss stop-loss is met on the standing
+ruling (not §7); C1 stays null; `bd1454cd…` is the historical image that completed a
+board epoch, not defective. Authorised and delivered host-only: (1) `host/l6_console.py`
+— the timeline is the one inbound ledger and CRC authority for every frame type, the
+budget is enforced there, a malformed frame is not a CRC drop, the relay never sees a
+CRC failure; the C1 #3 counterfactual through the real objects counts 2 AUDIT drops
+within the budget of 7 and still refuses the log for the missing chunks; negatives cover
+SIGNREQ/HB/AUDIT/REC/TERM/CLOSE and the over-budget stop. (2) `host/l6_loss_stats.py` +
+`docs/l6_console_loss_summary.md`: three loss events across C1 #1 and C1 #3 (39 across a
+line boundary; 309 and 229 inside a line), denominators 627 complete audit lines / 719
+audit frames / 2.33 MB, 96.4 % of audit words zero, no chunk-specific inference. (3)
+`docs/l6_audit_pull_design.md` + `host/l6_audit_pull.py`: AUDIT_READY → AUDITGET →
+AUDIT → AUDITDONE with ≤ 2 retries per chunk, every failed attempt kept and budgeted,
+lossless sparse-v1 words (unlisted = zero, ascending unique positions), host rebuilds
+2814 words and recomputes the three hashes; on C1 #3's real words 4 282 B vs 22 320 B,
+the recorded deletions recovered by one retry, exhaustion HOLD, valid-CRC wrong content
+Falsified, retransmission in the cost. Next: the owner rules on adoption, the new
+firmware/image and prereg version; no board, no ruling until then.

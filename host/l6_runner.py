@@ -46,6 +46,7 @@ import l3_runner as l3  # noqa: E402
 import l5_notary as n  # noqa: E402
 import l5_runner as l5  # noqa: E402
 import l6_checks as lc  # noqa: E402
+import l6_console as lcs  # noqa: E402
 import l6_operators as lo  # noqa: E402
 import l6_rate as lr  # noqa: E402
 import l6_reader as lrd  # noqa: E402
@@ -233,26 +234,10 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         # 0.4 s after `go` on exactly that, with nothing heard. Silence is measured from `go`.
         collector.last_heard = collector.clock()
         deadline = t_go + plan["session_timeout_s"]
-        audit_sent_for = set()
+        console = lcs.ConsoleSession(token, collector, relay, timeline, plan["audit_seqs"], plan["crc_budget"], send)
         while collector.epoch_end is None and time.monotonic() < deadline:
             for line, t_mono, t_wall in reader.poll():
-                timeline.observe(line, t_mono, t_wall)
-                if not line.startswith(n.MAGIC):
-                    continue
-                collector.on_line(line)
-                try:
-                    f = n.parse_line(line)
-                except (n.FrameError, n.CrcError):
-                    continue
-                if f["type"] != n.T_SIGNREQ:
-                    continue
-                if f["seq"] in plan["audit_seqs"] and f["seq"] not in audit_sent_for:
-                    audit_sent_for.add(f["seq"])
-                    send(n.build_line(n.T_AUDITREQ, f["seq"], token, n.encode_payload({"seq": f["seq"]})),
-                         n.T_AUDITREQ, f["seq"])
-                reply = relay.handle_line(line)
-                if reply is not None:
-                    send(reply, n.T_SIGNREF if f" {n.T_SIGNREF} " in reply else n.T_SIGNOK, f["seq"])
+                console.on_line(line, t_mono, t_wall)
             if reader.saw_uboot_banner():
                 collector.on_banner()
             collector.poll()
@@ -268,7 +253,7 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         summary["audits"] = len(collector.audits)
         if collector.session_summary is None:
             collector.session_summary = collector.crashed_summary(
-                crc_dropped=relay.crc_dropped, drop_budget=plan["crc_budget"])
+                crc_dropped=console.crc_dropped, drop_budget=plan["crc_budget"])   # the ledger, not the relay
         seqs = [r["seq"] for r in collector.loop_records]
         timing = lt.record_timing(timeline.frames, seqs)
         log = {"control_plane": "standalone", "app_identity": collector.app_identity,
@@ -306,7 +291,7 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
                 else:
                     med = min(x for x in plan["inputs"]["settle_polls_median_calibration"] if x is not None)
                     findings += lc.soak_findings(
-                        log, timeline.frames, relay.crc_dropped, plan["crc_budget"], rep["session_span_s"],
+                        log, timeline.frames, console.crc_dropped, plan["crc_budget"], rep["session_span_s"],
                         plan["inputs"]["duration_s"], pc["hb_gap_max_s"], med, pc["settle_bound_factor"],
                         pc["wall_fraction_min"])
             except lr.RateError as exc:
@@ -336,7 +321,12 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         summary["disruptions"] = session.disruptions
         summary["transport_rereads"] = session.rereads
         summary["epoch_final"] = session.epoch
-        summary["crc_dropped"] = relay.crc_dropped
+        # the ONE inbound ledger (design review 2026-09-01): the relay never sees a CRC-failed
+        # line, so its counter is not evidence of anything
+        summary["crc_dropped"] = timeline.crc_dropped
+        summary["crc_dropped_by_type"] = dict(timeline.crc_dropped_by_type)
+        summary["bad_frames"] = timeline.bad_frames
+        summary["crc_budget"] = plan["crc_budget"]
         pr.write_record(out_dir, "summary", summary)
     return summary
 

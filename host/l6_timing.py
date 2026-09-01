@@ -43,6 +43,7 @@ class Timeline:
         self.frames: list[dict] = []                          # parsed frames, rx and tx
         self.crc_dropped = 0
         self.bad_frames = 0
+        self.crc_dropped_by_type: dict[str, int] = {}   # the type field as received, "?" if unreadable
 
     def observe(self, line: str, t_mono: float, t_wall: float) -> None:
         self.lines.append((t_mono, t_wall, line))
@@ -52,7 +53,11 @@ class Timeline:
             f = n.parse_line(line)
         except n.CrcError:
             self.crc_dropped += 1
-            self.frames.append({"dir": "rx", "type": "CRC_DROP", "seq": None, "t_mono": t_mono, "t_wall": t_wall})
+            parts = line.split(" ")
+            t = parts[1] if len(parts) > 1 and parts[1] in n.APP_TYPES else "?"
+            self.crc_dropped_by_type[t] = self.crc_dropped_by_type.get(t, 0) + 1
+            self.frames.append({"dir": "rx", "type": "CRC_DROP", "seq": None, "t_mono": t_mono, "t_wall": t_wall,
+                                "frame_type": t})
             return
         except n.FrameError:
             self.bad_frames += 1
@@ -67,8 +72,10 @@ class Timeline:
         return "".join(f"{m:.6f} {w:.6f} {ln}\n" for m, w, ln in self.lines).encode("utf-8", "replace")
 
     def to_json(self) -> dict:
-        return {"schema": "l6_timeline", "schema_version": "1.0.0", "clocks": CLOCKS,
-                "crc_dropped": self.crc_dropped, "bad_frames": self.bad_frames, "frames": list(self.frames)}
+        return {"schema": "l6_timeline", "schema_version": "1.1.0", "clocks": CLOCKS,
+                "crc_dropped": self.crc_dropped, "crc_dropped_by_type": dict(self.crc_dropped_by_type),
+                "bad_frames": self.bad_frames, "frames": list(self.frames),
+                "note": "this timeline is the ONE inbound ledger and the CRC authority for the session"}
 
 
 def record_timing(frames: list[dict], seqs: list[int]) -> dict[int, dict]:
