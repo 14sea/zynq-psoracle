@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import getpass
 import hashlib
 import io
 import json
@@ -41,7 +42,8 @@ def report(session: str, rate: float, median_polls: float = 16.0, contract: str 
 
 class Plan(unittest.TestCase):
     def test_c1_is_64_random_safe_all_self_reporting_watchdog_on(self):
-        p = l6.plan_session(L6M, "C1", 0x1234, 7200.0, None, None)
+        p = l6.plan_session(L6M, "C1", None, 7200.0, None, None)
+        self.assertEqual(p["master_seed"], 0x4c364341)
         self.assertEqual((p["n"], p["mode"], p["audit_policy"]), (64, ls.MODE_A_FORCED, "all-self-reporting"))
         self.assertEqual(p["audit_seqs"], ls.all_seqs(64))
         self.assertEqual(p["flags"], ls.FLAG_WATCHDOG | 1 << ls.MODE_FLAG_SHIFT)
@@ -50,12 +52,13 @@ class Plan(unittest.TestCase):
         self.assertEqual(p["crc_budget"], 7)                            # ceil(4 × 1719 / 1000)
 
     def test_c2_forces_map_guided(self):
-        p = l6.plan_session(L6M, "C2", 1, 7200.0, None, None)
+        p = l6.plan_session(L6M, "C2", 0x4c364341, 7200.0, None, None)
         self.assertTrue(all(r["arm"] == ls.ARM_B for r in p["schedule"]))
         self.assertEqual(p["flags"], ls.FLAG_WATCHDOG | 2 << ls.MODE_FLAG_SHIFT)
 
     def test_soak_derives_n_budget_and_timeout_from_the_calibration_rates(self):
-        p = l6.plan_session(L6M, "S", 5, 7200.0, {"C1": report("C1", 120.0), "C2": report("C2", 100.0)}, None)
+        p = l6.plan_session(L6M, "S", None, 7200.0, {"C1": report("C1", 120.0), "C2": report("C2", 100.0)}, None)
+        self.assertEqual(p["master_seed"], 0x4c36534f)
         self.assertEqual(p["n"], 180); self.assertEqual(p["audit_policy"], "sampled")
         self.assertEqual(p["audit_seqs"], ls.sampled_audit_seqs(180))
         self.assertEqual(p["session_timeout_s"], ls.session_timeout_s(180, 120.0, 100.0))
@@ -66,24 +69,43 @@ class Plan(unittest.TestCase):
 
     def test_soak_refuses_a_report_of_the_wrong_session_or_without_a_rate(self):
         with self.assertRaises(ValueError):
-            l6.plan_session(L6M, "S", 5, 7200.0, {"C1": report("C2", 120.0), "C2": report("C2", 100.0)}, None)
+            l6.plan_session(L6M, "S", None, 7200.0, {"C1": report("C2", 120.0), "C2": report("C2", 100.0)}, None)
         bad = report("C1", 120.0); del bad["evals_per_hour"]
         with self.assertRaises(ValueError):
-            l6.plan_session(L6M, "S", 5, 7200.0, {"C1": bad, "C2": report("C2", 100.0)}, None)
+            l6.plan_session(L6M, "S", None, 7200.0, {"C1": bad, "C2": report("C2", 100.0)}, None)
         with self.assertRaises(ValueError):
-            l6.plan_session(L6M, "S", 5, 7200.0, None, None)
+            l6.plan_session(L6M, "S", None, 7200.0, None, None)
 
     def test_soak_refuses_a_calibration_under_another_operator_contract(self):
         """mutation_bits (and the map data) are the operator contract: a calibration run
         under a different operator_data_sha256 cannot budget this soak (owner 2026-09-01)."""
         with self.assertRaises(ValueError) as cm:
-            l6.plan_session(L6M, "S", 5, 7200.0, {"C1": report("C1", 120.0, contract="00" * 32),
+            l6.plan_session(L6M, "S", None, 7200.0, {"C1": report("C1", 120.0, contract="00" * 32),
                                                    "C2": report("C2", 100.0)}, None)
         self.assertIn("operator contract", str(cm.exception)); self.assertIn("re-run", str(cm.exception))
 
+    def test_the_seeds_are_the_owners_pins_and_c1_c2_share_one(self):
+        """Owner 2026-09-01: C1 = C2 = 0x4c364341 (same seed pairs, only the operator
+        differs), S = 0x4c36534f; a CLI seed must equal the pin; S's T is exactly 7200."""
+        self.assertEqual(L6M["sessions"]["C1"]["master_seed"], L6M["sessions"]["C2"]["master_seed"])
+        self.assertEqual(L6M["sessions"]["C1"]["master_seed"], 1278624577)
+        self.assertEqual(L6M["sessions"]["S"]["master_seed"], 1278628687)
+        self.assertEqual([r["seed"] for r in l6.plan_session(L6M, "C1", None, 7200.0, None, None)["schedule"]],
+                         [r["seed"] for r in l6.plan_session(L6M, "C2", None, 7200.0, None, None)["schedule"]])
+        with self.assertRaises(ValueError) as cm:
+            l6.plan_session(L6M, "C1", 0x1234, 7200.0, None, None)
+        self.assertIn("not the pinned", str(cm.exception))
+        cal = {"C1": report("C1", 120.0), "C2": report("C2", 100.0)}
+        for t in (3600.0, 7199.0, 7201.0):
+            with self.assertRaises(ValueError) as cm:
+                l6.plan_session(L6M, "S", None, t, cal, None)
+            self.assertIn("exactly the pinned 7200", str(cm.exception))
+        self.assertEqual(l6.plan_session(L6M, "S", None, 7200.0, cal, None)["inputs"]["duration_s"], 7200.0)
+
     def test_master_seed_is_32_bit_and_n_is_never_typed(self):
+        bad = copy.deepcopy(L6M); bad["sessions"]["C1"]["master_seed"] = 1 << 32
         with self.assertRaises(ValueError):
-            l6.plan_session(L6M, "C1", 1 << 32, 7200.0, None, None)
+            l6.plan_session(bad, "C1", None, 7200.0, None, None)
         import inspect
         src = inspect.getsource(l6.main)
         self.assertNotIn('"--budget"', src); self.assertNotIn('"--n"', src)
@@ -92,46 +114,63 @@ class Plan(unittest.TestCase):
 class Refusals(unittest.TestCase):
     """Each refusal is reached and is about its own check."""
 
+    IMAGE_STANDIN = b"the two-operator image stand-in"
+    PREREG_SHA = hashlib.sha256((R / "docs/l6_soak_prereg.md").read_bytes()).hexdigest()
+
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
-        (self.tmp / "img.bin").write_bytes(b"the two-operator image stand-in")
-        self.image_sha = hashlib.sha256((self.tmp / "img.bin").read_bytes()).hexdigest()
-        (self.tmp / "ruling.json").write_text(json.dumps(
-            {"ruling": l6.RULING_TEXT, "boardid": "17A6", "granted_by": "14sea", "date": "2026-09-99-01"}))
-        (self.tmp / "l5ruling.json").write_text(json.dumps(
-            {"ruling": "whole-of-probe P3-L5", "boardid": "17A6", "granted_by": "14sea", "date": "2026-09-99-02"}))
+        (self.tmp / "img.bin").write_bytes(self.IMAGE_STANDIN)
+        self.image_sha = hashlib.sha256(self.IMAGE_STANDIN).hexdigest()
+        self.write_ruling("ruling.json", l6.RULING_TEXT, "C1", master_seed=L6M["sessions"]["C1"]["master_seed"])
+        self.write_ruling("l5ruling.json", "whole-of-probe P3-L5", "C1")
+        self.write_ruling("pk.json", l6.PROVISION_RULING_TEXT, "C1")
         self.boundary(True)
 
-    def boundary(self, ok: bool):
+    def write_ruling(self, name, text, session, master_seed=None, prereg=None, image=None, **extra):
+        r = {"ruling": text, "boardid": "17A6", "granted_by": "14sea", "date": "2026-09-99-01",
+             "session": session, "prereg_sha256": self.PREREG_SHA if prereg is None else prereg,
+             "image_sha256": self.image_sha if image is None else image}
+        if master_seed is not None:
+            r["master_seed"] = master_seed
+        r.update(extra)
+        (self.tmp / name).write_text(json.dumps(r))
+
+    def boundary(self, ok: bool, runner_user=None, signer_user="p3signer", key_store="/var/lib/p3signer/keys"):
         (self.tmp / "boundary.json").write_text(json.dumps(
-            {"schema": "principal_boundary", "schema_version": "1.0.0", "runner_user": "test",
-             "signer_user": "p3signer", "pod_group": "p3jtag", "key_store": "/var/lib/p3signer/keys",
+            {"schema": "principal_boundary", "schema_version": "1.0.0",
+             "runner_user": getpass.getuser() if runner_user is None else runner_user,
+             "signer_user": signer_user, "pod_group": "p3jtag", "key_store": key_store,
              "all_passed": ok, "checks": [{"check": c, "passed": ok, "detail": "fixture"} for c in
                                           ("R1_runner_is_not_signer", "R2_runner_cannot_read_key",
                                            "R3_runner_cannot_open_pod", "R4_signer_reachable_and_holds_key",
                                            "R5_signer_in_pod_group")], "at": time.time()}))
 
-    def manifest(self, *, frozen=True, image=True, watchdog=True, calib=None) -> Path:
+    def manifest(self, *, frozen=True, image=True, watchdog=True, calib=None, carrier=None) -> Path:
         m = copy.deepcopy(L6M)
-        m["prereg"]["sha256"] = (hashlib.sha256((R / "docs/l6_soak_prereg.md").read_bytes()).hexdigest()
-                                 if frozen else None)
-        # the committed manifest now pins the real image; the fixture pins the stand-in or nulls it
+        m["prereg"]["sha256"] = self.PREREG_SHA if frozen else None
+        # the committed manifest pins the real image; the fixture pins the stand-in or nulls it
         m["pinned_at_build"]["app_image_sha256"] = self.image_sha if image else None
         if not watchdog:
             m["pinned_at_build"]["watchdog_enabled"] = False
         if calib:
             for k, sha in calib.items():
                 m["calibration"][k]["rate_report_sha256"] = sha
+        if carrier:
+            m["instrument"]["carrier"].update(carrier)
         p = self.tmp / "l6_manifest.json"
         p.write_text(json.dumps(m))
         return p
 
-    def args(self, session="C1", ruling="ruling.json", manifest: Path | None = None, extra=()) -> list[str]:
-        return ["--ruling", str(self.tmp / ruling), "--session", session, "--master-seed", "0x1234",
+    def args(self, session="C1", ruling="ruling.json", manifest: Path | None = None, extra=(),
+             pk="pk.json", bitstream=None, carrier_manifest=None) -> list[str]:
+        argv = ["--ruling", str(self.tmp / ruling), "--session", session,
                 "--boundary", str(self.tmp / "boundary.json"), "--out", str(self.tmp / "out"),
-                "--manifest", str(R / "builds/p3/carrier_manifest.json"),
-                "--bitstream", str(R / "builds/p3/p3.bit"), "--image", str(self.tmp / "img.bin"),
+                "--manifest", str(carrier_manifest or R / "builds/p3/carrier_manifest.json"),
+                "--bitstream", str(bitstream or R / "builds/p3/p3.bit"), "--image", str(self.tmp / "img.bin"),
                 "--l6-manifest", str(manifest or self.manifest()), *extra]
+        if pk:
+            argv += ["--provision-ruling", str(self.tmp / pk)]
+        return argv
 
     def run_main(self, argv) -> tuple[int, str]:
         err = io.StringIO()
@@ -139,6 +178,7 @@ class Refusals(unittest.TestCase):
             rc = l6.main(argv)
         self.assertFalse((self.tmp / "out").exists(), "no evidence dir before the checks pass")
         self.assertFalse((self.tmp / "ruling.json.consumed").exists(), "a refusal never consumes the ruling")
+        self.assertFalse((self.tmp / "pk.json.consumed").exists(), "a refusal never consumes the P3-K ruling")
         return rc, err.getvalue()
 
     def test_an_l5_ruling_is_refused_by_text(self):
@@ -175,7 +215,12 @@ class Refusals(unittest.TestCase):
         rc, err = self.run_main(self.args(manifest=self.manifest(watchdog=False)))
         self.assertEqual(rc, 2); self.assertIn("D-s1", err); self.assertIn(str(LOAD), err)
 
+    def _s_rulings(self):
+        self.write_ruling("ruling.json", l6.RULING_TEXT, "S", master_seed=L6M["sessions"]["S"]["master_seed"])
+        self.write_ruling("pk.json", l6.PROVISION_RULING_TEXT, "S")
+
     def test_the_soak_needs_both_pinned_calibration_records(self):
+        self._s_rulings()
         rc, err = self.run_main(self.args(session="S"))
         self.assertEqual(rc, 2); self.assertIn("D-s3", err); self.assertIn("C1", err)
 
@@ -184,6 +229,7 @@ class Refusals(unittest.TestCase):
         c1.write_text(json.dumps(report("C1", 120.0))); c2.write_text(json.dumps(report("C2", 100.0)))
         sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
         m = self.manifest(calib={"C1": sha(c1), "C2": "00" * 32})
+        self._s_rulings()
         rc, err = self.run_main(self.args(session="S", manifest=m,
                                           extra=("--calibration-c1", str(c1), "--calibration-c2", str(c2))))
         self.assertEqual(rc, 2); self.assertIn("does not hash to the pinned C2", err)
@@ -198,10 +244,97 @@ class Refusals(unittest.TestCase):
         c1, c2 = self.tmp / "c1.json", self.tmp / "c2.json"
         c1.write_text(json.dumps(report("C1", 120.0))); c2.write_text(json.dumps(report("C2", 100.0)))
         sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
-        self.boundary(False)
+        self.boundary(False); self._s_rulings()
         rc, err = self.run_main(self.args(session="S", manifest=self.manifest(calib={"C1": sha(c1), "C2": sha(c2)}),
                                           extra=("--calibration-c1", str(c1), "--calibration-c2", str(c2))))
         self.assertEqual(rc, 2); self.assertIn("principal boundary NOT established", err)
+
+
+class BoardPhasePreflight(Refusals):
+    """The five preflight blockers of the owner's board-phase ruling (2026-09-01), each a
+    named refusal reached with every earlier check satisfied."""
+
+    def test_1_no_provision_ruling_means_no_claim_and_no_port(self):
+        rc, err = self.run_main(self.args(pk=None))
+        self.assertEqual(rc, 2); self.assertIn("--provision-ruling is mandatory", err)
+
+    def test_1_a_used_provision_ruling_is_refused(self):
+        (self.tmp / "pk.json.consumed").write_text("used")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            rc = l6.main(self.args())
+        self.assertEqual(rc, 2); self.assertIn("already used", err.getvalue())
+        self.assertFalse((self.tmp / "ruling.json.consumed").exists())
+
+    def test_1_a_provision_ruling_with_the_wrong_text_is_refused(self):
+        self.write_ruling("pk.json", "whole-of-probe P3-L5", "C1")
+        rc, err = self.run_main(self.args())
+        self.assertEqual(rc, 2); self.assertIn("ruling text", err)
+
+    def test_2_the_l6_ruling_is_bound_to_session_seed_prereg_and_image(self):
+        seed = L6M["sessions"]["C1"]["master_seed"]
+        cases = {"session": dict(session="C2"), "master_seed": dict(master_seed=seed + 1),
+                 "prereg_sha256": dict(prereg="00" * 32), "image_sha256": dict(image="11" * 32)}
+        for field, kw in cases.items():
+            kw = {"session": "C1", "master_seed": seed, **kw}
+            self.write_ruling("ruling.json", l6.RULING_TEXT, **kw)
+            rc, err = self.run_main(self.args())
+            self.assertEqual(rc, 2, field); self.assertIn("is bound to " + field, err, field)
+        for missing in ("session", "master_seed", "prereg_sha256", "image_sha256"):
+            r = json.loads((self.tmp / "ruling.json").read_text()); r["session"] = "C1"; r["master_seed"] = seed
+            r["prereg_sha256"] = self.PREREG_SHA; r["image_sha256"] = self.image_sha
+            del r[missing]
+            (self.tmp / "ruling.json").write_text(json.dumps(r))
+            rc, err = self.run_main(self.args())
+            self.assertEqual(rc, 2); self.assertIn(f"lacks '{missing}'", err)
+        # a hex-string seed is accepted when it equals the pin
+        self.write_ruling("ruling.json", l6.RULING_TEXT, "C1", master_seed=f"{seed:#x}")
+        self.boundary(False)
+        rc, err = self.run_main(self.args())
+        self.assertIn("principal boundary NOT established", err)
+
+    def test_2_the_p3k_ruling_is_bound_to_session_prereg_and_image(self):
+        for field, kw in {"session": dict(session="S"), "prereg_sha256": dict(prereg="00" * 32),
+                          "image_sha256": dict(image="11" * 32)}.items():
+            self.write_ruling("pk.json", l6.PROVISION_RULING_TEXT, **{"session": "C1", **kw})
+            rc, err = self.run_main(self.args())
+            self.assertEqual(rc, 2, field); self.assertIn("'provisioning P3-K' is bound to " + field, err, field)
+
+    def test_3_the_boundary_is_bound_to_this_invocation(self):
+        self.boundary(True, runner_user="someone-else")
+        rc, err = self.run_main(self.args())
+        self.assertEqual(rc, 2); self.assertIn("is not this OS user", err)
+        self.boundary(True)
+        rc, err = self.run_main(self.args(extra=("--signer-user", "other")))
+        self.assertEqual(rc, 2); self.assertIn("--signer-user 'other' is not the record's", err)
+        rc, err = self.run_main(self.args(extra=("--key", str(self.tmp / "K.bin"))))
+        self.assertEqual(rc, 2); self.assertIn("is not the record's key store's", err)
+
+    def test_4_the_carrier_is_the_frozen_one_by_file_hash(self):
+        other = self.tmp / "carrier_manifest.json"
+        m = json.loads((R / "builds/p3/carrier_manifest.json").read_text()); m["note_x"] = "edited"
+        other.write_text(json.dumps(m))
+        rc, err = self.run_main(self.args(carrier_manifest=other))
+        self.assertEqual(rc, 2); self.assertIn("carrier manifest", err); self.assertIn("does not hash to the frozen", err)
+        bit = self.tmp / "p3.bit"; bit.write_bytes(b"not the carrier")
+        rc, err = self.run_main(self.args(bitstream=bit))
+        self.assertEqual(rc, 2); self.assertIn("bitstream", err); self.assertIn("does not hash to the frozen carrier", err)
+        self.assertEqual(L6M["instrument"]["carrier"]["manifest_sha256"],
+                         "2a7abc2b4054fee1ed02edc38dcae23a5a64b2174ef571401b32b309a4123dfa")
+        self.assertEqual(L6M["instrument"]["carrier"]["bitstream_sha256"],
+                         "956379fa8d23f8a6f1e0c80fe18b8c4aee68e76cc650499911a4bdb7807e610a")
+
+    def test_5_the_seed_is_the_pin_and_the_soak_duration_is_exactly_7200(self):
+        rc, err = self.run_main(self.args(extra=("--master-seed", "0x1234")))
+        self.assertEqual(rc, 2); self.assertIn("not the pinned", err)
+        c1, c2 = self.tmp / "c1.json", self.tmp / "c2.json"
+        c1.write_text(json.dumps(report("C1", 120.0))); c2.write_text(json.dumps(report("C2", 100.0)))
+        sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
+        self._s_rulings()
+        m = self.manifest(calib={"C1": sha(c1), "C2": sha(c2)})
+        rc, err = self.run_main(self.args(session="S", manifest=m, extra=(
+            "--calibration-c1", str(c1), "--calibration-c2", str(c2), "--duration-s", "600")))
+        self.assertEqual(rc, 2); self.assertIn("exactly the pinned 7200", err)
 
 
 class Checks(unittest.TestCase):

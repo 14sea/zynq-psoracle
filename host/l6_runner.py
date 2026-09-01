@@ -10,17 +10,24 @@ L5's; the U-Boot preamble is copied from `host/l5_runner.py` verbatim rather tha
 so that the L5 instrument that PASSED is not edited to serve L6.
 
 FAIL-CLOSED, in this order, before any board contact: the ruling text; the session kind;
-the L6 manifest's frozen preregistration hash; a pinned two-operator image that the file
-on disk hashes to; the watchdog pinned ON with the D-s1 load value; for S, both
-calibration reports hashing to their pins; the principal boundary < 6 h; the evidence
-directory not existing. `manifests/l6_manifest.json` is a DRAFT with those pins null, so
-this runner cannot run today — by construction, not by discipline.
+a `provisioning P3-K` ruling present, parseable and unconsumed (mandatory: without it the
+L6 ruling is never claimed and the port never opened); the manifest's frozen
+preregistration hash; a pinned two-operator image that the file on disk hashes to; the
+watchdog pinned ON with the D-s1 load value; BOTH rulings bound to this session, the
+frozen prereg and the pinned image (and the L6 ruling to the pinned master seed); the
+frozen carrier (manifest file and bitstream file hash to their pins); the pinned master
+seed and, for S, exactly the pinned duration; for S, both calibration reports hashing to
+their pins; the principal boundary < 6 h AND bound to this invocation (OS user, signer
+user, key path); the evidence directory not existing. Board-phase preflight blockers 1–5
+(owner 2026-09-01) are each a named refusal with a negative test.
 """
 from __future__ import annotations
 
 import argparse
+import getpass
 import hashlib
 import json
+import os
 import secrets
 import shutil
 import sys
@@ -48,6 +55,7 @@ from validators import records  # noqa: E402
 
 TOOL_VERSION = "l6_runner.py/0.1.0"
 RULING_TEXT = "whole-of-probe P3-L6"
+PROVISION_RULING_TEXT = "provisioning P3-K"       # host/sign_arm.py's text; the signer re-checks it
 SESSIONS = ("C1", "C2", "S")
 L6_MANIFEST = R / "manifests/l6_manifest.json"
 PREREG = R / "docs/l6_soak_prereg.md"
@@ -57,16 +65,46 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def plan_session(l6m: dict, session: str, master_seed: int, duration_s: float,
+def bind_ruling(ruling: dict, text: str, session: str, prereg_sha: str, image_sha: str,
+                master_seed: int | None) -> None:
+    """A ruling authorises ONE session against ONE frozen prereg and ONE pinned image (and,
+    for the L6 ruling, one master seed). Missing or mismatching bindings are refusals by
+    name, so a C1 ruling cannot be spent on C2 or S and no ruling survives a re-freeze or a
+    rebuild (board-phase preflight blocker 2, owner 2026-09-01)."""
+    want = {"session": session, "prereg_sha256": prereg_sha, "image_sha256": image_sha}
+    if master_seed is not None:
+        want["master_seed"] = master_seed
+    for k, v in want.items():
+        if k not in ruling:
+            raise bsn.SessionRefusal(f"ruling {text!r} is not bound: it lacks {k!r}")
+        got = ruling[k]
+        if k == "master_seed" and isinstance(got, str):
+            try:
+                got = int(got, 0)
+            except ValueError:
+                raise bsn.SessionRefusal(f"ruling {text!r}: master_seed {got!r} is not a number") from None
+        if got != v:
+            raise bsn.SessionRefusal(f"ruling {text!r} is bound to {k} = {got!r}, this session needs {v!r}")
+
+
+def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: float,
                  calibration: dict | None, session_timeout_s: float | None) -> dict:
     """Everything derived BEFORE the session, pure: mode, N, the schedule, the audit seqs,
     the expected frames and CRC budget, the timeout, the flags word. `calibration` (S only)
     is {"C1": report dict, "C2": report dict} already hash-checked by the caller."""
     if session not in SESSIONS:
         raise ValueError(f"session {session!r} is not one of {SESSIONS}")
-    if not 0 <= master_seed <= ls.MASK32:
-        raise ValueError("master seed must be a 32-bit value")
     spec = l6m["sessions"][session]
+    pinned_seed = spec.get("master_seed")
+    if not isinstance(pinned_seed, int) or not 0 <= pinned_seed <= ls.MASK32:
+        raise ValueError(f"the manifest pins no 32-bit master seed for {session}")
+    if master_seed is None:
+        master_seed = pinned_seed
+    if master_seed != pinned_seed:
+        raise ValueError(f"master seed {master_seed:#x} is not the pinned {pinned_seed:#x} for {session} (owner 2026-09-01)")
+    if session == "S" and duration_s != float(spec["duration_s"]):
+        raise ValueError(f"the soak's duration must be exactly the pinned {spec['duration_s']} s, not {duration_s:g} "
+                         f"(a shorter T shrinks both N and the 0.9 T floor)")
     mode = spec["mode"]
     inputs: dict = {"session": session, "mode": mode, "master_seed": master_seed}
     if session == "S":
@@ -295,6 +333,13 @@ def preflight(a) -> dict:
     ruling = pr.check_ruling(a.ruling, text=RULING_TEXT)
     if a.session not in SESSIONS:
         raise bsn.SessionRefusal(f"--session must be one of {SESSIONS}")
+    # blocker 1: provisioning is a board action with its own ruling; without one the L6
+    # ruling must not be claimed and the port must not be opened
+    if a.provision_ruling is None:
+        raise bsn.SessionRefusal("--provision-ruling is mandatory for an L6 session: no `provisioning P3-K` ruling, no board contact")
+    if a.provision_ruling.with_name(a.provision_ruling.name + ".consumed").exists():
+        raise bsn.SessionRefusal(f"the provisioning ruling {a.provision_ruling} was already used")
+    pk = pr._parse_ruling(a.provision_ruling, text=PROVISION_RULING_TEXT)
     l6m = json.loads(a.l6_manifest.read_text())
     pinned_prereg = l6m["prereg"]["sha256"]
     if not pinned_prereg:
@@ -312,6 +357,16 @@ def preflight(a) -> dict:
     wd = l6m["pinned_at_build"]
     if not wd["watchdog_enabled"] or wd["watchdog_load_value"] != 1250000035 or wd["watchdog_prescaler"] != 7:
         raise bsn.SessionRefusal("D-s1: the watchdog must be pinned ON with prescaler 7 and load 1250000035")
+    # blocker 2: both rulings are bound to THIS session and to the frozen prereg + pinned image
+    pinned_seed = l6m["sessions"][a.session].get("master_seed")
+    bind_ruling(ruling, "whole-of-probe P3-L6", a.session, pinned_prereg, pinned, pinned_seed)
+    bind_ruling(pk, "provisioning P3-K", a.session, pinned_prereg, pinned, None)
+    # blocker 4: the frozen carrier, by the files' own hashes, not the CLI's word
+    car = l6m["instrument"]["carrier"]
+    if _sha(a.manifest) != car["manifest_sha256"]:
+        raise bsn.SessionRefusal(f"the carrier manifest {a.manifest} does not hash to the frozen {car['manifest_sha256'][:16]}…")
+    if not a.bitstream.is_file() or _sha(a.bitstream) != car["bitstream_sha256"]:
+        raise bsn.SessionRefusal(f"the bitstream {a.bitstream} does not hash to the frozen carrier {car['bitstream_sha256'][:16]}…")
     calibration = None
     if a.session == "S":
         calibration = {}
@@ -329,6 +384,16 @@ def preflight(a) -> dict:
     manifest = json.loads(a.manifest.read_text()); records.validate(manifest)
     boundary = json.loads(a.boundary.read_text())
     records.boundary_established(boundary, time.time())
+    # blocker 3: the D4 record is bound to this invocation — the OS user IS the runner
+    # principal, the signer user and the key path ARE the record's
+    me = getpass.getuser()
+    if boundary["runner_user"] != me:
+        raise bsn.SessionRefusal(f"principal boundary: the record's runner_user {boundary['runner_user']!r} is not this OS user {me!r}")
+    if boundary["signer_user"] != a.signer_user:
+        raise bsn.SessionRefusal(f"principal boundary: --signer-user {a.signer_user!r} is not the record's {boundary['signer_user']!r}")
+    want_key = os.path.normpath(os.path.join(boundary["key_store"], "K.bin"))
+    if os.path.normpath(str(a.key)) != want_key:
+        raise bsn.SessionRefusal(f"principal boundary: --key {a.key} is not the record's key store's {want_key}")
     if a.out.exists():
         raise bsn.SessionRefusal(f"{a.out} exists; evidence is never replaced")
     plan = plan_session(l6m, a.session, a.master_seed, a.duration_s, calibration, a.session_timeout_s)
@@ -348,7 +413,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--ruling", type=Path, required=True)
     ap.add_argument("--session", required=True, help="C1 | C2 | S")
-    ap.add_argument("--master-seed", type=lambda s: int(s, 0), required=True, help="host-supplied, 32-bit")
+    ap.add_argument("--master-seed", type=lambda s: int(s, 0), default=None,
+                    help="optional; must equal the manifest's pinned seed for the session (owner 2026-09-01)")
     ap.add_argument("--provision-ruling", type=Path, default=None)
     ap.add_argument("--boundary", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
@@ -361,7 +427,7 @@ def main(argv=None) -> int:
     ap.add_argument("--key", type=Path, default=Path("/var/lib/p3signer/keys/K.bin"))
     ap.add_argument("--signer-user", default="p3signer")
     ap.add_argument("--port", default=bsn.PORT)
-    ap.add_argument("--duration-s", type=float, default=7200.0, help="T for the soak (D-s3)")
+    ap.add_argument("--duration-s", type=float, default=7200.0, help="T for the soak (D-s3); must equal the pinned 7200 s")
     ap.add_argument("--session-timeout-s", type=float, default=None, help="C1/C2 only; S derives its own")
     ap.add_argument("--calibration-c1", type=Path, default=None)
     ap.add_argument("--calibration-c2", type=Path, default=None)

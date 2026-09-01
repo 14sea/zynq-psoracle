@@ -1,7 +1,7 @@
 {
   "schema": "l6_manifest",
   "schema_version": "0.1.0",
-  "status": "FROZEN preregistration (prereg.sha256 set 2026-09-01) + pinned two-operator image bd1454cd… (compatibility review PASS). This manifest still authorises no ruling and no board contact: each of C1, C2 and S needs its own `whole-of-probe P3-L6` and `provisioning P3-K` rulings, issued one session at a time; calibration.C1/C2 pins are null until C1 and C2 have run.",
+  "status": "FROZEN preregistration (prereg.sha256 set 2026-09-01) + pinned two-operator image bd1454cd… (compatibility review PASS). This manifest still authorises no ruling and no board contact: each of C1, C2 and S needs its own `whole-of-probe P3-L6` and `provisioning P3-K` rulings bound to that session and to these pins, issued one session at a time (staged batch: C1 PASS → pin C1 → C2 PASS → pin C2 → derive N → S); calibration.C1/C2 pins are null until C1 and C2 have run.",
   "prereg": {
     "path": "docs/l6_soak_prereg.md",
     "version": "v0.2",
@@ -14,7 +14,10 @@
     "fabricmap_commit": "71666b02d526a6f2c641f1e0aebc15dac0417d4f",
     "carrier": {
       "bitstream": "builds/p3/p3.bit",
-      "bitstream_sha256_short": "956379fa"
+      "bitstream_sha256": "956379fa8d23f8a6f1e0c80fe18b8c4aee68e76cc650499911a4bdb7807e610a",
+      "manifest": "builds/p3/carrier_manifest.json",
+      "manifest_sha256": "2a7abc2b4054fee1ed02edc38dcae23a5a64b2174ef571401b32b309a4123dfa",
+      "note": "the frozen carrier (unchanged since L1): host/l6_runner.py hashes the --manifest and --bitstream files and refuses anything else (board-phase preflight, owner 2026-09-01)"
     },
     "board": {
       "boardid": "17A6",
@@ -134,21 +137,25 @@
       "mode": "random_safe_forced",
       "n": 64,
       "audit": "all-self-reporting",
-      "watchdog": true
+      "watchdog": true,
+      "master_seed": 1278624577
     },
     "C2": {
       "mode": "map_guided_forced",
       "n": 64,
       "audit": "all-self-reporting",
-      "watchdog": true
+      "watchdog": true,
+      "master_seed": 1278624577
     },
     "S": {
       "mode": "abba",
       "n": "floor(0.9 × min(rate_C1, rate_C2) × T), rates over steady-state periods only (interior→interior transitions)",
       "duration_s": 7200,
       "audit": "sampled",
-      "watchdog": true
-    }
+      "watchdog": true,
+      "master_seed": 1278628687
+    },
+    "seeds_note": "owner 2026-09-01: C1 and C2 share master seed 0x4c364341 (1278624577) so the two calibrations walk the same seed pairs and differ only in the operator; S uses 0x4c36534f (1278628687). S's --duration-s must be exactly 7200 s (a shorter T would shrink both N and the 0.9 T floor). Every L6 (master_seed, index) tuple — hence every pair seed — is EXCLUDED from any future Claim B schedule; the Claim B preregistration must record that exclusion at its freeze. host/l6_runner.py takes the seed from this pin; a --master-seed on the CLI must equal it."
   },
   "pass_conditions": {
     "cov_max": 0.1,
@@ -190,5 +197,25 @@
     "app_identity": "1.1.0 adds `master_seed` (int, = identity page seed), `schedule_mode`, `operator_data_sha256`",
     "run_log": "adds `timing` (host-written: clocks + per-record stage times) and `l6` (schedule, expected frames, budget inputs)",
     "implemented": "firmware/p3_wire.c emits app_identity 1.1.0 and loop_record 1.1.0 (tests/test_firmware_wire_contract.py::L6WireContract feeds the C bytes to the real validator)"
+  },
+  "rulings_binding": {
+    "whole-of-probe P3-L6": [
+      "session",
+      "master_seed",
+      "prereg_sha256",
+      "image_sha256"
+    ],
+    "provisioning P3-K": [
+      "session",
+      "prereg_sha256",
+      "image_sha256"
+    ],
+    "note": "each ruling names the session it authorises and the frozen prereg + pinned image it was issued against; the runner refuses any mismatch, so a C1 ruling cannot run C2 or S and no ruling outlives a re-freeze or a rebuild. --provision-ruling is mandatory: without a P3-K ruling the runner never claims the L6 ruling nor opens the port."
+  },
+  "principal_binding": {
+    "runner_user": "== the OS user running host/l6_runner.py",
+    "signer_user": "== --signer-user",
+    "key": "== <boundary.key_store>/K.bin (== --key)",
+    "note": "the D4 boundary record is bound to the invocation, not only to itself (board-phase preflight blocker 3)"
   }
 }

@@ -808,3 +808,28 @@ present the frozen package for the board phase's overall ruling. Frozen here:
 `test_once_frozen_the_build_evidence_must_cite_a_green_report` added; the runner's own
 check is unchanged and now passes on the real document (its next refusal is the image
 pin, tested). No ruling exists; the board has not been touched.
+
+## 2026-09-01 — preregistration freeze PASS; board phase HOLD on five preflight blockers; closing batch
+
+The owner passed the freeze (prereg sha `90f5fa69…`, image `bd1454cd…`, evidence citing a
+green report, C1/C2 pins null; 630 tests independently), approved the push of `31b824d`,
+and HELD the board phase on five preflight blockers: (1) `--provision-ruling` optional —
+the runner claimed the L6 ruling and loaded the carrier before stopping for want of a key;
+(2) the P3-L6 ruling bound to nothing but its text — a C1 ruling could run C2/S; (3) the
+D4 boundary record not bound to the invocation (OS user, `--signer-user`, `--key`); (4)
+the carrier taken from the CLI's manifest, not the frozen one; (5) `--duration-s` free
+(shrinking N and the 0.9 T floor together) and the three master seeds unpinned. Rulings:
+C1 = C2 = `0x4c364341` (same seed pairs; only the operator differs), S = `0x4c36534f`,
+S duration exactly 7200 s, every L6 (seed, index) tuple excluded from any future Claim B
+schedule. A host-only closing batch is authorised — the fixes, session/pin binding for
+both rulings, a negative test per item, and the removal of draft/null/"one ruling"
+residue from `docs/l6_instrument.md` and the canonical table; no change to the frozen
+prereg, the firmware or the image. Delivered in this commit: `host/l6_runner.py`
+(mandatory and unconsumed P3-K ruling before any claim; `bind_ruling` for both rulings
+against session / prereg / image / master seed; boundary bound to `getpass.getuser()`,
+`--signer-user` and `<key_store>/K.bin`; carrier manifest and bitstream hashed against
+`instrument.carrier` pins `2a7abc2b…` / `956379fa…`; seeds from the manifest, CLI seed
+must match; S's T must equal the pinned 7200), `tests/test_l6_runner.py::
+BoardPhasePreflight` (each blocker reached and refused by name; P3-K never consumed by a
+refusal). After the closing review: a staged board batch — C1 PASS → pin C1 → C2 PASS →
+pin C2 → derive N → S — with no further architecture review, and any HOLD/KILL stopping it.

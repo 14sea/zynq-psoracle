@@ -2,7 +2,7 @@
 
 > **Standing: host-only.** Authorised by the owner on 2026-09-01 after the v0.2 review of
 > `docs/l6_soak_prereg.md` ("現在授權 §4 的 host-only 儀器批次"), with the boundary: host
-> code, validators, fixtures, tests, a manifest draft and documents; a Python reference of
+> code, validators, fixtures, tests, a manifest (then a draft) and documents; a Python reference of
 > the operators and the schedule; **no firmware change, no two-operator image build, no
 > ruling, no board contact.** Nothing in this batch touched `firmware/`, `manifests/l5_*`
 > or any evidence directory. `host/l6_runner.py` cannot run today by construction (§4
@@ -28,7 +28,7 @@ Also delivered, because §2 will need them and the owner allowed a Python refere
 | the two operators (random-safe, map-guided) and the map data an image compiles in, derived from the pinned `local_map.json` + phenotype manifest; its sha256 `0c9c82a8…` is the pin the IDENT must name | `host/l6_operators.py` | `tests/test_l6_operators.py` (derivation hash pinned; universe == whitelist; uniform reach over all 292; same-LUT locality; corpus) |
 | twin corpus, N = 256 `(master_seed, index)` pairs, both arms | `fixtures/l6_operator_corpus_v1.json` | `tests/test_l6_operators.py::Corpus` |
 | PASS/HOLD conditions of §6 as pure functions | `host/l6_checks.py` | `tests/test_l6_runner.py::Checks` |
-| the manifest draft (all pins that exist today; the image, the frozen prereg hash and the calibration records null) | `manifests/l6_manifest.json` | `tests/test_l6_operators.py::MapData`, `tests/test_l6_runner.py` |
+| the manifest (at delivery a draft; since 2026-09-01 the frozen prereg hash, the pinned image `bd1454cd…`, the frozen carrier and the seeds are set — only the C1/C2 calibration pins wait for their sessions) | `manifests/l6_manifest.json` | `tests/test_l6_operators.py::MapData`, `tests/test_l6_runner.py` |
 
 ## 2. What a session will produce (evidence directory)
 
@@ -56,17 +56,23 @@ readback) → `AUDIT`×8 (when served) → `REC`.
 contains the application's work between records (operator time). Resolution: one runner
 poll (~20 ms) — every line a poll returned shares its stamp; stated in the report.
 
-## 4. Fail-closed today
+## 4. Fail-closed (board-phase preflight, closed 2026-09-01)
 
 `host/l6_runner.py` refuses, in order: a ruling whose text is not `whole-of-probe P3-L6`;
-a session not in {C1, C2, S}; `manifests/l6_manifest.json` `prereg.sha256` null or not
-the hash of `docs/l6_soak_prereg.md` (**null today**); `app_image_sha256` null (**null
-today**) or not the file's hash; the watchdog not pinned ON with prescaler 7 / load
-1 250 000 035; for S, either calibration record missing or not hashing to its pin (**null
-today**); the boundary older than 6 h or failed; an existing evidence directory; the map
-derivation not regenerating to the pinned hash. The ruling is consumed only after all of
-these. `tests/test_l6_runner.py::Refusals::test_the_real_draft_manifest_cannot_run_anything`
-pins that the committed draft refuses.
+a session not in {C1, C2, S}; no `--provision-ruling`, or one already used or with the
+wrong text; `prereg.sha256` not the hash of `docs/l6_soak_prereg.md` (frozen `90f5fa69…`);
+`app_image_sha256` not the file's hash (pinned `bd1454cd…`); the watchdog not pinned ON
+with prescaler 7 / load 1 250 000 035; **either ruling not bound** to this session, the
+frozen prereg and the pinned image (the L6 ruling also to the pinned master seed); the
+carrier manifest or bitstream file not hashing to the frozen carrier; a `--master-seed`
+that is not the session's pin, or for S a `--duration-s` other than 7200; for S, either
+calibration record missing or not hashing to its pin (**null until C1/C2 have run**); the
+boundary older than 6 h, failed, or not bound to this invocation (OS user, `--signer-user`,
+`--key`); an existing evidence directory; the map derivation not regenerating to the
+pinned hash. Both rulings are consumed only after all of these.
+`tests/test_l6_runner.py::BoardPhasePreflight` reaches each refusal with every earlier
+check satisfied. Seeds: C1 = C2 = `0x4c364341`, S = `0x4c36534f` (owner 2026-09-01);
+every L6 `(master_seed, index)` tuple is excluded from any future Claim B schedule.
 
 ## 5. Choices made in this batch that the review should confirm or overturn
 
@@ -114,8 +120,9 @@ and is isolated so a different ruling is a local change.
 10. **IDENT field names** — **accepted, pending the §2 C twin** — `master_seed` (int = the page's seed word), `schedule_mode`
     (string), `operator_data_sha256` (64 hex) — additive `app_identity` 1.1.0;
     `loop_record` 1.1.0 adds `arm`. The C wire twin and the contract test are §2's.
-11. **`--master-seed` is a required CLI argument** — **accepted** — (§0: seeds are host-supplied) and is
-    written into `run_log.l6` and the summary; there is no default.
+11. **`--master-seed`** — superseded 2026-09-01: the seeds are the owner's pins in the
+    manifest (C1 = C2 = `0x4c364341`, S = `0x4c36534f`); the CLI argument is optional and
+    must equal the pin; the seed is written into `run_log.l6` and the summary.
 12. **Default image path** — **accepted** — `firmware/bsp/out/p3_app_l6.bin` — a name, so the L6 runner
     can never pick up the L5 image by omission (the hash check would refuse it anyway).
 
