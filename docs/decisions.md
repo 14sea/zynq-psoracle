@@ -1100,3 +1100,21 @@ pins the rate report's sha; no S, no Claim B data, no extra diagnostics. The man
 changed (history/standing); if C2 is pinned it changes again, and the S ruling pair binds
 the post-pin hash.
 
+## 2026-09-01 — owner adjudication: C2 #1 PASS; calibration.C2 pinned; both calibrations complete; S parameters verified
+
+The owner re-checked C2 #1 independently and confirmed: 66 scored, 66 audited, nonce chain
+67; all 66 × 3 hashes equal; the 64 map-guided genomes match the twin and the schedule;
+1785 inbound frames, CRC 0/8, no retry, timeout or abort; the rate report regenerated
+field-identical (3632.996 eval/h, CoV 0.01501, failure rate 0); C1/C2 baselines identical
+and all 64 candidates distinct; 774 tests (the review sandbox adds one signer-boundary
+skip). Rulings: 5b79098 pushed; `calibration.C2` =
+`a13e301f2f2ee2bbc12751fb883b4e189f0e27122e6899d5aa3c53f514568959` pinned in
+`manifests/l6_manifest.json` with the evidence path — the S runner imports rate_B only
+from bytes hashing to it (D-s3). The owner also verified the S parameters the two pins
+derive: mode abba, seed 1278628687, N = 6539, sampled audits 412, expected inbound frames
+121 449, CRC budget 486, duration 7200 s, runner timeout 8702 s — the runner derives these
+itself; this record is for cross-checking, not for typing in. The S ruling pair is NOT yet
+issued: it must bind the committed post-pin manifest hash, then power cycle, boundary, S.
+S is not a Claim B data run; a non-PASS S is archived and reported, never re-run on the
+runner's own initiative.
+

@@ -64,7 +64,9 @@ are the same and the operator is not. Candidate score sums span 115–121 (C1 #4
 20 distinct score vectors. Nothing here compares operator quality — that is Claim B's
 question and not this line's.
 
-## 4. What this session establishes, and what is left to the owner
+## 4. What this session establishes, and what is left to the owner — ADJUDICATED 2026-09-01: `calibration.C2` pinned `a13e301f…` (see `docs/decisions.md`); the owner-verified S derivation is N 6539 / sampled audits 412 / 121 449 inbound frames / CRC budget 486 / timeout 8702 s; S ruling pair pending, bound to the post-pin hash.
+
+As written before the adjudication:
 
 Both calibration sessions of prereg v0.3 are now complete, fully audited and loss-free on
 17A6 under pull-v2 (C1 #4 and C2 #1: 0 drops, 0 rereads each). Left to the owner: pin or
