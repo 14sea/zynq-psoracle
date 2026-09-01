@@ -710,6 +710,8 @@ Discarded input sections
  .text          0x00000000        0x0 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .data          0x00000000        0x0 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .bss           0x00000000        0x0 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+ .text.p3_wire_tally_reset
+                0x00000000       0x20 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .data          0x00000000        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/libgcc.a(_udivsi3.o)
  .bss           0x00000000        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/libgcc.a(_udivsi3.o)
  .data          0x00000000        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/libgcc.a(_dvmd_tls.o)
@@ -1175,7 +1177,7 @@ Linker script and memory map
                 0x00000800                        _FIQ_STACK_SIZE = DEFINED (_FIQ_STACK_SIZE)?_FIQ_STACK_SIZE:0x800
                 0x00000800                        _UNDEF_STACK_SIZE = DEFINED (_UNDEF_STACK_SIZE)?_UNDEF_STACK_SIZE:0x800
 
-.text           0x02000000     0xc7ac
+.text           0x02000000     0xc9a4
  *(.vectors)
  .vectors       0x02000000       0xcc /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_asm_vectors.S.o
                 0x02000000                _vector_table
@@ -1300,800 +1302,806 @@ Linker script and memory map
  .text.send_payload
                 0x02001d54       0x70 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .text.emit_summary
-                0x02001dc4       0xd4 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x02001dc4       0xdc /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .text.stage_streams.isra.0
-                0x02001e98       0x8c /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x02001ea0       0x8c /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .text.axi_read
-                0x02001f24       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x02001f2c       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .text.write_envelopes
-                0x02001f34       0x98 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x02001f3c       0x98 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .text.serve_audit
-                0x02001fcc      0x200 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .text.emit_record
-                0x020021cc       0xc0 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x02001fd4      0x200 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .text.arm_attempt
-                0x0200228c      0x254 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x020021d4      0x31c /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .text.emit_record
+                0x020024f0       0xa4 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .text.run_candidate
-                0x020024e0      0xb24 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x02002594      0xb90 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .text.startup.main
-                0x02003004      0x590 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
-                0x02003004                main
+                0x02003124      0x5bc /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x02003124                main
  .text.sha256_block
-                0x02003594      0x1e8 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x020036e0      0x1e8 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .text.p3_sha256_init
-                0x0200377c       0x30 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x0200377c                p3_sha256_init
+                0x020038c8       0x30 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x020038c8                p3_sha256_init
  .text.p3_sha256_update
-                0x020037ac       0x9c /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x020037ac                p3_sha256_update
+                0x020038f8       0x9c /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x020038f8                p3_sha256_update
  .text.p3_sha256_final
-                0x02003848       0xec /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x02003848                p3_sha256_final
+                0x02003994       0xec /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02003994                p3_sha256_final
  .text.p3_sha256_words
-                0x02003934       0x4c /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x02003934                p3_sha256_words
- .text.p3_hex   0x02003980       0x54 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x02003980                p3_hex
+                0x02003a80       0x4c /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02003a80                p3_sha256_words
+ .text.p3_hex   0x02003acc       0x54 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02003acc                p3_hex
  .text.p3_crc32
-                0x020039d4       0x58 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x020039d4                p3_crc32
+                0x02003b20       0x58 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02003b20                p3_crc32
  .text.p3_frame_ecc
-                0x02003a2c       0xa8 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x02003a2c                p3_frame_ecc
+                0x02003b78       0xa8 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02003b78                p3_frame_ecc
  .text.p3_genome_to_hex
-                0x02003ad4       0x5c /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x02003ad4                p3_genome_to_hex
+                0x02003c20       0x5c /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02003c20                p3_genome_to_hex
  .text.p3_derive_frames
-                0x02003b30       0xc0 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x02003b30                p3_derive_frames
+                0x02003c7c       0xc0 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02003c7c                p3_derive_frames
  .text.p3_build_stream
-                0x02003bf0      0x178 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x02003bf0                p3_build_stream
+                0x02003d3c      0x178 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02003d3c                p3_build_stream
  .text.p3_parse_stream
-                0x02003d68      0x264 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x02003d68                p3_parse_stream
+                0x02003eb4      0x264 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02003eb4                p3_parse_stream
  .text.p3_frames_hash
-                0x02003fcc      0x1e8 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x02003fcc                p3_frames_hash
+                0x02004118      0x1e8 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02004118                p3_frames_hash
  .text.p3_build_readback_command
-                0x020041b4       0x78 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x020041b4                p3_build_readback_command
+                0x02004300       0x78 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02004300                p3_build_readback_command
  .text.p3_build_cleanup_command
-                0x0200422c       0x28 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x0200422c                p3_build_cleanup_command
+                0x02004378       0x28 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02004378                p3_build_cleanup_command
  .text.p3_nonce_step
-                0x02004254       0x34 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x02004254                p3_nonce_step
+                0x020043a0       0x34 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x020043a0                p3_nonce_step
  .text.p3_base64url
-                0x02004288      0x160 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x02004288                p3_base64url
+                0x020043d4      0x160 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x020043d4                p3_base64url
  .text.p3_base64url_decode
-                0x020043e8      0x190 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x020043e8                p3_base64url_decode
+                0x02004534      0x190 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02004534                p3_base64url_decode
  .text.p3_parse_identity_page
-                0x02004578      0x160 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
-                0x02004578                p3_parse_identity_page
+                0x020046c4      0x160 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x020046c4                p3_parse_identity_page
  .text.p3_search_next
-                0x020046d8       0x68 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
-                0x020046d8                p3_search_next
- .text.w_fmt    0x02004740       0x84 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x02004824       0x68 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+                0x02004824                p3_search_next
+ .text.w_fmt    0x0200488c       0x84 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .text.w_str.part.0
-                0x020047c4       0x7c /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x02004910       0x7c /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .text.w_tables
-                0x02004840       0x84 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0200498c       0x84 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .text.p3_wire_line
-                0x020048c4       0xe4 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
-                0x020048c4                p3_wire_line
+                0x02004a10       0xe4 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x02004a10                p3_wire_line
  .text.p3_wire_identity
-                0x020049a8      0x174 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
-                0x020049a8                p3_wire_identity
+                0x02004af4      0x174 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x02004af4                p3_wire_identity
  .text.p3_wire_sign_request
-                0x02004b1c       0xf0 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
-                0x02004b1c                p3_wire_sign_request
+                0x02004c68       0xf0 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x02004c68                p3_wire_sign_request
  .text.p3_wire_loop_record
-                0x02004c0c      0x618 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
-                0x02004c0c                p3_wire_loop_record
+                0x02004d58      0x698 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x02004d58                p3_wire_loop_record
+ .text.p3_wire_tally
+                0x020053f0       0x2c /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x020053f0                p3_wire_tally
  .text.p3_wire_audit
-                0x02005224       0xf8 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
-                0x02005224                p3_wire_audit
+                0x0200541c       0xf8 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0200541c                p3_wire_audit
  .text.p3_wire_closing
-                0x0200531c       0x84 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
-                0x0200531c                p3_wire_closing
+                0x02005514       0x84 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x02005514                p3_wire_closing
  .text.p3_wire_summary
-                0x020053a0      0x164 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
-                0x020053a0                p3_wire_summary
- .text.exit     0x02005504       0x20 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-exit.o)
-                0x02005504                exit
+                0x02005598      0x164 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x02005598                p3_wire_summary
+ .text.exit     0x020056fc       0x20 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-exit.o)
+                0x020056fc                exit
  .text._strtoul_l.isra.0
-                0x02005524      0x148 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strtoul.o)
- .text.strtoul  0x0200566c       0x20 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strtoul.o)
-                0x0200566c                strtoul
+                0x0200571c      0x148 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strtoul.o)
+ .text.strtoul  0x02005864       0x20 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strtoul.o)
+                0x02005864                strtoul
  .text.stdio_exit_handler
-                0x0200568c       0x1c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
+                0x02005884       0x1c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
  .text.cleanup_stdio
-                0x020056a8       0x40 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
+                0x020058a0       0x40 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
  .text.global_stdio_init.part.0
-                0x020056e8       0xf8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
- .text.__sinit  0x020057e0       0x50 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
-                0x020057e0                __sinit
+                0x020058e0       0xf8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
+ .text.__sinit  0x020059d8       0x50 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
+                0x020059d8                __sinit
  .text.__sfp_lock_acquire
-                0x02005830        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
-                0x02005830                __sfp_lock_acquire
+                0x02005a28        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
+                0x02005a28                __sfp_lock_acquire
  .text.__sfp_lock_release
-                0x0200583c        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
-                0x0200583c                __sfp_lock_release
+                0x02005a34        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
+                0x02005a34                __sfp_lock_release
  .text._fwalk_sglue
-                0x02005848       0x44 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fwalk.o)
-                0x02005848                _fwalk_sglue
+                0x02005a40       0x44 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fwalk.o)
+                0x02005a40                _fwalk_sglue
  .text.snprintf
-                0x0200588c       0x94 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-snprintf.o)
-                0x0200588c                snprintf
- .text.__sread  0x02005920       0x24 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-stdio.o)
-                0x02005920                __sread
+                0x02005a84       0x94 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-snprintf.o)
+                0x02005a84                snprintf
+ .text.__sread  0x02005b18       0x24 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-stdio.o)
+                0x02005b18                __sread
  .text.__swrite
-                0x02005944       0x40 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-stdio.o)
-                0x02005944                __swrite
- .text.__sseek  0x02005984       0x24 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-stdio.o)
-                0x02005984                __sseek
+                0x02005b3c       0x40 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-stdio.o)
+                0x02005b3c                __swrite
+ .text.__sseek  0x02005b7c       0x24 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-stdio.o)
+                0x02005b7c                __sseek
  .text.__sclose
-                0x020059a8        0x8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-stdio.o)
-                0x020059a8                __sclose
+                0x02005ba0        0x8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-stdio.o)
+                0x02005ba0                __sclose
  .text.vsnprintf
-                0x020059b0       0x7c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vsnprintf.o)
-                0x020059b0                vsnprintf
- .text.memcmp   0x02005a2c       0x5c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-memcmp.o)
-                0x02005a2c                memcmp
- .text.memmove  0x02005a88       0xfc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-memmove.o)
-                0x02005a88                memmove
- .text.memset   0x02005b84       0x9c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-memset.o)
-                0x02005b84                memset
- .text.strnlen  0x02005c20       0x30 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strnlen.o)
-                0x02005c20                strnlen
- .text.strrchr  0x02005c50       0x30 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strrchr.o)
-                0x02005c50                strrchr
+                0x02005ba8       0x7c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vsnprintf.o)
+                0x02005ba8                vsnprintf
+ .text.memcmp   0x02005c24       0x5c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-memcmp.o)
+                0x02005c24                memcmp
+ .text.memmove  0x02005c80       0xfc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-memmove.o)
+                0x02005c80                memmove
+ .text.memset   0x02005d7c       0x9c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-memset.o)
+                0x02005d7c                memset
+ .text.strnlen  0x02005e18       0x30 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strnlen.o)
+                0x02005e18                strnlen
+ .text.strrchr  0x02005e48       0x30 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strrchr.o)
+                0x02005e48                strrchr
  .text.critical_factorization
-                0x02005c80       0xc8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strstr.o)
+                0x02005e78       0xc8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strstr.o)
  .text.two_way_long_needle
-                0x02005d48      0x20c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strstr.o)
- .text.strstr   0x02005f54      0x168 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strstr.o)
-                0x02005f54                strstr
+                0x02005f40      0x20c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strstr.o)
+ .text.strstr   0x0200614c      0x168 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strstr.o)
+                0x0200614c                strstr
  .text._close_r
-                0x020060bc       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-closer.o)
-                0x020060bc                _close_r
+                0x020062b4       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-closer.o)
+                0x020062b4                _close_r
  .text._lseek_r
-                0x020060e4       0x30 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lseekr.o)
-                0x020060e4                _lseek_r
- .text._read_r  0x02006114       0x30 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-readr.o)
-                0x02006114                _read_r
+                0x020062dc       0x30 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lseekr.o)
+                0x020062dc                _lseek_r
+ .text._read_r  0x0200630c       0x30 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-readr.o)
+                0x0200630c                _read_r
  .text._write_r
-                0x02006144       0x30 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-writer.o)
-                0x02006144                _write_r
+                0x0200633c       0x30 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-writer.o)
+                0x0200633c                _write_r
  .text.__libc_init_array
-                0x02006174       0x58 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-init.o)
-                0x02006174                __libc_init_array
+                0x0200636c       0x58 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-init.o)
+                0x0200636c                __libc_init_array
  .text.__libc_fini_array
-                0x020061cc       0x2c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fini.o)
-                0x020061cc                __libc_fini_array
+                0x020063c4       0x2c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fini.o)
+                0x020063c4                __libc_fini_array
  .text.__retarget_lock_init_recursive
-                0x020061f8        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
-                0x020061f8                __retarget_lock_init_recursive
+                0x020063f0        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
+                0x020063f0                __retarget_lock_init_recursive
  .text.__retarget_lock_close_recursive
-                0x020061fc        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
-                0x020061fc                __retarget_lock_close_recursive
+                0x020063f4        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
+                0x020063f4                __retarget_lock_close_recursive
  .text.__retarget_lock_acquire_recursive
-                0x02006200        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
-                0x02006200                __retarget_lock_acquire_recursive
+                0x020063f8        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
+                0x020063f8                __retarget_lock_acquire_recursive
  .text.__retarget_lock_release_recursive
-                0x02006204        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
-                0x02006204                __retarget_lock_release_recursive
+                0x020063fc        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
+                0x020063fc                __retarget_lock_release_recursive
  .text.startup.register_fini
-                0x02006208       0x18 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__call_atexit.o)
+                0x02006400       0x18 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__call_atexit.o)
  .text.__call_exitprocs
-                0x02006220       0xd0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__call_atexit.o)
-                0x02006220                __call_exitprocs
- .text.atexit   0x020062f0        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-atexit.o)
-                0x020062f0                atexit
+                0x02006418       0xd0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__call_atexit.o)
+                0x02006418                __call_exitprocs
+ .text.atexit   0x020064e8        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-atexit.o)
+                0x020064e8                atexit
  .text._malloc_trim_r
-                0x020062fc       0xc0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-freer.o)
-                0x020062fc                _malloc_trim_r
- .text._free_r  0x020063bc      0x200 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-freer.o)
-                0x020063bc                _free_r
+                0x020064f4       0xc0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-freer.o)
+                0x020064f4                _malloc_trim_r
+ .text._free_r  0x020065b4      0x200 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-freer.o)
+                0x020065b4                _free_r
  .text._malloc_r
-                0x020065bc      0x5c4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
-                0x020065bc                _malloc_r
+                0x020067b4      0x5c4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
+                0x020067b4                _malloc_r
  .text.__malloc_lock
-                0x02006b80        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mlock.o)
-                0x02006b80                __malloc_lock
+                0x02006d78        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mlock.o)
+                0x02006d78                __malloc_lock
  .text.__malloc_unlock
-                0x02006b8c        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mlock.o)
-                0x02006b8c                __malloc_unlock
+                0x02006d84        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mlock.o)
+                0x02006d84                __malloc_unlock
  .text._svfprintf_r
-                0x02006b98     0x2190 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
-                0x02006b98                _svfprintf_r
+                0x02006d90     0x2190 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
+                0x02006d90                _svfprintf_r
  .text.__ssprint_r
-                0x02008d28       0x58 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-ssprint_r.o)
-                0x02008d28                __ssprint_r
+                0x02008f20       0x58 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-ssprint_r.o)
+                0x02008f20                __ssprint_r
  .text._fclose_r
-                0x02008d80       0xc0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fclose.o)
-                0x02008d80                _fclose_r
+                0x02008f78       0xc0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fclose.o)
+                0x02008f78                _fclose_r
  .text.__sflush_r
-                0x02008e40      0x138 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fflush.o)
-                0x02008e40                __sflush_r
+                0x02009038      0x138 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fflush.o)
+                0x02009038                __sflush_r
  .text._fflush_r
-                0x02008f78       0x54 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fflush.o)
-                0x02008f78                _fflush_r
- .text.strchr   0x02008fcc       0xd0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strchr.o)
-                0x02008fcc                strchr
- .text.strncpy  0x0200909c       0x74 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strncpy.o)
-                0x0200909c                strncpy
+                0x02009170       0x54 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fflush.o)
+                0x02009170                _fflush_r
+ .text.strchr   0x020091c4       0xd0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strchr.o)
+                0x020091c4                strchr
+ .text.strncpy  0x02009294       0x74 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strncpy.o)
+                0x02009294                strncpy
  .text.__locale_mb_cur_max
-                0x02009110       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-locale.o)
-                0x02009110                __locale_mb_cur_max
+                0x02009308       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-locale.o)
+                0x02009308                __locale_mb_cur_max
  .text._localeconv_r
-                0x02009120        0x8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-localeconv.o)
-                0x02009120                _localeconv_r
- .text._sbrk_r  0x02009128       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-sbrkr.o)
-                0x02009128                _sbrk_r
- .text.sysconf  0x02009150       0x1c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-sysconf.o)
-                0x02009150                sysconf
- *fill*         0x0200916c        0x4 
- .text.frexp    0x02009170       0x78 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libm_a-s_frexp.o)
-                0x02009170                frexp
+                0x02009318        0x8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-localeconv.o)
+                0x02009318                _localeconv_r
+ .text._sbrk_r  0x02009320       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-sbrkr.o)
+                0x02009320                _sbrk_r
+ .text.sysconf  0x02009348       0x1c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-sysconf.o)
+                0x02009348                sysconf
+ *fill*         0x02009364        0x4 
+ .text.frexp    0x02009368       0x78 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libm_a-s_frexp.o)
+                0x02009368                frexp
  .text.__register_exitproc
-                0x020091e8       0x88 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__atexit.o)
-                0x020091e8                __register_exitproc
- .text.quorem   0x02009270      0x138 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-dtoa.o)
- .text._dtoa_r  0x020093a8      0xdac /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-dtoa.o)
-                0x020093a8                _dtoa_r
+                0x020093e0       0x88 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__atexit.o)
+                0x020093e0                __register_exitproc
+ .text.quorem   0x02009468      0x138 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-dtoa.o)
+ .text._dtoa_r  0x020095a0      0xdac /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-dtoa.o)
+                0x020095a0                _dtoa_r
  .text.__ascii_mbtowc
-                0x0200a154       0x24 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mbtowc_r.o)
-                0x0200a154                __ascii_mbtowc
- .text._Balloc  0x0200a178       0x4c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200a178                _Balloc
- .text._Bfree   0x0200a1c4       0x14 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200a1c4                _Bfree
+                0x0200a34c       0x24 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mbtowc_r.o)
+                0x0200a34c                __ascii_mbtowc
+ .text._Balloc  0x0200a370       0x4c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200a370                _Balloc
+ .text._Bfree   0x0200a3bc       0x14 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200a3bc                _Bfree
  .text.__multadd
-                0x0200a1d8       0xa8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200a1d8                __multadd
+                0x0200a3d0       0xa8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200a3d0                __multadd
  .text.__hi0bits
-                0x0200a280       0x54 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200a280                __hi0bits
+                0x0200a478       0x54 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200a478                __hi0bits
  .text.__lo0bits
-                0x0200a2d4       0x80 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200a2d4                __lo0bits
- .text.__i2b    0x0200a354       0x60 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200a354                __i2b
+                0x0200a4cc       0x80 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200a4cc                __lo0bits
+ .text.__i2b    0x0200a54c       0x60 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200a54c                __i2b
  .text.__multiply
-                0x0200a3b4      0x174 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200a3b4                __multiply
+                0x0200a5ac      0x174 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200a5ac                __multiply
  .text.__pow5mult
-                0x0200a528       0xc8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200a528                __pow5mult
+                0x0200a720       0xc8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200a720                __pow5mult
  .text.__lshift
-                0x0200a5f0       0xe8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200a5f0                __lshift
- .text.__mcmp   0x0200a6d8       0x40 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200a6d8                __mcmp
- .text.__mdiff  0x0200a718      0x180 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200a718                __mdiff
- .text.__d2b    0x0200a898       0xc0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200a898                __d2b
+                0x0200a7e8       0xe8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200a7e8                __lshift
+ .text.__mcmp   0x0200a8d0       0x40 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200a8d0                __mcmp
+ .text.__mdiff  0x0200a910      0x180 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200a910                __mdiff
+ .text.__d2b    0x0200aa90       0xc0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200aa90                __d2b
  .text.__ascii_wctomb
-                0x0200a958       0x1c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-wctomb_r.o)
-                0x0200a958                __ascii_wctomb
+                0x0200ab50       0x1c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-wctomb_r.o)
+                0x0200ab50                __ascii_wctomb
  .text._wcrtomb_r
-                0x0200a974       0x3c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-wcrtomb.o)
-                0x0200a974                _wcrtomb_r
+                0x0200ab6c       0x3c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-wcrtomb.o)
+                0x0200ab6c                _wcrtomb_r
  .text._wcsrtombs_r
-                0x0200a9b0       0x18 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-wcsrtombs.o)
-                0x0200a9b0                _wcsrtombs_r
+                0x0200aba8       0x18 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-wcsrtombs.o)
+                0x0200aba8                _wcsrtombs_r
  .text.__ssputs_r
-                0x0200a9c8       0xc0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-ssputs_r.o)
-                0x0200a9c8                __ssputs_r
+                0x0200abc0       0xc0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-ssputs_r.o)
+                0x0200abc0                __ssputs_r
  .text.__assert_func
-                0x0200aa88       0x44 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-assert.o)
-                0x0200aa88                __assert_func
+                0x0200ac80       0x44 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-assert.o)
+                0x0200ac80                __assert_func
  .text._calloc_r
-                0x0200aacc       0x7c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-callocr.o)
-                0x0200aacc                _calloc_r
+                0x0200acc4       0x7c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-callocr.o)
+                0x0200acc4                _calloc_r
  .text._realloc_r
-                0x0200ab48      0x380 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-reallocr.o)
-                0x0200ab48                _realloc_r
+                0x0200ad40      0x380 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-reallocr.o)
+                0x0200ad40                _realloc_r
  .text._wcsnrtombs_l
-                0x0200aec8       0xf0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-wcsnrtombs.o)
-                0x0200aec8                _wcsnrtombs_l
+                0x0200b0c0       0xf0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-wcsnrtombs.o)
+                0x0200b0c0                _wcsnrtombs_l
  .text._wcsnrtombs_r
-                0x0200afb8       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-wcsnrtombs.o)
-                0x0200afb8                _wcsnrtombs_r
+                0x0200b1b0       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-wcsnrtombs.o)
+                0x0200b1b0                _wcsnrtombs_r
  .text.fiprintf
-                0x0200afe0       0x2c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fiprintf.o)
-                0x0200afe0                fiprintf
+                0x0200b1d8       0x2c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fiprintf.o)
+                0x0200b1d8                fiprintf
  .text._vfiprintf_r
-                0x0200b00c     0x11fc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
-                0x0200b00c                _vfiprintf_r
+                0x0200b204     0x11fc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
+                0x0200b204                _vfiprintf_r
  .text.__sbprintf
-                0x0200c208       0x84 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
+                0x0200c400       0x84 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
  .text.__sprint_r
-                0x0200c28c       0x20 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-sprint_r.o)
-                0x0200c28c                __sprint_r
+                0x0200c484       0x20 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-sprint_r.o)
+                0x0200c484                __sprint_r
  .text.__sfvwrite_r
-                0x0200c2ac      0x2f4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fvwrite.o)
-                0x0200c2ac                __sfvwrite_r
+                0x0200c4a4      0x2f4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fvwrite.o)
+                0x0200c4a4                __sfvwrite_r
  .text.__swsetup_r
-                0x0200c5a0       0xe8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-wsetup.o)
-                0x0200c5a0                __swsetup_r
+                0x0200c798       0xe8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-wsetup.o)
+                0x0200c798                __swsetup_r
  .text.__smakebuf_r
-                0x0200c688       0xd0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-makebuf.o)
-                0x0200c688                __smakebuf_r
+                0x0200c880       0xd0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-makebuf.o)
+                0x0200c880                __smakebuf_r
  .text._fstat_r
-                0x0200c758       0x2c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fstatr.o)
-                0x0200c758                _fstat_r
+                0x0200c950       0x2c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fstatr.o)
+                0x0200c950                _fstat_r
  .text._isatty_r
-                0x0200c784       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-isattyr.o)
-                0x0200c784                _isatty_r
+                0x0200c97c       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-isattyr.o)
+                0x0200c97c                _isatty_r
  *(.gnu.linkonce.t.*)
  *(.plt)
  *(.gnu_warning)
  *(.gcc_except_table)
  *(.glue_7)
- .glue_7        0x0200c7ac        0x0 linker stubs
+ .glue_7        0x0200c9a4        0x0 linker stubs
  *(.glue_7t)
- .glue_7t       0x0200c7ac        0x0 linker stubs
+ .glue_7t       0x0200c9a4        0x0 linker stubs
  *(.vfp11_veneer)
- .vfp11_veneer  0x0200c7ac        0x0 linker stubs
+ .vfp11_veneer  0x0200c9a4        0x0 linker stubs
  *(.ARM.extab)
  *(.gnu.linkonce.armextab.*)
 
-.v4_bx          0x0200c7ac        0x0
- .v4_bx         0x0200c7ac        0x0 linker stubs
+.v4_bx          0x0200c9a4        0x0
+ .v4_bx         0x0200c9a4        0x0 linker stubs
 
-.iplt           0x0200c7ac        0x0
- .iplt          0x0200c7ac        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
+.iplt           0x0200c9a4        0x0
+ .iplt          0x0200c9a4        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
 
-.init           0x0200c7ac        0xc
+.init           0x0200c9a4        0xc
  *(.init)
- .init          0x0200c7ac        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crti.o
-                0x0200c7ac                _init
- .init          0x0200c7b0        0x8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtn.o
+ .init          0x0200c9a4        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crti.o
+                0x0200c9a4                _init
+ .init          0x0200c9a8        0x8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtn.o
 
-.fini           0x0200c7b8        0xc
+.fini           0x0200c9b0        0xc
  *(.fini)
- .fini          0x0200c7b8        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crti.o
-                0x0200c7b8                _fini
- .fini          0x0200c7bc        0x8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtn.o
+ .fini          0x0200c9b0        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crti.o
+                0x0200c9b0                _fini
+ .fini          0x0200c9b4        0x8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtn.o
 
-.rodata         0x0200c7c8     0x3078
-                0x0200c7c8                        __rodata_start = .
+.rodata         0x0200c9c0     0x3170
+                0x0200c9c0                        __rodata_start = .
  *(.rodata)
  *(.rodata.*)
  .rodata.XScuWdt_CfgInitialize.str1.4
-                0x0200c7c8     0x101b /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt.c.o
+                0x0200c9c0     0x1117 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt.c.o
                                  0x60 (size before relaxing)
  .rodata.devcfg_dma.str1.4
-                0x0200d7e3       0x8f /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200dad7       0x8f /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.link2_witness.str1.4
-                0x0200d7e3       0x2d /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200dad7       0x2d /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.send_frame.str1.4
-                0x0200d7e3       0x27 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200dad7       0x27 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.send_payload.str1.4
-                0x0200d7e3       0x2b /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200dad7       0x2b /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.emit_summary.str1.4
-                0x0200d7e3        0x9 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200dad7        0x9 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.write_envelopes.str1.4
-                0x0200d7e3        0x7 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200dad7        0x7 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.serve_audit.str1.4
-                0x0200d7e3       0x4e /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .rodata.emit_record.str1.4
-                0x0200d7e3        0x4 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200dad7       0x4e /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.arm_attempt.str1.4
-                0x0200d7e3       0x23 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200dad7       0x23 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .rodata.emit_record.str1.4
+                0x0200dad7        0x4 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.run_candidate.str1.4
-                0x0200d7e3      0x287 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200dad7      0x2db /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.main.str1.4
-                0x0200d7e3      0x1c6 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- *fill*         0x0200d7e3        0x1 
+                0x0200dad7      0x206 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ *fill*         0x0200dad7        0x1 
  .rodata.zero_tag.0
-                0x0200d7e4       0x21 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- *fill*         0x0200d805        0x3 
- .rodata.key.1  0x0200d808       0x14 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200dad8       0x21 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ *fill*         0x0200daf9        0x3 
+ .rodata.key.1  0x0200dafc       0x14 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.str1.4
-                0x0200d81c       0x35 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200db10       0x35 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.refused_kind.2
-                0x0200d81c        0x4 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200db10        0x4 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.END_NAME
-                0x0200d820       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200db14       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.DMA_READ_CLEANUP
-                0x0200d830       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200db24       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.DMA_READ_FRAME
-                0x0200d840       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200db34       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.DMA_READ_COMMAND
-                0x0200d850       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200db44       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.DMA_WRITE_ENVELOPE
-                0x0200d860       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200db54       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.P3_ENVELOPE
-                0x0200d870       0x48 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200db64       0x48 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.P3_TARGET_FARS
-                0x0200d8b8       0x30 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0200dbac       0x30 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.p3_parse_stream
-                0x0200d8e8        0xc /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- .rodata.abc.0  0x0200d8f4       0x41 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- *fill*         0x0200d935        0x3 
+                0x0200dbdc        0xc /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ .rodata.abc.0  0x0200dbe8       0x41 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ *fill*         0x0200dc29        0x3 
  .rodata.digits.2
-                0x0200d938       0x11 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- *fill*         0x0200d949        0x3 
- .rodata.iv.3   0x0200d94c       0x20 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- .rodata.K256   0x0200d96c      0x100 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x0200dc2c       0x11 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ *fill*         0x0200dc3d        0x3 
+ .rodata.iv.3   0x0200dc40       0x20 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ .rodata.K256   0x0200dc60      0x100 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .rodata.P3_BASE_FLUSH
-                0x0200da6c      0x4bc /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x0200dd60      0x4bc /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .rodata.P3_BASE_TARGET
-                0x0200df28     0x12f0 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x0200e21c     0x12f0 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .rodata.P3_WHITELIST
-                0x0200f218      0x36c /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- *fill*         0x0200f584        0x4 
+                0x0200f50c      0x36c /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .rodata.P3_ENVELOPE
-                0x0200f588       0x48 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x0200f878       0x48 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .rodata.P3_TARGET_FARS
-                0x0200f5d0       0x30 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x0200f8c0       0x30 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .rodata.w_str.part.0.str1.4
-                0x0200f600        0x7 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0200f8f0        0x7 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.w_tables.str1.4
-                0x0200f600        0xa /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0200f8f0        0xa /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_line.str1.4
-                0x0200f600       0x20 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0200f8f0       0x20 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_identity.str1.4
-                0x0200f600      0x108 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0200f8f0      0x108 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_sign_request.str1.4
-                0x0200f600       0x76 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0200f8f0       0x76 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_loop_record.str1.4
-                0x0200f600      0x3a0 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0200f8f0      0x40c /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_audit.str1.4
-                0x0200f600       0x9f /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0200f8f0       0x9f /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_closing.str1.4
-                0x0200f600       0x64 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0200f8f0       0x64 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_summary.str1.4
-                0x0200f600      0x159 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0200f8f0      0x159 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata._ctype_
-                0x0200f600      0x101 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-ctype_.o)
-                0x0200f600                _ctype_
+                0x0200f8f0      0x101 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-ctype_.o)
+                0x0200f8f0                _ctype_
  .rodata._svfprintf_r.str1.4
-                0x0200f701       0x42 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
- *fill*         0x0200f701        0x3 
+                0x0200f9f1       0x42 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
+ *fill*         0x0200f9f1        0x3 
  .rodata.zeroes.0
-                0x0200f704       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
+                0x0200f9f4       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
  .rodata.blanks.1
-                0x0200f714       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
+                0x0200fa04       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
  .rodata.str1.4
-                0x0200f724       0x4c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-locale.o)
+                0x0200fa14       0x4c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-locale.o)
  .rodata._dtoa_r.str1.4
-                0x0200f724       0xaa /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-dtoa.o)
+                0x0200fa14       0xaa /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-dtoa.o)
  .rodata.__multadd.str1.4
-                0x0200f724       0x97 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
- .rodata.p05.0  0x0200f724        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200fa14       0x97 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+ .rodata.p05.0  0x0200fa14        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
  .rodata.__mprec_bigtens
-                0x0200f730       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200f730                __mprec_bigtens
+                0x0200fa20       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200fa20                __mprec_bigtens
  .rodata.__mprec_tens
-                0x0200f758       0xc8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x0200f758                __mprec_tens
+                0x0200fa48       0xc8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x0200fa48                __mprec_tens
  .rodata.__assert_func.str1.4
-                0x0200f820       0x43 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-assert.o)
+                0x0200fb10       0x43 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-assert.o)
  .rodata._vfiprintf_r.str1.4
-                0x0200f820       0x2f /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
+                0x0200fb10       0x2f /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
  .rodata.zeroes.0
-                0x0200f820       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
+                0x0200fb10       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
  .rodata.blanks.1
-                0x0200f830       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
+                0x0200fb20       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
  *(.gnu.linkonce.r.*)
-                0x0200f840                        __rodata_end = .
+                0x0200fb30                        __rodata_end = .
 
-.rodata1        0x0200f840        0x0
-                0x0200f840                        __rodata1_start = .
+.rodata1        0x0200fb30        0x0
+                0x0200fb30                        __rodata1_start = .
  *(.rodata1)
  *(.rodata1.*)
-                0x0200f840                        __rodata1_end = .
+                0x0200fb30                        __rodata1_end = .
 
-.sdata2         0x0200f840        0x0
-                0x0200f840                        __sdata2_start = .
+.sdata2         0x0200fb30        0x0
+                0x0200fb30                        __sdata2_start = .
  *(.sdata2)
  *(.sdata2.*)
  *(.gnu.linkonce.s2.*)
-                0x0200f840                        __sdata2_end = .
+                0x0200fb30                        __sdata2_end = .
 
-.sbss2          0x0200f840        0x0
-                0x0200f840                        __sbss2_start = .
+.sbss2          0x0200fb30        0x0
+                0x0200fb30                        __sbss2_start = .
  *(.sbss2)
  *(.sbss2.*)
  *(.gnu.linkonce.sb2.*)
-                0x0200f840                        __sbss2_end = .
+                0x0200fb30                        __sbss2_end = .
 
-.data           0x0200f840      0x71c
-                0x0200f840                        __data_start = .
+.data           0x0200fb30      0x71c
+                0x0200fb30                        __data_start = .
  *(.data)
  *(.data.*)
  .data.XExc_VectorTable
-                0x0200f840       0x38 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
-                0x0200f840                XExc_VectorTable
+                0x0200fb30       0x38 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
+                0x0200fb30                XExc_VectorTable
  .data.Xil_AssertWait
-                0x0200f878        0x4 /home/test/zynq_psoracle/firmware/bsp/out/common_xil_assert.c.o
-                0x0200f878                Xil_AssertWait
+                0x0200fb68        0x4 /home/test/zynq_psoracle/firmware/bsp/out/common_xil_assert.c.o
+                0x0200fb68                Xil_AssertWait
  .data.XScuWdt_ConfigTable
-                0x0200f87c        0x8 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_g.c.o
-                0x0200f87c                XScuWdt_ConfigTable
- .data.__sglue  0x0200f884        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
-                0x0200f884                __sglue
+                0x0200fb6c        0x8 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_g.c.o
+                0x0200fb6c                XScuWdt_ConfigTable
+ .data.__sglue  0x0200fb74        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
+                0x0200fb74                __sglue
  .data._impure_ptr
-                0x0200f890        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-impure.o)
-                0x0200f890                _impure_ptr
- *fill*         0x0200f894        0x4 
+                0x0200fb80        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-impure.o)
+                0x0200fb80                _impure_ptr
+ *fill*         0x0200fb84        0x4 
  .data._impure_data
-                0x0200f898      0x140 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-impure.o)
-                0x0200f898                _impure_data
+                0x0200fb88      0x140 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-impure.o)
+                0x0200fb88                _impure_data
  .data.__atexit_recursive_mutex
-                0x0200f9d8        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__call_atexit.o)
-                0x0200f9d8                __atexit_recursive_mutex
+                0x0200fcc8        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__call_atexit.o)
+                0x0200fcc8                __atexit_recursive_mutex
  .data.__malloc_sbrk_base
-                0x0200f9dc        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
-                0x0200f9dc                __malloc_sbrk_base
+                0x0200fccc        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
+                0x0200fccc                __malloc_sbrk_base
  .data.__malloc_trim_threshold
-                0x0200f9e0        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
-                0x0200f9e0                __malloc_trim_threshold
- *fill*         0x0200f9e4        0x4 
+                0x0200fcd0        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
+                0x0200fcd0                __malloc_trim_threshold
+ *fill*         0x0200fcd4        0x4 
  .data.__malloc_av_
-                0x0200f9e8      0x408 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
-                0x0200f9e8                __malloc_av_
+                0x0200fcd8      0x408 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
+                0x0200fcd8                __malloc_av_
  .data.__global_locale
-                0x0200fdf0      0x16c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-locale.o)
-                0x0200fdf0                __global_locale
+                0x020100e0      0x16c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-locale.o)
+                0x020100e0                __global_locale
  *(.gnu.linkonce.d.*)
  *(.jcr)
  *(.got)
  *(.got.plt)
-                0x0200ff5c                        __data_end = .
+                0x0201024c                        __data_end = .
 
-.igot.plt       0x0200ff5c        0x0
- .igot.plt      0x0200ff5c        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
+.igot.plt       0x0201024c        0x0
+ .igot.plt      0x0201024c        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
 
-.data1          0x0200ff5c        0x0
-                0x0200ff5c                        __data1_start = .
+.data1          0x0201024c        0x0
+                0x0201024c                        __data1_start = .
  *(.data1)
  *(.data1.*)
-                0x0200ff5c                        __data1_end = .
+                0x0201024c                        __data1_end = .
 
 .got
  *(.got)
 
-.ctors          0x0200ff5c        0x0
-                0x0200ff5c                        __CTOR_LIST__ = .
-                0x0200ff5c                        ___CTORS_LIST___ = .
+.ctors          0x0201024c        0x0
+                0x0201024c                        __CTOR_LIST__ = .
+                0x0201024c                        ___CTORS_LIST___ = .
  *crtbegin.o(.ctors)
  *(EXCLUDE_FILE(*crtend.o) .ctors)
  *(SORT_BY_NAME(.ctors.*))
  *(.ctors)
-                0x0200ff5c                        __CTOR_END__ = .
-                0x0200ff5c                        ___CTORS_END___ = .
+                0x0201024c                        __CTOR_END__ = .
+                0x0201024c                        ___CTORS_END___ = .
 
-.dtors          0x0200ff5c        0x0
-                0x0200ff5c                        __DTOR_LIST__ = .
-                0x0200ff5c                        ___DTORS_LIST___ = .
+.dtors          0x0201024c        0x0
+                0x0201024c                        __DTOR_LIST__ = .
+                0x0201024c                        ___DTORS_LIST___ = .
  *crtbegin.o(.dtors)
  *(EXCLUDE_FILE(*crtend.o) .dtors)
  *(SORT_BY_NAME(.dtors.*))
  *(.dtors)
-                0x0200ff5c                        __DTOR_END__ = .
-                0x0200ff5c                        ___DTORS_END___ = .
+                0x0201024c                        __DTOR_END__ = .
+                0x0201024c                        ___DTORS_END___ = .
 
-.fixup          0x0200ff5c        0x0
-                0x0200ff5c                        __fixup_start = .
+.fixup          0x0201024c        0x0
+                0x0201024c                        __fixup_start = .
  *(.fixup)
-                0x0200ff5c                        __fixup_end = .
+                0x0201024c                        __fixup_end = .
 
-.eh_frame       0x0200ff5c        0x0
+.eh_frame       0x0201024c        0x0
  *(.eh_frame)
- .eh_frame      0x0200ff5c        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
+ .eh_frame      0x0201024c        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
 
-.eh_framehdr    0x0200ff5c        0x0
-                0x0200ff5c                        __eh_framehdr_start = .
+.eh_framehdr    0x0201024c        0x0
+                0x0201024c                        __eh_framehdr_start = .
  *(.eh_framehdr)
-                0x0200ff5c                        __eh_framehdr_end = .
+                0x0201024c                        __eh_framehdr_end = .
 
 .gcc_except_table
  *(.gcc_except_table)
 
-.mmu_tbl        0x02010000     0x4000
-                0x02010000                        __mmu_tbl_start = .
+.mmu_tbl        0x02014000     0x4000
+                0x02014000                        __mmu_tbl_start = .
  *(.mmu_tbl)
- .mmu_tbl       0x02010000     0x4000 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_translation_table.S.o
-                0x02010000                MMUTable
-                0x02014000                        __mmu_tbl_end = .
+ .mmu_tbl       0x02014000     0x4000 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_translation_table.S.o
+                0x02014000                MMUTable
+                0x02018000                        __mmu_tbl_end = .
 
-.ARM.exidx      0x02014000        0x8
-                0x02014000                        __exidx_start = .
+.ARM.exidx      0x02018000        0x8
+                0x02018000                        __exidx_start = .
  *(.ARM.exidx*)
- .ARM.exidx     0x02014000        0x8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strcmp.o)
- .ARM.exidx     0x02014008        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strlen.o)
+ .ARM.exidx     0x02018000        0x8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strcmp.o)
+ .ARM.exidx     0x02018008        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-strlen.o)
                                   0x8 (size before relaxing)
- .ARM.exidx     0x02014008        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-memchr.o)
+ .ARM.exidx     0x02018008        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-memchr.o)
                                   0x8 (size before relaxing)
  *(.gnu.linkonce.armexidx.*)
-                0x02014008                        __exidx_end = .
+                0x02018008                        __exidx_end = .
 
-.rel.dyn        0x02014008        0x0
- .rel.iplt      0x02014008        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
+.rel.dyn        0x02018008        0x0
+ .rel.iplt      0x02018008        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
 
-.preinit_array  0x02014008        0x0
-                0x02014008                        __preinit_array_start = .
+.preinit_array  0x02018008        0x0
+                0x02018008                        __preinit_array_start = .
  *(.preinit_array)
-                0x02014008                        __preinit_array_end = .
+                0x02018008                        __preinit_array_end = .
 
-.init_array     0x02014008        0x8
-                0x02014008                        __init_array_start = .
+.init_array     0x02018008        0x8
+                0x02018008                        __init_array_start = .
  *(SORT_BY_NAME(.init_array.*))
  .init_array.00000
-                0x02014008        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__call_atexit.o)
+                0x02018008        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__call_atexit.o)
  *(.init_array)
- .init_array    0x0201400c        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
-                0x02014010                        __init_array_end = .
+ .init_array    0x0201800c        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
+                0x02018010                        __init_array_end = .
 
-.fini_array     0x02014010        0x4
-                0x02014010                        __fini_array_start = .
+.fini_array     0x02018010        0x4
+                0x02018010                        __fini_array_start = .
  *(SORT_BY_NAME(.fini_array.*))
  *(.fini_array)
- .fini_array    0x02014010        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
-                0x02014014                        __fini_array_end = .
+ .fini_array    0x02018010        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
+                0x02018014                        __fini_array_end = .
 
-.sdata          0x02014014        0x0
-                0x02014014                        __sdata_start = .
+.sdata          0x02018014        0x0
+                0x02018014                        __sdata_start = .
  *(.sdata)
  *(.sdata.*)
  *(.gnu.linkonce.s.*)
-                0x02014014                        __sdata_end = .
+                0x02018014                        __sdata_end = .
 
-.sbss           0x02014014        0x0
-                0x02014014                        __sbss_start = .
+.sbss           0x02018014        0x0
+                0x02018014                        __sbss_start = .
  *(.sbss)
  *(.sbss.*)
  *(.gnu.linkonce.sb.*)
-                0x02014014                        __sbss_end = .
+                0x02018014                        __sbss_end = .
 
-.tdata          0x02014014        0x0
-                0x02014014                        __tdata_start = .
+.tdata          0x02018014        0x0
+                0x02018014                        __tdata_start = .
  *(.tdata)
  *(.tdata.*)
  *(.gnu.linkonce.td.*)
-                0x02014014                        __tdata_end = .
+                0x02018014                        __tdata_end = .
 
-.tbss           0x02014014        0x0
-                0x02014014                        __tbss_start = .
+.tbss           0x02018014        0x0
+                0x02018014                        __tbss_start = .
  *(.tbss)
  *(.tbss.*)
  *(.gnu.linkonce.tb.*)
-                0x02014014                        __tbss_end = .
+                0x02018014                        __tbss_end = .
 
-.bss            0x02014018     0xb0bc
-                0x02014018                        __bss_start__ = .
-                0x02014018                        __bss_start = .
+.bss            0x02018018     0xb0c4
+                0x02018018                        __bss_start__ = .
+                0x02018018                        __bss_start = .
  *(.bss)
  *(.bss.*)
  .bss.completed.1
-                0x02014018        0x1 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
- *fill*         0x02014019        0x3 
- .bss.object.0  0x0201401c       0x18 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
+                0x02018018        0x1 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
+ *fill*         0x02018019        0x3 
+ .bss.object.0  0x0201801c       0x18 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
  .bss.UndefinedExceptionAddr
-                0x02014034        0x4 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
-                0x02014034                UndefinedExceptionAddr
+                0x02018034        0x4 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
+                0x02018034                UndefinedExceptionAddr
  .bss.PrefetchAbortAddr
-                0x02014038        0x4 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
-                0x02014038                PrefetchAbortAddr
+                0x02018038        0x4 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
+                0x02018038                PrefetchAbortAddr
  .bss.DataAbortAddr
-                0x0201403c        0x4 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
-                0x0201403c                DataAbortAddr
+                0x0201803c        0x4 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
+                0x0201803c                DataAbortAddr
  .bss.Xil_AssertCallbackRoutine
-                0x02014040        0x4 /home/test/zynq_psoracle/firmware/bsp/out/common_xil_assert.c.o
+                0x02018040        0x4 /home/test/zynq_psoracle/firmware/bsp/out/common_xil_assert.c.o
  .bss.Xil_AssertStatus
-                0x02014044        0x4 /home/test/zynq_psoracle/firmware/bsp/out/common_xil_assert.c.o
-                0x02014044                Xil_AssertStatus
- .bss.heap.1    0x02014048        0x4 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc__sbrk.c.o
+                0x02018044        0x4 /home/test/zynq_psoracle/firmware/bsp/out/common_xil_assert.c.o
+                0x02018044                Xil_AssertStatus
+ .bss.heap.1    0x02018048        0x4 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc__sbrk.c.o
  .bss.g_words_b64
-                0x0201404c      0xc00 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .bss.g_chunk   0x02014c4c      0x600 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .bss.g_body    0x0201524c     0x1c00 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201804c      0xc00 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .bss.g_chunk   0x02018c4c      0x600 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .bss.g_body    0x0201924c     0x1c00 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .bss.g_encoded
-                0x02016e4c     0x1800 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201ae4c     0x1800 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .bss.g_payload
-                0x0201864c     0x1000 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .bss.g_json    0x0201964c     0x1000 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .bss.g_line    0x0201a64c     0x2000 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- *fill*         0x0201c64c        0x4 
- .bss.S         0x0201c650     0x2770 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .bss.__sf      0x0201edc0      0x138 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
-                0x0201edc0                __sf
+                0x0201c64c     0x1000 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .bss.g_json    0x0201d64c     0x1000 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .bss.g_line    0x0201e64c     0x2000 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ *fill*         0x0202064c        0x4 
+ .bss.S         0x02020650     0x2770 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .bss.g_tally_audited
+                0x02022dc0        0x4 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+ .bss.g_tally_records
+                0x02022dc4        0x4 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+ .bss.__sf      0x02022dc8      0x138 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
+                0x02022dc8                __sf
  .bss.__stdio_exit_handler
-                0x0201eef8        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
-                0x0201eef8                __stdio_exit_handler
- .bss.errno     0x0201eefc        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-reent.o)
-                0x0201eefc                errno
+                0x02022f00        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
+                0x02022f00                __stdio_exit_handler
+ .bss.errno     0x02022f04        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-reent.o)
+                0x02022f04                errno
  .bss.__lock___malloc_recursive_mutex
-                0x0201ef00        0x1 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
-                0x0201ef00                __lock___malloc_recursive_mutex
- *fill*         0x0201ef01        0x3 
+                0x02022f08        0x1 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
+                0x02022f08                __lock___malloc_recursive_mutex
+ *fill*         0x02022f09        0x3 
  .bss.__lock___atexit_recursive_mutex
-                0x0201ef04        0x1 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
-                0x0201ef04                __lock___atexit_recursive_mutex
- *fill*         0x0201ef05        0x3 
+                0x02022f0c        0x1 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
+                0x02022f0c                __lock___atexit_recursive_mutex
+ *fill*         0x02022f0d        0x3 
  .bss.__lock___sfp_recursive_mutex
-                0x0201ef08        0x1 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
-                0x0201ef08                __lock___sfp_recursive_mutex
- *fill*         0x0201ef09        0x3 
- .bss.__atexit  0x0201ef0c        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__call_atexit.o)
-                0x0201ef0c                __atexit
+                0x02022f10        0x1 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-lock.o)
+                0x02022f10                __lock___sfp_recursive_mutex
+ *fill*         0x02022f11        0x3 
+ .bss.__atexit  0x02022f14        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__call_atexit.o)
+                0x02022f14                __atexit
  .bss.__malloc_current_mallinfo
-                0x0201ef10       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
-                0x0201ef10                __malloc_current_mallinfo
+                0x02022f18       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
+                0x02022f18                __malloc_current_mallinfo
  .bss.__malloc_max_total_mem
-                0x0201ef38        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
-                0x0201ef38                __malloc_max_total_mem
+                0x02022f40        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
+                0x02022f40                __malloc_max_total_mem
  .bss.__malloc_max_sbrked_mem
-                0x0201ef3c        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
-                0x0201ef3c                __malloc_max_sbrked_mem
+                0x02022f44        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
+                0x02022f44                __malloc_max_sbrked_mem
  .bss.__malloc_top_pad
-                0x0201ef40        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
-                0x0201ef40                __malloc_top_pad
+                0x02022f48        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
+                0x02022f48                __malloc_top_pad
  .bss.__atexit0
-                0x0201ef44      0x190 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__atexit.o)
-                0x0201ef44                __atexit0
+                0x02022f4c      0x190 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__atexit.o)
+                0x02022f4c                __atexit0
  *(.gnu.linkonce.b.*)
  *(COMMON)
-                0x0201f0d4                        __bss_end__ = .
-                0x0201f0d4                        __bss_end = .
-                0x02014014                        _SDA_BASE_ = (__sdata_start + ((__sbss_end - __sdata_start) / 0x2))
-                0x0200f840                        _SDA2_BASE_ = (__sdata2_start + ((__sbss2_end - __sdata2_start) / 0x2))
+                0x020230dc                        __bss_end__ = .
+                0x020230dc                        __bss_end = .
+                0x02018014                        _SDA_BASE_ = (__sdata_start + ((__sbss_end - __sdata_start) / 0x2))
+                0x0200fb30                        _SDA2_BASE_ = (__sdata2_start + ((__sbss2_end - __sdata2_start) / 0x2))
 
-.heap           0x0201f0d4   0x10000c
-                0x0201f0e0                        . = ALIGN (0x10)
- *fill*         0x0201f0d4        0xc 
-                0x0201f0e0                        _heap = .
-                0x0201f0e0                        HeapBase = .
-                0x0201f0e0                        _heap_start = .
-                0x0211f0e0                        . = (. + _HEAP_SIZE)
- *fill*         0x0201f0e0   0x100000 
-                0x0211f0e0                        _heap_end = .
-                0x0211f0e0                        HeapLimit = .
+.heap           0x020230dc   0x100004
+                0x020230e0                        . = ALIGN (0x10)
+ *fill*         0x020230dc        0x4 
+                0x020230e0                        _heap = .
+                0x020230e0                        HeapBase = .
+                0x020230e0                        _heap_start = .
+                0x021230e0                        . = (. + _HEAP_SIZE)
+ *fill*         0x020230e0   0x100000 
+                0x021230e0                        _heap_end = .
+                0x021230e0                        HeapLimit = .
 
-.stack          0x0211f0e0     0x7000
-                0x0211f0e0                        . = ALIGN (0x10)
-                0x0211f0e0                        _stack_end = .
-                0x021230e0                        . = (. + _STACK_SIZE)
- *fill*         0x0211f0e0     0x4000 
+.stack          0x021230e0     0x7000
                 0x021230e0                        . = ALIGN (0x10)
-                0x021230e0                        __stack = .
-                0x021230e0                        . = ALIGN (0x10)
-                0x021230e0                        _irq_stack_end = .
-                0x021238e0                        . = (. + _IRQ_STACK_SIZE)
- *fill*         0x021230e0      0x800 
-                0x021238e0                        . = ALIGN (0x10)
-                0x021238e0                        __irq_stack = .
-                0x021238e0                        _supervisor_stack_end = .
-                0x021248e0                        . = (. + _SUPERVISOR_STACK_SIZE)
- *fill*         0x021238e0     0x1000 
-                0x021248e0                        . = ALIGN (0x10)
-                0x021248e0                        __supervisor_stack = .
-                0x021248e0                        _abort_stack_end = .
-                0x021250e0                        . = (. + _ABORT_STACK_SIZE)
- *fill*         0x021248e0      0x800 
-                0x021250e0                        . = ALIGN (0x10)
-                0x021250e0                        __abort_stack = .
-                0x021250e0                        _fiq_stack_end = .
-                0x021258e0                        . = (. + _FIQ_STACK_SIZE)
- *fill*         0x021250e0      0x800 
-                0x021258e0                        . = ALIGN (0x10)
-                0x021258e0                        __fiq_stack = .
-                0x021258e0                        _undef_stack_end = .
-                0x021260e0                        . = (. + _UNDEF_STACK_SIZE)
- *fill*         0x021258e0      0x800 
-                0x021260e0                        . = ALIGN (0x10)
-                0x021260e0                        __undef_stack = .
-                0x021260e0                        _end = .
-                0x021260e0                        end = .
+                0x021230e0                        _stack_end = .
+                0x021270e0                        . = (. + _STACK_SIZE)
+ *fill*         0x021230e0     0x4000 
+                0x021270e0                        . = ALIGN (0x10)
+                0x021270e0                        __stack = .
+                0x021270e0                        . = ALIGN (0x10)
+                0x021270e0                        _irq_stack_end = .
+                0x021278e0                        . = (. + _IRQ_STACK_SIZE)
+ *fill*         0x021270e0      0x800 
+                0x021278e0                        . = ALIGN (0x10)
+                0x021278e0                        __irq_stack = .
+                0x021278e0                        _supervisor_stack_end = .
+                0x021288e0                        . = (. + _SUPERVISOR_STACK_SIZE)
+ *fill*         0x021278e0     0x1000 
+                0x021288e0                        . = ALIGN (0x10)
+                0x021288e0                        __supervisor_stack = .
+                0x021288e0                        _abort_stack_end = .
+                0x021290e0                        . = (. + _ABORT_STACK_SIZE)
+ *fill*         0x021288e0      0x800 
+                0x021290e0                        . = ALIGN (0x10)
+                0x021290e0                        __abort_stack = .
+                0x021290e0                        _fiq_stack_end = .
+                0x021298e0                        . = (. + _FIQ_STACK_SIZE)
+ *fill*         0x021290e0      0x800 
+                0x021298e0                        . = ALIGN (0x10)
+                0x021298e0                        __fiq_stack = .
+                0x021298e0                        _undef_stack_end = .
+                0x0212a0e0                        . = (. + _UNDEF_STACK_SIZE)
+ *fill*         0x021298e0      0x800 
+                0x0212a0e0                        . = ALIGN (0x10)
+                0x0212a0e0                        __undef_stack = .
+                0x0212a0e0                        _end = .
+                0x0212a0e0                        end = .
 LOAD /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crti.o
 LOAD /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
 LOAD /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_boot.S.o
@@ -2438,7 +2446,7 @@ LOAD linker stubs
  .comment       0x00000039       0x3a /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fstatr.o)
  .comment       0x00000039       0x3a /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-isattyr.o)
 
-.debug_line     0x00000000     0x817c
+.debug_line     0x00000000     0x8447
  .debug_line    0x00000000      0x146 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_boot.S.o
  .debug_line    0x00000146       0x57 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_cpu_init.S.o
  .debug_line    0x0000019d       0x6c /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_xil-crt0.S.o
@@ -2462,10 +2470,10 @@ LOAD linker stubs
  .debug_line    0x00003261      0x1cf /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_g.c.o
  .debug_line    0x00003430      0x1fe /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_sinit.c.o
  .debug_line    0x0000362e      0x26b /home/test/zynq_psoracle/firmware/bsp/out/console.o
- .debug_line    0x00003899     0x24c8 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .debug_line    0x00005d61     0x1616 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- .debug_line    0x00007377      0x14d /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
- .debug_line    0x000074c4      0xcb8 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+ .debug_line    0x00003899     0x270e /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .debug_line    0x00005fa7     0x1616 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ .debug_line    0x000075bd      0x14d /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+ .debug_line    0x0000770a      0xd3d /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
 
 .debug_line_str
                 0x00000000       0x8c
@@ -2477,7 +2485,7 @@ LOAD linker stubs
  .debug_line_str
                 0x0000008c       0x85 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_xil-crt0.S.o
 
-.debug_info     0x00000000     0xc900
+.debug_info     0x00000000     0xcc30
  .debug_info    0x00000000       0x25 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_boot.S.o
  .debug_info    0x00000025       0x24 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_cpu_init.S.o
  .debug_info    0x00000049       0x24 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_xil-crt0.S.o
@@ -2501,12 +2509,12 @@ LOAD linker stubs
  .debug_info    0x000033eb      0x142 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_g.c.o
  .debug_info    0x0000352d      0x173 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_sinit.c.o
  .debug_info    0x000036a0      0x216 /home/test/zynq_psoracle/firmware/bsp/out/console.o
- .debug_info    0x000038b6     0x5c9e /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .debug_info    0x00009554     0x18a9 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- .debug_info    0x0000adfd      0x120 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
- .debug_info    0x0000af1d     0x19e3 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+ .debug_info    0x000038b6     0x5ecf /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .debug_info    0x00009785     0x18a9 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ .debug_info    0x0000b02e      0x120 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+ .debug_info    0x0000b14e     0x1ae2 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
 
-.debug_abbrev   0x00000000     0x24e1
+.debug_abbrev   0x00000000     0x2580
  .debug_abbrev  0x00000000       0x14 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_boot.S.o
  .debug_abbrev  0x00000014       0x14 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_cpu_init.S.o
  .debug_abbrev  0x00000028       0x14 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_xil-crt0.S.o
@@ -2530,12 +2538,12 @@ LOAD linker stubs
  .debug_abbrev  0x00001400       0xa2 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_g.c.o
  .debug_abbrev  0x000014a2       0xd9 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_sinit.c.o
  .debug_abbrev  0x0000157b      0x12e /home/test/zynq_psoracle/firmware/bsp/out/console.o
- .debug_abbrev  0x000016a9      0x57e /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .debug_abbrev  0x00001c27      0x483 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- .debug_abbrev  0x000020aa       0xb3 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
- .debug_abbrev  0x0000215d      0x384 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+ .debug_abbrev  0x000016a9      0x5b9 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .debug_abbrev  0x00001c62      0x483 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ .debug_abbrev  0x000020e5       0xb3 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+ .debug_abbrev  0x00002198      0x3e8 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
 
-.debug_aranges  0x00000000      0x648
+.debug_aranges  0x00000000      0x658
  .debug_aranges
                 0x00000000       0x20 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_boot.S.o
  .debug_aranges
@@ -2589,40 +2597,40 @@ LOAD linker stubs
  .debug_aranges
                 0x000005c0       0x20 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
  .debug_aranges
-                0x000005e0       0x68 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x000005e0       0x78 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
 
-.debug_str      0x00000000     0x211e
- .debug_str     0x00000000     0x211e /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_boot.S.o
+.debug_str      0x00000000     0x21d9
+ .debug_str     0x00000000     0x21d9 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_boot.S.o
                                  0x84 (size before relaxing)
- .debug_str     0x0000211e       0x88 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_cpu_init.S.o
- .debug_str     0x0000211e       0x32 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_xil-crt0.S.o
- .debug_str     0x0000211e      0x53d /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_cache.c.o
- .debug_str     0x0000211e      0x2be /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_mmu.c.o
- .debug_str     0x0000211e      0x249 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xtime_l.c.o
- .debug_str     0x0000211e      0x251 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_vectors.c.o
- .debug_str     0x0000211e      0x32f /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
- .debug_str     0x0000211e      0x26b /home/test/zynq_psoracle/firmware/bsp/out/common_xil_assert.c.o
- .debug_str     0x0000211e      0x215 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc__sbrk.c.o
- .debug_str     0x0000211e      0x1eb /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_write.c.o
- .debug_str     0x0000211e      0x1e9 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_read.c.o
- .debug_str     0x0000211e      0x1c0 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_close.c.o
- .debug_str     0x0000211e      0x30c /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_fstat.c.o
- .debug_str     0x0000211e      0x1be /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_isatty.c.o
- .debug_str     0x0000211e      0x1f1 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_lseek.c.o
- .debug_str     0x0000211e      0x1bb /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc__exit.c.o
- .debug_str     0x0000211e      0x4dd /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_errno.c.o
- .debug_str     0x0000211e      0x1b3 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_abort.c.o
- .debug_str     0x0000211e      0x2fa /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt.c.o
- .debug_str     0x0000211e      0x228 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_g.c.o
- .debug_str     0x0000211e      0x24e /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_sinit.c.o
- .debug_str     0x0000211e      0x1fa /home/test/zynq_psoracle/firmware/bsp/out/console.o
- .debug_str     0x0000211e      0xc34 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .debug_str     0x0000211e      0x4d5 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- .debug_str     0x0000211e      0x1bb /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
- .debug_str     0x0000211e      0x5b8 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+ .debug_str     0x000021d9       0x88 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_cpu_init.S.o
+ .debug_str     0x000021d9       0x32 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_xil-crt0.S.o
+ .debug_str     0x000021d9      0x53d /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_cache.c.o
+ .debug_str     0x000021d9      0x2be /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_mmu.c.o
+ .debug_str     0x000021d9      0x249 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xtime_l.c.o
+ .debug_str     0x000021d9      0x251 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_vectors.c.o
+ .debug_str     0x000021d9      0x32f /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
+ .debug_str     0x000021d9      0x26b /home/test/zynq_psoracle/firmware/bsp/out/common_xil_assert.c.o
+ .debug_str     0x000021d9      0x215 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc__sbrk.c.o
+ .debug_str     0x000021d9      0x1eb /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_write.c.o
+ .debug_str     0x000021d9      0x1e9 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_read.c.o
+ .debug_str     0x000021d9      0x1c0 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_close.c.o
+ .debug_str     0x000021d9      0x30c /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_fstat.c.o
+ .debug_str     0x000021d9      0x1be /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_isatty.c.o
+ .debug_str     0x000021d9      0x1f1 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_lseek.c.o
+ .debug_str     0x000021d9      0x1bb /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc__exit.c.o
+ .debug_str     0x000021d9      0x4dd /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_errno.c.o
+ .debug_str     0x000021d9      0x1b3 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_abort.c.o
+ .debug_str     0x000021d9      0x2fa /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt.c.o
+ .debug_str     0x000021d9      0x228 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_g.c.o
+ .debug_str     0x000021d9      0x24e /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_sinit.c.o
+ .debug_str     0x000021d9      0x1fa /home/test/zynq_psoracle/firmware/bsp/out/console.o
+ .debug_str     0x000021d9      0xcc0 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .debug_str     0x000021d9      0x4d5 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ .debug_str     0x000021d9      0x1bb /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+ .debug_str     0x000021d9      0x64d /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
 
 .debug_loclists
-                0x00000000     0x5d6e
+                0x00000000     0x5f05
  .debug_loclists
                 0x00000000      0xa54 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_cache.c.o
  .debug_loclists
@@ -2656,16 +2664,16 @@ LOAD linker stubs
  .debug_loclists
                 0x0000130f       0x67 /home/test/zynq_psoracle/firmware/bsp/out/console.o
  .debug_loclists
-                0x00001376     0x195f /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x00001376     0x1a9e /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .debug_loclists
-                0x00002cd5     0x176d /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x00002e14     0x176d /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .debug_loclists
-                0x00004442       0x99 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+                0x00004581       0x99 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
  .debug_loclists
-                0x000044db     0x1893 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0000461a     0x18eb /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
 
 .debug_rnglists
-                0x00000000      0xd0f
+                0x00000000      0xd23
  .debug_rnglists
                 0x00000000      0x118 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_cache.c.o
  .debug_rnglists
@@ -2705,15 +2713,15 @@ LOAD linker stubs
  .debug_rnglists
                 0x00000342       0x31 /home/test/zynq_psoracle/firmware/bsp/out/console.o
  .debug_rnglists
-                0x00000373      0x47c /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x00000373      0x475 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .debug_rnglists
-                0x000007ef      0x2db /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x000007e8      0x2db /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .debug_rnglists
-                0x00000aca       0x13 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+                0x00000ac3       0x13 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
  .debug_rnglists
-                0x00000add      0x232 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x00000ad6      0x24d /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
 
-.debug_frame    0x00000000      0xd78
+.debug_frame    0x00000000      0xda4
  .debug_frame   0x00000000      0x230 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_cache.c.o
  .debug_frame   0x00000230       0x7c /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_mmu.c.o
  .debug_frame   0x000002ac       0x30 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xtime_l.c.o
@@ -2733,7 +2741,7 @@ LOAD linker stubs
  .debug_frame   0x000005ec       0x58 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt.c.o
  .debug_frame   0x00000644       0x20 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_sinit.c.o
  .debug_frame   0x00000664       0x30 /home/test/zynq_psoracle/firmware/bsp/out/console.o
- .debug_frame   0x00000694      0x22c /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .debug_frame   0x000008c0      0x2e0 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- .debug_frame   0x00000ba0       0x2c /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
- .debug_frame   0x00000bcc      0x1ac /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+ .debug_frame   0x00000694      0x238 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .debug_frame   0x000008cc      0x2e0 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ .debug_frame   0x00000bac       0x2c /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+ .debug_frame   0x00000bd8      0x1cc /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o

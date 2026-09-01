@@ -80,13 +80,23 @@ extern char inbyte(void);
  * refuses any offset it does not recognise. `tests/test_firmware_audit.py` asserts that no
  * line of this file names those offsets. */
 
+#define P3_ST_GATE_BUSY 0u   /* docs/l1_design.md register map; rtl/p3_axil.v status[0] */
 #define P3_ST_FAULT 1u
 #define P3_ST_CFG_VALID_HW 2u
+#define P3_ST_SCORER_BUSY 3u
+#define P3_ST_SCORER_DONE 4u
 #define P3_ST_RECOVERY 7u
 #define P3_ST_ALIVE 8u
 #define P3_ST_KEY_LOADED 11u
 #define P3_ST_RESERVED 0xF8000000u
 #define P3_ARM_STROBE (1u << 6)
+/* The bound on the post-strobe STATUS poll. The gate is done in < 200 cycles at 50 MHz
+ * (host/l3_runner.py, board-observed at L3); one Strongly-Ordered AXI read from the A9
+ * takes on the order of 100 ns, so this bound is ~0.1-0.3 s of polling — four to five
+ * orders of magnitude above the gate's own time, and far below the collector's 30 s
+ * silence threshold. It is a count, not a clock: the global timer's rate follows
+ * CPU_6x4x, and liveness must not depend on that constant (see heartbeat()). */
+#define P3_SETTLE_POLLS_MAX 1000000u
 
 #define SLCR_PSS_IDCODE 0xF8000530u /* READ ONLY — this application writes no SLCR word */
 #define P3_IDCODE_MASK 0x0FFFFFFFu
@@ -138,7 +148,7 @@ static struct {
     p3_identity_page page;
     uint32_t frames[P3_TARGET_FRAMES][P3_FRAME_WORDS];
     uint32_t readback[P3_TARGET_FRAMES][P3_FRAME_WORDS];
-    uint32_t scored, refused, audited;
+    uint32_t scored, refused;  /* the TERM's audit block comes from p3_wire_tally(), not here */
     int audit_requested;       /* an AUDITREQ arrived in this candidate's exchange */
     int audit_served;          /* the host asked and we served raw words for … */
     uint32_t audit_served_seq; /* … this candidate (rule ix: the mark means served) */
@@ -598,16 +608,43 @@ static int link3_witness(char *readback_hex)
 
 /* the ARM transaction: 24 staged words then the strobe. The tag is the notary's; this
  * application cannot produce one — it holds no key and has no path to the key register. */
-/* Returns 0 when the PL consumed the attempt (the nonce stepped), 1 when it did NOT, and
- * -1 only when the attempt was not made at all. Every observation is written through the
- * out-parameters on ALL THREE paths: session 1 stopped on the nonce check and threw away
- * the STATUS and FAULT it had just read, which were the two most diagnostic values it had.
- * The caller decides what to record; this function loses nothing that is READABLE — CTRL is
- * write-only in the RTL, so the strobe's fate in the register is not observable from here
- * and the record says so rather than pretending otherwise. */
+/* What the post-strobe poll saw: how many STATUS reads, whether the gate settled, and the
+ * first and last STATUS values. Recorded on every ARM path. */
+typedef struct {
+    uint32_t polls;
+    uint32_t polls_max;
+    int settled;
+    uint32_t status_first;
+    uint32_t status_last;
+} p3_settle;
+
+/* The gate has settled when neither the gate nor the scorer is busy AND something has
+ * latched — a fault or scorer_done. The SAME condition host/l3_runner.py polled for at L3,
+ * where the nonce was seen to step five times; session 3 (2026-09-01) showed why it is
+ * needed here: this function used to read the nonce immediately after the strobe, and
+ * rtl/p3_arm_gate.v steps the nonce only when the SipHash completes (state 1, sh_done),
+ * so the immediate read saw gate_busy SET and the old nonce. */
+static int settle_condition(uint32_t st)
+{
+    int busy = ((st >> P3_ST_GATE_BUSY) & 1u) || ((st >> P3_ST_SCORER_BUSY) & 1u);
+    int latched = ((st >> P3_ST_FAULT) & 1u) || ((st >> P3_ST_SCORER_DONE) & 1u);
+    return !busy && latched;
+}
+
+/* Returns 0 when the gate settled and the PL consumed the attempt (the nonce stepped),
+ * 1 when the gate settled and the nonce did NOT step, 2 when the bounded poll ran out
+ * before the gate settled, and -1 only when the attempt was not made at all. Every
+ * observation is written through the out-parameters on ALL paths: session 1 stopped on the
+ * nonce check and threw away the STATUS and FAULT it had just read, which were the two
+ * most diagnostic values it had. The caller decides what to record; this function loses
+ * nothing that is READABLE — CTRL is write-only in the RTL, so the strobe's fate in the
+ * register is not observable from here and the record says so rather than pretending
+ * otherwise. The poll only READS STATUS: the strobe is written exactly once, whatever the
+ * poll sees, and no ARM is re-issued from here. */
 static int arm_attempt(const char *commit_hex, const char tables_hex[6][17],
                        const char *tag_hex, uint64_t *nonce_before, uint64_t *nonce_after,
-                       uint32_t *status, uint32_t *fault, int *writes_issued)
+                       uint32_t *status, uint32_t *fault, int *writes_issued,
+                       p3_settle *settle)
 {
     uint32_t words[24];
     uint8_t tag[16];
@@ -648,11 +685,27 @@ static int arm_attempt(const char *commit_hex, const char tables_hex[6][17],
     axi_write(P3_CTRL, P3_ARM_STROBE);
     (*writes_issued)++;
 
-    *status = axi_read(P3_STATUS);
+    /* bounded settle poll: read-only, one STATUS read per iteration, no second strobe */
+    settle->polls_max = P3_SETTLE_POLLS_MAX;
+    settle->polls = 0u;
+    settle->settled = 0;
+    st = axi_read(P3_STATUS);
+    settle->status_first = st;
+    settle->polls = 1u;
+    while (!(settle->settled = settle_condition(st)) && settle->polls < settle->polls_max &&
+           S.kind == P3_RUNNING) {
+        st = axi_read(P3_STATUS);
+        settle->polls++;
+    }
+    settle->status_last = st;
+
+    *status = st;
     *fault = axi_read(P3_FAULT);
     *nonce_after = pl_nonce();
-    /* The caller emits a STOP_ARM record carrying everything above; it is NOT this
-     * function's business to decide that the observations are uninteresting. */
+    /* The caller emits the record carrying everything above; it is NOT this function's
+     * business to decide that the observations are uninteresting. */
+    if (!settle->settled)
+        return 2;
     return (*nonce_after == *nonce_before) ? 1 : 0;
 }
 
@@ -736,8 +789,6 @@ static void emit_record(p3_wire_record_in *rec, const char *outcome)
      * candidate — never merely that auditing was configured. A record that claimed the
      * mark without the words would be exactly the self-report rule (ix) exists to bound. */
     rec->audited = (S.audit_served && S.audit_served_seq == rec->seq);
-    if (rec->audited)
-        S.audited++;
     send_payload("REC", rec->seq, p3_wire_loop_record(rec, g_payload, sizeof(g_payload)));
 }
 
@@ -753,6 +804,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     size_t jn;
     uint64_t nonce_before, nonce_after;
     uint32_t status, fault, hb_before;
+    p3_settle settle;
     int i, n, armed, writes_issued;
 
     S.seq++;
@@ -868,7 +920,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     }
     hb_before = axi_read(P3_HEARTBEAT);
     armed = arm_attempt(commit, (const char(*)[17])tables, tag, &nonce_before, &nonce_after,
-                        &status, &fault, &writes_issued);
+                        &status, &fault, &writes_issued, &settle);
     if (armed < 0)
         return -1;                    /* the attempt was never made */
     rec.have_arm = 1;
@@ -878,12 +930,24 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     rec.fault_after = fault;
     rec.writes_issued = writes_issued;
     rec.key_loaded_observed = (int)((status >> P3_ST_KEY_LOADED) & 1u);
+    rec.settle_polls = settle.polls;
+    rec.settle_polls_max = settle.polls_max;
+    rec.settled = settle.settled;
+    rec.status_first = settle.status_first;
+    if (armed == 2) {
+        /* The gate never settled within the bound. Neutral: the record carries the whole
+         * poll and the epoch stops. Nothing is re-issued and nothing is claimed about why. */
+        emit_record(&rec, "STOP_SETTLE");
+        p3_stop(P3_STOPPED, "the ARM did not settle within the poll bound");
+        return -1;
+    }
     if (armed == 1) {
-        /* The PL did not consume the ARM. Session 1 (2026-09-01) ended here and kept
-         * nothing; the record goes out FIRST, carrying every observation, and only then
-         * does the epoch stop. This records THAT it happened and asserts nothing about why. */
+        /* The gate settled and the PL did not consume the ARM. Session 1 (2026-09-01)
+         * ended on the old form of this check and kept nothing; the record goes out FIRST,
+         * carrying every observation, and only then does the epoch stop. This records THAT
+         * it happened and asserts nothing about why. */
         emit_record(&rec, "STOP_ARM");
-        p3_stop(P3_STOPPED, "the nonce did not step: the PL did not consume this ARM");
+        p3_stop(P3_STOPPED, "the gate settled and the nonce did not step: the PL did not consume this ARM");
         return -1;
     }
     if (!((status >> P3_ST_CFG_VALID_HW) & 1u)) {
@@ -931,6 +995,7 @@ static void closing_unsigned_control(void)
     static const char zero_tag[] = "00000000000000000000000000000000";
     uint64_t nb, na;
     uint32_t status, fault;
+    p3_settle settle;
     int writes_issued;
     if (!S.have_last_reply) {
         p3_stop(P3_STOPPED, "no signed candidate to build the closing control from");
@@ -942,7 +1007,12 @@ static void closing_unsigned_control(void)
      * rather than as a record the validator would have to be loosened to accept. */
     {
         int armed = arm_attempt(S.last_commit, (const char(*)[17])S.last_tables, zero_tag,
-                                &nb, &na, &status, &fault, &writes_issued);
+                                &nb, &na, &status, &fault, &writes_issued, &settle);
+        if (armed == 2) {
+            p3_stop(P3_STOPPED,
+                    "the closing unsigned ARM did not settle within the poll bound");
+            return;
+        }
         if (armed == 1) {
             p3_stop(P3_STOPPED,
                     "the closing unsigned ARM was not consumed: the nonce did not step");
@@ -976,8 +1046,11 @@ static void emit_summary(void)
     in.closing_restore = S.closing_restore;
     in.closing_baseline = S.closing_baseline;
     in.closing_unsigned = S.closing_unsigned;
-    in.audited = S.audited;
-    in.total = S.scored + S.refused;
+    /* The audit block is the record serialiser's own count of what it produced — never a
+     * sum of outcome counters. Session 3 (2026-09-01): scored + refused omitted the
+     * STOP_ARM record, so the TERM said audited 1 / total 0 and rule (ix) rejected the
+     * whole log. The validator requires total == the number of loop records. */
+    p3_wire_tally(&in.total, &in.audited);
     in.crc_dropped = S.crc_dropped;
     in.drop_budget = P3_DROP_BUDGET;
     send_payload("TERM", S.seq + 1u, p3_wire_summary(&in, g_payload, sizeof(g_payload)));

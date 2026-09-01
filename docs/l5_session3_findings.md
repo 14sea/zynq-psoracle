@@ -1,13 +1,14 @@
 # L5 session 3 on 17A6 (ruling `2026-09-01-03`) — the diagnostic session
 
-**Standing: HOLD.** The runner's literal outcome string is
+**Standing: HOLD (instrumentation defect) — adjudicated by the owner, 2026-09-01.** The
+runner's literal outcome string, kept verbatim in the evidence, is
 `KILL run_log rejected: audit must report audited <= total (rule ix)`. That string is the
 runner mapping *every* validator rejection to the word KILL; `docs/l5_prereg.md` §5 defines
 KILL as "any item in §3", and no §3 item was met (see §3 below). The rejection is a counter
 in the firmware's `TERM` frame — an instrument defect — which §5 classes as **HOLD**. The
 owner adjudicates; this document does not.
 
-Evidence: `evidence/l5_17A6_2026-09-01-03/`, image `10044abe…` (the pinned image, unchanged),
+Evidence: `evidence/l5_17A6_2026-09-01-03/`, image `10044abe…` (the image pinned at the time; since withdrawn as superseded, not defective),
 carrier `956379fa…`, boundary `evidence/boundary/principal_boundary_2026-09-01-03.json`
 (R1–R5 as the runner). Power-cycled before the session; both `-03` rulings consumed.
 
@@ -90,6 +91,8 @@ is left as written; this document is the record of what the observation actually
   entered verification; the application sampled the nonce while the gate was busy. Session
   1's "the PL did not consume this ARM" is therefore a **premature read**, not a
   non-consumption — the same code path, so the same explanation applies to session 1.
+  **The sentence the owner ruled may be written, and no more: *early-read explanation
+  strongly supported; standalone success after bounded settling remains untested.***
 - **Not established on silicon:** that the nonce *would* have stepped had the application
   waited. The RTL says it must (state 1 steps it on `sh_done` whatever the tag outcome), and
   L3 saw it step five times through the host's poll, but no session has yet observed the
@@ -130,7 +133,7 @@ be run. **`docs/l5_prereg.md` §6:** three sessions (1, 2, 3) without a `COMPLET
 **the standalone plane goes back to design review before any further board time.** Both
 triggers are recorded here as triggered.
 
-## 4. What a corrected build must change (proposal — not done, not authorised)
+## 4. What a corrected build must change (proposal at the time of writing; authorised and done the same day — see `docs/l5_settle_correction.md`)
 
 1. `arm_attempt`: after the strobe, **poll `STATUS` until `!gate_busy && !scorer_busy` and
    settled**, bounded (L3 used 10 s of host polling; the PL needs < 200 cycles), then read
@@ -157,9 +160,9 @@ adjudication machinery around it was the weak part, twice.
 - **HOLD** (instrument: `TERM` counter) — the owner adjudicates the runner's `KILL` string
   against §5; this document argues it is not a §3 item and says why.
 - Both `-03` rulings consumed. Board untouched since the runner exited; not power-cycled.
-- Pinned image remains `10044abe…` — the image that produced this evidence stays
-  identifiable. It is **not** defective in what it emitted; it is wrong in *when* it reads
-  the nonce and in what it counts.
+- Image `10044abe…` produced this evidence and stays identifiable; it has since been
+  withdrawn as **superseded, not defective** — wrong in *when* it reads the nonce and in
+  what it counts, not in what it emitted. The correction is `docs/l5_settle_correction.md`.
 - L3's hardware-enforced interlock result is untouched. L5's runtime property remains
   untested — and the reason it has looked untestable for three sessions is now, at least,
   named and traceable to source.

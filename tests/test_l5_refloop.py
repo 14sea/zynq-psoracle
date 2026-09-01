@@ -265,3 +265,113 @@ class RefLoopSession(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SettlePoll(unittest.TestCase):
+    """The reference loop mirrors p3_app.c arm_attempt(): after the strobe, STATUS is polled
+    (bounded, read-only) until the gate settles, and only then is the nonce read. Session 3
+    (2026-09-01) showed the immediate read sees gate_busy and the old nonce."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.holder = sg.KeyHolder(private_key(Path(cls.tmp.name)))
+        cls.manifest = g.load_manifest()
+        cls.consts = po.load_constants()
+        base, roles = g.gc.pinned_frames(cls.manifest)
+        blank_frames = {f: list(base[f]) for f, r in roles.items() if r == "target"}
+        cls.blank_commit = g.gate(g.build_streams(blank_frames, cls.manifest), cls.manifest)["candidate_sha256"]
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def _loop(self, board_cls):
+        page = rf.build_identity_page(TOKEN, 0, 0x12345678, "9a" * 32, SEED, 0x900, 7, 3, 3)
+        board = board_cls(self.manifest, self.consts, self.holder, page)
+        signer = lambda req: sign_arm.sign_genome(self.holder, req["genome"], req["nonce"])  # noqa: E731
+        relay = n.NotaryRelay(TOKEN, signer, drop_budget=16, clock=lambda: 0.0)
+        return board, relay, rf.RefLoop(board, relay.handle_line, self.manifest, self.consts)
+
+    def test_a_gate_that_settles_late_is_waited_for_and_the_nonce_is_seen_stepped(self):
+        """busy for N reads after the strobe, then done: SCORED, polls == N + 1, and the
+        stepped nonce is observed — the case sessions 1 and 3 could never see."""
+        N = 37
+
+        class LateSettle(FakeStandalonePL):
+            def _arm(self):
+                super()._arm()                      # the fake PL completes at once …
+                self.busy_reads = N                 # … but reports busy for N reads
+
+            def axi_read(self, off):
+                st = super().axi_read(off)
+                if off == po.STATUS and getattr(self, "busy_reads", 0) > 0:
+                    self.busy_reads -= 1
+                    return (st | 1 << po.ST["gate_busy"]) & ~(1 << po.ST["scorer_done"])
+                return st
+
+        board, relay, loop = self._loop(LateSettle)
+        log = loop.run([])
+        log["notary_log"] = relay.notary_log()
+        self.assertEqual(log["session_summary"]["epoch_end"]["kind"], "COMPLETED")
+        settle = log["loop_records"][0]["evidence"]["arm"]["settle"]
+        self.assertEqual((settle["polls"], settle["settled"]), (N + 1, True))
+        self.assertTrue(int(settle["status_first"], 16) >> po.ST["gate_busy"] & 1, "the first read saw busy")
+        self.assertFalse(int(settle["status_last"], 16) >> po.ST["gate_busy"] & 1)
+        records.validate_standalone_run_log(log, self.blank_commit, SEED)
+
+    def test_a_gate_that_never_settles_ends_stop_settle_with_the_poll_recorded(self):
+        class BusyForever(FakeStandalonePL):
+            def _arm(self):
+                self.stuck = True                   # strobe taken, nothing ever completes
+
+            def axi_read(self, off):
+                st = super().axi_read(off)
+                if off == po.STATUS and getattr(self, "stuck", False):
+                    return st | 1 << po.ST["gate_busy"]
+                return st
+
+        board, relay, loop = self._loop(BusyForever)
+        log = loop.run([])
+        log["notary_log"] = relay.notary_log()
+        self.assertEqual(log["session_summary"]["epoch_end"]["kind"], "STOPPED")
+        self.assertIn("did not settle", log["session_summary"]["epoch_end"]["reason"])
+        rec = log["loop_records"][-1]
+        self.assertEqual(rec["outcome"], "STOP_SETTLE")
+        s = rec["evidence"]["arm"]["settle"]
+        self.assertEqual((s["polls"], s["polls_max"], s["settled"]), (rf.SETTLE_POLLS_MAX, rf.SETTLE_POLLS_MAX, False))
+        self.assertEqual(rec["evidence"]["arm"]["nonce_after"], rec["evidence"]["arm"]["nonce_before"])
+        out = records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        self.assertEqual(out["chain_length"], 0)
+        self.assertEqual(log["session_summary"]["audit"]["total"], len(log["loop_records"]))
+
+    def test_a_gate_that_settles_without_consuming_ends_stop_arm(self):
+        class SettlesButIgnores(FakeStandalonePL):
+            def _arm(self):
+                self.armed_done = True              # scorer_done latches, nonce untouched
+
+        board, relay, loop = self._loop(SettlesButIgnores)
+        log = loop.run([])
+        log["notary_log"] = relay.notary_log()
+        rec = log["loop_records"][-1]
+        self.assertEqual(rec["outcome"], "STOP_ARM")
+        self.assertTrue(rec["evidence"]["arm"]["settle"]["settled"])
+        self.assertIn("gate settled and the nonce did not step", log["session_summary"]["epoch_end"]["reason"])
+        self.assertEqual(records.validate_standalone_run_log(log, self.blank_commit, SEED)["chain_length"], 0)
+
+    def test_the_strobe_is_written_once_however_long_the_poll(self):
+        class CountingBusy(FakeStandalonePL):
+            strobes = 0
+            def axi_write(self, off, val):
+                if off == po.CTRL:
+                    self.strobes += 1
+                super().axi_write(off, val)
+            def _arm(self):
+                self.stuck = True
+            def axi_read(self, off):
+                st = super().axi_read(off)
+                return st | 1 << po.ST["gate_busy"] if off == po.STATUS and getattr(self, "stuck", False) else st
+
+        board, relay, loop = self._loop(CountingBusy)
+        loop.run([])
+        self.assertEqual(board.strobes, 1)

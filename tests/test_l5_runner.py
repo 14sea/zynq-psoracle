@@ -109,6 +109,45 @@ class Verdict(unittest.TestCase):
             self.assertNotEqual(v, "PASS")
 
 
+class RejectionClassification(unittest.TestCase):
+    """Session 3 (2026-09-01) printed `KILL run_log rejected: …` for a counter the firmware
+    got wrong. The owner ruled: KILL only for a preregistration §3 item; schema /
+    accounting / instrument defects are HOLD. Tested in both directions."""
+
+    def test_an_accounting_rejection_is_a_hold(self):
+        from validators import records
+        v = lr.classify_rejection(records.RecordError("audit must report audited <= total (rule ix)"))
+        self.assertTrue(v.startswith("HOLD instrument:"), v)
+        self.assertNotIn("KILL", v)
+
+    def test_a_falsifier_is_a_kill(self):
+        from validators import records
+        v = lr.classify_rejection(records.Falsified("(viii) the closing unsigned ARM was not refused F_ARM_AUTH"))
+        self.assertTrue(v.startswith("KILL falsified:"), v)
+
+    def test_session_3s_own_log_now_classifies_as_hold(self):
+        """The recorded evidence, read-only, through the current validator: whatever the
+        current rejection reason is, it must not be a Falsified one."""
+        import json
+        from validators import records
+        import p3_gate as g
+        import p3_genome as gn
+        log = json.loads((R / "evidence/l5_17A6_2026-09-01-03/run_log.json").read_text())
+        phen = g.load_manifest()
+        blank = g.gate(g.build_streams(gn.frames_from_genome(gn.blank_genome(phen), phen), phen),
+                       phen)["candidate_sha256"]
+        seed = int(json.loads((R / "manifests/l5_manifest.json").read_text())["carrier"]["nonce_seed"], 16)
+        with self.assertRaises(records.RecordError) as cm:
+            records.validate_standalone_run_log(log, blank, seed)
+        self.assertNotIsInstance(cm.exception, records.Falsified)
+        self.assertTrue(lr.classify_rejection(cm.exception).startswith("HOLD instrument:"))
+
+    def test_the_runner_source_no_longer_maps_every_rejection_to_kill(self):
+        src = (R / "host/l5_runner.py").read_text()
+        self.assertNotIn('f"KILL run_log rejected', src)
+        self.assertIn("classify_rejection(exc)", src)
+
+
 class ImagePinning(unittest.TestCase):
     """The refusal must be REACHED and be ABOUT the image — a run that stops earlier (a
     missing ruling, say) would also return 2 and would prove nothing."""

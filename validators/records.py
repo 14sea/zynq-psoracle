@@ -57,6 +57,15 @@ class RecordError(ValueError):
     pass
 
 
+class Falsified(RecordError):
+    """A rejection that is one of the preregistration's falsification items (L5 prereg §3):
+    the interlock or the nonce model contradicted by the record itself. The runner maps
+    ONLY these to KILL; every other RecordError is a schema / accounting / instrument
+    defect and is a HOLD. Session 3 (2026-09-01) was labelled KILL by a runner that mapped
+    every rejection to that word when the actual cause was a counter in the firmware's
+    TERM frame — the owner ruled it HOLD and that the mapping follow the preregistration."""
+
+
 def canonical_sha256(record: dict) -> str:
     return hashlib.sha256(json.dumps(record, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
@@ -154,7 +163,7 @@ def _check_negative_control(r):
         raise RecordError(f"negative_control kind {r['kind']!r} is not one of {NEGATIVE_KINDS}")
     _hex(r["nonce"], 16, "nonce")
     if r["configuration_valid_hw"] is not False or r["scored"] is not False:
-        raise RecordError("a negative control that validated or scored is a KILL, never a record that passes")
+        raise Falsified("a negative control that validated or scored is a KILL, never a record that passes")
     if r["refused_as_expected"] is not (r["fault"] == EXPECTED_FAULT[r["kind"]]):
         raise RecordError(f"refused_as_expected disagrees with fault {r['fault']} for kind {r['kind']}")
 
@@ -215,8 +224,17 @@ def validate_run_log(log: dict) -> dict:
 # stepped, so the application had no legal record to emit and the observations were lost.
 # It records that the state occurred; it asserts NOTHING about why, and no other rule is
 # relaxed to accommodate it.
+# STOP_SETTLE: the strobe was written and the bounded poll of STATUS exhausted its budget
+# without the gate settling (busy never cleared, or nothing latched). Added after session 3
+# (2026-09-01), which showed that the application had been reading the nonce while
+# `gate_busy` was still set: the RTL steps the nonce only when the SipHash completes
+# (rtl/p3_arm_gate.v state 1, `sh_done`), so an immediate read cannot see it. Every ARM
+# record now carries `settle` — the poll's count, bound, first and last STATUS — and
+# STOP_ARM means "the gate SETTLED and the nonce did not step", which is a different fact
+# from "we did not wait". STOP_SETTLE is neutral: it consumes the nonce in the chain iff the
+# nonce is observed stepped, forbids a score, and claims nothing about why.
 LOOP_OUTCOMES = ("SCORED", "REFUSED_BY_GATE", "STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL",
-                 "STOP_AXI", "STOP_ARM")
+                 "STOP_AXI", "STOP_ARM", "STOP_SETTLE")
 EPOCH_END_KINDS = ("COMPLETED", "STOPPED", "PROTOCOL", "CRASHED")
 VERIFIED_MARKS = ("audited", "replayed-only")     # rule (ix): a bounded guarantee, said out loud
 CLOSING_STEPS = ("restore", "baseline", "unsigned_control")
@@ -293,6 +311,24 @@ def _forbid(ev: dict, keys: tuple, outcome: str) -> None:
         raise RecordError(f"loop_record outcome {outcome}: evidence must not contain {present}")
 
 
+def _check_settle(arm: dict, out: str) -> None:
+    """The bounded post-strobe poll every ARM record must describe (session 3)."""
+    s = arm["settle"]
+    if not isinstance(s, dict):
+        raise RecordError("arm.settle must be an object")
+    _need(s, ("polls", "polls_max", "settled", "status_first", "status_last"), out + " settle")
+    if not isinstance(s["settled"], bool):
+        raise RecordError("settle.settled must be a bool")
+    if not isinstance(s["polls"], int) or not isinstance(s["polls_max"], int):
+        raise RecordError("settle.polls and polls_max must be integers")
+    if s["polls"] < 1 or s["polls_max"] < 1 or s["polls"] > s["polls_max"]:
+        raise RecordError("settle.polls must lie in 1..polls_max")
+    if s["settled"] and s["polls"] == s["polls_max"] and s["polls_max"] > 1:
+        pass  # settling exactly on the last poll is legal; nothing to reject
+    if s["status_last"] != arm["status_after"]:
+        raise RecordError("status_after must be the last STATUS the poll read (settle.status_last)")
+
+
 def _check_loop_record(r):
     from . import nonce as nc
     if r["outcome"] not in LOOP_OUTCOMES:
@@ -323,7 +359,7 @@ def _check_loop_record(r):
     if oracle["seq"] != r["seq"]:
         raise RecordError("app_oracle_record seq differs from the loop_record's")
     if oracle["staged_sha256"] != reply["commit"]:
-        raise RecordError("staged_sha256 != the signed commit — link 2's binding failed, this record cannot stand")
+        raise Falsified("staged_sha256 != the signed commit — link 2's binding failed, this record cannot stand (prereg §3: a candidate past link 2 while staged != commit)")
     if out == "STOP_LINK3":
         _forbid(ev, ("arm", "score"), out)
         if oracle["readback_sha256"] == reply["commit"]:
@@ -334,18 +370,33 @@ def _check_loop_record(r):
         raise RecordError(f"{out} requires readback == commit (no ARM without link 3)")
     _need(ev, ("arm",), out)
     arm = ev["arm"]
-    _need(arm, ("nonce_before", "nonce_after", "status_after", "fault_after", "key_loaded_observed"), out)
+    _need(arm, ("nonce_before", "nonce_after", "status_after", "fault_after", "key_loaded_observed",
+                "settle"), out)
     _hex(arm["nonce_before"], 16, "nonce_before"); _hex(arm["nonce_after"], 16, "nonce_after")
-    if out == "STOP_ARM":
-        # the defining observation: the PL did not consume the attempt
+    _check_settle(arm, out)
+    nb, na = int(arm["nonce_before"], 16), int(arm["nonce_after"], 16)
+    if out == "STOP_SETTLE":
+        # the bounded poll ran out: the gate never settled. Neutral — nothing is claimed
+        # about why, and the nonce is whatever it was last seen to be.
         _forbid(ev, ("score",), out)
-        if int(arm["nonce_after"], 16) != int(arm["nonce_before"], 16):
+        if arm["settle"]["settled"] is not False or arm["settle"]["polls"] != arm["settle"]["polls_max"]:
+            raise RecordError("STOP_SETTLE means the poll exhausted polls_max without settling")
+        if na != nb and na != nc.step(nb):
+            raise Falsified("STOP_SETTLE: the nonce is neither unchanged nor stepped once by "
+                            "the model — the PL consumed something the model does not describe")
+        return
+    if arm["settle"]["settled"] is not True:
+        raise RecordError(f"{out} requires the gate to have settled; an ARM that never settled is STOP_SETTLE")
+    if out == "STOP_ARM":
+        # the defining observation: the gate settled and the PL did not consume the attempt
+        _forbid(ev, ("score",), out)
+        if na != nb:
             raise RecordError(
                 "STOP_ARM but the nonce stepped — the PL DID consume this ARM, so the "
                 "outcome is REFUSED_BY_PL or SCORED, not STOP_ARM")
         return
-    if int(arm["nonce_after"], 16) != nc.step(int(arm["nonce_before"], 16)):
-        raise RecordError("the nonce did not step by the model across this ARM attempt")
+    if na != nc.step(nb):
+        raise Falsified("the nonce did not step by the model across a consumed ARM attempt (prereg §3: nonce chain)")
     if out == "REFUSED_BY_PL":
         _forbid(ev, ("score",), out)
         if not arm["fault_after"]:
@@ -360,9 +411,9 @@ def _check_loop_record(r):
     score = ev["score"]
     _need(score, ("hw_candidate_commit", "functional_readout", "scores", "heartbeat"), out)
     if score["hw_candidate_commit"] != reply["commit"]:
-        raise RecordError("(ii) hw_candidate_commit != the signed commit")
+        raise Falsified("(ii) hw_candidate_commit != the signed commit")
     if [int(x, 16) for x in score["functional_readout"]] != [int(x, 16) for x in reply["expected_tables"]]:
-        raise RecordError("(iii) functional_readout != the signed expected_tables")
+        raise Falsified("(iii) functional_readout != the signed expected_tables")
     if len(score["scores"]) != 6:
         raise RecordError("six LUTs score six counters")
 
@@ -437,12 +488,19 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int) -
         arm = r["evidence"].get("arm")
         if arm is not None:
             if e["request"]["nonce"] != arm["nonce_before"]:
-                raise RecordError(f"(vii) seq {seq}: the nonce signed is not the nonce the ARM consumed")
+                raise Falsified(f"(vii) seq {seq}: the nonce signed is not the nonce the ARM consumed")
             if int(arm["nonce_before"], 16) != chain:
-                raise RecordError(f"(vii) seq {seq}: nonce_before is not the model chain value {chain:016x}")
-            # A STOP_ARM consumed nothing: the PL never stepped the nonce, so the chain does
-            # not advance and no attempt is counted. Anything else advances both.
-            if r["outcome"] != "STOP_ARM":
+                raise Falsified(f"(vii) seq {seq}: nonce_before is not the model chain value {chain:016x}")
+            # A STOP_ARM consumed nothing: the gate settled and never stepped the nonce, so
+            # the chain does not advance and no attempt is counted. A STOP_SETTLE advances
+            # iff the nonce was seen stepped (checked per record). Anything else advances both.
+            if r["outcome"] == "STOP_ARM":
+                pass
+            elif r["outcome"] == "STOP_SETTLE":
+                if arm["nonce_after"] != arm["nonce_before"]:
+                    chain = nc.step(chain)
+                    attempts += 1
+            else:
                 chain = nc.step(chain)
                 attempts += 1
     # closing negative control consumes the last nonce (COMPLETED only)
@@ -452,9 +510,9 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int) -
         if closing_neg is None:
             raise RecordError("(viii) COMPLETED without the closing unsigned-ARM control")
         if closing_neg.get("fault") != EXPECTED_FAULT["unsigned"]:
-            raise RecordError("(viii) the closing unsigned ARM was not refused F_ARM_AUTH — KILL, not a record")
+            raise Falsified("(viii) the closing unsigned ARM was not refused F_ARM_AUTH — KILL, not a record")
         if int(closing_neg["nonce_before"], 16) != chain:
-            raise RecordError("(viii) the closing control's nonce is not the model chain value")
+            raise Falsified("(viii) the closing control's nonce is not the model chain value")
         chain = nc.step(chain)
         attempts += 1
         scored = [by_seq[s] for s in sorted(by_seq) if by_seq[s]["outcome"] == "SCORED"]

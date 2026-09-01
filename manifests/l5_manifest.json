@@ -1,7 +1,7 @@
 {
   "schema": "l5_manifest",
   "schema_version": "1.0.0",
-  "status": "BUILD COMPLETE (rebuilt after session 2's instrumentation defect) \u2014 host-only. The firmware MMIO allowlist is now checked against the RTL AXI-Lite decode by tests/test_axi_map_vs_rtl.py. This manifest authorises nothing: the rulings and board contact remain the owner's, after this package is reviewed.",
+  "status": "BUILD COMPLETE (design correction after session 3: bounded settle poll + serialiser tally) — host-only. Not reviewed, no ruling, board untouched. This manifest authorises nothing: design review per prereg §6 comes first, then the rulings and board contact remain the owner's.",
   "carrier": {
     "bitstream": "builds/p3/p3.bit",
     "bitstream_sha256": "956379fa",
@@ -41,7 +41,7 @@
     "attributes": "every instrument buffer is mapped strongly-ordered, non-cacheable by the application before first touch; no per-operation cache maintenance"
   },
   "protocol": {
-    "transport": "T1 \u2014 console (UART) with the runner as relay",
+    "transport": "T1 — console (UART) with the runner as relay",
     "frame": "P3L5 <type> <seq> <token(32 hex)> <payload(base64url)> <crc32>",
     "token_bits": 128,
     "heartbeat_s": 10,
@@ -49,7 +49,7 @@
     "crc_drop_budget_per_session": 16
   },
   "session": {
-    "brackets": "opening baseline (blank candidate) \u2192 candidates \u2192 closing baseline (= restore) \u2192 closing unsigned ARM",
+    "brackets": "opening baseline (blank candidate) → candidates → closing baseline (= restore) → closing unsigned ARM",
     "baseline_train_scores": [
       18,
       22,
@@ -71,10 +71,10 @@
     "boundary_record_max_age_h": 6
   },
   "pinned_at_build": {
-    "app_image_sha256": "10044abeed396bc25597a6a5adc76dd8f6ccf9cad6ea516f0caf89c9a6fd6245",
-    "app_image": "firmware/bsp/out/p3_app.bin (raw binary, 81940 bytes, loaded at 0x02000000, `go`)",
-    "app_image_final_because": "REBUILT 2026-09-01 after session 2: the CTRL read-back added for STOP_ARM was removed. CTRL (0x2000) is write-only in rtl/p3_axil.v, so reading it is SLVERR and on this board a data abort \u2014 it killed session 2 before any record was emitted. The RTL contract was NOT widened to suit the instrument; the record states the value as unavailable instead. tests/test_axi_map_vs_rtl.py now compares the whole app allowlist against the whole RTL decode and requires app-not-in-RTL to be empty in both directions. Two from-scratch builds are byte-identical.",
-    "elf_sha256": "f7d2945defa5787670c7262da168d4e4019074ab2ac8360b95e9a2b66c81e92f",
+    "app_image_sha256": "a7c73d1f010c2f78b7ad600ba406d66324970acce3b8fae515f10820cc7c230f",
+    "app_image": "firmware/bsp/out/p3_app.bin (raw binary, 98324 bytes, loaded at 0x02000000, `go`)",
+    "app_image_final_because": "REBUILT 2026-09-01 after session 3 (owner-authorised design correction, host-only). (1) arm_attempt now polls STATUS after the strobe, bounded (P3_SETTLE_POLLS_MAX = 1000000 reads), read-only, until !gate_busy && !scorer_busy && (fault || scorer_done) — the same condition host/l3_runner.py polled at L3 — and only then reads FAULT and the nonce; the strobe is written once and never re-issued. A poll that runs out is the new neutral outcome STOP_SETTLE with the whole poll in the record (polls, polls_max, settled, status_first, status_last); STOP_ARM now means the gate settled and did not consume. (2) The TERM's audit block comes from p3_wire's own tally of the records it serialised (p3_wire_tally), never from scored + refused. The binary is 16384 bytes larger than 10044abe's because .text/.rodata grew by 0x2f0 bytes, .data's end crossed 0x02010000 and the 16 KiB-aligned .mmu_tbl moved to 0x02014000, so objcopy pads one more page: layout, not code. Two from-scratch builds are byte-identical. Neither correction has run on hardware: the early-read explanation is strongly supported by session 3's record and the RTL; standalone success after bounded settling remains untested.",
+    "elf_sha256": "eab44be8013760f6f171d5f2c511a52ba617a063bbdd9b5c1a12e16a6761583e",
     "toolchain": {
       "name": "xpack-dev-tools/arm-none-eabi-gcc",
       "version": "14.2.1-1.1",
@@ -100,7 +100,7 @@
     },
     "watchdog_enabled": false,
     "watchdog_load_value": null,
-    "watchdog_status": "NOT USED \u2014 session 1 runs watchdog-off (owner's ruling on D-c, 2026-08-31). P3_WDT_LOAD is 0 in the image and unreachable: the firmware gates both the arm and the kick on identity_page flags.bit1, which this session writes as 0.",
+    "watchdog_status": "NOT USED — session 1 runs watchdog-off (owner's ruling on D-c, 2026-08-31). P3_WDT_LOAD is 0 in the image and unreachable: the firmware gates both the arm and the kick on identity_page flags.bit1, which this session writes as 0.",
     "identity_page_flags": {
       "bit0_holdout_mode": 0,
       "bit1_watchdog_enabled": 0,
@@ -109,9 +109,9 @@
     },
     "watchdog_finding": {
       "resolved": "option 2 (watchdog off for session 1), owner 2026-08-31",
-      "why_it_could_not_be_30_s": "the 32-bit A9 private watchdog at PERIPHCLK=333.33 MHz with prescaler 0 tops out at 12.88 s; p3_app.c programs no prescaler and the driver exposes no SetPrescaler. See docs/l5_findings.md \u00a74.",
+      "why_it_could_not_be_30_s": "the 32-bit A9 private watchdog at PERIPHCLK=333.33 MHz with prescaler 0 tops out at 12.88 s; p3_app.c programs no prescaler and the driver exposes no SetPrescaler. See docs/l5_findings.md §4.",
       "peripheral_clock_hz": 333333343,
-      "peripheral_clock_note": "= CPU_6x4x/2; CPU_6x4x assumes the standard 6:2:1 ratio \u2014 ARM PLL 1333.33 MHz is board-confirmed, CPU_CLK_CTRL (0xF8000120) was never captured. Pre-board preflight, not a build blocker: nothing in a watchdog-off session depends on it.",
+      "peripheral_clock_note": "= CPU_6x4x/2; CPU_6x4x assumes the standard 6:2:1 ratio — ARM PLL 1333.33 MHz is board-confirmed, CPU_CLK_CTRL (0xF8000120) was never captured. Pre-board preflight, not a build blocker: nothing in a watchdog-off session depends on it.",
       "if_ever_enabled": {
         "prescaler": 7,
         "load_value": 1250000035,
@@ -122,7 +122,7 @@
     "preflight_before_board": [
       "md.l 0xF8000120 1 (CPU_CLK_CTRL) once at first power-on, stored with the session evidence; until then CPU_6x4x/PERIPHCLK are assumed, and no timing conversion derived from them may be reported as verified fact"
     ],
-    "note": "COMPLETE. toolchain, console_uart, the embeddedsw BSP input set (manifests/l5_bsp_inputs.json) and app_image_sha256 are pinned; the watchdog is deliberately off for session 1 and its load value is therefore not used rather than unset. Host recovery for a watchdog-off session is fixed in docs/l5_prereg.md \u00a74.",
+    "note": "COMPLETE. toolchain, console_uart, the embeddedsw BSP input set (manifests/l5_bsp_inputs.json) and app_image_sha256 are pinned; the watchdog is deliberately off for session 1 and its load value is therefore not used rather than unset. Host recovery for a watchdog-off session is fixed in docs/l5_prereg.md §4.",
     "withdrawn_images": [
       {
         "sha256": "7540239fbba07e6a8a19d9081f8e21220f0fdac2f3ba7b48e88f34767da8005e",
@@ -130,15 +130,19 @@
       },
       {
         "sha256": "b279459cf0c1df0aa14a3c63906d33fdc9aca82e6c819a286898e43f06424caf",
-        "why": "superseded by the audit-timing correction (a link-2 refusal was unauditable); no defect in what it did emit \u2014 see docs/l5_wire_findings.md \u00a77"
+        "why": "superseded by the audit-timing correction (a link-2 refusal was unauditable); no defect in what it did emit — see docs/l5_wire_findings.md §7"
       },
       {
         "sha256": "d3828a8c0ab8a0df0793f26ec9eb1210ce8c1a3a6de271f3932d5bc9947abdce",
-        "why": "superseded by the session-1 instrumentation batch. NOT defective: this is the image that produced the session-1 evidence (evidence/l5_17A6_2026-09-01-01/, HOLD STOPPED at the ARM), and it stays identifiable for that reason \u2014 see docs/l5_session1_findings.md"
+        "why": "superseded by the session-1 instrumentation batch. NOT defective: this is the image that produced the session-1 evidence (evidence/l5_17A6_2026-09-01-01/, HOLD STOPPED at the ARM), and it stays identifiable for that reason — see docs/l5_session1_findings.md"
       },
       {
         "sha256": "8390c4636e7801c89a779f6d162fef682596aa823b389b08ce3ae6e037fb6880",
-        "why": "DEFECTIVE \u2014 contains the CTRL read-back that is SLVERR on this carrier; it crashes at every ARM attempt before emitting any record. It produced the session-2 CRASH (evidence/l5_17A6_2026-09-01-02/). MUST NOT be run on the board."
+        "why": "DEFECTIVE — contains the CTRL read-back that is SLVERR on this carrier; it crashes at every ARM attempt before emitting any record. It produced the session-2 CRASH (evidence/l5_17A6_2026-09-01-02/). MUST NOT be run on the board."
+      },
+      {
+        "sha256": "10044abeed396bc25597a6a5adc76dd8f6ccf9cad6ea516f0caf89c9a6fd6245",
+        "why": "SUPERSEDED, not defective, 2026-09-01 (design correction after session 3). It is the image that ran session 3 and produced evidence/l5_17A6_2026-09-01-03/, and it stays identifiable for that reason. Its two defects are in when it reads and what it counts: arm_attempt read the nonce immediately after the strobe, while rtl/p3_arm_gate.v steps the nonce only on sh_done (session 3 saw gate_busy SET and the old nonce), and the TERM's audit.total was scored + refused, so its own STOP_ARM record was not counted and rule (ix) rejected the log."
       }
     ],
     "audit_policy": {

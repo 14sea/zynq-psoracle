@@ -55,6 +55,18 @@ while the interlock's hardware enforcement (L3) and its refusals (L4) continue t
 off` → identity page written and read back → `go`. Then: opening baseline, **N = 8**
 search candidates, closing baseline (= restore), closing unsigned ARM.
 
+**The ARM wait (amendment 2026-09-01, after session 3, before any ruling).** After the
+strobe the application polls `STATUS` — read-only, bounded at `P3_SETTLE_POLLS_MAX`
+(1 000 000 reads), the strobe written exactly once — until neither the gate nor the
+scorer is busy **and** a fault or `scorer_done` has latched: the condition
+`host/l3_runner.py` polled for at L3. Only then are `FAULT` and the nonce read. Every ARM
+record carries the poll (`settle`: `polls`, `polls_max`, `settled`, `status_first`,
+`status_last`). Sessions 1 and 3 read the nonce immediately after the strobe;
+`rtl/p3_arm_gate.v` steps it only when the SipHash completes, and session 3's first read saw
+`gate_busy` set (`docs/l5_session3_findings.md`). The early-read explanation is strongly
+supported; **standalone success after bounded settling remains untested** and is what the
+next session is for.
+
 **Budget: N = 8** for the first session. Small on purpose: the point of session 1 is that
 the loop, the taxonomy, the brackets and the evidence chain behave as specified, not that
 the board can run for hours. A long run is a later prereg with its own ruling.
@@ -147,9 +159,16 @@ summary.
 
 **HOLD** — an instrument or transport failure (a `PROTOCOL` end, a CRASHED end, a lost
 ruling, a console fault): the session is re-run after the cause is fixed and named. A HOLD
-is never argued into a PASS.
+is never argued into a PASS. *(Amendment 2026-09-01.)* Two further HOLD forms, both
+neutral: a **`STOP_SETTLE`** end — the bounded post-strobe poll ran out before the gate
+settled, recorded with the whole poll and claiming nothing about why — and a **validator
+rejection that is not a §3 item** (a schema, accounting or instrument defect in the log).
+The runner classifies a rejection by its type: only `validators.records.Falsified` — raised
+for §3's items — is a KILL; any other `RecordError` is this HOLD. Session 3's
+`KILL run_log rejected …` string was that mapping being wider than this paragraph; the
+owner ruled the session HOLD.
 
-**KILL** — any item in §3.
+**KILL** — any item in §3, and only those.
 
 Anything else — a `STOPPED` end at link 2 or link 3 with the refusal correctly recorded and
 the base restored — is a **correct refusal**, reported as such: it says the instrument
@@ -172,7 +191,16 @@ session pass: a change to any of them invalidates this preregistration and requi
 one.
 
 Also fixed: the application image itself. The build is done and its hash is pinned
-(`manifests/l5_manifest.json` `pinned_at_build.app_image_sha256` = `10044abe…`).
+(`manifests/l5_manifest.json` `pinned_at_build.app_image_sha256` = `a7c73d1f…`).
+
+**Image change on record (2026-09-01, after session 3).** `10044abe…` is **withdrawn as
+superseded, not defective** — it ran session 3 and stays identifiable for that. Its
+successor `a7c73d1f…` differs in two things and nothing else: the bounded settle poll
+before the nonce read (§4, "The ARM wait") and the `TERM`'s audit block being the record
+serialiser's own tally (`p3_wire_tally`) instead of `scored + refused` — the omission that
+had rule (ix) reject session 3's log. `docs/l5_settle_correction.md` is the record of the
+correction and the entry point of its review; this preregistration is amended, not
+replaced, because no outcome class changed and no way to pass was added.
 
 **Image change on record (2026-08-31).** The earlier image `7540239f…` is **withdrawn**. It
 was not superseded by a preference: its framed output could not satisfy this

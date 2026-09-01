@@ -222,6 +222,12 @@ static void cmd_rec(void)
         in.fault_after = (uint32_t)kv_u("fault_after", 0);
         in.key_loaded_observed = (int)kv_u("key_loaded", 1);
         in.writes_issued = (int)kv_u("writes_issued", 25);
+        /* the settle poll; defaults describe a gate that settled on the first read */
+        in.settle_polls = (uint32_t)kv_u("settle_polls", 1);
+        in.settle_polls_max = (uint32_t)kv_u("settle_max", 1000000);
+        in.settled = (int)kv_u("settled", 1);
+        in.status_first = kv_has("status_first") ? (uint32_t)kv_u("status_first", 0)
+                                                 : in.status_after;
     }
     if (kv_has("hw_commit")) {
         in.have_score = 1;
@@ -263,8 +269,14 @@ static void cmd_term(void)
     in.closing_restore = (int)kv_u("closing_restore", 0);
     in.closing_baseline = (int)kv_u("closing_baseline", 0);
     in.closing_unsigned = (int)kv_u("closing_unsigned", 0);
-    in.audited = (uint32_t)kv_u("audited", 0);
-    in.total = (uint32_t)kv_u("total", 0);
+    /* As the application does: the audit block comes from the serialiser's own tally of
+     * the records it produced. An explicit audited=/total= overrides it — that is how the
+     * contract tests prove the validator rejects a miscount in either direction. */
+    p3_wire_tally(&in.total, &in.audited);
+    if (kv_has("audited"))
+        in.audited = (uint32_t)kv_u("audited", 0);
+    if (kv_has("total"))
+        in.total = (uint32_t)kv_u("total", 0);
     in.crc_dropped = (uint32_t)kv_u("crc_dropped", 0);
     in.drop_budget = (uint32_t)kv_u("drop_budget", 16);
     emit("TERM", (uint32_t)kv_u("seq", in.last_seq + 1), in.token,

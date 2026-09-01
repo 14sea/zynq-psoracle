@@ -108,6 +108,16 @@ typedef struct {
      * question — a reader must be able to see that the strobe's fate in the register was not
      * observable, not be left wondering whether anyone looked. */
     int writes_issued;   /* payload + tag + strobe actually handed to Xil_Out32 */
+    /* The bounded settle poll after the strobe (session 3, 2026-09-01). The RTL steps the
+     * nonce only when the gate's SipHash completes (rtl/p3_arm_gate.v state 1, sh_done);
+     * session 3 read `gate_busy` SET immediately after the strobe and an unchanged nonce,
+     * so the "did not consume" of sessions 1 and 3 was a read issued before the gate had
+     * finished. Every ARM record now says how long it waited and what it saw first and
+     * last; `status_after` IS `status_last`. */
+    uint32_t settle_polls;      /* STATUS reads issued after the strobe, >= 1 */
+    uint32_t settle_polls_max;  /* the bound; polls == polls_max and !settled => STOP_SETTLE */
+    int settled;                /* !gate_busy && !scorer_busy && (fault || scorer_done) */
+    uint32_t status_first;      /* STATUS on the first read after the strobe (session 3's value) */
 
     int have_score;
     const char *hw_candidate_commit;             /* 64 hex */
@@ -153,5 +163,16 @@ typedef struct {
 } p3_wire_summary_in;
 
 size_t p3_wire_summary(const p3_wire_summary_in *in, char *out, size_t max);
+
+/* ------------------------------------------------------------------ tally ----------- */
+
+/* The accounting the summary's `audit` block reports, kept where the records are
+ * serialised so it cannot disagree with what was emitted: p3_wire_loop_record() counts
+ * every record it produces and every one marked audited. Session 3 (2026-09-01) was
+ * rejected by rule (ix) because the application derived `total` as scored + refused and
+ * so did not count its own STOP_ARM record. The validator requires total == the number of
+ * loop records; this is that number, from the only place that knows it. */
+void p3_wire_tally(uint32_t *records_emitted, uint32_t *records_audited);
+void p3_wire_tally_reset(void);
 
 #endif /* P3_WIRE_H */

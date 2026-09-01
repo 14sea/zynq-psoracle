@@ -516,3 +516,58 @@ given, all five items:
 existed. The non-stepping nonce remains open, and no attempt is made here to account for it.
 
 400 tests / 0 skipped. Not pushed; no new ruling; board untouched since session 2.
+
+## 2026-09-01 — L5 session 3: HOLD (owner's ruling); the ARM stop is a premature read; design correction authorised
+
+**Adjudication.** The runner printed `KILL run_log rejected: audit must report audited <=
+total (rule ix)`. The owner ruled the session **HOLD (instrumentation defect)**: no
+preregistration §3 falsifier was met; the validator's only rejection was `audit.total`
+omitting the `STOP_ARM` record; the same evidence with `total = 1` validates in full; and
+`KILL run_log rejected` was the runner's over-wide mapping, not a preregistration verdict.
+The evidence keeps the literal string; `docs/status.md` records HOLD and the divergence.
+
+**The observation.** `status_after = 0x901` — bit 0 = `gate_busy` — with `fault 0`,
+`writes_issued 25` and the nonce unchanged: the read happened while the gate was processing
+the ARM. The firmware took "not finished yet" for "not consumed". This overturns the earlier
+"the gate never saw the strobe" reading. What may be written, and no more: *early-read
+explanation strongly supported; standalone success after bounded settling remains untested.*
+
+**The correction batch (host-only, authorised, done — none of it has run on hardware):**
+
+1. `arm_attempt` polls `STATUS` after the strobe — read-only, bounded
+   (`P3_SETTLE_POLLS_MAX`), the strobe written once — for L3's settle condition
+   (`!gate_busy && !scorer_busy && (fault || scorer_done)`), then reads `FAULT` and the
+   nonce. Three returns: consumed / settled-not-consumed (`STOP_ARM`) / not settled
+   (**`STOP_SETTLE`**, new, neutral, the whole poll in the record). The closing control
+   stops the epoch on a non-settling ARM without a `CLOSE` frame.
+2. `TERM.audit` is `p3_wire`'s own tally of the records it serialised
+   (`p3_wire_tally`), taken where the records are produced; the application keeps no
+   second counter. The twin uses the same tally, so the contract test's `TERM` is counted
+   by the C code under test.
+3. The runner classifies a validator rejection by type: `validators.records.Falsified`
+   (§3's items: (ii)/(iii), the nonce chain, a closing control not refused, a negative
+   control that validated, a candidate past link 2 with `staged != commit`) → `KILL`;
+   any other `RecordError` → `HOLD instrument`. `classify_rejection()` is named and
+   tested both ways, including on session 3's own log.
+4. Every ARM record carries `settle`; `STOP_ARM` requires `settled: true`; `STOP_SETTLE`
+   requires `settled: false` and `polls == polls_max`, consumes the nonce in rule (vii)'s
+   chain iff it was seen stepped, and rejects a nonce that is neither unchanged nor stepped
+   once as `Falsified`.
+5. Negative tests, all live-verified to fail the way they should: busy never clears
+   (`STOP_SETTLE`, chain 0); busy clears and the nonce does not step (`STOP_ARM`); a
+   `STOP_ARM` that never settled (rejected); a consumed ARM whose nonce did not step
+   (`Falsified`); a nonce that stepped before the strobe (`Falsified` at (vii)); a `TERM`
+   one short or one over (rule (ix), HOLD not KILL); a validator rejection that is not a
+   falsifier classifying as HOLD; the strobe written once however long the poll; a gate
+   that settles late being waited for and its stepped nonce seen — in the Python reference
+   loop, which now mirrors the firmware's poll.
+
+Image `a7c73d1f…` (byte-identical across two from-scratch builds) supersedes `10044abe…`
+(withdrawn, not defective: it ran session 3). The +16 KiB is layout, not code: `.text` and
+`.rodata` grew by 0x2f0 bytes, `.data`'s end crossed `0x02010000`, and the 16 KiB-aligned
+`.mmu_tbl` moved up one page.
+
+**Standing.** Prereg §6's design-review trigger stands (three sessions without
+`COMPLETED`); the three-sessions stop-loss remains in force. No ruling is requested; the
+board is untouched. Next: design review of this batch (`docs/l5_settle_correction.md`),
+then — only if it passes — a new preregistered session.

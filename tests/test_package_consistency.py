@@ -97,6 +97,10 @@ class WithdrawnHashesStayInHistory(unittest.TestCase):
         "docs/l5_session2_findings.md": "names session 1's image when comparing the two runs",
         "docs/l5_session1_findings.md": "names the image that RAN session 1 — that is the "
                                         "record, and it must stay identifiable",
+        "docs/l5_session3_findings.md": "names the image that RAN session 3 — the record, and "
+                                        "it must stay identifiable",
+        "docs/l5_settle_correction.md": "the design-correction record: says which image it "
+                                        "supersedes and why",
         "tests/test_package_consistency.py": "this guard names them to test itself",
     }
     # evidence/ is recorded observation: never edited, never scanned

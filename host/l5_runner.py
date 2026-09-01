@@ -90,6 +90,20 @@ def send_raw_line(transport, line: str) -> None:
     transport._serial.write(data.encode("ascii"))  # noqa: SLF001 — see docstring
 
 
+def classify_rejection(exc: records.RecordError) -> str:
+    """A validator rejection, classified the way `docs/l5_prereg.md` §5 classifies it. Only a
+    `Falsified` rejection — one of §3's items, raised as that type by the validator — is a
+    KILL. Every other RecordError is a schema, accounting or instrument defect: a HOLD.
+
+    Session 3 (2026-09-01) ended with the runner printing `KILL run_log rejected: audit must
+    report audited <= total (rule ix)` for a counter the firmware got wrong; the owner ruled
+    the session HOLD and this mapping wrong. The evidence keeps the literal string it was
+    given; the mapping is fixed here, named, and tested in both directions."""
+    if isinstance(exc, records.Falsified):
+        return f"KILL falsified: {exc}"
+    return f"HOLD instrument: run_log rejected: {exc}"
+
+
 def outcome_for(epoch_end: dict) -> str:
     """The session verdict. Only a COMPLETED epoch can be a PASS — a STOPPED one (including
     the STOP_ARM case session 1 hit), a PROTOCOL one and a CRASHED one are all HOLDs. Named
@@ -231,7 +245,7 @@ def run_l5(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
             summary["outcome"] = outcome_for(collector.epoch_end)
         except records.RecordError as exc:
             summary["run_log_validation"] = f"REJECTED: {exc}"
-            summary["outcome"] = f"KILL run_log rejected: {exc}"
+            summary["outcome"] = classify_rejection(exc)
     except l3.Stop as stop:
         summary["outcome"] = (f"KILL {stop.detail}" if stop.verdict == "KILL"
                               else f"STOP {stop.verdict}: {stop.detail}")

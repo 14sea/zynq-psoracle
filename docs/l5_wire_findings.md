@@ -121,7 +121,7 @@ the *reason*, because a refusal for an earlier cause would prove nothing.
 
 ## 5. The image
 
-`app_image_sha256` = **`10044abe…`** (see §7 for the history). Two clean builds are byte-identical, and
+`app_image_sha256` = **`a7c73d1f…`** (see §7 for the history; `10044abe…`, the image this section was written for, is now withdrawn as superseded). Two clean builds are byte-identical, and
 `firmware/bsp/build.sh` now emits the `.bin` itself — it previously produced only the ELF, so
 the pinned hash was not reproducible from the script alone.
 
@@ -146,4 +146,5 @@ about the PL, the transport, or timing.
 | `b279459c…` | **withdrawn** — no defect in what it emitted, but a link-2 refusal was unauditable |
 | `d3828a8c…` | withdrawn — **not defective**: this is the image that ran session 1 and produced its evidence (`docs/l5_session1_findings.md`); superseded by the instrumentation batch |
 | `8390c463…` | withdrawn, **DEFECTIVE — must not be run**: its `CTRL` read-back is SLVERR on this carrier and crashes at every ARM before any record is emitted (session 2) |
-| `10044abe…` | **pinned** — the `CTRL` read removed, `ctrl_readback` recorded as unavailable; byte-identical across two from-scratch rebuilds |
+| `10044abe…` | withdrawn — **not defective**: the `CTRL` read removed, `ctrl_readback` recorded as unavailable; ran session 3 (`docs/l5_session3_findings.md`) and stays identifiable for it; superseded because it read the nonce before the gate had settled and counted `total` as `scored + refused` |
+| `a7c73d1f…` | **pinned** — bounded settle poll before the nonce read, `STOP_SETTLE` outcome, `TERM.audit` from the serialiser's tally (`docs/l5_settle_correction.md`); byte-identical across two from-scratch rebuilds; has not run on hardware |

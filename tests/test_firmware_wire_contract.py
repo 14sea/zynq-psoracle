@@ -242,9 +242,180 @@ class WireContract(unittest.TestCase):
             f"staged={reply['commit']} stream={verdict['sequence_sha256']} "
             f"readback={reply['commit']} envelopes=3 audit_available=1 "
             f"nonce_before={SEED:016x} nonce_after={nonce_after_hex} "
-            f"status_after=0x900 fault_after=0 key_loaded=1 "
-            f"writes_issued=25")
+            f"status_after=0x910 status_first=0x901 settle_polls=3 settled=1 "
+            f"fault_after=0 key_loaded=1 writes_issued=25")
         return n.decode_payload(n.parse_line(line)["payload"])
+
+    def _arm_rec_cmd(self, reply: dict, verdict: dict, genome_hex: str, outcome: str,
+                     nonce_after_hex: str, settle: str, seq: int = 1) -> str:
+        tables = ",".join(reply["expected_tables"])
+        return (f"rec token={TOKEN} seq={seq} genome={genome_hex} outcome={outcome} audited=1 "
+                f"commit={reply['commit']} tables={tables} tag={reply['tag']} "
+                f"staged={reply['commit']} stream={verdict['sequence_sha256']} "
+                f"readback={reply['commit']} envelopes=3 audit_available=1 "
+                f"nonce_before={SEED:016x} nonce_after={nonce_after_hex} "
+                f"fault_after=0 key_loaded=1 writes_issued=25 {settle}")
+
+    def _one_candidate(self):
+        """A relay that has answered seq 1 for the blank genome, plus the reply/verdict."""
+        signer = lambda req: sign_arm.sign_genome(  # noqa: E731
+            self.holder, req["genome"], req["nonce"])
+        relay = n.NotaryRelay(TOKEN, signer, drop_budget=16, clock=lambda: 0.0)
+        genome_hex = gn.to_hex(self.blank)
+        req_line, = self.twin(f"signreq token={TOKEN} app_epoch=0 seq=1 "
+                              f"genome={genome_hex} nonce={SEED:016x}")
+        reply = n.decode_payload(n.parse_line(relay.handle_line(req_line))["payload"])
+        return relay, reply, self._verdict(self.blank), genome_hex
+
+    def _terminal_log(self, relay, lines: list[str], kind="STOPPED") -> dict:
+        """Assemble a run log from C-emitted REC/TERM lines through the real collector."""
+        ident_line, = self.twin(
+            f"ident token={TOKEN} idcode=0x03722093 uboot_epoch=7 "
+            f"carrier_sha256={CARRIER_SHA} nonce={SEED:016x} status=0x900 fclk0=50000000")
+        collector = n.Collector(TOKEN, heartbeat_s=10, clock=lambda: 0.0)
+        collector.on_line(ident_line)
+        for ln in lines:
+            collector.on_line(ln)
+        self.assertIsNotNone(collector.session_summary, "no TERM reached the collector")
+        return {"control_plane": "standalone", "app_identity": collector.app_identity,
+                "loop_records": collector.loop_records,
+                "session_summary": collector.session_summary,
+                "notary_log": relay.notary_log()}
+
+    # -- the settle poll (session 3, 2026-09-01) ---------------------------------------
+
+    SETTLED = "status_after=0x910 status_first=0x901 settle_polls=3 settled=1"
+    NEVER = "status_after=0x901 status_first=0x901 settle_polls=1000000 settle_max=1000000 settled=0"
+
+    def test_every_c_arm_record_carries_the_settle_poll(self):
+        rec = self._stop_arm_record(f"{SEED:016x}")
+        s = rec["evidence"]["arm"]["settle"]
+        self.assertEqual(set(s), {"polls", "polls_max", "settled", "status_first", "status_last"})
+        self.assertEqual(s["status_last"], rec["evidence"]["arm"]["status_after"])
+        self.assertEqual((s["polls"], s["settled"]), (3, True))
+
+    def test_a_stop_arm_that_never_settled_is_rejected(self):
+        """STOP_ARM now means the gate SETTLED and did not consume. An unsettled one is the
+        session-1/3 mistake of concluding 'not consumed' from a read taken too early."""
+        relay, reply, verdict, gh = self._one_candidate()
+        line, = self.twin(self._arm_rec_cmd(reply, verdict, gh, "STOP_ARM", f"{SEED:016x}", self.NEVER))
+        with self.assertRaises(records.RecordError) as cm:
+            records.validate(n.decode_payload(n.parse_line(line)["payload"]))
+        self.assertNotIsInstance(cm.exception, records.Falsified)
+        self.assertIn("STOP_SETTLE", str(cm.exception))
+
+    def test_a_stop_settle_with_the_nonce_unchanged_validates_and_consumes_nothing(self):
+        """busy never clears: the neutral outcome, chain length 0."""
+        relay, reply, verdict, gh = self._one_candidate()
+        rec_cmd = self._arm_rec_cmd(reply, verdict, gh, "STOP_SETTLE", f"{SEED:016x}", self.NEVER)
+        term_cmd = (f"term token={TOKEN} kind=STOPPED reason=did-not-settle last_seq=1 "
+                    f"closing_restore=1 crc_dropped=0 drop_budget=16")
+        rec_line, term_line = self.twin(rec_cmd, term_cmd)
+        log = self._terminal_log(relay, [rec_line, term_line])
+        rec = log["loop_records"][0]
+        self.assertEqual(rec["outcome"], "STOP_SETTLE")
+        self.assertEqual(rec["evidence"]["arm"]["settle"]["settled"], False)
+        self.assertEqual(rec["evidence"]["arm"]["settle"]["polls"], 1000000)
+        out = records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        self.assertEqual(out["chain_length"], 0)
+        self.assertEqual(out["audited"], 1)
+        records.check_audit_policy(log)
+
+    def test_a_stop_settle_with_the_nonce_stepped_validates_and_consumes_one(self):
+        """busy never clears but the nonce DID step (the gate is stuck after sh_done): the
+        chain advances by exactly one, and the record still claims nothing."""
+        relay, reply, verdict, gh = self._one_candidate()
+        rec_cmd = self._arm_rec_cmd(reply, verdict, gh, "STOP_SETTLE", f"{nc.step(SEED):016x}", self.NEVER)
+        term_cmd = f"term token={TOKEN} kind=STOPPED reason=did-not-settle last_seq=1 closing_restore=1"
+        rec_line, term_line = self.twin(rec_cmd, term_cmd)
+        log = self._terminal_log(relay, [rec_line, term_line])
+        out = records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        self.assertEqual(out["chain_length"], 1)
+
+    def test_a_stop_settle_whose_nonce_jumped_is_a_falsifier(self):
+        """neither unchanged nor stepped once: the PL consumed something the model does
+        not describe — prereg §3's nonce item, so Falsified, not an accounting HOLD."""
+        relay, reply, verdict, gh = self._one_candidate()
+        jumped = nc.step(nc.step(SEED))
+        line, = self.twin(self._arm_rec_cmd(reply, verdict, gh, "STOP_SETTLE", f"{jumped:016x}", self.NEVER))
+        with self.assertRaises(records.Falsified):
+            records.validate(n.decode_payload(n.parse_line(line)["payload"]))
+
+    def test_a_stop_settle_that_claims_it_settled_is_a_contradiction(self):
+        relay, reply, verdict, gh = self._one_candidate()
+        line, = self.twin(self._arm_rec_cmd(reply, verdict, gh, "STOP_SETTLE", f"{SEED:016x}", self.SETTLED))
+        with self.assertRaises(records.RecordError) as cm:
+            records.validate(n.decode_payload(n.parse_line(line)["payload"]))
+        self.assertNotIsInstance(cm.exception, records.Falsified)
+
+    def test_a_consumed_arm_whose_nonce_did_not_step_is_a_falsifier(self):
+        """busy cleared, scorer_done, but the nonce is unchanged with a SCORED claim: that is
+        the nonce model contradicted, not a taxonomy slip."""
+        relay, reply, verdict, gh = self._one_candidate()
+        tables = ",".join(reply["expected_tables"])
+        cmd = self._arm_rec_cmd(reply, verdict, gh, "SCORED", f"{SEED:016x}", self.SETTLED)
+        cmd += (f" hw_commit={reply['commit']} readout={tables} scores=18,22,20,20,20,18 "
+                f"hb_before=1 hb_after=2")
+        line, = self.twin(cmd)
+        with self.assertRaises(records.Falsified):
+            records.validate(n.decode_payload(n.parse_line(line)["payload"]))
+
+    def test_a_nonce_that_stepped_before_the_strobe_breaks_the_chain_as_a_falsifier(self):
+        """'premature step': the ARM's nonce_before is already past the model chain."""
+        relay, reply, verdict, gh = self._one_candidate()
+        # a STOP_ARM record whose nonce_before is step(SEED) while the notary signed SEED
+        tables = ",".join(reply["expected_tables"])
+        early = nc.step(SEED)
+        rec_cmd = (f"rec token={TOKEN} seq=1 genome={gh} outcome=STOP_ARM audited=1 "
+                   f"commit={reply['commit']} tables={tables} tag={reply['tag']} "
+                   f"staged={reply['commit']} stream={verdict['sequence_sha256']} "
+                   f"readback={reply['commit']} envelopes=3 audit_available=1 "
+                   f"nonce_before={early:016x} nonce_after={early:016x} "
+                   f"fault_after=0 key_loaded=1 writes_issued=25 {self.SETTLED}")
+        term_cmd = f"term token={TOKEN} kind=STOPPED reason=x last_seq=1 closing_restore=1"
+        rec_line, term_line = self.twin(rec_cmd, term_cmd)
+        log = self._terminal_log(relay, [rec_line, term_line])
+        with self.assertRaises(records.Falsified) as cm:
+            records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        self.assertIn("(vii)", str(cm.exception))
+
+    # -- the TERM's audit block comes from the serialiser's tally (session 3) -----------
+
+    def test_a_counted_stop_arm_terminal_session_validates(self):
+        """Session 3's rejection: the TERM said audited 1 / total 0 because total was
+        scored + refused. The C code now tallies the records it serialised; a STOP_ARM
+        terminal session emitted by the C code, with NO explicit count, must validate."""
+        relay, reply, verdict, gh = self._one_candidate()
+        rec_cmd = self._arm_rec_cmd(reply, verdict, gh, "STOP_ARM", f"{SEED:016x}", self.SETTLED)
+        term_cmd = (f"term token={TOKEN} kind=STOPPED reason=nonce-did-not-step last_seq=1 "
+                    f"closing_restore=1 crc_dropped=0 drop_budget=16")
+        rec_line, term_line = self.twin(rec_cmd, term_cmd)   # ONE process: the tally carries
+        log = self._terminal_log(relay, [rec_line, term_line])
+        self.assertEqual(log["session_summary"]["audit"], {"audited": 1, "total": 1})
+        out = records.validate_standalone_run_log(log, self.blank_commit, SEED)
+        self.assertEqual((out["chain_length"], out["audited"]), (0, 1))
+
+    def test_a_term_that_undercounts_or_overcounts_is_rejected_as_accounting(self):
+        relay, reply, verdict, gh = self._one_candidate()
+        rec_cmd = self._arm_rec_cmd(reply, verdict, gh, "STOP_ARM", f"{SEED:016x}", self.SETTLED)
+        for total in (0, 2):
+            term_cmd = (f"term token={TOKEN} kind=STOPPED reason=x last_seq=1 "
+                        f"closing_restore=1 audited=1 total={total}")
+            rec_line, term_line = self.twin(rec_cmd, term_cmd)
+            log = self._terminal_log(relay, [rec_line, term_line])
+            with self.assertRaises(records.RecordError) as cm:
+                records.validate_standalone_run_log(log, self.blank_commit, SEED)
+            self.assertNotIsInstance(cm.exception, records.Falsified, f"total={total} is a HOLD, not a KILL")
+            self.assertIn("(ix)", str(cm.exception) if "(ix)" in str(cm.exception) else "(ix) " + str(cm.exception))
+
+    def test_the_tally_counts_only_records_marked_audited_as_audited(self):
+        relay, reply, verdict, gh = self._one_candidate()
+        rec_cmd = self._arm_rec_cmd(reply, verdict, gh, "STOP_ARM", f"{SEED:016x}", self.SETTLED)
+        rec_cmd = rec_cmd.replace("audited=1", "audited=0")
+        term_cmd = f"term token={TOKEN} kind=STOPPED reason=x last_seq=1 closing_restore=1"
+        rec_line, term_line = self.twin(rec_cmd, term_cmd)
+        log = self._terminal_log(relay, [rec_line, term_line])
+        self.assertEqual(log["session_summary"]["audit"], {"audited": 0, "total": 1})
 
     def test_a_stop_arm_record_from_the_c_code_validates(self):
         rec = self._stop_arm_record(f"{SEED:016x}")        # unchanged nonce

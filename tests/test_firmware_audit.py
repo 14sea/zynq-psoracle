@@ -337,8 +337,11 @@ class WireWiring(unittest.TestCase):
         be written through on all paths, and the record must go out BEFORE the epoch stops."""
         fn = APP[APP.index("static int arm_attempt"):]
         body = fn[:fn.index("\n}\n")]
-        for obs in ("*status = axi_read(P3_STATUS)", "*fault = axi_read(P3_FAULT)"):
+        # STATUS is now the LAST value of the settle poll (session 3: the immediate read
+        # was the defect), so the observation is `*status = st` after the poll ends.
+        for obs in ("*status = st;", "*fault = axi_read(P3_FAULT)"):
             self.assertIn(obs, body, f"{obs} is no longer observed")
+        self.assertLess(body.index("settle->status_last = st;"), body.index("*status = st;"))
         # CTRL is write-only (rtl/p3_axil.v). Reading it is what killed session 2, so its
         # ABSENCE here is the property — see tests/test_axi_map_vs_rtl.py.
         self.assertNotIn("axi_read(P3_CTRL)", body)
@@ -350,7 +353,7 @@ class WireWiring(unittest.TestCase):
                          "where the attempt is never made at all")
         run = APP[APP.index("static int run_candidate"):]
         emit = run.index('emit_record(&rec, "STOP_ARM")')
-        stop = run.index('p3_stop(P3_STOPPED, "the nonce did not step')
+        stop = run.index('p3_stop(P3_STOPPED, "the gate settled and the nonce did not step')
         self.assertLess(emit, stop, "the STOP_ARM record must be emitted before the stop")
 
     def test_the_arm_record_carries_the_ctrl_readback(self):
@@ -372,3 +375,85 @@ class WireWiring(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SettlePoll(unittest.TestCase):
+    """Session 3 (2026-09-01): the application read the nonce immediately after the strobe,
+    while gate_busy was still set; rtl/p3_arm_gate.v steps the nonce only on sh_done. The
+    corrected arm_attempt polls STATUS, bounded, read-only, and writes the strobe once."""
+
+    def _arm_attempt(self) -> str:
+        start = APP.index("static int arm_attempt(")
+        return APP[start:APP.index("\n}", start)]
+
+    def test_the_strobe_is_written_exactly_once_per_attempt(self):
+        body = self._arm_attempt()
+        self.assertEqual(body.count("axi_write(P3_CTRL, P3_ARM_STROBE)"), 1)
+        self.assertEqual(body.count("axi_write(P3_CTRL"), 1, "no second strobe from inside the poll")
+
+    def test_the_poll_is_bounded_read_only_and_after_the_strobe(self):
+        body = self._arm_attempt()
+        i_strobe = body.index("axi_write(P3_CTRL, P3_ARM_STROBE)")
+        i_loop = body.index("while (!(settle->settled = settle_condition(st))")
+        self.assertLess(i_strobe, i_loop)
+        loop = body[i_loop:body.index("settle->status_last = st;")]
+        self.assertIn("settle->polls < settle->polls_max", loop)
+        self.assertIn("axi_read(P3_STATUS)", loop)
+        self.assertNotIn("axi_write", loop, "the poll only reads")
+        self.assertIn("#define P3_SETTLE_POLLS_MAX 1000000u", APP)
+        self.assertIn("settle->polls_max = P3_SETTLE_POLLS_MAX;", body)
+
+    def test_the_nonce_is_read_only_after_the_poll(self):
+        body = self._arm_attempt()
+        self.assertLess(body.index("settle->status_last = st;"), body.index("*nonce_after = pl_nonce();"))
+
+    def test_the_settle_condition_is_l3s(self):
+        cond = APP[APP.index("static int settle_condition"):]
+        cond = cond[:cond.index("\n}")]
+        for bit in ("P3_ST_GATE_BUSY", "P3_ST_SCORER_BUSY", "P3_ST_FAULT", "P3_ST_SCORER_DONE"):
+            self.assertIn(bit, cond)
+        self.assertIn("return !busy && latched;", cond)
+
+    def test_the_status_bit_numbers_match_the_design_document(self):
+        """The firmware's P3_ST_* against docs/l1_design.md's register-map row, parsed."""
+        design = (R / "docs/l1_design.md").read_text()
+        row = next(ln for ln in design.splitlines() if ln.startswith("| `0x2004` | STATUS |"))
+        doc = {m.group(2): int(m.group(1)) for m in re.finditer(r"(\d+) `?(\w+)`?", row)}
+        fw = {m.group(1).lower(): int(m.group(2)) for m in re.finditer(r"#define P3_ST_(\w+) (\d+)u", APP)}
+        self.assertGreaterEqual(len(fw), 7, "the P3_ST_ table did not parse")
+        for name, want in {"gate_busy": doc["gate_busy"], "scorer_busy": doc["scorer_busy"],
+                           "scorer_done": doc["scorer_done"], "fault": doc["fault"],
+                           "cfg_valid_hw": doc["configuration_valid_hw"], "alive": doc["alive"],
+                           "key_loaded": 11}.items():
+            self.assertEqual(fw[name], want, f"P3_ST_{name.upper()} disagrees with l1_design.md")
+
+    def test_three_arm_returns_are_handled_including_stop_settle(self):
+        rc = APP[APP.index("static int run_candidate"):]
+        rc = rc[:rc.index("\nstatic void closing_unsigned_control")]
+        self.assertLess(rc.index("if (armed == 2) {"), rc.index("if (armed == 1) {"))
+        self.assertIn('emit_record(&rec, "STOP_SETTLE");', rc)
+        self.assertIn('emit_record(&rec, "STOP_ARM");', rc)
+        self.assertLess(rc.index('emit_record(&rec, "STOP_SETTLE");'), rc.index("did not settle"),
+                        "the record goes out before the epoch stops")
+        closing = APP[APP.index("static void closing_unsigned_control"):]
+        self.assertIn("did not settle", closing[:closing.index("\nstatic void emit_summary")])
+
+
+class AuditTally(unittest.TestCase):
+    """Session 3's rule-(ix) rejection: total was scored + refused and missed the STOP_ARM
+    record. The count now lives where the records are serialised."""
+
+    def test_the_summary_takes_its_audit_block_from_the_serialiser(self):
+        es = APP[APP.index("static void emit_summary"):]
+        es = es[:es.index("\n}")]
+        self.assertIn("p3_wire_tally(&in.total, &in.audited);", es)
+        self.assertNotIn("S.scored + S.refused", es)
+        self.assertNotIn("S.audited", APP, "the application keeps no second audited counter")
+
+    def test_the_serialiser_counts_only_records_it_actually_produced(self):
+        wire = SOURCES["p3_wire.c"]
+        body = wire[wire.index("size_t p3_wire_loop_record("):]
+        body = body[:body.index("\n}")]
+        self.assertIn("if (n != 0u)", body)
+        self.assertIn("g_tally_records++;", body)
+        self.assertLess(body.index("if (n != 0u)"), body.index("g_tally_records++;"))

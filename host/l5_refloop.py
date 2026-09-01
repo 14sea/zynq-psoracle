@@ -36,10 +36,24 @@ REQUIRED_IDCODE = 0x03722093
 IDCODE_MASK = 0x0FFFFFFF
 
 
+SETTLE_POLLS_MAX = 10_000   # the reference's bound; the firmware's is P3_SETTLE_POLLS_MAX
+
+
+def settled(st: int) -> bool:
+    """The settle condition host/l3_runner.py polled for at L3 and firmware p3_app.c
+    settle_condition() polls for now: neither gate nor scorer busy, and a fault or
+    scorer_done latched. Session 3 (2026-09-01) showed the immediate post-strobe read sees
+    gate_busy SET and the old nonce — the RTL steps the nonce only on sh_done."""
+    busy = st >> po.ST["gate_busy"] & 1 or st >> po.ST["scorer_busy"] & 1
+    latched = st >> po.ST["fault"] & 1 or st >> po.ST["scorer_done"] & 1
+    return not busy and bool(latched)
+
+
 class LoopStop(Exception):
     """kind ∈ {STOPPED, PROTOCOL}; identity failures raise before the loop starts."""
 
-    def __init__(self, kind: str, reason: str):
+    def __init__(self, kind: str, reason: str, arm: dict | None = None, outcome: str | None = None):
+        self.arm, self.outcome = arm, outcome   # an ARM-stage stop carries its record
         super().__init__(f"{kind}: {reason}")
         self.kind, self.reason = kind, reason
 
@@ -197,14 +211,27 @@ class RefLoop:
         for off, w in zip(po.TAG, words[20:]):
             self.board.axi_write(off, w)
         self.board.axi_write(po.CTRL, po.ARM_STROBE)
+        # the bounded settle poll, exactly as p3_app.c arm_attempt(): STATUS is read until the
+        # gate settles or the bound is spent; the strobe is written once; nothing is re-issued
         st = self.board.axi_read(po.STATUS)
+        status_first, polls = st, 1
+        while not settled(st) and polls < SETTLE_POLLS_MAX:
+            st = self.board.axi_read(po.STATUS)
+            polls += 1
+        settle = {"polls": polls, "polls_max": SETTLE_POLLS_MAX, "settled": settled(st),
+                  "status_first": f"{status_first:#010x}", "status_last": f"{st:#010x}"}
         fault = self.board.axi_read(po.FAULT)
         nonce_after = self._nonce()
-        if nonce_after == nonce_before:
-            raise LoopStop("STOPPED", "the nonce did not step: the PL did not consume this ARM")
         arm = {"nonce_before": f"{nonce_before:016x}", "nonce_after": f"{nonce_after:016x}",
                "status_after": f"{st:#010x}", "fault_after": fault,
-               "key_loaded_observed": bool(st >> po.ST["key_loaded"] & 1)}
+               "key_loaded_observed": bool(st >> po.ST["key_loaded"] & 1),
+               "ctrl_readback": "unavailable: CTRL is write-only", "settle": settle}
+        if not settle["settled"]:
+            raise LoopStop("STOPPED", "the ARM did not settle within the poll bound",
+                           arm=arm, outcome="STOP_SETTLE")
+        if nonce_after == nonce_before:
+            raise LoopStop("STOPPED", "the gate settled and the nonce did not step: the PL did not consume this ARM",
+                           arm=arm, outcome="STOP_ARM")
         if not st >> po.ST["cfg_valid_hw"] & 1:
             return arm, None
         score = {"hw_candidate_commit": po.commit_words_to_hex(
@@ -239,7 +266,15 @@ class RefLoop:
             rec["outcome"] = "STOP_LINK3"
             self.records.append(rec)
             raise LoopStop("STOPPED", "LINK3_MISMATCH: the fabric did not read back as the candidate")
-        arm, score = self._arm(answer)
+        try:
+            arm, score = self._arm(answer)
+        except LoopStop as stop:
+            if stop.arm is None:
+                raise
+            rec["evidence"]["arm"] = stop.arm       # STOP_SETTLE / STOP_ARM: the record first
+            rec["outcome"] = stop.outcome
+            self.records.append(rec)
+            raise
         rec["evidence"]["arm"] = arm
         if score is None:
             rec["outcome"] = "REFUSED_BY_PL"

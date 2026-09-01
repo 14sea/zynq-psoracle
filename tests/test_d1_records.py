@@ -49,7 +49,9 @@ def scored(seq, genome, commit, nonce, verified="replayed-only"):
             "outcome": "SCORED", "verified": verified,
             "evidence": {"sign_reply": reply(seq, commit), "app_oracle_record": oracle(seq, commit),
                          "arm": {"nonce_before": f"{nonce:016x}", "nonce_after": f"{nc.step(nonce):016x}",
-                                 "status_after": "0x00000f54", "fault_after": 0, "key_loaded_observed": True},
+                                 "status_after": "0x00000f54", "fault_after": 0, "key_loaded_observed": True,
+                                 "settle": {"polls": 2, "polls_max": 10000, "settled": True,
+                                            "status_first": "0x00000901", "status_last": "0x00000f54"}},
                          "score": {"hw_candidate_commit": commit,
                                    "functional_readout": list(TABLES), "scores": [1] * 6,
                                    "heartbeat": {"before": 1, "after": 2}}}}

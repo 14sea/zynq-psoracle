@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 
+static uint32_t g_tally_records, g_tally_audited; /* see p3_wire_tally() */
+
 /* A bounded appender. Once it overflows it stays overflowed and the builder returns 0, so
  * a caller can never emit a truncated line and call it evidence. */
 typedef struct {
@@ -185,10 +187,17 @@ static void w_arm(p3_w *w, const p3_wire_record_in *in)
      * from the PS, which is different from nobody having looked. */
     w_fmt(w, "\"arm\":{\"ctrl_readback\":\"unavailable: CTRL is write-only\","
              "\"fault_after\":%lu,\"key_loaded_observed\":%s,\"nonce_after\":"
-             "\"%016llx\",\"nonce_before\":\"%016llx\",\"status_after\":\"0x%08lx\","
-             "\"writes_issued\":%d}",
+             "\"%016llx\",\"nonce_before\":\"%016llx\",",
           (unsigned long)in->fault_after, in->key_loaded_observed ? "true" : "false",
-          (unsigned long long)in->nonce_after, (unsigned long long)in->nonce_before,
+          (unsigned long long)in->nonce_after, (unsigned long long)in->nonce_before);
+    /* the settle poll: what the application waited for after the strobe and what it saw.
+     * status_last is status_after by construction — the validator checks they agree. */
+    w_fmt(w, "\"settle\":{\"polls\":%lu,\"polls_max\":%lu,\"settled\":%s,"
+             "\"status_first\":\"0x%08lx\",\"status_last\":\"0x%08lx\"},",
+          (unsigned long)in->settle_polls, (unsigned long)in->settle_polls_max,
+          in->settled ? "true" : "false", (unsigned long)in->status_first,
+          (unsigned long)in->status_after);
+    w_fmt(w, "\"status_after\":\"0x%08lx\",\"writes_issued\":%d}",
           (unsigned long)in->status_after, in->writes_issued);
 }
 
@@ -256,7 +265,31 @@ size_t p3_wire_loop_record(const p3_wire_record_in *in, char *out, size_t max)
     w_fmt(&w, ",\"schema\":\"loop_record\",\"schema_version\":\"1.0.0\",\"seq\":%lu,"
              "\"verified\":\"%s\"}",
           (unsigned long)in->seq, in->audited ? "audited" : "replayed-only");
-    return w_done(&w);
+    {
+        size_t n = w_done(&w);
+        if (n != 0u) { /* only a record that was actually produced is counted */
+            g_tally_records++;
+            if (in->audited)
+                g_tally_audited++;
+        }
+        return n;
+    }
+}
+
+/* ------------------------------------------------------------------ tally ----------- */
+
+void p3_wire_tally(uint32_t *records_emitted, uint32_t *records_audited)
+{
+    if (records_emitted)
+        *records_emitted = g_tally_records;
+    if (records_audited)
+        *records_audited = g_tally_audited;
+}
+
+void p3_wire_tally_reset(void)
+{
+    g_tally_records = 0u;
+    g_tally_audited = 0u;
 }
 
 /* ------------------------------------------------------------------ audit ----------- */
