@@ -14,7 +14,7 @@
 |---|---|---|---|
 | 1 timestamps | `Timeline`: monotonic + wall receive stamp on every console line, every host send stamped, `console.ts.log` companion (raw `console.log` verbatim), `timeline.json`, `run_log.timing.records[seq]` = `t_signreq, t_reply, t_auditreq, hb[], audit[], t_rec, wall, breakdown` | `host/l6_timing.py` | `tests/test_l6_timing.py` — the attribution test runs over **session 4's real console frame order** (read-only) and recovers all six stages for all ten candidates |
 | 2 rate report | `rate_report()` pure; CLI writes `rate_report.json` once; **refuses session 4's log** (no per-frame timing) | `host/l6_rate.py` | `tests/test_l6_rate.py` (refusal on the real session-4 log; exact numbers on a synthetic timed log) |
-| 3 sampled audit policy | `check_audit_policy(..., policy="sampled", schedule=set)`: scheduled `SCORED` must be audited; every non-`SCORED` self-report (`AUTO_AUDIT_OUTCOMES`) must have been auto-audited (§3a item 2); `REFUSED_BY_GATE`/`STOP_AXI` exempt; the all-self-reporting branch unchanged | `validators/records.py` | `tests/test_l6_policy.py` — §3a item 5's two negatives on **session 3's real STOP_ARM record and its eight served chunks**, re-keyed to an unsampled seq: words withheld → `RecordError` naming exactly that seq (HOLD); a word flipped → `Falsified` (KILL); words intact → accepted as `audited_auto` |
+| 3 sampled audit policy | `check_audit_policy(..., policy="sampled", schedule=set)`: scheduled `SCORED` must be audited; every non-`SCORED` self-report must have been auto-audited (§3a item 2), classified by content (`self_report_class`); only `REFUSED_BY_GATE` and a pre-staging `STOP_AXI` (no oracle record) are exempt; the all-self-reporting branch unchanged | `validators/records.py` | `tests/test_l6_policy.py` — §3a item 5's two negatives on **session 3's real STOP_ARM record and its eight served chunks**, re-keyed to an unsampled seq: words withheld → `RecordError` naming exactly that seq (HOLD); a word flipped → `Falsified` (KILL); words intact → accepted as `audited_auto` |
 | 4 arm-aware validator | `check_arm_schedule(log, schedule, n, expected_genomes)`: `arm` required on every candidate and equal to the schedule's; absent on both baselines; unknown names refused; optionally the genome must be what the scheduled operator's twin produces. `check_l6_identity()`: IDENT names `master_seed`, `schedule_mode`, `operator_data_sha256` | `validators/records.py` | `tests/test_l6_policy.py` (swapped arm, missing arm, arm on a bracket, unknown arm, twin mismatch, each identity field) |
 | 5 ruling text + runner | `whole-of-probe P3-L6` checked by `pr.check_ruling`; an L5 ruling is refused by text. The runner = L5's console loop + relay + collector, with the preamble **copied verbatim** from `host/l5_runner.py` (the PASSed L5 instrument is not edited) | `host/l6_runner.py` | `tests/test_l6_runner.py::Refusals` — every refusal reached in order and about its own check; the last one before board contact is the boundary |
 | 6 budget arithmetic | S: N = ⌊0.9 × min(rate_C1, rate_C2) × T⌋ with the rates read **only** from rate reports whose bytes hash to the manifest's pins; timeout = 1.25 × (N+2) × 3600/min(rate) + 600 s, recorded with its inputs; `--budget`/`--n` do not exist | `host/l6_schedule.py`, `host/l6_runner.py::plan_session` | `tests/test_l6_schedule.py::SoakArithmetic`, `tests/test_l6_runner.py::Plan` |
@@ -159,6 +159,15 @@ discrimination test in both directions.
    described a one-step formula that the code no longer implemented. Now one constant,
    `PAIR_SEED_RULE`, states the exact formula; the docstring, the corpus, `Rng`'s
    docstring and the manifest quote it; the corpus fixture is regenerated.
+
+6. **HB completeness (second re-review).** The session-wide "at least two HB frames"
+   still let a COMPLETED log whose heartbeats stopped after the second one pass every
+   gate. Now `structural_findings` (shared by C1, C2 and S) requires exactly 16 HB
+   frames per SCORED record, the two baselines included, naming the seq for fewer or
+   more; a non-SCORED record may carry fewer (it stopped part-way) but never more.
+   Tests: the two-HB log HOLDs naming seq 1, 2 and 4 while every other gate still
+   passes it; one HB short on seq 4 names seq 4 alone; one extra on seq 2 names seq 2;
+   16 each passes.
 
 Everything else in §5 stands as the owner ruled (accepted items marked). No firmware, no
 image, no ruling, no board.

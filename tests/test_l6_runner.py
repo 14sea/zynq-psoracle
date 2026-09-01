@@ -214,6 +214,31 @@ class Checks(unittest.TestCase):
         crashed = copy.deepcopy(self.log); crashed["session_summary"]["written_by"] = "collector"
         self.assertTrue(any(f.startswith("missing TERM") for f in lc.structural_findings(crashed, CHUNKS, {1}, self.frames)))
 
+    def test_heartbeat_completeness_per_scored_record(self):
+        """Review 2026-09-01: a COMPLETED fixture with every SIGNREQ/AUDIT/REC kept and all
+        HB but the first two removed passed every gate. Now the structural gate counts."""
+        from test_audit_gate import CHUNKS
+        ok = lc.structural_findings(self.log, CHUNKS, {1}, self.frames)
+        self.assertEqual(ok, [])                                        # 16 HB each: PASS
+        two = [f for f in self.frames if f["type"] != "HB"] + [f for f in self.frames if f["type"] == "HB"][:2]
+        found = lc.structural_findings(self.log, CHUNKS, {1}, two)
+        self.assertTrue(found, "a log whose heartbeats stopped after the second must HOLD")
+        for seq in (1, 2, 4):                                            # the SCORED records, baselines included
+            self.assertTrue(any(f.startswith(f"seq {seq} (SCORED)") for f in found), (seq, found))
+        self.assertFalse(any(f.startswith("seq 3 ") for f in found))     # the gate refusal carries no HB
+        one_short = copy.deepcopy(self.frames)
+        one_short.remove(next(f for f in one_short if f["type"] == "HB" and f["seq"] == 4))
+        found = lc.structural_findings(self.log, CHUNKS, {1}, one_short)
+        self.assertEqual(found, ["seq 4 (SCORED): 15 HB frames, the protocol fixes 16"])
+        one_extra = self.frames + [{"dir": "rx", "type": "HB", "seq": 2, "t_mono": 999.0, "t_wall": 999.0}]
+        found = lc.structural_findings(self.log, CHUNKS, {1}, one_extra)
+        self.assertEqual(found, ["seq 2 (SCORED): 17 HB frames, the protocol fixes 16"])
+        # every other soak/baseline gate would still have passed the two-HB log: this gate is the one that holds
+        base = dict(log=self.log, frames=two, crc_dropped=0, crc_budget=6, span_s=7000.0, duration_s=7200.0,
+                    hb_gap_max_s=20.0, settle_median_calib=16.0, settle_bound_factor=10, wall_fraction_min=0.9)
+        self.assertEqual(lc.baseline_findings(self.log), [])
+        self.assertEqual([f for f in lc.soak_findings(**base) if "heartbeat" in f], [])
+
     def test_baselines_must_be_the_pinned_scores(self):
         self.assertEqual(lc.baseline_findings(self.log), [])
         bad = copy.deepcopy(self.log); bad["loop_records"][3]["evidence"]["score"]["scores"][0] = 17

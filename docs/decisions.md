@@ -719,3 +719,17 @@ exact), the timeout formula, the copied preamble, the 1.1 schema fields, `--mast
 and the L6 image path were accepted. All five corrections landed the same day
 (`docs/l6_instrument.md` §7); push and the §2 firmware/image batch wait for the short
 re-review.
+
+## 2026-09-01 — second re-review of the §4 batch: HOLD on one blocker (HB completeness), corrected
+
+The four corrections of `726c9e7` were confirmed. Remaining blocker: the soak gate only
+required two HB frames in the whole session, so a COMPLETED log with every
+SIGNREQ/AUDIT/REC kept and all heartbeats after the second removed passed every gate.
+Ruling: every SCORED record, the two baselines included, must carry exactly 16 HB
+frames; fewer or more is a HOLD naming the seq; the check lives in the shared
+structural gate so C1, C2 and S are all bound. Done as
+`l6_checks.heartbeat_completeness_findings`, with the three required negatives (the
+two-HB log HOLDs; one HB short on one seq names that seq; 16 each passes). Two document
+syncs done with it: the delivery table's exemption wording (only `REFUSED_BY_GATE` and a
+pre-staging `STOP_AXI`) and the manifest's auto-audit list (post-staging `STOP_AXI`
+added). Push and §2 wait for the final short re-review.

@@ -72,7 +72,7 @@
     "policy": "sampled",
     "every": 16,
     "scheduled": "every 16th seq + first and last candidate (seq 2, N+1) + both baselines (seq 1, N+2) — host/l6_schedule.py:sampled_audit_seqs, requested by AUDITREQ",
-    "auto": "§3a item 2: every non-SCORED self-report (STOP_LINK2, STOP_LINK3, REFUSED_BY_PL, STOP_ARM, STOP_SETTLE) audited unconditionally by the firmware before its record — a firmware change for the §2 image; the validator requires it now (validators.records.check_audit_policy policy='sampled')",
+    "auto": "§3a item 2: every non-SCORED self-report (STOP_LINK2, STOP_LINK3, REFUSED_BY_PL, STOP_ARM, STOP_SETTLE, and a post-staging STOP_AXI — one carrying an app_oracle_record) audited unconditionally by the firmware before its record — a firmware change for the §2 image; the validator requires it now (validators.records.check_audit_policy policy='sampled', classification by content in records.self_report_class)",
     "exempt": "REFUSED_BY_GATE, and a STOP_AXI that carries no app_oracle_record (pre-staging: no raw words exist). A STOP_AXI WITH an oracle record is a self-report and is auto-audited like the others (validators.records.self_report_class)",
     "calibration_sessions_policy": "all-self-reporting (C1, C2)"
   },
@@ -90,7 +90,8 @@
     "per_audited_record": {
       "AUDIT": 8
     },
-    "crc_budget": "ceil(4 × expected_protocol_frames / 1000), expected from N + the audit schedule + these brackets BEFORE the session (D-s4); any missing AUDIT/REC/TERM is a structural HOLD independently"
+    "crc_budget": "ceil(4 × expected_protocol_frames / 1000), expected from N + the audit schedule + these brackets BEFORE the session (D-s4); any missing AUDIT/REC/TERM is a structural HOLD independently",
+    "hb_completeness": "exactly 16 HB per SCORED record (baselines included), checked per record by host/l6_checks.py:heartbeat_completeness_findings for C1, C2 and S; fewer or more is a structural HOLD naming the seq"
   },
   "sessions": {
     "C1": {

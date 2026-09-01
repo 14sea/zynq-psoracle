@@ -28,7 +28,7 @@ def structural_findings(log: dict, chunks: list[dict], requested_audit_seqs: set
     the CRC total. REC: every SIGNREQ the host answered has a loop record. AUDIT: every seq
     the host requested (and is SCORED) and every non-SCORED self-report has its chunks,
     complete. TERM: the application's own summary arrived (a collector-written one means
-    the TERM never did)."""
+    the TERM never did). HB: exactly 16 per SCORED record (`heartbeat_completeness_findings`)."""
     out = []
     by_seq = {r["seq"]: r for r in log["loop_records"]}
     signreqs = sorted({f["seq"] for f in frames if f["dir"] == "rx" and f["type"] == "SIGNREQ"})
@@ -49,6 +49,29 @@ def structural_findings(log: dict, chunks: list[dict], requested_audit_seqs: set
                        f"{'requested' if seq in requested_audit_seqs else '§3a auto'})")
     if log["session_summary"].get("written_by") != "app":
         out.append("missing TERM: the session summary was not the application's")
+    out += heartbeat_completeness_findings(log, frames)
+    return out
+
+
+def heartbeat_completeness_findings(log: dict, frames: list[dict]) -> list[str]:
+    """The fixed protocol: every SCORED record — the two baselines included — is preceded
+    by exactly HB_PER_RECORD (16) heartbeats carrying its seq (one after the streams are
+    built, three DMAs, twelve readbacks). Fewer or more is a structural HOLD naming the
+    seq. Shared by C1, C2 and S. Review 2026-09-01: a session-wide "at least two HB"
+    let a COMPLETED log whose heartbeats stopped after the second one pass every gate.
+    A non-SCORED record stopped part-way may carry fewer; more than 16 is anomalous for
+    any record."""
+    counts: dict[int, int] = {}
+    for f in frames:
+        if f["dir"] == "rx" and f["type"] == "HB" and f["seq"] is not None:
+            counts[f["seq"]] = counts.get(f["seq"], 0) + 1
+    out = []
+    for r in log["loop_records"]:
+        got = counts.get(r["seq"], 0)
+        if r["outcome"] == "SCORED" and got != lt.HB_PER_RECORD:
+            out.append(f"seq {r['seq']} (SCORED): {got} HB frames, the protocol fixes {lt.HB_PER_RECORD}")
+        elif got > lt.HB_PER_RECORD:
+            out.append(f"seq {r['seq']} ({r['outcome']}): {got} HB frames exceed the protocol's {lt.HB_PER_RECORD}")
     return out
 
 
