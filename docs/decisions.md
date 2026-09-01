@@ -920,3 +920,19 @@ overstated: two sessions currently lack COMPLETED; C1 #3 is permitted after revi
 C1 #3 is also non-COMPLETED, design review is mandatory before any fourth board session
 (a repeat of C1 #1's byte loss stops repeats at once). The manifest is unchanged (sha
 `20e6a924…` stands); push approved once green; no `-08` ruling until this landed.
+
+## 2026-09-01 — C1 #3 (ruling 2026-09-01-08): HOLD (transport) — the byte loss recurred; stop-loss met
+
+Owner-approved power cycle and C1 #3. The board completed the whole session: 66 SCORED
+records (opening baseline, 64 random-safe candidates, closing baseline), both baselines
+exact, the closing unsigned control refused with fault 13, TERM COMPLETED; both host
+fixes held (931 distinct stamps for 1719 frames; no false silence). But two AUDIT lines
+arrived with contiguous runs of bytes missing (seq 20 chunk 3: 308 bytes; seq 62 chunk 3:
+228 bytes), failed CRC, were dropped, and the validator refused the log at the first
+incomplete audit — a transport RecordError. This is C1 #1's fault recurring: per the
+owner's ruling, board repeats stop at once; no fourth C1 ruling; `calibration.C1` stays
+null; the line moves to transport / protocol design, and a full design review precedes
+any fourth board session. Found on the way: the D-s4 CRC budget counts only lines that
+reach the relay (SIGNREQ), so audit-line drops never reach it (summary 0 vs timeline 2) —
+a host fix for the review. Informational, not pinned: 1586 evals/h, CoV 0.019, audit
+1.85 s of a 2.27 s period. `docs/l6_c1_session3_findings.md` lists the options.
