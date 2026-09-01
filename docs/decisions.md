@@ -1118,3 +1118,28 @@ issued: it must bind the committed post-pin manifest hash, then power cycle, bou
 S is not a Claim B data run; a non-PASS S is archived and reported, never re-run on the
 runner's own initiative.
 
+## 2026-09-01 — S #1 (ruling 2026-09-01-11): HOLD — a REC line lost ~536 console bytes at 231 s; archived, not re-run; a host crash-path summary defect found
+
+Owner-issued ruling pair bound to the post-C2-pin manifest `bb63b31d…`, power cycle (UART
+21:13:19), boundary PASS, runner in the background with both pinned calibration reports
+and `--duration-s 7200`. The runner's derived S parameters equal the owner's independent
+derivation (abba, seed 1278628687, N 6539, 412 sampled audits, 121 449 expected inbound
+frames, CRC budget 486, timeout 8702 s). The board ran a correct soak for 231 s: 464 SCORED
+records without gap, 7456 HB, 31/31 due sampled audits pulled and verified in one attempt,
+0 rereads, 0 disruptions. Then `REC 465` arrived with one contiguous interior run of ≈536
+bytes missing (1775 bytes against 2307/2315 for its neighbours), failed CRC, was dropped
+(the session's only drop, budget 486), and the collector ended the epoch `CRASHED: record
+seq gap: 466 after 464` — the frozen prereg §6 item 4 makes a missing REC fatal regardless
+of budget, and pull-v2 has no REC re-request. The board itself continued (SIGNREQ 467
+seen). dmesg shows no host USB event at the fault; the ghost ttyUSB0 FTDI disconnect maps
+to 24 s before `go`. This is the C1 #1/#3 byte-loss family, first time on a REC line.
+Second finding, host-side: the collector-synthesised crash-path `session_summary` carries
+`audited 0` while 31 audits were host-verified, so the validator's stated reason is (ix)
+rather than the seq gap — a defect to fix before the next S. Classification: HOLD
+(transport; CRASHED < 1 h, the repeat-once clause does not apply); §7 count S failure #1;
+per the owner's ruling the session is archived and NOT re-run. Recorded:
+`docs/l6_s_session1_findings.md` (§5 options: REC re-request in the pull protocol, the
+crash-path summary fix, extending the loss statistics), the manifest's hardware_history
+and standing, this table. No Claim B data, no extra diagnostics. The manifest changed.
+Awaiting the owner.
+

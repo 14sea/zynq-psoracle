@@ -1,7 +1,7 @@
 {
   "schema": "l6_manifest",
   "schema_version": "0.1.0",
-  "status": "FROZEN preregistration v0.3 (pull-protocol) + board-ready pull-v2 image e19e1b12… (promoted from next_image 2026-09-01; bd1454cd… superseded, not defective). This manifest still authorises no ruling and no board contact: each session needs its own bound ruling pair (whole-of-probe P3-L6 + provisioning P3-K, binding THIS file's committed sha256), a power cycle and a fresh boundary record; calibration.C1 is pinned (786dc3ec…, C1 #4 PASS 2026-09-01-09); calibration.C2 is pinned (a13e301f…, C2 #1 PASS 2026-09-01-10). Both calibrations are pinned; S needs its own ruling pair bound to THIS file's committed sha256, a power cycle, --duration-s 7200 and both pinned reports. S is not a Claim B data run. The byte-loss stop-loss is lifted for pull-v2 (owner 2026-09-01); its history stays; any future fault is re-counted under the frozen prereg §7.",
+  "status": "FROZEN preregistration v0.3 (pull-protocol) + board-ready pull-v2 image e19e1b12… (promoted from next_image 2026-09-01; bd1454cd… superseded, not defective). This manifest still authorises no ruling and no board contact: each session needs its own bound ruling pair (whole-of-probe P3-L6 + provisioning P3-K, binding THIS file's committed sha256), a power cycle and a fresh boundary record; calibration.C1 is pinned (786dc3ec…, C1 #4 PASS 2026-09-01-09); calibration.C2 is pinned (a13e301f…, C2 #1 PASS 2026-09-01-10). Both calibrations are pinned; S #1 (ruling 2026-09-01-11) ran and HOLDed at 231 s on a lost REC line (docs/l6_s_session1_findings.md); it is archived, not re-run; the next S needs a named fix (REC re-request and the crash-path summary), review, its own ruling pair bound to THIS file's committed sha256, a power cycle, --duration-s 7200 and both pinned reports. S is not a Claim B data run. The byte-loss stop-loss is lifted for pull-v2 (owner 2026-09-01); its history stays; any future fault is re-counted under the frozen prereg §7.",
   "prereg": {
     "path": "docs/l6_soak_prereg.md",
     "version": "v0.3",
@@ -39,7 +39,7 @@
     "board_ready": true,
     "protocol": "pull-v2",
     "app_image": "firmware/bsp/out/p3_app_l6.bin (raw binary, 98324 bytes, loaded at 0x02000000, `go`) — IMAGE=p3_app_l6 firmware/bsp/build.sh",
-    "standing": "PROMOTED to board-ready 2026-09-01 (owner's freeze batch) after the pull-batch package review PASS. Built twice byte-identical. RAN ON 17A6 in C1 #4 (ruling 2026-09-01-09, evidence/l6_17A6_2026-09-01-09-C1/): PASS — 66 SCORED records (opening baseline, 64 random-safe candidates, closing baseline), 66/66 audits served and verified over the pull, 0 CRC drops, 0 rereads, closing control refused, TERM COMPLETED; rate report 786dc3ec… pinned as calibration.C1 (owner 2026-09-01). RAN ON 17A6 in C2 #1 (ruling 2026-09-01-10, evidence/l6_17A6_2026-09-01-10-C2/): PASS — map_guided_forced, 66 SCORED, 66/66 audits verified over the pull, 0 CRC drops, 0 rereads, closing control refused, TERM COMPLETED; rate report a13e301f… pinned as calibration.C2 (owner 2026-09-01). All 66 genomes and functional readouts equal C1 #3's under the superseded image bd1454cd… (same master seed) — the pull firmware changed the transport only. The superseded image bd1454cd… RAN ON 17A6 in C1 #1–#3 under prereg v0.2 (see hardware_history and superseded_images); the sessions' evidence stands under it.",
+    "standing": "PROMOTED to board-ready 2026-09-01 (owner's freeze batch) after the pull-batch package review PASS. Built twice byte-identical. RAN ON 17A6 in C1 #4 (ruling 2026-09-01-09, evidence/l6_17A6_2026-09-01-09-C1/): PASS — 66 SCORED records (opening baseline, 64 random-safe candidates, closing baseline), 66/66 audits served and verified over the pull, 0 CRC drops, 0 rereads, closing control refused, TERM COMPLETED; rate report 786dc3ec… pinned as calibration.C1 (owner 2026-09-01). RAN ON 17A6 in C2 #1 (ruling 2026-09-01-10, evidence/l6_17A6_2026-09-01-10-C2/): PASS — map_guided_forced, 66 SCORED, 66/66 audits verified over the pull, 0 CRC drops, 0 rereads, closing control refused, TERM COMPLETED; rate report a13e301f… pinned as calibration.C2 (owner 2026-09-01). RAN ON 17A6 in S #1 (ruling 2026-09-01-11, evidence/l6_17A6_2026-09-01-11-S/): HOLD — 464 SCORED records in 231 s, 31/31 due audits verified, then REC 465 lost ~536 console bytes and the collector ended the epoch on the seq gap (prereg §6 item 4); a host crash-path summary defect found on the way; archived, not re-run. All 66 genomes and functional readouts equal C1 #3's under the superseded image bd1454cd… (same master seed) — the pull firmware changed the transport only. The superseded image bd1454cd… RAN ON 17A6 in C1 #1–#3 under prereg v0.2 (see hardware_history and superseded_images); the sessions' evidence stands under it.",
     "watchdog_enabled": true,
     "watchdog_prescaler": 7,
     "watchdog_load_value": 1250000035,
@@ -127,6 +127,17 @@
         "scheduled_candidates": 64,
         "closing_baselines": 1,
         "note": "map_guided_forced, same master seed as C1; rate_report.json sha256 a13e301f2f2ee2bbc12751fb883b4e189f0e27122e6899d5aa3c53f514568959 (3633.0 evals/h, CoV 0.0150) — a candidate for calibration.C2, pinned only by the owner (D-s3); docs/l6_c2_session1_findings.md"
+      },
+      {
+        "session": "S #1",
+        "ruling": "2026-09-01-11",
+        "evidence": "evidence/l6_17A6_2026-09-01-11-S/",
+        "outcome": "HOLD (transport: REC 465 lost ~536 contiguous console bytes, CRC-dropped, the collector ended the epoch CRASHED on the seq gap at go+231 s; plus a host crash-path defect — the synthesised summary says 0 audited where 31 were verified)",
+        "scored_records": 464,
+        "opening_baselines": 1,
+        "scheduled_candidates": 463,
+        "closing_baselines": 0,
+        "note": "first S under v0.3; parameters derived from the two pins equal the owner's (N 6539, 412 audits, 121449 frames, budget 486, timeout 8702 s); 31/31 due audits pulled and verified, 0 rereads; archived, not re-run (owner); docs/l6_s_session1_findings.md"
       }
     ],
     "superseded_images": [
