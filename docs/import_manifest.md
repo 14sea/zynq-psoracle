@@ -352,6 +352,7 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-01T100112Z.json` |
 | `evidence/tests/test_report_2026-09-01T095451Z.json` |
 | `evidence/tests/test_report_2026-09-01T095337Z.json` |
 | `evidence/tests/test_report_2026-09-01T094951Z.json` |
@@ -452,6 +453,8 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l5_17A6_2026-09-01-04/ymodem.log` |
 | `evidence/l5_17A6_2026-09-01-04/ymodem_app.log` |
 | `docs/l5_session4_findings.md` |
+| `host/slcr_read.py` |
+| `evidence/preflight/slcr_17A6_2026-09-01-05.json` |
 | `evidence/boundary/principal_boundary_2026-09-01-03.json` |
 | `evidence/l5_17A6_2026-09-01-03/L5_0_preflight.json` |
 | `evidence/l5_17A6_2026-09-01-03/L5_1_identity_page.json` |

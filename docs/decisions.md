@@ -669,3 +669,14 @@ eight §5 PASS conditions hold and no §3 falsifier is met.
 `docs/status.md` records it as the canonical state; the guard that had held the table at
 HOLD is retargeted to require exactly this adjudication and its scope, so neither a wider
 claim nor a drift back can appear by accident. Pushed together with the session evidence.
+
+## 2026-09-01 — CLK_621_TRUE read (read-only ruling `-05`): 6:2:1, record closed
+
+The one clock word the L5 line had left unread. Under a new ruling class `read-only SLCR
+P3-CLK` (checked and consumed by `host/slcr_read.py` exactly as the probe rulings are), one
+U-Boot session read `ARM_PLL_CTRL = 0x00028008` (fdiv 40 → 1333.33 MHz), `CPU_CLK_CTRL =
+0x1f000200` (÷2 → CPU_6x4x 666.67 MHz) and **`CLK_621_TRUE = 0x00000001` → 6:2:1**, identity
+verified, nothing written. PERIPHCLK = CPU_3x2x = CPU_6x4x/2 = 333.33 MHz in either mode, so
+nothing in the L5 PASS depended on this bit; the manifest's clock note is now board-confirmed
+rather than assumed. Evidence `evidence/preflight/slcr_17A6_2026-09-01-05.json`. The
+session-1/4 findings keep their "still unread" sentences as the record of their time.

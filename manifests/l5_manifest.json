@@ -111,7 +111,7 @@
       "resolved": "option 2 (watchdog off for session 1), owner 2026-08-31",
       "why_it_could_not_be_30_s": "the 32-bit A9 private watchdog at PERIPHCLK=333.33 MHz with prescaler 0 tops out at 12.88 s; p3_app.c programs no prescaler and the driver exposes no SetPrescaler. See docs/l5_findings.md §4.",
       "peripheral_clock_hz": 333333343,
-      "peripheral_clock_note": "= CPU_6x4x/2; CPU_6x4x assumes the standard 6:2:1 ratio — ARM PLL 1333.33 MHz is board-confirmed, CPU_CLK_CTRL (0xF8000120) was never captured. Pre-board preflight, not a build blocker: nothing in a watchdog-off session depends on it.",
+      "peripheral_clock_note": "= CPU_3x2x = CPU_6x4x/2 — BOARD-CONFIRMED 2026-09-01 in one read-only U-Boot session (evidence/preflight/slcr_17A6_2026-09-01-05.json, ruling read-only SLCR P3-CLK 2026-09-01-05): ARM_PLL_CTRL 0x00028008 (fdiv 40 → 1333.33 MHz), CPU_CLK_CTRL 0x1f000200 (÷2 → CPU_6x4x 666.67 MHz), CLK_621_TRUE 0x00000001 (6:2:1). Nothing about L5's PASS depended on the ratio bit (PERIPHCLK is CPU_6x4x/2 in both modes); this closes the record.",
       "if_ever_enabled": {
         "prescaler": 7,
         "load_value": 1250000035,
@@ -120,7 +120,8 @@
       }
     },
     "preflight_before_board": [
-      "md.l 0xF8000120 1 (CPU_CLK_CTRL) once at first power-on, stored with the session evidence; until then CPU_6x4x/PERIPHCLK are assumed, and no timing conversion derived from them may be reported as verified fact"
+      "md.l 0xF8000120 1 (CPU_CLK_CTRL) once at first power-on, stored with the session evidence; until then CPU_6x4x/PERIPHCLK are assumed, and no timing conversion derived from them may be reported as verified fact",
+      "CLK_621_TRUE (0xF80001C4) read 2026-09-01-05 = 0x1 (6:2:1): evidence/preflight/slcr_17A6_2026-09-01-05.json"
     ],
     "note": "COMPLETE. toolchain, console_uart, the embeddedsw BSP input set (manifests/l5_bsp_inputs.json) and app_image_sha256 are pinned; the watchdog is deliberately off for session 1 and its load value is therefore not used rather than unset. Host recovery for a watchdog-off session is fixed in docs/l5_prereg.md §4.",
     "withdrawn_images": [

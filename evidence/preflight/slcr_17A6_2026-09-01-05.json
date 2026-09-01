@@ -1,0 +1,63 @@
+{
+  "tool": "slcr_read.py/0.1.0",
+  "ruling": {
+    "ruling": "read-only SLCR P3-CLK",
+    "boardid": "17A6",
+    "granted_by": "14sea",
+    "date": "2026-09-01-05",
+    "sha256": "d8d6ec790e6ee3cf36515fc079eb8fadc30570204776aaec661dca6b40236bef"
+  },
+  "at": "2026-09-01T11:00:03",
+  "authorised": "read-only: three SLCR words below over U-Boot md.l; identity verified; no register written; no carrier, provisioning or firmware",
+  "outcome": "READ: CLK_621_TRUE=0x00000001 (6:2:1)",
+  "identity": {
+    "tool": "board_session.py/0.1.0",
+    "transport": {
+      "requested_port": "/dev/ebaz-uart",
+      "resolved_port": "/dev/ttyUSB4",
+      "device_id": "188:4"
+    },
+    "parsed": {
+      "boardid": "17A6",
+      "role": "verify",
+      "pss_idcode": "0x13722093"
+    },
+    "requirements": {
+      "boardid": "17A6",
+      "role": "verify",
+      "idcode_masked": "0x03722093"
+    },
+    "control_plane": "uboot",
+    "epoch": 0,
+    "elapsed_s": 0.603,
+    "findings": []
+  },
+  "raw": {
+    "ARM_PLL_CTRL": {
+      "addr": "0xf8000100",
+      "value": "0x00028008"
+    },
+    "CPU_CLK_CTRL": {
+      "addr": "0xf8000120",
+      "value": "0x1f000200"
+    },
+    "CLK_621_TRUE": {
+      "addr": "0xf80001c4",
+      "value": "0x00000001"
+    }
+  },
+  "decoded": {
+    "ARM_PLL_fdiv": 40,
+    "ARM_PLL_hz": 1333333320,
+    "CPU_CLK_CTRL_divisor": 2,
+    "CPU_CLK_CTRL_srcsel": "ARM_PLL",
+    "CLK_621_TRUE_bit0": 1,
+    "ratio": "6:2:1",
+    "CPU_6x4x_hz": 666666660.0,
+    "CPU_3x2x_hz": 333333330.0,
+    "CPU_2x_hz": 222222220.0,
+    "CPU_1x_hz": 111111110.0,
+    "PERIPHCLK_hz": 333333330.0,
+    "note": "PERIPHCLK (private timer/WDT) = CPU_3x2x = CPU_6x4x/2 in BOTH ratio modes; the ratio bit changes CPU_2x/CPU_1x only. PS_CLK assumed 33.333 MHz (board crystal)."
+  }
+}
