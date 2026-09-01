@@ -791,3 +791,20 @@ STOP_AXI → missing-REC HOLD, TERM constant 16 with the host relay as D-s4 auth
 watchdog reset routing as a first-board observation, the RWX warning — all accepted.
 Rebuilt `bd1454cd…` (byte-identical twice); report A before the evidence, report B after.
 Not pushed; no freeze; no ruling; short re-review next.
+
+## 2026-09-01 — §2 image compatibility review: PASS (host-only, scoped); push; preregistration frozen
+
+The owner's re-review of `3c349c3`: the watchdog kick gated on `wdt_started` with the
+single assignment after the full init sequence and init failure fail-closed; the build
+evidence citing report A by hash, green, with report B over the final state; image
+`bd1454cd…` on disk and in the manifest, `47b8fa09…` DEFECTIVE; the prereg still null so
+the runner refused. Independent re-run: 627 tests, 0 failures (two environment skips).
+Rulings: push `52d860a..3c349c3` (done: `origin/main = 3c349c3`); freeze the
+preregistration host-only with a freeze-time guard — once `prereg.sha256` is set, the
+build evidence's cited report must be non-null, present, hash-matched and green; then
+present the frozen package for the board phase's overall ruling. Frozen here:
+`docs/l6_soak_prereg.md` v0.2, sha256 `90f5fa699e8de8f969802b95719b3827285d65af8216e48887e026fb1fe89bcf`, pinned in
+`manifests/l6_manifest.json`; `test_the_frozen_prereg_hashes_to_its_pin` and
+`test_once_frozen_the_build_evidence_must_cite_a_green_report` added; the runner's own
+check is unchanged and now passes on the real document (its next refusal is the image
+pin, tested). No ruling exists; the board has not been touched.

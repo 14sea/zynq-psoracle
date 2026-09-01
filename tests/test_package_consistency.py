@@ -126,8 +126,27 @@ class PinnedL6Image(unittest.TestCase):
         # 30.0 s at PERIPHCLK/8, from the manifest's own clock — the derivation the pin was made from
         self.assertAlmostEqual((L6_PINNED["watchdog_load_value"] + 1) * 8 / L6_PINNED["peripheral_clock_hz"], 30.0, places=6)
 
-    def test_the_runner_still_refuses_because_the_prereg_is_not_frozen(self):
-        self.assertIsNone(L6["prereg"]["sha256"], "the prereg is frozen by the owner after the compatibility review, not here")
+    def test_the_frozen_prereg_hashes_to_its_pin(self):
+        """Frozen 2026-09-01 after the compatibility review PASS: the document on disk must
+        hash to the pin, or the runner (which checks the same thing) refuses every session."""
+        pin = L6["prereg"]["sha256"]
+        self.assertRegex(pin, r"^[0-9a-f]{64}$")
+        self.assertEqual(hashlib.sha256((R / "docs/l6_soak_prereg.md").read_bytes()).hexdigest(), pin)
+        self.assertIn("FROZEN", (R / "docs/l6_soak_prereg.md").read_text().splitlines()[0])
+
+    def test_once_frozen_the_build_evidence_must_cite_a_green_report(self):
+        """The freeze-time guard the owner asked for (2026-09-01): a `pending`/null report
+        citation is allowed only while the prereg is a draft. Frozen ⇒ the evidence cites
+        a report that exists, hashes as recorded and is green."""
+        if L6["prereg"]["sha256"] is None:
+            self.skipTest("draft: the pending citation is allowed until the freeze")
+        ev = json.loads(L6_EVIDENCE.read_text())["tests"]
+        self.assertIsNotNone(ev["report"], "frozen prereg with a pending build-evidence report")
+        path = R / ev["report"]
+        self.assertTrue(path.is_file(), ev["report"])
+        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), ev["report_sha256"])
+        rep = json.loads(path.read_text())
+        self.assertEqual(rep["exit_status"], 0); self.assertNotIn("FAILED", rep["result_line"])
 
 
 class WithdrawnHashesStayInHistory(unittest.TestCase):

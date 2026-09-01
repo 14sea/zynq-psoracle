@@ -1,12 +1,13 @@
 {
   "schema": "l6_manifest",
   "schema_version": "0.1.0",
-  "status": "DRAFT — host-only. The §4 instrument batch (PASS) and the §2 firmware/image batch are implemented against this manifest; the two-operator image is BUILT and PINNED here (pinned_at_build.app_image_sha256, two from-scratch builds byte-identical). `prereg.sha256` stays null until the owner's whole-package compatibility review freezes the preregistration; host/l6_runner.py refuses to run while it is null. Nothing here authorises a ruling or board contact.",
+  "status": "FROZEN preregistration (prereg.sha256 set 2026-09-01) + pinned two-operator image bd1454cd… (compatibility review PASS). This manifest still authorises no ruling and no board contact: each of C1, C2 and S needs its own `whole-of-probe P3-L6` and `provisioning P3-K` rulings, issued one session at a time; calibration.C1/C2 pins are null until C1 and C2 have run.",
   "prereg": {
     "path": "docs/l6_soak_prereg.md",
     "version": "v0.2",
-    "sha256": null,
-    "frozen_when": "sha256 recorded here and every later artifact pins it (prereg header)"
+    "sha256": "90f5fa699e8de8f969802b95719b3827285d65af8216e48887e026fb1fe89bcf",
+    "frozen": "2026-09-01, host-only, after the §4 PASS and the §2 compatibility review PASS (owner)",
+    "frozen_when": "sha256 recorded here and every later artifact pins it (prereg header); host/l6_runner.py refuses a prereg that does not hash to it"
   },
   "instrument": {
     "psmap_commit": "191ab0585332e75ac6f15179dc80eeec2d29f9f9",
@@ -65,7 +66,7 @@
         "why": "DEFECTIVE — must not run. Deterministic pre-init watchdog defect: with flags.bit1 = 1 the IDENT frame's kick called XScuWdt_RestartWdt on an instance not yet CfgInitialize'd (BaseAddr 0, IsReady unset), and the driver's assert waits forever — the image hangs after IDENT, before the opening baseline. Found in the owner's compatibility review 2026-09-01 (blocker 1); never run on hardware. Fixed by gating the kick on S.wdt_started, set only after CfgInitialize → SetControlReg → LoadWdt → Start, with init failure fail-closed."
       }
     ],
-    "standing": "BUILT AND PINNED host-only (2026-09-01, §2 correction batch). Never run on hardware. Awaiting the owner's short re-review of the corrected package (docs/l6_compat_review_package.md) and the preregistration freeze; no ruling, no board."
+    "standing": "BUILT, PINNED, compatibility review PASS (owner 2026-09-01, host-only, scoped). Never run on hardware. Board phase awaits its own ruling."
   },
   "identity_page": {
     "layout": 2,

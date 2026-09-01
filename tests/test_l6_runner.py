@@ -113,8 +113,8 @@ class Refusals(unittest.TestCase):
 
     def manifest(self, *, frozen=True, image=True, watchdog=True, calib=None) -> Path:
         m = copy.deepcopy(L6M)
-        if frozen:
-            m["prereg"]["sha256"] = hashlib.sha256((R / "docs/l6_soak_prereg.md").read_bytes()).hexdigest()
+        m["prereg"]["sha256"] = (hashlib.sha256((R / "docs/l6_soak_prereg.md").read_bytes()).hexdigest()
+                                 if frozen else None)
         # the committed manifest now pins the real image; the fixture pins the stand-in or nulls it
         m["pinned_at_build"]["app_image_sha256"] = self.image_sha if image else None
         if not watchdog:
@@ -145,9 +145,22 @@ class Refusals(unittest.TestCase):
         rc, err = self.run_main(self.args(ruling="l5ruling.json"))
         self.assertEqual(rc, 2); self.assertIn("ruling text", err); self.assertIn("P3-L6", err)
 
-    def test_the_real_draft_manifest_cannot_run_anything(self):
+    def test_the_real_manifest_accepts_the_frozen_prereg_and_stops_at_the_image(self):
+        """The committed manifest is frozen (prereg.sha256 set): the prereg check passes on
+        the real document, and the next check — the image — refuses this test's stand-in.
+        So the board path is closed by the pinned-image and ruling gates, not by a draft."""
         rc, err = self.run_main(self.args(manifest=R / "manifests/l6_manifest.json"))
+        self.assertEqual(rc, 2); self.assertIn("not the pinned one", err); self.assertNotIn("not frozen", err)
+
+    def test_an_unfrozen_manifest_is_refused_before_the_image(self):
+        rc, err = self.run_main(self.args(manifest=self.manifest(frozen=False)))
         self.assertEqual(rc, 2); self.assertIn("not frozen", err)
+
+    def test_a_prereg_that_does_not_hash_to_the_pin_is_refused(self):
+        m = json.loads(self.manifest().read_text()); m["prereg"]["sha256"] = "00" * 32
+        (self.tmp / "l6_bad.json").write_text(json.dumps(m))
+        rc, err = self.run_main(self.args(manifest=self.tmp / "l6_bad.json"))
+        self.assertEqual(rc, 2); self.assertIn("does not hash to the frozen preregistration", err)
 
     def test_a_frozen_prereg_without_a_pinned_image_is_refused(self):
         rc, err = self.run_main(self.args(manifest=self.manifest(image=False)))

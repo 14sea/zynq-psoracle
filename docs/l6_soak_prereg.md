@@ -1,7 +1,10 @@
-# L6 — calibration and soak of the P3 loop (preregistration, DRAFT v0.2, host-only; D-s1..D-s4 ruled 2026-09-01)
+# L6 — calibration and soak of the P3 loop (preregistration v0.2, FROZEN 2026-09-01; D-s1..D-s4 ruled 2026-09-01)
 
-> **Standing: DRAFT. Host-only. This document authorises nothing — no build, no ruling, no
-> board contact.** Written 2026-09-01 on the `zynq-fabricmap` owner ruling recorded in
+> **Standing: FROZEN 2026-09-01 (host-only) — its sha256 is pinned in `manifests/l6_manifest.json`
+> `prereg.sha256` and `host/l6_runner.py` refuses any text that does not hash to it. Freezing
+> authorises nothing by itself: the two-operator image `bd1454cd…` passed the P3 compatibility
+> review (`docs/l6_compat_review_package.md`), and the board phase still waits for its own
+> ruling — no ruling exists, no board contact has happened.** Written 2026-09-01 on the `zynq-fabricmap` owner ruling recorded in
 > `zynq-fabricmap/docs/claimb_resumption_memo.md` §0: Claim B's readback leg is
 > RESUMPTION-ELIGIBLE but stays PAUSED "until a calibration/soak preregistration has passed
 > and the two-operator image has completed P3 compatibility review", and "the first Claim B
@@ -10,7 +13,9 @@
 > Claim B's own preregistration, arms, budget and score stay `zynq-fabricmap`'s.
 
 Frozen when: committed with its content sha256 recorded in `manifests/l6_manifest.json` and
-every later artifact pinning that hash. Until then it is a proposal.
+every later artifact pinning that hash. **That is now the case** (2026-09-01, after the §4
+instrument batch PASS and the §2 image's compatibility review PASS); any edit from here is a
+new version with a new hash and a new freeze.
 
 ## 0. The two questions, and what they are not
 
