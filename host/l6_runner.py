@@ -48,6 +48,7 @@ import l5_runner as l5  # noqa: E402
 import l6_checks as lc  # noqa: E402
 import l6_operators as lo  # noqa: E402
 import l6_rate as lr  # noqa: E402
+import l6_reader as lrd  # noqa: E402
 import l6_schedule as ls  # noqa: E402
 import l6_timing as lt  # noqa: E402
 import p3_gate as g  # noqa: E402
@@ -218,16 +219,16 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
                                    "bytes": cfg["image"].stat().st_size}
 
         # ---- the console belongs to the application; every line is stamped -------------
-        reader = l5.LineReader(session.transport)
+        # The L6 reader reads only what is waiting on the transport's own handle, so a
+        # stamp is the read that completed the line (C1 #1 finding 2: psmap's drain()
+        # returns only after 100 ms of silence and gave a whole candidate one stamp).
+        reader = lrd.L6LineReader(session.transport._serial)  # noqa: SLF001 — same handle, same epoch
         l5.send_raw_line(session.transport, f"go {l5.APP_LOAD_ADDR:#x}")
         t_go = time.monotonic()
         deadline = t_go + plan["session_timeout_s"]
         audit_sent_for = set()
         while collector.epoch_end is None and time.monotonic() < deadline:
-            lines = reader.poll()
-            if lines:
-                t_mono, t_wall = time.monotonic(), time.time()
-            for line in lines:
+            for line, t_mono, t_wall in reader.poll():
                 timeline.observe(line, t_mono, t_wall)
                 if not line.startswith(n.MAGIC):
                     continue

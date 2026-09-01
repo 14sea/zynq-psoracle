@@ -149,6 +149,44 @@ class PinnedL6Image(unittest.TestCase):
         self.assertEqual(rep["exit_status"], 0); self.assertNotIn("FAILED", rep["result_line"])
 
 
+class HardwareHistoryIsConsistent(unittest.TestCase):
+    """Owner 2026-09-01 (C1 #1 review): the manifest said the current image had never run
+    on hardware and the canonical row said "no C1/C2/S" in the same breath as recording
+    C1 #1. Once a session evidence directory exists, the authoritative statements must
+    say so, and no row may carry both a session record and its denial."""
+
+    SESSIONS = sorted(p.name for p in (R / "evidence").glob("l6_17A6_*"))
+
+    def test_the_manifest_standing_matches_the_evidence_on_disk(self):
+        standing = L6_PINNED["standing"]
+        history = L6_PINNED.get("hardware_history", [])
+        if self.SESSIONS:
+            self.assertIn("RAN ON 17A6", standing)
+            self.assertNotIn("Never run on hardware", standing)
+            self.assertEqual(len(history), len(self.SESSIONS), (history, self.SESSIONS))
+            for h, d in zip(history, self.SESSIONS):
+                self.assertTrue((R / h["evidence"]).is_dir(), h)
+                self.assertIn(h["ruling"], d)
+                self.assertRegex(h["outcome"], r"^(PASS|HOLD|KILL)")
+        else:
+            self.assertEqual(history, [])
+
+    def test_the_canonical_row_does_not_deny_what_it_records(self):
+        row = next(l for l in (R / "docs/status.md").read_text().splitlines()
+                   if l.startswith("| L6 calibration + soak |"))
+        if self.SESSIONS:
+            self.assertIn("C1 #1", row)
+            for denial in ("no C1/C2/S", "never run on hardware", "board untouched", "Never run on hardware"):
+                self.assertNotIn(denial, row, f"the row records a session and still says {denial!r}")
+        # a calibration pin exists only with a PASS session recorded for it
+        for k in ("C1", "C2"):
+            if L6["calibration"][k]["rate_report_sha256"]:
+                self.assertIn(f"{k}", row)
+                self.assertTrue(any(h["session"].startswith(k) and h["outcome"].startswith("PASS")
+                                    for h in L6_PINNED.get("hardware_history", [])),
+                                f"calibration.{k} is pinned without a PASS session in hardware_history")
+
+
 class WithdrawnHashesStayInHistory(unittest.TestCase):
     """A withdrawn image hash may appear ONLY where it is history.
 

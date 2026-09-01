@@ -875,3 +875,22 @@ per-frame stamps are per-burst on the real transport (`drain()` returns only aft
 of silence), so the stage breakdown is void while the rate (≈1470 evals/h) is sound — a
 host-only instrument defect to fix before any repeat. `docs/l6_c1_session1_findings.md`
 lists the options; nothing is decided here.
+
+## 2026-09-01 — C1 #1 review: HOLD (transport) confirmed; host-only instrument batch (b) authorised, narrowed
+
+Rulings: the transport classification stands (RecordError, not §3); `calibration.C1`
+stays null; the timestamp defect is real (25 stamps for 625 frames) — rate/CoV are
+reference only, the breakdown void, 1470 evals/h is not a C1 pin; two contradictions in
+the authoritative state (the manifest's "never run on hardware", the canonical row's "no
+C1/C2/S" beside the C1 #1 record) to be corrected with a guard; option (b) authorised in
+a narrowed form: an L6-only non-blocking reader on the existing serial handle, ~20 ms
+polls, stamps per read, raw bytes / partial line / banner / transport epoch preserved,
+imported `board_session.py` untouched, with the listed tests; malformed `P3L5` lines are
+NOT to be counted as one CRC drop (a bad line may span frames; a missing audit chunk is a
+HOLD regardless) — `BAD_FRAME → CRASHED/HOLD` stays; option (c) deferred: one transport
+fault does not justify firmware, audit-volume or retransmission changes. After the short
+review: a new bound ruling pair and C1 #2 after a power cycle; a second byte loss of the
+same kind stops board repeats (stop-loss) and moves to transport/protocol design.
+Delivered here: `host/l6_reader.py`, the runner switched to it, `tests/test_l6_reader.py`,
+the manifest `standing`/`hardware_history` and the canonical row corrected,
+`HardwareHistoryIsConsistent` guard, `docs/l6_instrument.md` §3 corrected.

@@ -53,8 +53,19 @@ readback) → `AUDIT`×8 (when served) → `REC`.
 | `arm_settle_score` | last `AUDIT` (or `HB`#16) → `REC` |
 
 `wall` = `REC` − `SIGNREQ`; `period` = `SIGNREQ`(seq+1) − `SIGNREQ`(seq), which also
-contains the application's work between records (operator time). Resolution: one runner
-poll (~20 ms) — every line a poll returned shares its stamp; stated in the report.
+contains the application's work between records (operator time).
+
+**Resolution, corrected after C1 #1 (2026-09-01).** The first runner read the console
+through zynq-psmap's `SerialTransport.drain()`, which returns only after 100 ms of board
+silence; inside a candidate the application never pauses that long, so all 26 frames of a
+candidate came back from one call and shared one stamp — 625 frames, 25 stamps
+(`docs/l6_c1_session1_findings.md` §3). **C1 #1's six-stage breakdown is therefore void**
+(its `period`/rate are sound: the SIGNREQ ends a burst). The runner now reads with
+`host/l6_reader.L6LineReader` — the transport's own handle, `read(in_waiting)` per ~20 ms
+poll, never `drain()` — so a stamp is the OS read that completed the line; lines completed
+by the same read share it honestly. `tests/test_l6_reader.py` pins distinct stamps for
+lines arriving at distinct times, a shared stamp within one read, a half line across
+polls, verbatim raw bytes, the banner signal, and that the runner's loop uses it.
 
 ## 4. Fail-closed (board-phase preflight, closed 2026-09-01)
 
