@@ -858,3 +858,20 @@ because `/dev/ebaz-uart` was absent (no board attached); no hardware was reached
 fixture's own "no evidence dir before the checks pass" guard is what caught it. Fixed:
 `args()` never rewrites the manifest, and every fixture invocation passes `--port` as a
 path that cannot exist, so no test can reach a board whatever else goes wrong.
+
+## 2026-09-01 — closing re-review PASS; push; board phase opened; C1 #1 = HOLD (transport)
+
+The owner passed the closing re-review of `183b136` (manifest `63ab9374…`), approved the
+push and opened the staged board batch for C1 only, with bound rulings `2026-09-01-06`
+(session C1, master seed 1278624577, prereg `90f5fa69…`, image `bd1454cd…`, manifest
+`63ab9374…`). Preflight passed every gate; boundary R1–R5 PASS. The session scored the
+opening baseline and 22 candidates (16 HB and 8 audit chunks each, arm `random_safe`,
+watchdog ON — the first hardware run of the two-operator image) and then lost about 38
+contiguous bytes of the console stream inside seq 24's audit burst: one malformed line,
+`CRASHED: unparseable frame`, validator rejection on the incomplete audit — a
+transport-class HOLD (prereg §6), cause named as transport, first occurrence. The
+batch is stopped; no calibration pin; C2 did not run. Second finding: the runner's
+per-frame stamps are per-burst on the real transport (`drain()` returns only after 100 ms
+of silence), so the stage breakdown is void while the rate (≈1470 evals/h) is sound — a
+host-only instrument defect to fix before any repeat. `docs/l6_c1_session1_findings.md`
+lists the options; nothing is decided here.

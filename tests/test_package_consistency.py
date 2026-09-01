@@ -185,6 +185,7 @@ class WithdrawnHashesStayInHistory(unittest.TestCase):
         # the L6 line's withdrawn image (compatibility review 2026-09-01, blocker 1)
         "manifests/l6_manifest.json": "withdrawn_images IS the history",
         "docs/l6_compat_review_package.md": "names the withdrawn image and why (§1, §4.7)",
+        "docs/l6_c1_session1_findings.md": "records that the session refutes the withdrawn image's defect on hardware",
     }
     # evidence/ is recorded observation: never edited, never scanned
     SKIP_PREFIXES = ("evidence/", "data/", "builds/", "imported/", "gate_runs/", "fixtures/")
