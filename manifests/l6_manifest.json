@@ -1,7 +1,7 @@
 {
   "schema": "l6_manifest",
   "schema_version": "0.1.0",
-  "status": "FROZEN preregistration v0.3 (pull-protocol) + board-ready pull-v2 image e19e1b12… (promoted from next_image 2026-09-01; bd1454cd… superseded, not defective). This manifest still authorises no ruling and no board contact: each session needs its own bound ruling pair (whole-of-probe P3-L6 + provisioning P3-K, binding THIS file's committed sha256), a power cycle and a fresh boundary record; calibration.C1/C2 are null until C1 and C2 have run under v0.3.",
+  "status": "FROZEN preregistration v0.3 (pull-protocol) + board-ready pull-v2 image e19e1b12… (promoted from next_image 2026-09-01; bd1454cd… superseded, not defective). This manifest still authorises no ruling and no board contact: each session needs its own bound ruling pair (whole-of-probe P3-L6 + provisioning P3-K, binding THIS file's committed sha256), a power cycle and a fresh boundary record; calibration.C1 is pinned (786dc3ec…, C1 #4 PASS 2026-09-01-09); calibration.C2 is null until C2 has run under v0.3. The byte-loss stop-loss is lifted for pull-v2 (owner 2026-09-01); its history stays; any future fault is re-counted under the frozen prereg §7.",
   "prereg": {
     "path": "docs/l6_soak_prereg.md",
     "version": "v0.3",
@@ -237,8 +237,13 @@
   },
   "calibration": {
     "C1": {
-      "rate_report_sha256": null,
-      "evidence": null
+      "rate_report_sha256": "786dc3ec9b4b30315f3656809a8907b7ee13f91d06aeeff1c52e203ecc2b5247",
+      "evidence": "evidence/l6_17A6_2026-09-01-09-C1/rate_report.json",
+      "session": "C1 #4",
+      "ruling": "2026-09-01-09",
+      "pinned_by": "14sea",
+      "pinned_at": "2026-09-01",
+      "note": "owner adjudication 2026-09-01 after independent re-check (66 scored / 66 host-verified audits / nonce chain 67; 66×3 audit hashes recomputed equal; 64 arms match the random-safe schedule, brackets [1,66]; 1785 inbound frames exact, CRC 0/8, no abort, no retry; rate report regenerated field-identical: 3909.91 eval/h, CoV 0.01588, failure rate 0). The S runner imports rate_A only from bytes hashing to this pin."
     },
     "C2": {
       "rate_report_sha256": null,

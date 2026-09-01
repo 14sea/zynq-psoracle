@@ -85,7 +85,9 @@ occur, and the pull protocol's retry path was present but unused (0 rereads). Th
 report is a candidate for `calibration.C1`. Nothing here is a Claim B data point, and
 this session was authorised for C1 only: no C2, no S, no extra diagnostics were run.
 
-## 5. Open items for the owner (not decided here)
+## 5. Open items for the owner — ADJUDICATED 2026-09-01 (see `docs/decisions.md`): (1) pinned `786dc3ec…`; (2) stop-loss lifted for pull-v2, history kept, future faults under frozen §7; (3) C2 next under a ruling pair bound to the post-pin manifest hash. Owner's scope note on §3: the identity holds for these 66 records only.
+
+As written before the adjudication:
 
 1. **Pin or refuse `calibration.C1`** = `786dc3ec…` (rate_report.json bytes). Pinning
    changes `manifests/l6_manifest.json`, whose hash the C2 ruling pair must then bind.

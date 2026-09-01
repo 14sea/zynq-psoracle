@@ -1065,3 +1065,21 @@ hardware_history and standing, this table. NOT done here, by the ruling's scope:
 Claim B data, no extra diagnostics. The manifest changed (history/standing), so the C2
 ruling pair binds the post-pin hash.
 
+## 2026-09-01 — owner adjudication: C1 #4 PASS; calibration.C1 pinned; byte-loss stop-loss lifted for pull-v2
+
+The owner re-checked C1 #4 independently and confirmed: 66 scored, 66 host-verified audits,
+nonce chain 67; all 66 × 3 audit hashes recomputed equal; the 64 arms/genomes match the
+random-safe schedule with brackets [1, 66]; 1785 inbound frames exactly the preregistered
+count, CRC 0/8, no abort, no retry; the rate report regenerated field-identical (3909.91
+eval/h, CoV 0.01588, failure rate 0); both rulings bound and consumed correctly; 774 tests
+(the owner's restricted environment adds one signer-boundary skip; the in-repo report is
+774 / 1 skip / exit 0). Three rulings: (1) push eb25e73 — done; (2) `calibration.C1` =
+`786dc3ec9b4b30315f3656809a8907b7ee13f91d06aeeff1c52e203ecc2b5247`, pinned in
+`manifests/l6_manifest.json` with the evidence path — the S runner imports rate_A only
+from bytes hashing to it (D-s3); (3) the byte-loss stop-loss is lifted for pull-v2 and C2
+may proceed — the historical stop-loss record is not deleted, and any future fault is
+counted afresh under the frozen prereg §7. Scope note from the owner: the cross-image
+genome/readout identity holds for these 66 records only and is not extrapolated to a
+transport-only difference under all inputs. The manifest changed with the pin: the C2
+ruling pair binds the committed post-pin hash, then power cycle, boundary, C2.
+
