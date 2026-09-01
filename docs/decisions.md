@@ -930,9 +930,13 @@ fixes held (931 distinct stamps for 1719 frames; no false silence). But two AUDI
 arrived with contiguous runs of bytes missing (seq 20 chunk 3: 308 bytes; seq 62 chunk 3:
 228 bytes), failed CRC, were dropped, and the validator refused the log at the first
 incomplete audit — a transport RecordError. This is C1 #1's fault recurring: per the
-owner's ruling, board repeats stop at once; no fourth C1 ruling; `calibration.C1` stays
-null; the line moves to transport / protocol design, and a full design review precedes
-any fourth board session. Found on the way: the D-s4 CRC budget counts only lines that
-reach the relay (SIGNREQ), so audit-line drops never reach it (summary 0 vs timeline 2) —
-a host fix for the review. Informational, not pinned: 1586 evals/h, CoV 0.019, audit
+owner's standing byte-loss ruling (the basis — not §7's three-without-COMPLETED clause,
+since C1 #3's device end was COMPLETED; C1 #1 and #2 were host CRASHED ends), board
+repeats stop at once; no fourth C1 ruling; `calibration.C1` stays null; the line moves to
+transport / protocol design, and a full design review precedes any fourth board session.
+Three loss events across C1 #1 and C1 #3; C1 #2 read nothing. Found on the way: the
+runner parses every inbound line before the relay and `continue`s on CrcError, so no
+CRC-failed frame of any type — a broken SIGNREQ included — ever reaches
+`NotaryRelay.handle_line()`; the D-s4 budget was never enforced and the summary's relay
+count is always zero; the timeline is the only true counter — a host fix for the review. Informational, not pinned: 1586 evals/h, CoV 0.019, audit
 1.85 s of a 2.27 s period. `docs/l6_c1_session3_findings.md` lists the options.

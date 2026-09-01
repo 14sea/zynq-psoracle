@@ -27,8 +27,8 @@ frame was malformed, and the collector correctly counted them as CRC drops rathe
 crash. The validator then refused the log at the first incomplete audit (`audit seq 20:
 missing [3]`) — a transport-class `RecordError`, not a falsifier.
 
-This is the third contiguous byte loss on the console in three sessions, all inside audit
-bursts (38, 308 and 228 bytes; C1 #2 read nothing). The path is CH340 → usbipd → WSL
+These are the second and third console byte-loss events — three loss events across C1 #1
+and C1 #3 (38, 308 and 228 bytes), all inside audit bursts; C1 #2 read nothing at all. The path is CH340 → usbipd → WSL
 `vhci_hcd`, no flow control, 115 200 baud, the application streaming 24 KB of audit per
 candidate back-to-back. The breakdown the new reader made visible says where the exposure
 is: per candidate, `audit` 1.845 s of a 2.27 s period — 76 % of the link's time is the
@@ -37,12 +37,13 @@ to pass.
 
 ## 3. Two host findings on the way
 
-1. **The D-s4 CRC budget is not enforced for audit lines.** The runner hands only
-   `SIGNREQ` lines to `NotaryRelay.handle_line`, which is where CRC drops are counted
-   against the budget; `AUDIT`/`HB`/`REC` lines that fail CRC are dropped by the collector
-   without being counted there. The summary therefore says `crc_dropped 0` while the
-   timeline counted 2. The budget must count every dropped line (host-only fix, not made
-   here: the batch is stopped).
+1. **The D-s4 CRC budget is never enforced, for any frame type.** `run_l6` calls
+   `parse_line()` on every inbound line before the relay and `continue`s on any
+   `CrcError`, so **no CRC-failed inbound frame — a broken `SIGNREQ` included — can ever
+   reach `NotaryRelay.handle_line()`**, the only place that counted drops against the
+   budget. The timeline is the only true counter; the summary reports the relay's count,
+   which is always zero. The fix (the design-review batch): one inbound ledger as the CRC
+   authority for the summary, the budget, the crashed summary and the soak checks.
 2. The rate report, now with a real breakdown (information only, nothing is pinned): 64
    candidates, 63 steady-state periods, **1586 evaluations/hour, CoV 0.019**, failure
    rate 0; per candidate sign 0.10 s, stage 0.04 s, link2+DMA 0.02 s, link3 0.04 s,
@@ -50,11 +51,12 @@ to pass.
 
 ## 4. Stop-loss
 
-C1 #1's byte loss recurred (twice). Per the owner's ruling of 2026-09-01, board repeats
-stop immediately; no fourth C1 ruling; the next step is transport / protocol design. The
-session count for prereg §7 is three without a `PASS` (two non-`COMPLETED`, one
-`COMPLETED`-but-refused), so a full design review precedes any fourth board session in
-any case.
+**Basis: the owner's standing ruling of 2026-09-01 that a recurrence of C1 #1's byte loss
+stops board repeats at once.** It recurred (twice). Board repeats stop; no fourth C1
+ruling; the next step is transport / protocol design under a full review. The prereg §7
+"three sessions without `COMPLETED`" clause is NOT what fires here and is not met: the
+device-side ends were C1 #1 host `CRASHED` (no complete end), C1 #2 host `CRASHED` (zero
+bytes), C1 #3 device `COMPLETED` with the host refusing the log for the incomplete audit.
 
 ## 5. What this session establishes
 
