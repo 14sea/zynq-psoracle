@@ -83,7 +83,8 @@ def record_timing(frames: list[dict], seqs: list[int]) -> dict[int, dict]:
     Keys absent from the sequence are None; lists are in arrival order."""
     out: dict[int, dict] = {}
     for seq in seqs:
-        t = {"t_signreq": None, "t_reply": None, "t_auditreq": None, "hb": [], "audit": [], "t_rec": None}
+        t = {"t_signreq": None, "t_reply": None, "t_auditreq": None, "hb": [], "audit": [], "t_rec": None,
+             "t_ready": None, "t_done": None, "t_abort": None}
         for f in frames:
             if f["seq"] != seq:
                 continue
@@ -96,11 +97,17 @@ def record_timing(frames: list[dict], seqs: list[int]) -> dict[int, dict]:
                     t["audit"].append(f["t_mono"])
                 elif f["type"] == n.T_REC and t["t_rec"] is None:
                     t["t_rec"] = f["t_mono"]
+                elif f["type"] == "AUDIT_READY" and t["t_ready"] is None:
+                    t["t_ready"] = f["t_mono"]
             else:
                 if f["type"] in (n.T_SIGNOK, n.T_SIGNREF) and t["t_reply"] is None:
                     t["t_reply"] = f["t_mono"]
                 elif f["type"] == n.T_AUDITREQ and t["t_auditreq"] is None:
                     t["t_auditreq"] = f["t_mono"]
+                elif f["type"] == "AUDITDONE" and t["t_done"] is None:
+                    t["t_done"] = f["t_mono"]
+                elif f["type"] == "AUDITABORT" and t["t_abort"] is None:
+                    t["t_abort"] = f["t_mono"]
         t["hb_count"], t["audit_chunks"] = len(t["hb"]), len(t["audit"])
         t["wall"] = (t["t_rec"] - t["t_signreq"]) if t["t_rec"] is not None and t["t_signreq"] is not None else None
         t["breakdown"] = breakdown(t)
@@ -111,12 +118,27 @@ def record_timing(frames: list[dict], seqs: list[int]) -> dict[int, dict]:
 def breakdown(t: dict) -> dict | None:
     """The six stages, from the pinned frame positions; None unless the record has its
     SIGNREQ, the host reply, all 16 heartbeats and its REC (a stopped candidate has fewer
-    heartbeats and its wall time is still reported, but not split)."""
+    heartbeats and its wall time is still reported, but not split).
+
+    The audit stage (prereg v0.3 draft §6): under the PULL protocol it is AUDIT_READY →
+    AUDITDONE (or AUDITABORT) on the host clock, retries included; under the push
+    protocol it stays HB#16 → the last AUDIT chunk. Which one applies is read off the
+    frames themselves — a record with a `t_ready` is a pull."""
     if t["t_signreq"] is None or t["t_reply"] is None or t["t_rec"] is None or len(t["hb"]) != HB_PER_RECORD:
         return None
     hb = t["hb"]
     if not (t["t_signreq"] <= t["t_reply"] <= hb[0] <= hb[-1] <= t["t_rec"]):
         return None
+    if t["t_ready"] is not None:
+        audit_end = t["t_done"] if t["t_done"] is not None else t["t_abort"]
+        if audit_end is None:
+            audit_end = t["audit"][-1] if t["audit"] else t["t_ready"]
+        if not (hb[15] <= t["t_ready"] <= audit_end <= t["t_rec"]):
+            return None
+        return {"sign": t["t_reply"] - t["t_signreq"], "stage": hb[0] - t["t_reply"],
+                "link2_dma": hb[3] - hb[0], "link3": hb[15] - hb[3],
+                "audit": audit_end - t["t_ready"],
+                "arm_settle_score": t["t_rec"] - audit_end}
     audit_end = t["audit"][-1] if t["audit"] else hb[15]
     if audit_end < hb[15] or audit_end > t["t_rec"]:
         return None

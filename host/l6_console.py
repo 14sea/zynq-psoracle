@@ -88,16 +88,17 @@ class ConsoleSession:
             f = n.parse_line(line)
         except n.CrcError:
             # counted by the ledger above; the budget is enforced here for EVERY type
-            if self.timeline.crc_dropped > self.crc_budget:
+            over = self.timeline.crc_dropped > self.crc_budget
+            if pulling:
+                # blocker 3: the failing line is an ATTEMPT of the pull first — recorded and
+                # kept verbatim in the pull's own ledger — before any budget consequence
+                self.puller.on_line(line)
+                if over and not self.puller.failed:
+                    self.puller._fail(f"PROTOCOL_CRC_BUDGET: {self.timeline.crc_dropped} > {self.crc_budget}")
+                self._pull_settle()
+            if over:
                 self.collector.epoch_end = {"kind": "PROTOCOL", "last_seq": self.collector.last_rec_seq,
                                             "reason": f"PROTOCOL_CRC_BUDGET: {self.timeline.crc_dropped} > {self.crc_budget}"}
-                if pulling:
-                    self.puller._fail(f"PROTOCOL_CRC_BUDGET: {self.timeline.crc_dropped} > {self.crc_budget}")
-                    self._pull_settle()
-                return
-            if pulling:
-                self.puller.on_line(line)           # a failed attempt of the chunk asked for → retry
-                self._pull_settle()
             return
         except n.FrameError:
             if pulling:
@@ -106,13 +107,28 @@ class ConsoleSession:
                 return
             self.collector.on_line(line)            # its rule: a malformed frame is CRASHED
             return
+        if f["token"] != self.token:
+            self.collector.on_line(line)            # a foreign token is the collector's refusal, never swallowed
+            return
         if f["type"] == ap.T_READY and self.puller is None:
+            # Transaction authority (whole-package review, blocker 1): a READY does not
+            # authorise itself. The only candidate that may announce an audit is the one
+            # whose sign exchange the relay just answered and whose record has not yet
+            # arrived; any other READY is channel misbehaviour and ends the epoch PROTOCOL.
+            expected = self.relay.last_seq
+            if f["seq"] != expected or expected <= self.collector.last_rec_seq:
+                self.collector.epoch_end = {"kind": "PROTOCOL", "last_seq": self.collector.last_rec_seq,
+                                            "reason": f"PROTOCOL_PULL: AUDIT_READY for seq {f['seq']}, "
+                                                      f"the current candidate is {expected}"}
+                return
+            self.collector.last_heard = self.collector.clock()   # valid pull traffic is liveness
             self.puller = ap.PullHost(self.token, f["seq"], send=self._pull_send)
             self.puller.on_line(line)
             self._pull_settle()
             return
         if pulling and f["type"] in (n.T_AUDIT, ap.T_READY):
-            self.puller.on_line(line)               # verified chunks reach collector.audits via _pull_settle
+            self.collector.last_heard = self.collector.clock()   # blocker 2: chunks + retries can
+            self.puller.on_line(line)               # outlast 30 s and are not silence
             self._pull_settle()
             return
         self.collector.on_line(line)

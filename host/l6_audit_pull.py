@@ -200,9 +200,15 @@ class PullHost:
         idle wait is what ends that case."""
         return self.state == "WAIT_CHUNK"
 
+    @staticmethod
+    def wire_len(line: str) -> int:
+        """Bytes on the wire, newline included and counted once — build_line() already ends
+        in one; a received line stripped by a reader gets it added back."""
+        return len(line) if line.endswith("\n") else len(line) + 1
+
     def _tx(self, mtype: str, payload: dict) -> None:
         line = n.build_line(mtype, self.seq, self.token, n.encode_payload(payload))
-        self.ledger.bytes_tx += len(line)
+        self.ledger.bytes_tx += self.wire_len(line)
         self.send(line)
 
     def _get(self) -> None:
@@ -227,7 +233,7 @@ class PullHost:
     def on_line(self, line: str) -> None:
         if self.state not in ("WAIT_READY", "WAIT_CHUNK"):
             return
-        self.ledger.bytes_rx += len(line) + 1
+        self.ledger.bytes_rx += self.wire_len(line)
         try:
             f = n.parse_line(line)
         except n.CrcError:

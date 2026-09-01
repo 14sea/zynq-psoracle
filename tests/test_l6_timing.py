@@ -67,6 +67,32 @@ class StageAttribution(unittest.TestCase):
                                           "audit": 8.0, "arm_settle_score": 1.0})
         self.assertAlmostEqual(sum(t["breakdown"].values()), t["wall"])
 
+    def test_pull_shape_audit_stage_is_ready_to_done(self):
+        """prereg v0.3 §6: under the pull the audit stage is AUDIT_READY → AUDITDONE on the
+        host clock, retries included; the ARM stage runs from DONE to REC."""
+        fr = frames_for(2, 10.0, audit=0)[:-1]            # SIGNREQ, reply, 16 HB — REC comes later
+        t = fr[-1]["t_mono"]
+        fr.append({"dir": "rx", "type": "AUDIT_READY", "seq": 2, "t_mono": t + 1, "t_wall": t + 1})
+        for k in range(9):                                # 8 chunks + 1 retry
+            fr.append({"dir": "tx", "type": "AUDITGET", "seq": 2, "t_mono": t + 1.5 + k, "t_wall": 0})
+            fr.append({"dir": "rx", "type": n.T_AUDIT, "seq": 2, "t_mono": t + 2 + k, "t_wall": 0})
+        fr.append({"dir": "tx", "type": "AUDITDONE", "seq": 2, "t_mono": t + 12, "t_wall": 0})
+        fr.append({"dir": "rx", "type": n.T_REC, "seq": 2, "t_mono": t + 13, "t_wall": 0})
+        tt = lt.record_timing(fr, [2])[2]
+        self.assertEqual((tt["t_ready"], tt["t_done"]), (t + 1, t + 12))
+        b = tt["breakdown"]
+        self.assertEqual(b["audit"], 11.0, "READY → DONE, the retry inside")
+        self.assertEqual(b["arm_settle_score"], 1.0, "DONE → REC")
+
+    def test_pull_shape_abort_bounds_the_audit_stage(self):
+        fr = frames_for(3, 0.0, audit=0)[:-1]
+        t = fr[-1]["t_mono"]
+        fr += [{"dir": "rx", "type": "AUDIT_READY", "seq": 3, "t_mono": t + 1, "t_wall": 0},
+               {"dir": "tx", "type": "AUDITABORT", "seq": 3, "t_mono": t + 7, "t_wall": 0},
+               {"dir": "rx", "type": n.T_REC, "seq": 3, "t_mono": t + 8, "t_wall": 0}]
+        b = lt.record_timing(fr, [3])[3]["breakdown"]
+        self.assertEqual(b["audit"], 6.0); self.assertEqual(b["arm_settle_score"], 1.0)
+
     def test_no_audit_attributes_arm_from_the_last_heartbeat(self):
         t = lt.record_timing(frames_for(5, 0.0, audit=0), [5])[5]
         self.assertEqual(t["breakdown"]["audit"], 0.0)

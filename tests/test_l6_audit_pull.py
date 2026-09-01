@@ -160,15 +160,39 @@ class LossAndDuplication(unittest.TestCase):
         self.assertEqual([a["outcome"] for a in res["ledger"].attempts if a["chunk"] == 2], ["timeout", "ok"])
 
     def test_done_lost_is_visible_the_board_records_replayed_only_and_rule_ix_refuses(self):
+        """The full run log with the board's STOP_AUDIT record and the host's verified
+        chunks goes through the REAL validate_standalone_run_log: the host-derived mark is
+        `audited`, the record says `replayed-only`, and rule (ix) refuses — a lost DONE is
+        never silent."""
+        import copy
+        from validators import records
         sim, res = run([ap.Fault("h2b", ap.T_DONE, None, 0, "drop")])
         self.assertTrue(res["host_done"])                             # the host believes it complete …
         self.assertEqual(res["board"]["outcome"], "STOP_AUDIT")       # … the board waited out its bound, no ARM
         self.assertEqual(res["board"]["verified"], "replayed-only")
-        # rule (ix): the record's mark and the host-derived mark disagree → RecordError, never silent
-        from validators import records
-        rec = {"seq": 1, "verified": res["board"]["verified"]}
-        marks = {1: "audited"}
-        self.assertNotEqual(rec["verified"], marks[1])
+        rec = copy.deepcopy(LOG["loop_records"][0])
+        rec["outcome"], rec["verified"] = "STOP_AUDIT", "replayed-only"
+        for k in ("arm", "score"):
+            del rec["evidence"][k]
+        rec["evidence"]["audit_stop"] = {"why": "the host went quiet during the audit pull", "chunks_served": 8}
+        log = {"control_plane": "standalone", "app_identity": LOG["app_identity"],
+               "loop_records": [rec],
+               "notary_log": {"schema": "notary_log", "schema_version": "1.0.0", "token": TOKEN,
+                              "entries": [LOG["notary_log"]["entries"][0]]},
+               "session_summary": {"schema": "session_summary", "schema_version": "1.0.0", "token": TOKEN,
+                                   "epoch_end": {"kind": "STOPPED", "reason": "the audit pull did not complete: no ARM was attempted", "last_seq": 1},
+                                   "counts": {"scored": 0, "refused_by_gate": 0},
+                                   "closing": {"restore": "done", "baseline": "not_reached", "unsigned_control": "not_reached"},
+                                   "audit": {"audited": 0, "total": 1}, "crc_dropped": 0, "drop_budget": 16,
+                                   "written_by": "app"}}
+        import p3_gate as g2
+        import p3_genome as gn
+        phen = MANIFEST
+        blank = g2.gate(g2.build_streams(gn.frames_from_genome(gn.blank_genome(phen), phen), phen), phen)["candidate_sha256"]
+        with self.assertRaises(records.RecordError) as cm:
+            records.validate_standalone_run_log(log, blank, 0x9E3779B97F4A7C15, sim.host.chunks(), phen)
+        self.assertNotIsInstance(cm.exception, records.Falsified)
+        self.assertIn("(ix)", str(cm.exception)); self.assertIn("replayed-only", str(cm.exception))
 
     def test_duplicates_are_harmless(self):
         sim, res = run([ap.Fault("b2h", ap.T_READY, None, 0, "dup"), ap.Fault("b2h", n.T_AUDIT, 5, 0, "dup"),

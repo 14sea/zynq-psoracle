@@ -98,6 +98,85 @@ class Ledger(unittest.TestCase):
         self.assertIn("console.crc_dropped, plan[\"crc_budget\"]", src)  # the soak check
 
 
+class PullIntegration(unittest.TestCase):
+    """The whole-package review's three integration blockers, on the real session object."""
+
+    def setUp(self):
+        import l6_audit_pull as apm
+        self.apm = apm
+        self.now = {"t": 0.0}
+        self.collector = n.Collector(TOKEN, heartbeat_s=10, clock=lambda: self.now["t"])
+        self.sent = []
+        self.relay = n.NotaryRelay(TOKEN, lambda req: {"refused": {"finding_kinds": ["x"]}},
+                                   drop_budget=4, clock=lambda: 0.0)
+        self.tl = lt.Timeline()
+        self.cs = lcs.ConsoleSession(TOKEN, self.collector, self.relay, self.tl, audit_seqs=set(),
+                                     crc_budget=4, send=lambda line, mtype, seq: self.sent.append(line))
+
+    def _signreq(self, seq):
+        line = n.build_line(n.T_SIGNREQ, seq, TOKEN, n.encode_payload(
+            {"seq": seq, "token": TOKEN, "genome": "0" * 80, "nonce": "0" * 16, "app_epoch": 0,
+             "schema": "sign_request", "schema_version": "1.0.0"}))
+        self.cs.on_line(line, self.now["t"], self.now["t"])
+
+    def _ready(self, seq, span="streams+readback", total=2814, chunks=8):
+        return n.build_line(self.apm.T_READY, seq, TOKEN, n.encode_payload(
+            {"seq": seq, "span": span, "total_words": total, "chunks": chunks, "nonzero": 1}))
+
+    def test_1_a_ready_cannot_authorise_itself(self):
+        """seq 999 with our token, no sign exchange behind it: PROTOCOL, not a pull."""
+        self.cs.on_line(self._ready(999), 0.0, 0.0)
+        self.assertIsNone(self.cs.puller)
+        self.assertEqual(self.collector.epoch_end["kind"], "PROTOCOL")
+        self.assertIn("AUDIT_READY for seq 999", self.collector.epoch_end["reason"])
+        self.assertEqual(self.sent, [], "no AUDITGET was ever sent")
+
+    def test_1_only_the_current_candidates_ready_is_accepted(self):
+        self._signreq(1)                                  # the relay answered seq 1 (a refusal, but answered)
+        self.cs.on_line(self._ready(1), 1.0, 1.0)
+        self.assertIsNotNone(self.cs.puller)
+        self.assertEqual(self.cs.puller.seq, 1)
+        self.assertEqual(n.parse_line(self.sent[-1])["type"], self.apm.T_GET)
+
+    def test_1_a_foreign_token_ready_goes_to_the_collectors_refusal(self):
+        line = n.build_line(self.apm.T_READY, 1, "cd" * 16, n.encode_payload({"seq": 1}))
+        self.cs.on_line(line, 0.0, 0.0)
+        self.assertIsNone(self.cs.puller)
+        self.assertEqual(self.collector.epoch_end["kind"], "CRASHED")
+        self.assertEqual(self.collector.epoch_end["reason"], "foreign token")
+
+    def test_2_valid_pull_traffic_refreshes_liveness(self):
+        """Eight chunks plus retries can outlast 30 s; a pull in progress is not silence."""
+        self._signreq(1)
+        self.cs.on_line(self._ready(1), 0.0, 0.0)
+        board = self.apm.PullBoard(TOKEN, 1, "streams+readback", [0] * 2814)
+        for k in range(6):
+            self.now["t"] += 9.0                         # 54 s of pull traffic, no other frame
+            self.cs.on_line(board.serve(k), self.now["t"], self.now["t"])
+            self.assertIsNone(self.collector.poll(), f"chunk {k}: valid audit traffic read as silence")
+        self.now["t"] += 31.0                            # NOW it is real silence
+        self.assertEqual(self.collector.poll()["kind"], "CRASHED")
+
+    def test_3_the_over_budget_line_is_a_recorded_attempt_of_the_pull(self):
+        self._signreq(1)
+        hb = n.build_line(n.T_HB, 1, TOKEN)
+        for i in range(4):                                # spend the budget outside the pull
+            self.cs.on_line(broken(hb), float(i), float(i))
+        self.assertFalse(self.cs.ended)
+        self.cs.on_line(self._ready(1), 5.0, 5.0)
+        board = self.apm.PullBoard(TOKEN, 1, "streams+readback", [0] * 2814)
+        bad = broken(board.serve(0))
+        self.cs.on_line(bad, 6.0, 6.0)                    # the fifth drop: over budget, inside the pull
+        self.assertEqual(self.collector.epoch_end["kind"], "PROTOCOL")
+        self.assertIn("PROTOCOL_CRC_BUDGET: 5 > 4", self.collector.epoch_end["reason"])
+        self.assertEqual(len(self.cs.pull_ledgers), 1, "the pull's ledger was settled")
+        pl = self.cs.pull_ledgers[0]
+        self.assertTrue(pl["failed"]); self.assertIn("PROTOCOL_CRC_BUDGET", pl["why"])
+        self.assertEqual([a["outcome"] for a in pl["attempts"] if a["chunk"] == 0][0], "crc")
+        self.assertEqual(pl["lines_kept"], [bad.rstrip("\n")] if bad.endswith("\n") else [bad],
+                         "the final failing line is kept verbatim in the pull's own ledger")
+
+
 class C13Counterfactual(unittest.TestCase):
     """C1 #3's recorded console bytes through the real session object, with the recorded
     notary answers: the ledger says 2 drops (both AUDIT), inside the budget of 7; the log

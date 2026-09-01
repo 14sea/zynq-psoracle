@@ -979,3 +979,23 @@ ledger, pull-v2 D-s4 brackets, mutation-grade static tests, two byte-identical b
 next_image e19e1b12… pinned NOT board-ready, and the prereg v0.3 DRAFT (not frozen). The
 runner still binds v0.2 + bd1454cd…; no ruling, no board. docs/l6_pull_batch_package.md
 is the review's entry point.
+
+## 2026-09-01 — whole-package review of the pull batch: HOLD on six host-integration findings; corrected
+
+Confirmed by the owner: the 626/630 denominators, the sparse transaction binding, the
+STOP_AUDIT boundaries, the firmware's no-ARM guards, the byte-identical builds, and that
+v0.2/bd1454cd…/the runner bindings are untouched. Held on: (1) AUDIT_READY authority —
+the session created a puller from the READY's own seq (a seq-999 READY was accepted; a
+foreign-token READY was swallowed silently); now only the relay's last answered, not yet
+recorded candidate may announce, anything else is PROTOCOL, and a foreign token goes to
+the collector's refusal; (2) pull traffic bypassed the collector's liveness clock — a
+long pull could read as silence; valid pull frames now refresh it; (3) the over-budget
+CRC line was not recorded in the pull's own ledger; it is an attempt first, kept
+verbatim, then the budget ends the epoch; (4) the v0.3 audit-timing definition
+(READY→DONE, retries included) is implemented in l6_timing.breakdown, selected by the
+frames; (5) the model double-counted the newline — one convention now, corpus
+4 282–4 484 B equal to the loss summary; (6) the DONE-loss test now drives the real
+validate_standalone_run_log to the rule-(ix) refusal. Package wording narrowed: dynamic
+execution is the Python twins and the C serialiser twin; p3_app.c's wiring is
+static/mutation coverage only. Firmware unchanged; e19e1b12… not rebuilt, still NOT
+board-ready; no ruling, no board. Short re-review next.
