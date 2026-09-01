@@ -352,6 +352,7 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-01T075330Z.json` |
 | `evidence/tests/test_report_2026-09-01T074518Z.json` |
 | `evidence/tests/test_report_2026-09-01T071959Z.json` |
 | `evidence/tests/test_report_2026-09-01T071516Z.json` |
@@ -425,6 +426,7 @@ revisions and neither may be silently substituted for the other.
 | `tests/test_l5_runner.py` |
 | `docs/l5_wire_findings.md` |
 | `docs/l5_session1_findings.md` |
+| `docs/l5_diag_spec.md` |
 | `evidence/boundary/principal_boundary_2026-09-01.json` |
 | `evidence/l5_17A6_2026-09-01-01/L5_0_preflight.json` |
 | `evidence/l5_17A6_2026-09-01-01/L5_1_identity_page.json` |
