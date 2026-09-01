@@ -93,8 +93,17 @@ class ConsoleSession:
                 # blocker 3: the failing line is an ATTEMPT of the pull first — recorded and
                 # kept verbatim in the pull's own ledger — before any budget consequence
                 self.puller.on_line(line)
-                if over and not self.puller.failed:
-                    self.puller._fail(f"PROTOCOL_CRC_BUDGET: {self.timeline.crc_dropped} > {self.crc_budget}")
+                if over:
+                    # The GLOBAL CRC authority wins the termination reason, even when the
+                    # puller has just failed itself on retry exhaustion for the same line:
+                    # the epoch's PROTOCOL reason and pulls[].why must be the same fact.
+                    # The attempts and their raw lines are already in the ledger; _fail is
+                    # idempotent, so at most ONE AUDITABORT ever goes to the board.
+                    reason = f"PROTOCOL_CRC_BUDGET: {self.timeline.crc_dropped} > {self.crc_budget}"
+                    if self.puller.failed:
+                        self.puller.fail_reason = reason
+                    else:
+                        self.puller._fail(reason)
                 self._pull_settle()
             if over:
                 self.collector.epoch_end = {"kind": "PROTOCOL", "last_seq": self.collector.last_rec_seq,

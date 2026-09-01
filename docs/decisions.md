@@ -999,3 +999,14 @@ validate_standalone_run_log to the rule-(ix) refusal. Package wording narrowed: 
 execution is the Python twins and the C serialiser twin; p3_app.c's wiring is
 static/mutation coverage only. Firmware unchanged; e19e1b12… not rebuilt, still NOT
 board-ready; no ruling, no board. Short re-review next.
+
+## 2026-09-01 — pull-batch short re-review: two termination edges closed
+
+The six integration corrections held; two edges remained. (1) An unclosed pull — READY
+seen, neither DONE nor ABORT — fell back to the last chunk as the audit stage's end and
+minted a full breakdown; v0.3 defines the stage as READY → DONE/ABORT, so the breakdown
+is now None (the wall time stands), with the missing-both negative. (2) When retry
+exhaustion and the global CRC budget fired on the same line, the epoch said
+PROTOCOL_CRC_BUDGET while pulls[].why said exhaustion; the global authority now wins both
+texts, the attempts and raw lines stay, and _fail() is idempotent so only one AUDITABORT
+can ever be sent. Host/tests/docs only; firmware unchanged; e19e1b12… not rebuilt.

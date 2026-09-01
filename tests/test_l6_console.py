@@ -177,6 +177,32 @@ class PullIntegration(unittest.TestCase):
                          "the final failing line is kept verbatim in the pull's own ledger")
 
 
+    def test_budget_and_exhaustion_together_one_reason_one_abort(self):
+        """Three CRC failures on one chunk with a global budget of 2: the puller exhausts
+        its retries on the same line that crosses the budget. The GLOBAL authority wins —
+        epoch reason and pulls[].why are the same PROTOCOL_CRC_BUDGET fact — all three
+        attempts and raw lines are kept, and exactly ONE AUDITABORT went to the board."""
+        import l6_audit_pull as apm
+        self.relay.drop_budget = 2
+        self.cs.crc_budget = 2
+        self._signreq(1)
+        self.cs.on_line(self._ready(1), 0.0, 0.0)
+        board = self.apm.PullBoard(TOKEN, 1, "streams+readback", [0] * 2814)
+        for i in range(3):
+            self.cs.on_line(broken(board.serve(0)), 1.0 + i, 1.0 + i)
+        self.assertEqual(self.collector.epoch_end["kind"], "PROTOCOL")
+        self.assertEqual(self.collector.epoch_end["reason"], "PROTOCOL_CRC_BUDGET: 3 > 2")
+        self.assertEqual(len(self.cs.pull_ledgers), 1)
+        pl = self.cs.pull_ledgers[0]
+        self.assertTrue(pl["failed"])
+        self.assertEqual(pl["why"], "PROTOCOL_CRC_BUDGET: 3 > 2",
+                         "the pull's reason is the epoch's reason, not the exhaustion text")
+        self.assertEqual([a["outcome"] for a in pl["attempts"]], ["crc", "crc", "crc"])
+        self.assertEqual(len(pl["lines_kept"]), 3)
+        aborts = [l for l in self.sent if n.parse_line(l)["type"] == apm.T_ABORT]
+        self.assertEqual(len(aborts), 1, "never a second ABORT")
+
+
 class C13Counterfactual(unittest.TestCase):
     """C1 #3's recorded console bytes through the real session object, with the recorded
     notary answers: the ledger says 2 drops (both AUDIT), inside the budget of 7; the log

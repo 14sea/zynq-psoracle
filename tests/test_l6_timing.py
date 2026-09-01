@@ -93,6 +93,21 @@ class StageAttribution(unittest.TestCase):
         b = lt.record_timing(fr, [3])[3]["breakdown"]
         self.assertEqual(b["audit"], 6.0); self.assertEqual(b["arm_settle_score"], 1.0)
 
+    def test_an_unclosed_pull_keeps_its_wall_time_but_no_breakdown(self):
+        """READY seen, neither DONE nor ABORT: the pull is unclosed and the v0.3 stage
+        (READY → DONE/ABORT) does not exist — no fallback to the last chunk (review
+        2026-09-01: the fallback minted audit=3.0/arm=9.0 for exactly this shape)."""
+        fr = frames_for(4, 0.0, audit=0)[:-1]
+        t = fr[-1]["t_mono"]
+        fr.append({"dir": "rx", "type": "AUDIT_READY", "seq": 4, "t_mono": t + 1, "t_wall": 0})
+        for k in range(3):
+            fr.append({"dir": "rx", "type": n.T_AUDIT, "seq": 4, "t_mono": t + 2 + k, "t_wall": 0})
+        fr.append({"dir": "rx", "type": n.T_REC, "seq": 4, "t_mono": t + 13, "t_wall": 0})
+        tt = lt.record_timing(fr, [4])[4]
+        self.assertEqual((tt["t_ready"], tt["t_done"], tt["t_abort"]), (t + 1, None, None))
+        self.assertIsNotNone(tt["wall"])
+        self.assertIsNone(tt["breakdown"], "an unclosed pull must not mint a breakdown")
+
     def test_no_audit_attributes_arm_from_the_last_heartbeat(self):
         t = lt.record_timing(frames_for(5, 0.0, audit=0), [5])[5]
         self.assertEqual(t["breakdown"]["audit"], 0.0)

@@ -130,9 +130,12 @@ def breakdown(t: dict) -> dict | None:
     if not (t["t_signreq"] <= t["t_reply"] <= hb[0] <= hb[-1] <= t["t_rec"]):
         return None
     if t["t_ready"] is not None:
+        # v0.3: the audit stage ends at AUDITDONE or AUDITABORT, nothing else. A pull that
+        # has neither is UNCLOSED: the wall time stands, the breakdown does not (review
+        # 2026-09-01 — the fallback to the last chunk minted a full breakdown for it).
         audit_end = t["t_done"] if t["t_done"] is not None else t["t_abort"]
         if audit_end is None:
-            audit_end = t["audit"][-1] if t["audit"] else t["t_ready"]
+            return None
         if not (hb[15] <= t["t_ready"] <= audit_end <= t["t_rec"]):
             return None
         return {"sign": t["t_reply"] - t["t_signreq"], "stage": hb[0] - t["t_reply"],

@@ -216,6 +216,8 @@ class PullHost:
         self._tx(T_GET, {"seq": self.seq, "chunk": self.chunk})
 
     def _fail(self, why: str) -> None:
+        if self.failed:
+            return                                 # one failure, one ABORT — never a second
         self.failed, self.fail_reason, self.state = True, why, "FAILED"
         self._tx(T_ABORT, {"seq": self.seq, "why": why})
 

@@ -76,7 +76,11 @@ over-budget failing line is recorded as an attempt of the pull — kept verbatim
 shape keeps its old definition, selected by the frames themselves); (5) one wire-byte
 convention (the newline counted once) — the corpus range is 4 282–4 484 B, equal to the
 loss summary's; (6) the DONE-loss case now runs through the REAL
-`validate_standalone_run_log` and is refused by rule (ix).
+`validate_standalone_run_log` and is refused by rule (ix). Second round: (7) an
+unclosed pull (READY without DONE/ABORT) keeps its wall time and gets NO breakdown — no
+fallback to the last chunk; (8) when the CRC budget and retry exhaustion fire on the
+same line, the GLOBAL budget reason wins both the epoch end and `pulls[].why`, the three
+attempts and raw lines stay in the ledger, and at most one `AUDITABORT` is ever sent.
 
 ## 5. Next (the owner's)
 
