@@ -1,8 +1,8 @@
 # L5 session 4 on 17A6 (ruling `2026-09-01-04`) — the settle question, answered
 
-**Standing: the runner's literal outcome is `PASS`. The canonical table keeps L5 at HOLD
-until the owner adjudicates this session; this document is the evidence, not the
-adjudication.** Specification: `docs/l5_session4_spec.md`. Evidence:
+**Standing: adjudicated by the owner on 2026-09-01 — L5 PASS (scoped); the scope is
+recorded verbatim in `docs/status.md` and `docs/decisions.md` and is not widened here.
+The runner's literal outcome was `PASS`; the owner checked the evidence item by item.** Specification: `docs/l5_session4_spec.md`. Evidence:
 `evidence/l5_17A6_2026-09-01-04/`, image **`a7c73d1f…`** (first execution on hardware),
 carrier `956379fa…`, boundary `evidence/boundary/principal_boundary_2026-09-01-04.json`
 (R1–R5 as the runner). Power-cycled before the session; both `-04` rulings consumed.
@@ -70,9 +70,8 @@ No §3 falsification item is met. The runner's `outcome_for` gave `PASS`.
 
 ## 4. Standing
 
-- **The owner adjudicates.** Under §5 as written, every PASS condition holds on this
-  evidence, checked by the validator and re-checked independently. The canonical table is
-  changed only by the owner's ruling; until then it reads HOLD with this session recorded.
+- **Adjudicated L5 PASS (scoped) by the owner, 2026-09-01**, after checking the evidence
+  itself against §5 (all eight hold) and §3 (none met). Scope: EBAZ4203 17A6, carrier `956379fa…`, application image `a7c73d1f…`, the U-Boot→standalone control-plane crossing, a host-supplied seed, N = 8, all-self-reporting audit, under the established notary/interlock. Not extrapolated to autonomous discovery, long-run stability, other carriers/dies, Linux, or a precise ARM-gate time; `CLK_621_TRUE` unread does not affect this PASS; 16 is a count of Strongly-Ordered reads, not a time unit.
 - Both `-04` rulings consumed. Board untouched since the runner exited; not power-cycled.
 - Image `a7c73d1f…` produced this evidence and is unchanged.
 - The three-sessions stop-loss of prereg §6 is discharged by this `COMPLETED` end; the

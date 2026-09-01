@@ -162,12 +162,20 @@ class DocumentsAgree(unittest.TestCase):
         row = next(l for l in (R / "docs/status.md").read_text().splitlines()
                    if l.startswith("| L5 the loop |"))
         self.assertIn(PINNED["app_image_sha256"][:8], row)
-        # This used to assert "never run on hardware". Session 1 ran, so that premise
-        # expired and the guard was RETARGETED rather than deleted: the rung's state field
-        # must still say HOLD, so a pass cannot appear in the canonical table by drift.
-        state = row.split("|")[2]
-        self.assertIn("HOLD", state,
-                      "L5 is not adjudicated; the canonical table must not imply otherwise")
+        # This guard has been retargeted twice rather than deleted: first from "never run on
+        # hardware" (expired at session 1) to "must say HOLD" (expired at the owner's ruling
+        # on session 4, 2026-09-01). It now pins the adjudication itself: the state is the
+        # owner's scoped PASS, the adjudicated column names the owner and the date, and the
+        # scope is stated in the row — so neither a wider claim nor a drift back to HOLD can
+        # appear in the canonical table by accident.
+        cells = row.split("|")
+        state, adjudicated = cells[2], cells[3]
+        self.assertIn("PASS (scoped)", state, "the canonical L5 state is the owner's scoped PASS")
+        self.assertNotIn("HOLD", state)
+        self.assertIn("owner", adjudicated); self.assertIn("2026-09-01", adjudicated)
+        for scope_word in ("17A6", "956379fa", "a7c73d1f", "N = 8", "all-self-reporting",
+                           "Not extrapolated"):
+            self.assertIn(scope_word, row, f"the scope must stay in the row: {scope_word}")
 
     def test_the_drift_guard_catches_the_drift_it_exists_for(self):
         """Discrimination. Verified live once by editing the preregistration to name a

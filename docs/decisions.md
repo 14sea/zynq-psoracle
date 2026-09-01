@@ -649,3 +649,23 @@ the first to see its own defect and having every variant assert the clause's mes
 removed clause then changes which message appears. All four clause mutants (three unique
 far_sets, twelve unique targets, four each, pinned roles) now fail the test. Recorded here
 rather than by rewriting the earlier message.
+
+## 2026-09-01 — L5 session 4: COMPLETED; adjudicated L5 PASS (scoped)
+
+The owner checked the evidence (`evidence/l5_17A6_2026-09-01-04/`), not the runner's
+string: `epoch_end COMPLETED` with all three closing steps done; ten records all `SCORED`;
+opening and closing baselines `[18, 22, 20, 20, 20, 18]`; eighty audit chunks backing
+10/10 audited records; validator `{scored 10, audited 10, chain_length 11}`; audit policy
+over seq 1–10 with no exempt; closing unsigned control `fault 13`, `cfg_valid_hw = 0`; zero
+disruptions, CRC drops and transport re-reads; every ARM from `status_first 0x901` through
+sixteen reads to `status_last 0xf54` with the nonce stepping once. The early-read
+explanation of sessions 1 and 3 is therefore silicon-verified on the standalone plane; all
+eight §5 PASS conditions hold and no §3 falsifier is met.
+
+**Ruling: L5 PASS (scoped).** The scope, which must be kept:
+
+> EBAZ4203 17A6, carrier `956379fa…`, application image `a7c73d1f…`, the U-Boot→standalone control-plane crossing, a host-supplied seed, N = 8, all-self-reporting audit, under the established notary/interlock. Not extrapolated to autonomous discovery, long-run stability, other carriers/dies, Linux, or a precise ARM-gate time; `CLK_621_TRUE` unread does not affect this PASS; 16 is a count of Strongly-Ordered reads, not a time unit.
+
+`docs/status.md` records it as the canonical state; the guard that had held the table at
+HOLD is retargeted to require exactly this adjudication and its scope, so neither a wider
+claim nor a drift back can appear by accident. Pushed together with the session evidence.
