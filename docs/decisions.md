@@ -733,3 +733,25 @@ two-HB log HOLDs; one HB short on one seq names that seq; 16 each passes). Two d
 syncs done with it: the delivery table's exemption wording (only `REFUSED_BY_GATE` and a
 pre-staging `STOP_AXI`) and the manifest's auto-audit list (post-staging `STOP_AXI`
 added). Push and §2 wait for the final short re-review.
+
+## 2026-09-01 — §4 host-only instrument batch: PASS (third short review); §2 authorised
+
+The owner confirmed: HB completeness counted per record seq, exactly 16 for every SCORED
+record, enforced by the structural gate shared by C1/C2/S; the one-short, one-extra and
+first-two-only counter-examples are each caught precisely; the STOP_AXI documents and
+manifest agree with the classification-by-content implementation; the four earlier
+corrections and the single-sample CoV guard hold. Independent re-run: 571 tests OK (a
+pre-existing principal-boundary test skips in the review environment; the fail-closed
+report here shows 571/0 skip — no contradiction).
+
+Rulings: (1) push `451f8b2` → `726c9e7` → `6ee3c38` with this adjudication commit;
+(2) the §2 firmware/image batch is authorised — A/B operators, A,B,B,A / forced schedule
+and pair-seed C twin; `mutation_bits = 4` and the `operator_data_sha256` contract; IDENT
+1.1, the candidate arm, flags bits 2–3; sampled audit with auto-audit of every
+non-SCORED self-report including a post-staging STOP_AXI; watchdog ON (prescaler 7, load
+1 250 000 035, flag-gated); the 16 HB per complete SCORED record in the right seq and
+order; the 256-corpus bit-exact twin; real C wire → relay → validator contract tests;
+two clean byte-identical rebuilds, build evidence, manifest/image hash and the P3
+compatibility review package. Boundary unchanged: no ruling, no board, no C1/C2/S in
+this batch; the new image goes through the whole-package compatibility review and the
+prereg freeze first, then one ruling for the board phase.
