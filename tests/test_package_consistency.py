@@ -149,6 +149,20 @@ class PinnedL6Image(unittest.TestCase):
         # 30.0 s at PERIPHCLK/8, from the manifest's own clock — the derivation the pin was made from
         self.assertAlmostEqual((L6_PINNED["watchdog_load_value"] + 1) * 8 / L6_PINNED["peripheral_clock_hz"], 30.0, places=6)
 
+    def test_the_frozen_prereg_speaks_in_the_present_protocol(self):
+        """Frozen-artifact review 2026-09-01: the frozen v0.3 text kept three v0.2 passages
+        as if current. The frozen prereg may cite history, but must never present the
+        push-era mechanism or the 'nothing measured' state as the present."""
+        text = (R / "docs/l6_soak_prereg.md").read_text()
+        self.assertNotIn("serve_audit", text, "the push-era call path presented as current")
+        self.assertNotIn("No P3 session has\n  measured", text)
+        self.assertNotIn("the per-candidate rate is unknown", text)
+        self.assertNotIn("not implementable under the current wire protocol", text)
+        self.assertIn("No PASS\n  calibration exists to pin", text)
+        self.assertIn("v0.2 HISTORICAL — resolved by pull-v2", text)
+        self.assertIn("`AUDIT_READY` → (`AUDITGET` → `AUDIT`)×chunks", text)
+        self.assertIn("pull-v2", text)
+
     def test_the_frozen_prereg_hashes_to_its_pin(self):
         """Frozen 2026-09-01 after the compatibility review PASS: the document on disk must
         hash to the pin, or the runner (which checks the same thing) refuses every session."""

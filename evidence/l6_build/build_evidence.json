@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "purpose": "Post-build provenance for the pinned P3 L6 application image, regenerated after a clean rebuild (reviewer 2026-08-31).",
   "git": {
-    "head": "3495b8a05893fa44f4b4760a225d47d06c0dbb52",
+    "head": "fa898c3fbfeed0fdd3b285e5bd0da32575823485",
     "worktree_dirty": true
   },
   "toolchain": {
@@ -32,12 +32,12 @@
     "sha256": "628dbacea41fc1dbab92e0f635afa673fd312b5e17a0922f9cc9aebfa6e6b1e8"
   },
   "tests": {
-    "report": "evidence/tests/test_report_2026-09-01T192741Z.json",
-    "report_sha256": "34b1baecfdf0f4a2e52a3363da7e50c89b036ffd443719c9f7228a6383dabeaf",
+    "report": "evidence/tests/test_report_2026-09-01T193428Z.json",
+    "report_sha256": "0d36b8e5d78c5866f4be66fe2d1923a9a9952a441187edaaea61a577faaba6a5",
     "status": "cited and verified green by the generator",
-    "ran": 773,
+    "ran": 774,
     "skipped": 1,
-    "head_at_run": "3495b8a05893fa44f4b4760a225d47d06c0dbb52",
+    "head_at_run": "fa898c3fbfeed0fdd3b285e5bd0da32575823485",
     "result_line": "OK (skipped=1)",
     "note": "the fail-closed test evidence (count / skipped / boundary / head_at_run) is this report, cited explicitly and verified green by the generator; run host/run_tests.sh in a staged state so it covers the new files."
   }

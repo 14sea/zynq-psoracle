@@ -5,8 +5,8 @@
   "prereg": {
     "path": "docs/l6_soak_prereg.md",
     "version": "v0.3",
-    "sha256": "5600a8e8c8d7228857b3b7ce5313e6379b4ff9fcd0d166568f3bdd13f0a40653",
-    "frozen": "2026-09-01, host-only, after the pull-batch package review PASS (owner)",
+    "sha256": "8daa81f22add85660159e5c2474ecd4bda29d2a815c90fb5fdb8c1ef12c350ae",
+    "frozen": "2026-09-01, host-only, after the pull-batch package review PASS and the frozen-artifact doc-consistency correction (owner)",
     "supersedes": {
       "version": "v0.2",
       "sha256": "90f5fa699e8de8f969802b95719b3827285d65af8216e48887e026fb1fe89bcf",

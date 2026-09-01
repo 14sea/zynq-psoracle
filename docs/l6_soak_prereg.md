@@ -27,9 +27,15 @@ it. Any edit from here is a new version with a new hash and a new freeze.
   measured end-to-end rate per candidate — sign round trip, staging, link-2 witness, DMA,
   link-3 readback, audit service, ARM + settle + score — and its failure rate? Claim B's
   preregistration (`claimb_preregistration.md` §6, "The budget still cannot be frozen here")
-  defines exactly this calibration and says the budget derives from it. **No P3 session has
-  measured it: session 4's evidence carries no timestamps** (a 253 s wall time from file
-  mtimes covers the 2 MB carrier transfer; the per-candidate rate is unknown).
+  defines exactly this calibration and says the budget derives from it. **No PASS
+  calibration exists to pin: `calibration.C1`/`C2` are null.** What does exist is
+  informational only: L5 session 4 carried no per-frame timestamps at all (a v0.2
+  historical gap, closed by the §4 instrument batch), and C1 #1/#3 — HOLD sessions on the
+  superseded push-protocol image `bd1454cd…` — measured ≈ 1470–1586 evaluations/hour with
+  CoV ≈ 0.02 (`docs/l6_c1_session1_findings.md` §4, `docs/l6_c1_session3_findings.md`
+  §3.2). Those numbers may size expectations but may not be pinned: the sessions were
+  HOLDs and the audit transport has since changed to pull-v2, which changes the audit
+  stage's cost. C1 under this v0.3 is what produces the pinnable record.
 - **Q2 (soak).** Does the P3 loop hold every invariant L5 established — heartbeat cadence,
   nonce chain, host-recomputed audits, baseline equality, fail-closed ends — **for hours,
   unattended, under the sampled audit policy and with the watchdog decided**? L5's PASS
@@ -103,20 +109,23 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
 | id | ruling |
 |---|---|
 | **D-s1** watchdog | **ON.** Prescaler 7, 30 s (`load 1 250 000 035` at PERIPHCLK 333.33 MHz, board-confirmed 2026-09-01-05). Arm and kick are gated by the identity page's `flags.bit1`; the **bit1 = 0 path keeps L5's behaviour exactly**. The build and its tests must pin the **actual** load value written, not the derivation. |
-| **D-s2** audit policy for the soak | **Sampled, accepted in principle, with the timing requirement of §3a as a condition.** The v0.1 wording "every non-`SCORED` self-reporting record audited" is **not implementable under the current wire protocol** (§3a) and is replaced by §3a's rule. |
+| **D-s2** audit policy for the soak | **Sampled, accepted in principle, with the timing requirement of §3a as a condition.** (v0.2 history: the v0.1 wording "every non-`SCORED` self-reporting record audited" was not implementable under the push-era wire protocol; §3a fixed the rule, and v0.3's pull transport (§2.6a) is its implementation — the words persist on the board until pulled or the record is emitted.) |
 | **D-s3** soak duration | **2 h, accepted.** N = ⌊0.9 × min(rate_A, rate_B) × T⌋, with rate_A and rate_B imported **only** from the two calibration records (C1, C2) by their hashes. |
 | **D-s4** CRC budget | **Frame-count scaling, with a closed formula:** `budget = ceil(4 × expected_protocol_frames / 1000)`, where `expected_protocol_frames` is derived **before the session starts** from N, the audit schedule and the fixed brackets (`IDENT`×1, `SIGNREQ`×(N+2), `HB`×16 per candidate, `AUDIT_READY`×1 + `AUDIT`×8 per audited candidate — protocol `pull-v2`, `host/l6_schedule.expected_frames`; retransmitted chunks arrive on top and are what the budget is FOR; the host's `AUDITGET`/`AUDITDONE`/`AUDITABORT` are outbound and not budgeted — `REC`×(N+2), `CLOSE`×1, `TERM`×1) — **never from the count actually received**. Independently of the CRC total, **any missing `AUDIT`, `REC` or `TERM`** is the corresponding structural defect and is a HOLD even when the CRC drops are within budget. |
 
 ### 3a. The audit timing requirement (D-s2's blocker, and its resolution)
 
-**The blocker.** Under the current wire protocol the host's `AUDITREQ` is attached to the
-sign reply, i.e. it reaches the application **before staging**, and the application serves
-raw words only `if (S.audit_requested)` (`firmware/p3_app.c`, the `serve_audit` call sites).
-There is no evidence ring: once a candidate's outcome is known, its words are gone if they
-were not requested. So under a sampled schedule, a candidate the schedule did **not** select
-that then turns out to be `STOP_LINK2`, `STOP_LINK3`, `REFUSED_BY_PL`, `STOP_ARM` or
-`STOP_SETTLE` can no longer be audited — "all non-`SCORED` self-reporting records audited"
-cannot be honoured after the fact.
+**The blocker (v0.2 HISTORICAL — resolved by pull-v2).** Under the push-era wire protocol
+the host's `AUDITREQ` was attached to the sign reply, i.e. it reached the application
+**before staging**, and the application pushed raw words only if it had been asked; there
+was no evidence ring, so a candidate the sampled schedule did not select that then turned
+out to be a non-`SCORED` self-report could no longer be audited — "all non-`SCORED`
+self-reporting records audited" could not be honoured after the fact. **v0.3's pull
+transport (§2.6a) removes the constraint**: the words persist in the board's buffers until
+the record is emitted, and the application itself announces `AUDIT_READY` for every
+non-`SCORED` self-report, so item 2 below is implementable directly. The rule stands
+unchanged; only its mechanism moved from an unconditional push to the unconditional
+announcement of a pull.
 
 **The rule, fixed here:**
 
@@ -150,7 +159,11 @@ CRC-budgeted, a timeout an attempt but not a drop), the one inbound CRC ledger
    frame; `run_log.json` carries per-record timing (`t_signreq`, `t_reply`, `t_first_hb`, …,
    `t_rec`) and `console.log` gains a timestamped companion (`console.ts.log`) — the raw
    `console.log` bytes stay verbatim. A test proves the stage boundaries are attributable
-   from the frame sequence (`SIGNREQ` → reply → `HB`×16 → `AUDIT`×8 → `REC`).
+   from the frame sequence — under v0.3's pull: `SIGNREQ` → reply → `HB`×16 →
+   `AUDIT_READY` → (`AUDITGET` → `AUDIT`)×chunks, retries included → `AUDITDONE`/`AUDITABORT`
+   → `REC`; the audit stage is `AUDIT_READY` → `AUDITDONE`/`AUDITABORT` on the host clock,
+   and a pull with neither end is unclosed: wall time stands, breakdown none. (The v0.2
+   push shape, `HB`×16 → `AUDIT`×8 → `REC`, remains what the C1 #1–#3 evidence contains.)
 2. **Rate report.** `host/l6_rate.py` derives from a run log: per-candidate wall time and its
    breakdown, evaluations per hour, the coefficient of variation, and the failure rate —
    the four numbers Claim B's §6 calibration asks for. Pure function, tested on session 4's

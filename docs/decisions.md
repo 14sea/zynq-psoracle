@@ -1030,3 +1030,16 @@ build evidence preserved as evidence/l6_build/build_evidence_bd1454cd.json and t
 directory regenerated for the promoted image citing a green report. No ruling, no board,
 no C1: the frozen-artifact short review comes first, then the owner rules the ruling pair
 and the power-cycle sequence.
+
+## 2026-09-01 — frozen-artifact review: one doc-consistency blocker; the frozen text made self-contained
+
+Code, image, runner and evidence boundaries passed; the frozen v0.3 text still carried
+three v0.2 passages as if current. Corrected, documents only: Q1 now says no PASS
+calibration exists to pin and accounts for the informational C1 #1/#3 rates (HOLD
+sessions, superseded image, push protocol — not pinnable); the D-s2 row and §3a's blocker
+paragraph are marked v0.2 HISTORICAL and state that pull-v2 resolves them (the
+`serve_audit` path no longer exists); §4.1's frame/timing sequence is the pull shape,
+with the push shape noted as what the C1 #1–#3 evidence contains. A guard now refuses a
+frozen text that presents `serve_audit` or the nothing-measured state as current. New
+prereg sha `8daa81f22add85660159e5c2474ecd4bda29d2a815c90fb5fdb8c1ef12c350ae` pinned; the manifest hash changes with it and the next ruling
+pair binds the new one. Firmware and image untouched.
