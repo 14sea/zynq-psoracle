@@ -773,3 +773,21 @@ the serve loop required `P3_RUNNING`, so it could never have served those words 
 latent defect no session reached; fixed and pinned, not a withdrawal. The package is
 `docs/l6_compat_review_package.md`. `prereg.sha256` stays null; the runner refuses;
 no ruling, no board.
+
+## 2026-09-01 — §2 compatibility review: HOLD on two blockers; corrected, image rebuilt
+
+Blocker 1: with `flags.bit1 = 1` the IDENT frame's kick reached `XScuWdt_RestartWdt` on an
+instance not yet initialised (`CfgInitialize` ran only after `establish_identity()`), so the
+first L6 image `47b8fa09…` would have hung after IDENT — withdrawn as DEFECTIVE, must not
+run; never ran. Fix: `S.wdt_started`, set only after `CfgInitialize` → `SetControlReg` →
+`LoadWdt` → `Start` as the block's last statement; the kick tests it alone; init failure
+fail-closed with a TERM; the test pins the order and catches the early-set mutant.
+Blocker 2: `evidence/l6_build/build_evidence.json` cited the newest report by file name — a
+green run from before the §2 sources changed — and the generator would have cited a red
+one too. Fix: the report is named explicitly, read, and refused unless green; the evidence
+records its sha256/count/head/result. Six package findings ruled: L5 STOP_LINK2 latent
+defect accepted without withdrawing the L5 PASS; audit after a failed ARM, pre-reply
+STOP_AXI → missing-REC HOLD, TERM constant 16 with the host relay as D-s4 authority, the
+watchdog reset routing as a first-board observation, the RWX warning — all accepted.
+Rebuilt `bd1454cd…` (byte-identical twice); report A before the evidence, report B after.
+Not pushed; no freeze; no ruling; short re-review next.

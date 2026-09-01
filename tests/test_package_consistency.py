@@ -71,6 +71,7 @@ class PinnedImage(unittest.TestCase):
 
 L6 = json.loads((R / "manifests/l6_manifest.json").read_text())
 L6_PINNED = L6["pinned_at_build"]
+L6_WITHDRAWN = [w["sha256"] for w in L6_PINNED.get("withdrawn_images", [])]
 L6_BUILT = R / "firmware/bsp/out/p3_app_l6.bin"
 L6_EVIDENCE = R / "evidence/l6_build/build_evidence.json"
 
@@ -83,7 +84,9 @@ class PinnedL6Image(unittest.TestCase):
         sha = L6_PINNED["app_image_sha256"]
         self.assertRegex(sha, r"^[0-9a-f]{64}$")
         self.assertNotEqual(sha, PINNED["app_image_sha256"])
-        self.assertNotIn(sha, WITHDRAWN)
+        self.assertNotIn(sha, WITHDRAWN); self.assertNotIn(sha, L6_WITHDRAWN)
+        for w in L6_PINNED["withdrawn_images"]:
+            self.assertRegex(w["sha256"], r"^[0-9a-f]{64}$"); self.assertTrue(w["why"].strip())
 
     def test_the_built_l6_binary_matches_the_manifest(self):
         if not L6_BUILT.is_file():
@@ -100,6 +103,22 @@ class PinnedL6Image(unittest.TestCase):
         self.assertEqual(ev["toolchain"]["tarball_sha256"], L6_PINNED["toolchain"]["tarball_sha256"])
         self.assertEqual(ev["bsp_inputs"]["manifest"], "manifests/l6_bsp_inputs.json")
         self.assertEqual(ev["bsp_inputs"]["count"], L6_PINNED["bsp_inputs"]["count"])
+
+    def test_the_cited_test_report_exists_and_is_green(self):
+        """Blocker 2 of the compatibility review: the evidence cited a stale report and the
+        generator would have cited a red one. A cited report must exist, hash as recorded,
+        and be green; a `pending` citation is allowed only as the pre-suite step and must
+        say so."""
+        ev = json.loads(L6_EVIDENCE.read_text())["tests"]
+        if ev["report"] is None:
+            self.assertIn("PENDING", ev["status"])
+            return
+        path = R / ev["report"]
+        self.assertTrue(path.is_file(), ev["report"])
+        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), ev["report_sha256"])
+        rep = json.loads(path.read_text())
+        self.assertEqual(rep["exit_status"], 0); self.assertNotIn("FAILED", rep["result_line"])
+        self.assertEqual((ev["ran"], ev["head_at_run"]), (rep["ran"], rep["head_at_run"]))
 
     def test_the_watchdog_pins_are_the_d_s1_values(self):
         self.assertTrue(L6_PINNED["watchdog_enabled"])
@@ -144,6 +163,9 @@ class WithdrawnHashesStayInHistory(unittest.TestCase):
         "docs/l5_settle_correction.md": "the design-correction record: says which image it "
                                         "supersedes and why",
         "tests/test_package_consistency.py": "this guard names them to test itself",
+        # the L6 line's withdrawn image (compatibility review 2026-09-01, blocker 1)
+        "manifests/l6_manifest.json": "withdrawn_images IS the history",
+        "docs/l6_compat_review_package.md": "names the withdrawn image and why (§1, §4.7)",
     }
     # evidence/ is recorded observation: never edited, never scanned
     SKIP_PREFIXES = ("evidence/", "data/", "builds/", "imported/", "gate_runs/", "fixtures/")
@@ -152,7 +174,7 @@ class WithdrawnHashesStayInHistory(unittest.TestCase):
     def test_no_current_context_still_names_a_withdrawn_image(self):
         import subprocess
         tracked = subprocess.check_output(["git", "-C", str(R), "ls-files"], text=True).split()
-        short = {w[:8] for w in WITHDRAWN}
+        short = {w[:8] for w in WITHDRAWN + L6_WITHDRAWN}
         offenders = []
         for rel in tracked:
             if rel.startswith(self.SKIP_PREFIXES) or not rel.endswith(self.TEXT_SUFFIXES):
@@ -171,7 +193,7 @@ class WithdrawnHashesStayInHistory(unittest.TestCase):
     def test_every_allowance_is_still_needed_and_real(self):
         """An allowance that no longer applies is a stale exemption: it would let a future
         drift in unnoticed."""
-        short = {w[:8] for w in WITHDRAWN}
+        short = {w[:8] for w in WITHDRAWN + L6_WITHDRAWN}
         for rel in self.ALLOWED:
             path = R / rel
             self.assertTrue(path.is_file(), f"{rel} is allowed to keep history but is gone")

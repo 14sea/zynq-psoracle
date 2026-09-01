@@ -22,18 +22,18 @@
     "genome_addresses_sha256": "895baf85ed31df9beae28a533646182ffb8d0e0735c9849ede9641af81ee7458"
   },
   "pinned_at_build": {
-    "app_image_sha256": "47b8fa09b4e3d82c20bdbd4d2d592d65ed1bf86695d11f97f67143edad2e7135",
+    "app_image_sha256": "bd1454cd0258c3f998b6cfcc25e982400b63321054db40cde3d790b3b366c8b4",
     "app_image": "firmware/bsp/out/p3_app_l6.bin (raw binary, 98324 bytes, loaded at 0x02000000, `go`) — IMAGE=p3_app_l6 firmware/bsp/build.sh",
     "watchdog_enabled": true,
     "watchdog_prescaler": 7,
     "watchdog_load_value": 1250000035,
     "watchdog_interval_s": 30.0,
     "peripheral_clock_hz": 333333343,
-    "watchdog_note": "D-s1: arm and kick gated by identity-page flags.bit1; bit1 = 0 must behave exactly as L5; the build and its tests pin the ACTUAL load value written (this number), not the derivation",
+    "watchdog_note": "D-s1: arm and kick gated by identity-page flags.bit1; bit1 = 0 must behave exactly as L5; the build and its tests pin the ACTUAL load value written (this number), not the derivation The kick is gated on S.wdt_started (set only after the full init sequence), never on the flag alone: the IDENT frame precedes the init (compatibility review blocker 1).",
     "operator_image_note": "§2.1: firmware/p3_data.h carries P3_OPERATOR_DATA_SHA256 = the derivation hash of the map data compiled in (host/gen_firmware_data.py from local_map.json via host/l6_operators.py); the IDENT names it and the host regenerates and compares (tests/test_firmware_twin.py, host/gen_firmware_data.py --check)",
     "app_image_bytes": 98324,
-    "elf_sha256": "24f8011adbfbfc0fa1011cea1d65cf75bf07fc5f0234820c1ef1681f9a9c53e3",
-    "built_2026-09-01": "two from-scratch builds (rm -rf firmware/bsp/out) byte-identical; sources at the commit that records this pin (the §2 batch), head_at_build 1e54b89e6be74f318a3b2b29a9d5b803b5913a9e + the §2 working tree",
+    "elf_sha256": "388601fd431096dfb8de472a3cff0975930b0318e973d7d2f5ef307939ea6178",
+    "built_2026-09-01": "REBUILT after the compatibility review's blocker 1 (watchdog kicked before initialisation): two from-scratch builds (rm -rf firmware/bsp/out) byte-identical; head_at_build 52d860aefebab70536ed06122b8bdcfe283c3ce4 + the correction working tree",
     "toolchain": {
       "name": "xpack-dev-tools/arm-none-eabi-gcc",
       "version": "14.2.1-1.1",
@@ -59,8 +59,13 @@
     },
     "operator_data_sha256_compiled_in": "0c9c82a812be754dbba83c02b24b4321a95af46464a201a6f3c51374f2c80d79",
     "build_evidence": "evidence/l6_build/build_evidence.json (host/gen_build_evidence.py l6)",
-    "withdrawn_images": [],
-    "standing": "BUILT AND PINNED host-only (2026-09-01, §2 batch). Never run on hardware. Awaiting the owner's whole-package P3 compatibility review (docs/l6_compat_review_package.md) and the preregistration freeze; no ruling, no board."
+    "withdrawn_images": [
+      {
+        "sha256": "47b8fa09b4e3d82c20bdbd4d2d592d65ed1bf86695d11f97f67143edad2e7135",
+        "why": "DEFECTIVE — must not run. Deterministic pre-init watchdog defect: with flags.bit1 = 1 the IDENT frame's kick called XScuWdt_RestartWdt on an instance not yet CfgInitialize'd (BaseAddr 0, IsReady unset), and the driver's assert waits forever — the image hangs after IDENT, before the opening baseline. Found in the owner's compatibility review 2026-09-01 (blocker 1); never run on hardware. Fixed by gating the kick on S.wdt_started, set only after CfgInitialize → SetControlReg → LoadWdt → Start, with init failure fail-closed."
+      }
+    ],
+    "standing": "BUILT AND PINNED host-only (2026-09-01, §2 correction batch). Never run on hardware. Awaiting the owner's short re-review of the corrected package (docs/l6_compat_review_package.md) and the preregistration freeze; no ruling, no board."
   },
   "identity_page": {
     "layout": 2,

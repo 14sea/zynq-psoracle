@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "purpose": "Post-build provenance for the pinned P3 L6 application image, regenerated after a clean rebuild (reviewer 2026-08-31).",
   "git": {
-    "head": "1e54b89e6be74f318a3b2b29a9d5b803b5913a9e",
+    "head": "52d860aefebab70536ed06122b8bdcfe283c3ce4",
     "worktree_dirty": true
   },
   "toolchain": {
@@ -22,17 +22,23 @@
   "image": {
     "bin": "firmware/bsp/out/p3_app_l6.bin",
     "bin_bytes": 98324,
-    "bin_sha256": "47b8fa09b4e3d82c20bdbd4d2d592d65ed1bf86695d11f97f67143edad2e7135",
-    "elf_sha256": "24f8011adbfbfc0fa1011cea1d65cf75bf07fc5f0234820c1ef1681f9a9c53e3",
+    "bin_sha256": "bd1454cd0258c3f998b6cfcc25e982400b63321054db40cde3d790b3b366c8b4",
+    "elf_sha256": "388601fd431096dfb8de472a3cff0975930b0318e973d7d2f5ef307939ea6178",
     "reproduced_byte_identical": true,
-    "expected_bin_sha256": "47b8fa09b4e3d82c20bdbd4d2d592d65ed1bf86695d11f97f67143edad2e7135"
+    "expected_bin_sha256": "bd1454cd0258c3f998b6cfcc25e982400b63321054db40cde3d790b3b366c8b4"
   },
   "linker_map": {
     "path": "evidence/l6_build/p3_app_l6.map",
-    "sha256": "0c76a3c69d6cb8274946ff5302f6c4af002c12f9993202f508cf604cea02801a"
+    "sha256": "f557f3d712a6cc2c3e551225d3250820f59773f14674f74d63f18c76f791d334"
   },
   "tests": {
-    "report": "evidence/tests/test_report_2026-09-01T111154Z.json",
-    "note": "the fail-closed test evidence (count / skipped / boundary / head_at_run) is this report; run host/run_tests.sh in a staged state so it covers the new files."
+    "report": "evidence/tests/test_report_2026-09-01T132037Z.json",
+    "report_sha256": "d7d0f1951ad5d4261599585e3b7f123d7d4cfc85f96448aa249b76191f5eccff",
+    "status": "cited and verified green by the generator",
+    "ran": 627,
+    "skipped": 1,
+    "head_at_run": "52d860aefebab70536ed06122b8bdcfe283c3ce4",
+    "result_line": "OK (skipped=1)",
+    "note": "the fail-closed test evidence (count / skipped / boundary / head_at_run) is this report, cited explicitly and verified green by the generator; run host/run_tests.sh in a staged state so it covers the new files."
   }
 }

@@ -164,6 +164,11 @@ static struct {
     char last_commit[65];
     char last_tables[6][17];
     XScuWdt wdt;
+    int wdt_started; /* set ONLY after CfgInitialize → SetControlReg → LoadWdt → Start; the
+                      * kick looks at this, never at the flag: the IDENT frame (and its
+                      * kick) goes out BEFORE the watchdog is initialised, and restarting an
+                      * uninitialised instance (BaseAddr 0, IsReady unset) asserts forever
+                      * (review 2026-09-01: the first L6 image hung after IDENT) */
 } S;
 
 static void p3_stop(p3_end_kind kind, const char *reason)
@@ -252,8 +257,8 @@ static void put_str(const char *s)
 
 static void kick_watchdog(void)
 {
-    if (S.page.flags & 2u)
-        XScuWdt_RestartWdt(&S.wdt); /* main loop only, after a framed line (§6a) */
+    if (S.wdt_started)
+        XScuWdt_RestartWdt(&S.wdt); /* after a framed line (§6a); only once initialised */
 }
 
 /* `P3L5 <type> <seq> <token(32 hex)> <payload> <crc32>` — the FULL token in every line.
@@ -1136,7 +1141,13 @@ int main(void)
     /* the watchdog is armed only once identity holds, and is kicked from this loop alone */
     if (S.page.flags & 2u) {
         XScuWdt_Config *cfg = XScuWdt_LookupConfig(XPAR_PS7_SCUWDT_0_DEVICE_ID);
-        XScuWdt_CfgInitialize(&S.wdt, cfg, cfg->BaseAddr);
+        /* Fail-closed: a watchdog the identity page asked for and that cannot be brought
+         * up is an epoch that must not run; the TERM says why and nothing else happens. */
+        if (cfg == NULL || XScuWdt_CfgInitialize(&S.wdt, cfg, cfg->BaseAddr) != XST_SUCCESS) {
+            p3_stop(P3_STOPPED, "the watchdog could not be initialised");
+            emit_summary();
+            return 0;
+        }
         /* D-s1: prescaler 7 and watchdog (reset) mode in one control write, then the
          * pinned load, then enable. The mode bit can only be cleared through the disable
          * register's magic sequence, which this application never writes. */
@@ -1144,6 +1155,7 @@ int main(void)
                                           XSCUWDT_CONTROL_WD_MODE_MASK);
         XScuWdt_LoadWdt(&S.wdt, P3_WDT_LOAD);
         XScuWdt_Start(&S.wdt);
+        S.wdt_started = 1; /* the kick is live from here, and only from here */
     }
 
     memset(blank, 0, sizeof(blank)); /* the blank genome IS the pinned base */

@@ -39,13 +39,27 @@ def git(*args):
     return subprocess.check_output(["git", "-C", REPO, *args], text=True).strip()
 
 
-def newest_test_report():
+def green_test_report(path=None):
+    """The test report the evidence cites: the given one, or the newest. REFUSES a report
+    that is not green (exit_status != 0, or failures/errors in its result line) — the
+    first L6 build evidence cited the newest file, which was an older green run from
+    before the sources changed, and would just as readily have cited a red one
+    (compatibility review 2026-09-01, blocker 2)."""
     d = os.path.join(REPO, "evidence", "tests")
-    reps = [f for f in os.listdir(d) if f.startswith("test_report_")] if os.path.isdir(d) else []
-    return "evidence/tests/" + max(reps) if reps else None
+    if path is None:
+        reps = [f for f in os.listdir(d) if f.startswith("test_report_")] if os.path.isdir(d) else []
+        if not reps:
+            sys.exit("no test report in evidence/tests/")
+        path = os.path.join(d, max(reps))
+    rep = json.loads(open(path).read())
+    line = rep.get("result_line", "")
+    if rep.get("exit_status") != 0 or "FAILED" in line or "error" in line.lower():
+        sys.exit("refusing to cite a non-green test report %s: exit_status=%r result=%r"
+                 % (os.path.relpath(path, REPO), rep.get("exit_status"), line))
+    return os.path.relpath(path, REPO), rep
 
 
-def main(line="l5"):
+def main(line="l5", report=None):
     L = LINES[line]
     EVID = os.path.join(REPO, "evidence", L["evidence"])
     binp = os.path.join(OUT, L["image"] + ".bin")
@@ -62,7 +76,13 @@ def main(line="l5"):
     pab = lm["pinned_at_build"]
 
     dirty = bool(git("status", "--porcelain"))
-    rep = newest_test_report()
+    if report == "pending":
+        # the chicken-and-egg step: the suite that will become report A cannot be green
+        # while this file still describes the previous image, so the image fields are
+        # written first with NO report cited; the next call cites A explicitly
+        rep, rep_body = None, {}
+    else:
+        rep, rep_body = green_test_report(report)
     ev = {
         "schema": L["schema"],
         "schema_version": "1.0.0",
@@ -89,9 +109,15 @@ def main(line="l5"):
         },
         "tests": {
             "report": rep,
+            "report_sha256": sha(os.path.join(REPO, rep)) if rep else None,
+            "status": "cited and verified green by the generator" if rep else
+                      "PENDING: written before the post-build suite ran; must be regenerated with --report",
+            "ran": rep_body.get("ran"), "skipped": rep_body.get("skipped"),
+            "head_at_run": rep_body.get("head_at_run"), "result_line": rep_body.get("result_line"),
             "note": "the fail-closed test evidence (count / skipped / boundary / "
-                    "head_at_run) is this report; run host/run_tests.sh in a staged "
-                    "state so it covers the new files.",
+                    "head_at_run) is this report, cited explicitly and verified green "
+                    "by the generator; run host/run_tests.sh in a staged state so it "
+                    "covers the new files.",
         },
     }
     with open(os.path.join(EVID, "build_evidence.json"), "w") as f:
@@ -104,5 +130,8 @@ def main(line="l5"):
 if __name__ == "__main__":
     line = sys.argv[1] if len(sys.argv) > 1 else "l5"
     if line not in LINES:
-        sys.exit("usage: gen_build_evidence.py [l5|l6]")
-    main(line)
+        sys.exit("usage: gen_build_evidence.py [l5|l6] [--report evidence/tests/test_report_X.json]")
+    report = None
+    if len(sys.argv) > 3 and sys.argv[2] == "--report":
+        report = sys.argv[3] if sys.argv[3] == "pending" else os.path.join(REPO, sys.argv[3])
+    main(line, report)

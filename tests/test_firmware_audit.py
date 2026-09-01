@@ -129,13 +129,7 @@ class RegisterDiscipline(unittest.TestCase):
         then the pinned load, then enable. The load value written is the manifest's."""
         import json
         l6 = json.loads((R / "manifests/l6_manifest.json").read_text())["pinned_at_build"]
-        kick = APP_CODE[APP_CODE.index("static void kick_watchdog"):]
-        kick = kick[:kick.index("\n}")]
-        self.assertIn("if (S.page.flags & 2u)", kick)
-        self.assertEqual(re.findall(r"XScuWdt_\w+", kick), ["XScuWdt_RestartWdt"])
-
-        arm = APP_CODE[APP_CODE.index("if (S.page.flags & 2u) {"):]
-        arm = arm[:arm.index("\n    }")]
+        arm = self._arm_block()
         self.assertEqual(re.findall(r"XScuWdt_\w+", arm),
                          ["XScuWdt_Config", "XScuWdt_LookupConfig", "XScuWdt_CfgInitialize",
                           "XScuWdt_SetControlReg", "XScuWdt_LoadWdt", "XScuWdt_Start"])
@@ -143,8 +137,7 @@ class RegisterDiscipline(unittest.TestCase):
         self.assertIn("P3_WDT_PRESCALER << XSCUWDT_CONTROL_PRESCALER_SHIFT", arm)
         self.assertLess(arm.index("XScuWdt_SetControlReg"), arm.index("XScuWdt_LoadWdt"))
         self.assertLess(arm.index("XScuWdt_LoadWdt"), arm.index("XScuWdt_Start"))
-
-        # nothing outside those two gated regions may name the driver or the load value
+        # nothing outside the gated block and the kick may name the driver or the load value
         self.assertEqual(len(re.findall(r"XScuWdt_\w+", APP_CODE)), 7)
         self.assertEqual(len(re.findall(r"P3_WDT_LOAD", arm)), 1)
         self.assertEqual(len(re.findall(r"P3_WDT_LOAD", APP_CODE)), 2)   # the #define + the use
@@ -153,6 +146,53 @@ class RegisterDiscipline(unittest.TestCase):
         self.assertEqual(re.findall(r"#define P3_WDT_PRESCALER (\d+)u", APP_CODE), [str(l6["watchdog_prescaler"])])
         self.assertTrue(l6["watchdog_enabled"])
         self.assertNotIn("XScuWdt_Stop", APP_CODE); self.assertNotIn("XSCUWDT_DISABLE", APP_CODE)
+
+    def _arm_block(self) -> str:
+        arm = APP_CODE[APP_CODE.index("if (S.page.flags & 2u) {"):]
+        return arm[:arm.index("\n    }\n")]
+
+    def test_the_kick_never_touches_an_uninitialised_watchdog(self):
+        """Review 2026-09-01 (compatibility review, blocker 1): main() emits IDENT — and
+        every framed line kicks — BEFORE the watchdog block runs CfgInitialize, so a kick
+        gated on the FLAG restarted an uninitialised instance (BaseAddr 0, IsReady unset:
+        the driver's assert waits forever) and the first L6 image hung after IDENT. The
+        kick is gated on `S.wdt_started`, which is set only after the whole init sequence,
+        and nothing else may set it."""
+        kick = APP_CODE[APP_CODE.index("static void kick_watchdog"):]
+        kick = kick[:kick.index("\n}")]
+        self.assertIn("if (S.wdt_started)", kick)
+        self.assertNotIn("S.page.flags", kick, "the kick must not be gated on the flag alone")
+        self.assertEqual(re.findall(r"XScuWdt_\w+", kick), ["XScuWdt_RestartWdt"])
+        # IDENT (and its kick) precedes the watchdog block; wdt_started is unset until then
+        i_ident = APP_CODE.index('send_payload("IDENT"')
+        i_block = APP_CODE.index("if (S.page.flags & 2u) {")
+        self.assertLess(i_ident, i_block)
+        self.assertNotIn("wdt_started = 1", APP_CODE[:i_block],
+                         "nothing before the watchdog block may declare it started")
+        # the ONE assignment is the LAST statement of the block, after Start
+        arm = self._arm_block()
+        self.assertEqual(APP_CODE.count("S.wdt_started = 1"), 1)
+        self.assertLess(arm.index("XScuWdt_Start(&S.wdt);"), arm.index("S.wdt_started = 1"))
+        self.assertEqual(arm.strip().splitlines()[-1].strip().split("/*")[0].strip(), "S.wdt_started = 1;")
+        # discrimination: the mutation this exists for — `started` set before Start
+        early = arm.replace("S.wdt_started = 1;", "").replace(
+            "XScuWdt_SetControlReg", "S.wdt_started = 1; XScuWdt_SetControlReg", 1)
+        self.assertLess(early.index("S.wdt_started = 1"), early.index("XScuWdt_Start(&S.wdt);"),
+                        "the mutant is well-formed")
+        self.assertNotEqual(early.strip().splitlines()[-1].strip().split("/*")[0].strip(), "S.wdt_started = 1;",
+                            "the last-statement check must fail on the early-set mutant")
+        # in main(): S (and so wdt_started) is zeroed before establish_identity() emits IDENT
+        main_ = APP_CODE[APP_CODE.index("int main(void)"):]
+        self.assertLess(main_.index("memset(&S, 0, sizeof(S));"), main_.index("if (establish_identity() != 0)"))
+        self.assertLess(main_.index("if (establish_identity() != 0)"), main_.index("if (S.page.flags & 2u) {"))
+
+    def test_watchdog_init_failure_is_fail_closed_with_a_term(self):
+        arm = self._arm_block()
+        self.assertIn("cfg == NULL || XScuWdt_CfgInitialize(&S.wdt, cfg, cfg->BaseAddr) != XST_SUCCESS", arm)
+        fail = arm[arm.index("cfg == NULL"):arm.index("XScuWdt_SetControlReg")]
+        self.assertIn('p3_stop(P3_STOPPED, "the watchdog could not be initialised")', fail)
+        self.assertIn("emit_summary();", fail); self.assertIn("return 0;", fail)
+        self.assertNotIn("wdt_started", fail)
 
 class DmaDiscipline(unittest.TestCase):
     def test_exactly_four_dma_transactions_are_declared(self):
