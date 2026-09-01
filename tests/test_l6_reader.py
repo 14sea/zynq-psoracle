@@ -134,15 +134,24 @@ class SilenceClockStartsAtGo(unittest.TestCase):
     silence clock must start when the console is handed over."""
 
     def test_the_mechanism_and_the_fix_on_the_real_collector(self):
+        """Both collectors are built at t = 0 and aged through a 240 s preamble — the review
+        of the first version of this test caught that its second collector was built at
+        t = 240, so its clock was already fresh and the reset it meant to test was
+        unnecessary for it to pass. Here, removing the reset makes the dynamic part red."""
         import l5_notary as n
         now = {"t": 0.0}
-        collector = n.Collector("ab" * 16, heartbeat_s=10, clock=lambda: now["t"])
-        now["t"] = 240.0                       # four minutes of carrier ymodem
-        # without the reset, the first empty poll after `go` is a crash
-        self.assertIsNotNone(collector.poll(), "the preamble's silence must NOT count — but it does without the reset")
-        collector = n.Collector("ab" * 16, heartbeat_s=10, clock=lambda: now["t"])
+        # the mechanism: an aged clock reads the preamble as silence at the first empty poll
+        aged = n.Collector("ab" * 16, heartbeat_s=10, clock=lambda: now["t"])
         now["t"] = 240.0
-        collector.last_heard = collector.clock()          # the fix: measured from `go`
+        self.assertEqual(aged.last_heard, 0.0)
+        self.assertIsNotNone(aged.poll(), "without the reset the preamble counts as silence")
+        # the fix: same age, reset at `go`, then only REAL silence counts
+        now["t"] = 0.0
+        collector = n.Collector("ab" * 16, heartbeat_s=10, clock=lambda: now["t"])
+        now["t"] = 240.0                                  # four minutes of carrier ymodem
+        self.assertEqual(collector.last_heard, 0.0, "the clock is as old as the preamble")
+        collector.last_heard = collector.clock()          # the runner's reset at `go`
+        self.assertEqual(collector.last_heard, 240.0)
         now["t"] = 240.02                                 # the first poll, 20 ms later, nothing yet
         self.assertIsNone(collector.poll())
         now["t"] = 269.0                                  # 29 s of real silence: still live

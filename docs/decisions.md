@@ -908,3 +908,15 @@ that accident. Fixed host-only: silence is measured from `go`
 Collector and a placement test. The same construction order in `host/l5_runner.py` is
 recorded, not edited. Not a byte loss — the owner's stop-loss is not met; but the next
 session is the third without COMPLETED, prereg §7's design-review trigger, for the owner.
+
+## 2026-09-01 — C1 #2 review: HOLD (host instrumentation) confirmed; one test and the stop-loss wording corrected
+
+The owner confirmed the cause and the fix but held `1785ff9`: the dynamic test's second
+collector was built at t = 240, so its clock was already fresh and the reset it meant to
+test was not needed for it to pass — a false discrimination; now both collectors are built
+at t = 0 and aged 240 s, the aged one is asserted still at 0, reset to 240, then 29 s live
+/ 31 s CRASHED, so removing the reset makes the test red. And the stop-loss was
+overstated: two sessions currently lack COMPLETED; C1 #3 is permitted after review; if
+C1 #3 is also non-COMPLETED, design review is mandatory before any fourth board session
+(a repeat of C1 #1's byte loss stops repeats at once). The manifest is unchanged (sha
+`20e6a924…` stands); push approved once green; no `-08` ruling until this landed.

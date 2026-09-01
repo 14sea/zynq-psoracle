@@ -43,10 +43,13 @@ the preamble).
 
 ## 4. Stop-loss accounting
 
-Two L6 sessions without `COMPLETED`, for two different instrument causes (a console byte
-loss; a host silence clock). The owner's rule after C1 #1 — a second byte loss of the same
-kind stops board repeats — is not met. Prereg §7 inherits L5's "three sessions without
-`COMPLETED` → design review before further board time": the next session is the third.
+Two sessions currently lack `COMPLETED`, for two different instrument causes (a console
+byte loss; a host silence clock). The owner's rule after C1 #1 — a second byte loss of the
+same kind stops board repeats — is not met. Prereg §7's inherited rule ("three sessions
+without `COMPLETED` → design review before further board time") is met only if a third
+session also fails to complete: C1 #3 is permitted after the review of this host fix; if
+C1 #3 is also non-`COMPLETED`, design review is mandatory before any fourth board session
+(owner, 2026-09-01). This host fix's review is a local one, not that design review.
 
 ## 5. What this session establishes
 
