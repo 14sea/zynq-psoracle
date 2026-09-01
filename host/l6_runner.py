@@ -1,0 +1,390 @@
+#!/usr/bin/env python3
+"""L6 — calibration (C1, C2) and soak (S) of the P3 loop. Ruling text RULING_TEXT.
+
+The L5 runner with what prereg §4 adds and nothing else: per-frame timestamps, the audit
+schedule (all-self-reporting for C1/C2, sampled per §3a for S), `--duration`, N and the
+timeout derived from the two calibration records' hashes (D-s3), the expected frame
+count and CRC budget computed before the session (D-s4), the arm-aware and L6-identity
+checks, and the rate report. The console loop, the notary relay and the collector are
+L5's; the U-Boot preamble is copied from `host/l5_runner.py` verbatim rather than shared,
+so that the L5 instrument that PASSED is not edited to serve L6.
+
+FAIL-CLOSED, in this order, before any board contact: the ruling text; the session kind;
+the L6 manifest's frozen preregistration hash; a pinned two-operator image that the file
+on disk hashes to; the watchdog pinned ON with the D-s1 load value; for S, both
+calibration reports hashing to their pins; the principal boundary < 6 h; the evidence
+directory not existing. `manifests/l6_manifest.json` is a DRAFT with those pins null, so
+this runner cannot run today — by construction, not by discipline.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import secrets
+import shutil
+import sys
+import time
+from pathlib import Path
+
+R = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(R / "scripts")); sys.path.insert(0, str(R / "host")); sys.path.insert(0, str(R))
+sys.path.insert(0, str(R / "imported/fabricmap/scripts"))
+import board_session as bsn  # noqa: E402
+import p2_observe as ob  # noqa: E402
+import pcap_probe_runner as pr  # noqa: E402
+import l3_runner as l3  # noqa: E402
+import l5_notary as n  # noqa: E402
+import l5_runner as l5  # noqa: E402
+import l6_checks as lc  # noqa: E402
+import l6_operators as lo  # noqa: E402
+import l6_rate as lr  # noqa: E402
+import l6_schedule as ls  # noqa: E402
+import l6_timing as lt  # noqa: E402
+import p3_gate as g  # noqa: E402
+import p3_genome as gn  # noqa: E402
+import p3_oracle as po  # noqa: E402
+from validators import records  # noqa: E402
+
+TOOL_VERSION = "l6_runner.py/0.1.0"
+RULING_TEXT = "whole-of-probe P3-L6"
+SESSIONS = ("C1", "C2", "S")
+L6_MANIFEST = R / "manifests/l6_manifest.json"
+PREREG = R / "docs/l6_soak_prereg.md"
+
+
+def _sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def plan_session(l6m: dict, session: str, master_seed: int, duration_s: float,
+                 calibration: dict | None, session_timeout_s: float | None) -> dict:
+    """Everything derived BEFORE the session, pure: mode, N, the schedule, the audit seqs,
+    the expected frames and CRC budget, the timeout, the flags word. `calibration` (S only)
+    is {"C1": report dict, "C2": report dict} already hash-checked by the caller."""
+    if session not in SESSIONS:
+        raise ValueError(f"session {session!r} is not one of {SESSIONS}")
+    if not 0 <= master_seed <= ls.MASK32:
+        raise ValueError("master seed must be a 32-bit value")
+    spec = l6m["sessions"][session]
+    mode = spec["mode"]
+    inputs: dict = {"session": session, "mode": mode, "master_seed": master_seed}
+    if session == "S":
+        if not calibration or set(calibration) != {"C1", "C2"}:
+            raise ValueError("the soak needs both calibration reports (C1, C2)")
+        rates = {}
+        for k, rep in calibration.items():
+            if rep.get("session") != k or rep.get("schedule_mode") != l6m["sessions"][k]["mode"]:
+                raise ValueError(f"calibration report {k} is not a {k} report of mode {l6m['sessions'][k]['mode']!r}")
+            if not isinstance(rep.get("evals_per_hour"), (int, float)):
+                raise ValueError(f"calibration report {k} carries no evals_per_hour")
+            rates[k] = float(rep["evals_per_hour"])
+        n = ls.soak_n(rates["C1"], rates["C2"], duration_s)
+        timeout = ls.session_timeout_s(n, rates["C1"], rates["C2"])
+        audit_policy = "sampled"
+        audit_seqs = ls.sampled_audit_seqs(n, l6m["audit"]["every"])
+        settle_med = [lc.median_settle_polls_from_report(calibration[k]) for k in ("C1", "C2")]
+        inputs.update({"rate_C1_per_h": rates["C1"], "rate_C2_per_h": rates["C2"], "duration_s": duration_s,
+                       "soak_fraction": ls.SOAK_FRACTION, "n_formula": "floor(0.9 × min(rate) × T)",
+                       "timeout_formula": "1.25 × (N+2) × 3600/min(rate) + 600",
+                       "settle_polls_median_calibration": settle_med})
+    else:
+        n = int(spec["n"])
+        timeout = float(session_timeout_s) if session_timeout_s else float(l6m["sessions"]["S"]["duration_s"])
+        audit_policy = "all-self-reporting"
+        audit_seqs = ls.all_seqs(n)
+        inputs.update({"timeout_source": "CLI --session-timeout-s (no calibration exists yet)"})
+    sched = ls.schedule(master_seed, n, mode)
+    expected = ls.expected_frames(n, audit_seqs)
+    budget = ls.crc_budget(expected["total"])
+    return {"session": session, "mode": mode, "master_seed": master_seed, "n": n, "schedule": sched,
+            "audit_policy": audit_policy, "audit_seqs": audit_seqs, "expected_frames": expected,
+            "crc_budget": budget, "crc_formula": "ceil(4 × expected_total / 1000)",
+            "session_timeout_s": timeout, "inputs": inputs,
+            "flags": ls.flags_for(mode, watchdog=bool(l6m["pinned_at_build"]["watchdog_enabled"]))}
+
+
+def _plan_json(plan: dict) -> dict:
+    return {**plan, "audit_seqs": sorted(plan["audit_seqs"])}
+
+
+def expected_genomes(plan: dict, data: dict) -> dict[int, str]:
+    return {row["seq"]: gn.to_hex(lo.OPERATORS[row["arm"]](row["seed"], data)) for row in plan["schedule"]}
+
+
+def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) -> dict:
+    manifest = cfg["manifest"]
+    phen = g.load_manifest()
+    token = cfg["token"]
+    plan = cfg["plan"]
+    l6m = cfg["l6_manifest"]
+    summary = {"tool": TOOL_VERSION, "ruling": ruling, "outcome": None, "token": token, "stages": {},
+               "l6": _plan_json(plan), "findings": []}
+    collector = n.Collector(token, heartbeat_s=cfg["heartbeat_s"])
+    relay = n.NotaryRelay(token, cfg["signer"].sign_genome, drop_budget=plan["crc_budget"])
+    timeline = lt.Timeline()
+    reader = None
+
+    def finish(rec, name):
+        pr.write_record(out_dir, name, rec)
+        summary["stages"][name] = rec.get("verdict", "recorded")
+
+    def send(line: str, mtype: str, seq: int) -> None:
+        l5.send_raw_line(session.transport, line)
+        timeline.note_sent(mtype, seq, time.monotonic(), time.time())
+
+    try:
+        # ---- preamble: verbatim from host/l5_runner.py (steps 2–5) ---------------------
+        summary["precheck"] = pr.precheck(session)
+        summary["identity"] = session.verify_identity()
+        l3.ensure_dcache_off(session)
+        cpu_clk = session.read_word(l5.CPU_CLK_CTRL)
+        preflight = {"stage": "L6_0_preflight", "CPU_CLK_CTRL": f"{cpu_clk:#010x}",
+                     "addr": f"{l5.CPU_CLK_CTRL:#010x}", "verdict": "READ"}
+        finish(preflight, "L6_0_preflight")
+        summary["cpu_clk_ctrl"] = preflight["CPU_CLK_CTRL"]
+        fclk = ob.fclk0_mhz(*[session.read_word(a) for a in
+                              (ob.IO_PLL_CTRL, ob.ARM_PLL_CTRL, ob.DDR_PLL_CTRL, ob.FPGA0_CLK_CTRL)])
+        summary["fclk0"] = fclk
+        summary["setup_load"] = session.load_carrier(
+            bsn.SETUP_LOAD_CAPABILITY, cfg["bitstream"], manifest["bitstream_sha256"], out_dir / "ymodem.log")
+        summary["provisioning"] = cfg["signer"].provision(
+            execute=cfg["provision_execute"], ruling=cfg["provision_ruling"])
+        plane = l3.Plane(session)
+        status = plane.read(po.STATUS)
+        if not status >> po.ST["key_loaded"] & 1:
+            raise l3.Stop("KEY_NOT_LOADED", f"STATUS {status:#010x}")
+        nonce = plane.read(po.NONCE_LO) | plane.read(po.NONCE_HI) << 32
+        page = l5.build_page(token, session.epoch, cfg["image_sha256"], manifest["bitstream_sha256"], nonce,
+                             status, plan["master_seed"], plan["n"], plan["flags"], int(fclk["mhz"] * 1e6))
+        for i, w in enumerate(page):
+            session.command(f"mw.l {l5.PAGE_ADDR + 4 * i:#010x} {w:#010x} 1")
+        readback = session.read_words(l5.PAGE_ADDR, len(page))
+        if readback != page:
+            raise l3.Stop("PAGE_MISMATCH", "the identity page did not read back as written")
+        finish({"stage": "L6_1_identity_page", "words": [f"{w:08x}" for w in page],
+                "flags": f"{plan['flags']:#x}", "verdict": "WRITTEN"}, "L6_1_identity_page")
+        session.begin_ymodem(l5.APP_LOAD_ADDR)
+        session.finish_ymodem(cfg["image"], out_dir / "ymodem_app.log", cfg["image"].stat().st_size)
+        summary["image_loaded"] = {"addr": f"{l5.APP_LOAD_ADDR:#010x}", "sha256": cfg["image_sha256"],
+                                   "bytes": cfg["image"].stat().st_size}
+
+        # ---- the console belongs to the application; every line is stamped -------------
+        reader = l5.LineReader(session.transport)
+        l5.send_raw_line(session.transport, f"go {l5.APP_LOAD_ADDR:#x}")
+        t_go = time.monotonic()
+        deadline = t_go + plan["session_timeout_s"]
+        audit_sent_for = set()
+        while collector.epoch_end is None and time.monotonic() < deadline:
+            lines = reader.poll()
+            if lines:
+                t_mono, t_wall = time.monotonic(), time.time()
+            for line in lines:
+                timeline.observe(line, t_mono, t_wall)
+                if not line.startswith(n.MAGIC):
+                    continue
+                collector.on_line(line)
+                try:
+                    f = n.parse_line(line)
+                except (n.FrameError, n.CrcError):
+                    continue
+                if f["type"] != n.T_SIGNREQ:
+                    continue
+                if f["seq"] in plan["audit_seqs"] and f["seq"] not in audit_sent_for:
+                    audit_sent_for.add(f["seq"])
+                    send(n.build_line(n.T_AUDITREQ, f["seq"], token, n.encode_payload({"seq": f["seq"]})),
+                         n.T_AUDITREQ, f["seq"])
+                reply = relay.handle_line(line)
+                if reply is not None:
+                    send(reply, n.T_SIGNREF if f" {n.T_SIGNREF} " in reply else n.T_SIGNOK, f["seq"])
+            if reader.saw_uboot_banner():
+                collector.on_banner()
+            collector.poll()
+            time.sleep(0.02)
+        if collector.epoch_end is None:
+            collector._crash(f"the runner's own {plan['session_timeout_s']} s bound elapsed")
+
+        # ---- assemble, adjudicate --------------------------------------------------------
+        (out_dir / "console.log").write_bytes(bytes(reader.raw))
+        (out_dir / "console.ts.log").write_bytes(timeline.console_ts_log())
+        pr.write_record(out_dir, "timeline", timeline.to_json())
+        summary["epoch_end"] = collector.epoch_end
+        summary["audits"] = len(collector.audits)
+        if collector.session_summary is None:
+            collector.session_summary = collector.crashed_summary(
+                crc_dropped=relay.crc_dropped, drop_budget=plan["crc_budget"])
+        seqs = [r["seq"] for r in collector.loop_records]
+        timing = lt.record_timing(timeline.frames, seqs)
+        log = {"control_plane": "standalone", "app_identity": collector.app_identity,
+               "loop_records": collector.loop_records, "session_summary": collector.session_summary,
+               "notary_log": relay.notary_log(),
+               "timing": {"clocks": lt.CLOCKS, "t_go_mono": t_go, "records": {str(s): timing[s] for s in seqs}},
+               "l6": _plan_json(plan)}
+        if collector.closing_negative is not None:
+            log["closing_negative"] = collector.closing_negative
+        pr.write_record(out_dir, "run_log", log)
+        pr.write_record(out_dir, "audits", {"chunks": collector.audits})
+        blank_commit = g.gate(g.build_streams(gn.frames_from_genome(gn.blank_genome(phen), phen), phen),
+                              phen)["candidate_sha256"]
+        findings = []
+        try:
+            v = records.validate_standalone_run_log(log, blank_commit, cfg["seed_nonce"], collector.audits, phen)
+            summary["run_log_validation"] = {k: v[k] for k in ("scored", "audited", "chain_length")}
+            summary["audit_verification"] = {str(k): d for k, d in v["audit"].items()}
+            summary["audit_policy"] = records.check_audit_policy(
+                log, v["marks"], plan["audit_policy"],
+                plan["audit_seqs"] if plan["audit_policy"] == "sampled" else None)
+            summary["arm_check"] = records.check_arm_schedule(log, plan["schedule"], plan["n"], cfg["expected_genomes"])
+            summary["l6_identity"] = records.check_l6_identity(
+                log["app_identity"] or {}, plan["master_seed"], plan["mode"], l6m["operator"]["operator_data_sha256"])
+            findings += lc.structural_findings(log, collector.audits, plan["audit_seqs"], timeline.frames)
+            findings += lc.baseline_findings(log)
+            try:
+                rep = lr.rate_report(log, plan["session"], hashlib.sha256(
+                    json.dumps(log, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest())
+                pr.write_record(out_dir, "rate_report", rep)
+                summary["rate"] = {k: rep[k] for k in ("candidates", "evals_per_hour", "cov", "cov_wall", "failure_rate")}
+                pc = l6m["pass_conditions"]
+                if plan["session"] in ("C1", "C2"):
+                    findings += lc.calibration_findings(rep, pc["cov_max"])
+                else:
+                    med = min(x for x in plan["inputs"]["settle_polls_median_calibration"] if x is not None)
+                    findings += lc.soak_findings(
+                        log, timeline.frames, relay.crc_dropped, plan["crc_budget"], rep["session_span_s"],
+                        plan["inputs"]["duration_s"], pc["hb_gap_max_s"], med, pc["settle_bound_factor"],
+                        pc["wall_fraction_min"])
+            except lr.RateError as exc:
+                findings.append(f"no rate report: {exc}")
+            summary["findings"] = findings
+            base = l5.outcome_for(collector.epoch_end)
+            summary["outcome"] = base if base == "PASS" and not findings else (
+                base if base != "PASS" else "HOLD instrument: " + "; ".join(findings))
+        except records.RecordError as exc:
+            summary["run_log_validation"] = f"REJECTED: {exc}"
+            summary["outcome"] = l5.classify_rejection(exc)
+    except l3.Stop as stop:
+        summary["outcome"] = (f"KILL {stop.detail}" if stop.verdict == "KILL" else f"STOP {stop.verdict}: {stop.detail}")
+    except pr.ProbeStop as stop:
+        summary["outcome"] = f"STOP {stop.verdict}: {stop.detail}"
+    except bsn.SessionRefusal as refusal:
+        summary["outcome"] = f"REFUSED: {refusal}"
+    except Exception as exc:  # noqa: BLE001 — any exception must still leave a summary
+        import traceback
+        summary["outcome"] = f"CRASHED host-side: {type(exc).__name__}: {exc}"
+        summary["traceback"] = traceback.format_exc()
+    finally:
+        if reader is not None and not (out_dir / "console.log").exists():
+            (out_dir / "console.log").write_bytes(bytes(reader.raw))
+            (out_dir / "console.ts.log").write_bytes(timeline.console_ts_log())
+        summary["uart_log"] = session.log
+        summary["disruptions"] = session.disruptions
+        summary["transport_rereads"] = session.rereads
+        summary["epoch_final"] = session.epoch
+        summary["crc_dropped"] = relay.crc_dropped
+        pr.write_record(out_dir, "summary", summary)
+    return summary
+
+
+def preflight(a) -> dict:
+    """The fail-closed checks, in the documented order. Returns cfg or raises SessionRefusal."""
+    ruling = pr.check_ruling(a.ruling, text=RULING_TEXT)
+    if a.session not in SESSIONS:
+        raise bsn.SessionRefusal(f"--session must be one of {SESSIONS}")
+    l6m = json.loads(a.l6_manifest.read_text())
+    pinned_prereg = l6m["prereg"]["sha256"]
+    if not pinned_prereg:
+        raise bsn.SessionRefusal("the L6 preregistration is not frozen (manifests/l6_manifest.json prereg.sha256 is null)")
+    if pinned_prereg != _sha(a.prereg):
+        raise bsn.SessionRefusal("docs/l6_soak_prereg.md does not hash to the frozen preregistration")
+    pinned = l6m["pinned_at_build"]["app_image_sha256"]
+    if not pinned:
+        raise bsn.SessionRefusal("no pinned two-operator image (manifests/l6_manifest.json app_image_sha256 is null)")
+    if not a.image.is_file():
+        raise bsn.SessionRefusal(f"no application image at {a.image}")
+    image_sha = _sha(a.image)
+    if image_sha != pinned:
+        raise bsn.SessionRefusal(f"the image is not the pinned one: {image_sha[:16]}… != {pinned[:16]}…")
+    wd = l6m["pinned_at_build"]
+    if not wd["watchdog_enabled"] or wd["watchdog_load_value"] != 1250000035 or wd["watchdog_prescaler"] != 7:
+        raise bsn.SessionRefusal("D-s1: the watchdog must be pinned ON with prescaler 7 and load 1250000035")
+    calibration = None
+    if a.session == "S":
+        calibration = {}
+        for k, path in (("C1", a.calibration_c1), ("C2", a.calibration_c2)):
+            pin = l6m["calibration"][k]["rate_report_sha256"]
+            if not pin:
+                raise bsn.SessionRefusal(f"D-s3: no pinned {k} calibration record in the manifest")
+            if path is None or not path.is_file():
+                raise bsn.SessionRefusal(f"D-s3: --calibration-{k.lower()} must name the {k} rate report")
+            if _sha(path) != pin:
+                raise bsn.SessionRefusal(f"D-s3: {path} does not hash to the pinned {k} calibration record")
+            calibration[k] = json.loads(path.read_text())
+    if shutil.which("sb") is None:
+        raise bsn.SessionRefusal("`sb` is not installed")
+    manifest = json.loads(a.manifest.read_text()); records.validate(manifest)
+    boundary = json.loads(a.boundary.read_text())
+    records.boundary_established(boundary, time.time())
+    if a.out.exists():
+        raise bsn.SessionRefusal(f"{a.out} exists; evidence is never replaced")
+    plan = plan_session(l6m, a.session, a.master_seed, a.duration_s, calibration, a.session_timeout_s)
+    data = lo.operator_data(g.load_manifest(), lo.load_local_map())
+    if lo.operator_data_sha256(data) != l6m["operator"]["operator_data_sha256"]:
+        raise bsn.SessionRefusal("the operator data regenerated from local_map.json is not the pinned derivation")
+    l5m = json.loads(a.l5_manifest.read_text())
+    return {"ruling": ruling, "l6_manifest": l6m, "manifest": manifest, "bitstream": a.bitstream,
+            "image": a.image, "image_sha256": image_sha, "plan": plan, "expected_genomes": expected_genomes(plan, data),
+            "signer": l3.SubprocessSigner(a.key, signer_user=a.signer_user),
+            "provision_execute": a.provision_ruling is not None, "provision_ruling": a.provision_ruling,
+            "token": secrets.token_hex(16), "seed_nonce": int(l5m["carrier"]["nonce_seed"], 16),
+            "heartbeat_s": l6m["protocol"]["heartbeat_s"]}
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--ruling", type=Path, required=True)
+    ap.add_argument("--session", required=True, help="C1 | C2 | S")
+    ap.add_argument("--master-seed", type=lambda s: int(s, 0), required=True, help="host-supplied, 32-bit")
+    ap.add_argument("--provision-ruling", type=Path, default=None)
+    ap.add_argument("--boundary", type=Path, required=True)
+    ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--manifest", type=Path, required=True, help="the carrier manifest")
+    ap.add_argument("--l5-manifest", type=Path, default=R / "manifests/l5_manifest.json")
+    ap.add_argument("--l6-manifest", type=Path, default=L6_MANIFEST)
+    ap.add_argument("--prereg", type=Path, default=PREREG)
+    ap.add_argument("--bitstream", type=Path, required=True)
+    ap.add_argument("--image", type=Path, default=R / "firmware/bsp/out/p3_app_l6.bin")
+    ap.add_argument("--key", type=Path, default=Path("/var/lib/p3signer/keys/K.bin"))
+    ap.add_argument("--signer-user", default="p3signer")
+    ap.add_argument("--port", default=bsn.PORT)
+    ap.add_argument("--duration-s", type=float, default=7200.0, help="T for the soak (D-s3)")
+    ap.add_argument("--session-timeout-s", type=float, default=None, help="C1/C2 only; S derives its own")
+    ap.add_argument("--calibration-c1", type=Path, default=None)
+    ap.add_argument("--calibration-c2", type=Path, default=None)
+    a = ap.parse_args(argv)
+    try:
+        cfg = preflight(a)
+    except (bsn.SessionRefusal, pr.ProbeStop, ValueError, records.RecordError, OSError, KeyError) as exc:
+        print(f"REFUSED: {exc}", file=sys.stderr)
+        return 2
+    consumed = pr.claim_ruling(a.ruling)
+    a.out.mkdir(parents=True)
+    l3._install_sigterm()
+    outcome = "CRASHED before a summary was written"
+    try:
+        transport = bsn.SerialTransport(a.port)
+        try:
+            outcome = run_l6(bsn.BoardSession(transport), a.out, cfg["ruling"], cfg)["outcome"]
+        finally:
+            transport.close()
+    except bsn.SessionRefusal as exc:
+        outcome = f"REFUSED: {exc}"
+    finally:
+        pr.record_outcome(consumed, outcome)
+        if a.provision_ruling:
+            l3._record_pk(a.provision_ruling, outcome)
+    print(outcome, file=sys.stderr if outcome != "PASS" else sys.stdout)
+    return 0 if outcome == "PASS" else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

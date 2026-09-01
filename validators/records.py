@@ -554,36 +554,141 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int,
 # so "audit them" is not a thing that can be done. A gate refusal staged nothing and is
 # corroborated by the notary_log itself (rule vii); STOP_AXI never reached staging.
 NO_SELF_REPORT_OUTCOMES = ("REFUSED_BY_GATE", "STOP_AXI")
+# L6 prereg §3a item 2: the outcomes that produce a raw self-report and are not SCORED —
+# under the sampled policy the firmware audits these unconditionally, before the record.
+AUTO_AUDIT_OUTCOMES = ("STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL", "STOP_ARM", "STOP_SETTLE")
+AUDIT_POLICIES = ("all-self-reporting", "sampled")
+ARMS = ("random_safe", "map_guided")                       # L6 prereg §2.4
+L6_IDENTITY_FIELDS = ("master_seed", "schedule_mode", "operator_data_sha256")
 
 
-def check_audit_policy(log: dict, marks: dict, policy: str = "all-self-reporting") -> dict:
-    """The session-1 audit condition, machine-checked instead of asserted in prose.
+def _self_reporting(r: dict) -> bool:
+    return "app_oracle_record" in r.get("evidence", {}) or r["outcome"] == "STOP_LINK2"
 
-    The preregistration used to say "every candidate is audited". That is not a condition
-    any implementation can meet: a candidate refused by the gate never stages anything, so
-    no raw words exist for it. The condition that IS meaningful, and that this checks, is
-    that every candidate which made a claim the host cannot otherwise verify -- i.e. every
-    record carrying an `app_oracle_record`, and every candidate that staged and then
-    refused itself at link 2 -- was backed by raw words the application actually served
-    AND the host recomputed. `marks` are the HOST-derived marks returned by
-    `validate_standalone_run_log` (validators.audit); the record's own mark is not consulted.
 
-    Returns the accounting; raises RecordError naming the offenders.
+def check_audit_policy(log: dict, marks: dict, policy: str = "all-self-reporting",
+                       schedule: set | None = None) -> dict:
+    """The audit condition, machine-checked instead of asserted in prose.
+
+    `all-self-reporting` (L5 session 1, L6 C1/C2): every candidate which made a claim the
+    host cannot otherwise verify -- every record carrying an `app_oracle_record`, and every
+    candidate that staged and then refused itself at link 2 -- was backed by raw words the
+    application served AND the host recomputed. A candidate refused by the gate never
+    staged anything, so no raw words exist and it is exempt.
+
+    `sampled` (L6 soak, prereg §3a): a SCORED candidate must be audited iff its seq is in
+    the preregistered `schedule` (an audit outside the schedule is recorded, not refused);
+    EVERY non-SCORED self-report (`AUTO_AUDIT_OUTCOMES`) must have been auto-audited by the
+    firmware -- one that was not is an unaudited self-report under the policy and is
+    refused here (the session is a HOLD, §3a item 5). Whether served words recompute is
+    the audit gate's question (validators.audit), asked before this one: words that do not
+    recompute are `Falsified` there, for auto-served words exactly as for requested ones.
+
+    `marks` are the HOST-derived marks returned by `validate_standalone_run_log`; the
+    record's own mark is not consulted. Returns the accounting; raises RecordError naming
+    the offenders.
     """
-    if policy != "all-self-reporting":
+    if policy not in AUDIT_POLICIES:
         raise RecordError(f"unknown audit policy {policy!r}")
-    must, exempt, offenders = [], [], []
+    if policy == "sampled" and not isinstance(schedule, (set, frozenset)):
+        raise RecordError("the sampled audit policy needs its preregistered schedule (a set of seqs)")
+    must, auto, exempt, extra = [], [], [], []
+    offenders, offenders_auto = [], []
     for r in log["loop_records"]:
-        self_reporting = ("app_oracle_record" in r.get("evidence", {})
-                          or r["outcome"] == "STOP_LINK2")
-        if r["outcome"] in NO_SELF_REPORT_OUTCOMES or not self_reporting:
-            exempt.append(r["seq"])
+        seq = r["seq"]
+        if r["outcome"] in NO_SELF_REPORT_OUTCOMES or not _self_reporting(r):
+            exempt.append(seq)
             continue
-        must.append(r["seq"])
-        if marks.get(r["seq"]) != "audited":
-            offenders.append(r["seq"])
+        audited = marks.get(seq) == "audited"
+        if policy == "all-self-reporting":
+            must.append(seq)
+            if not audited:
+                offenders.append(seq)
+        elif r["outcome"] == "SCORED":
+            if seq in schedule:
+                must.append(seq)
+                if not audited:
+                    offenders.append(seq)
+            elif audited:
+                extra.append(seq)
+        else:
+            auto.append(seq)
+            if not audited:
+                offenders_auto.append(seq)
+    problems = []
     if offenders:
-        raise RecordError(
-            f"audit policy {policy!r}: candidates {offenders} made a self-report the host "
-            f"cannot otherwise check but were not audited")
-    return {"policy": policy, "audited": must, "exempt_no_self_report": exempt}
+        problems.append(f"candidates {offenders} made a self-report the host cannot otherwise check "
+                        f"but were not audited" + (" (scheduled)" if policy == "sampled" else ""))
+    if offenders_auto:
+        problems.append(f"non-SCORED self-reports {offenders_auto} were not auto-audited by the firmware "
+                        f"(§3a item 2): an unaudited self-report under the sampled policy")
+    if problems:
+        raise RecordError(f"audit policy {policy!r}: " + "; ".join(problems))
+    out = {"policy": policy, "audited": must, "exempt_no_self_report": exempt}
+    if policy == "sampled":
+        out.update({"schedule": sorted(s for s in schedule), "audited_auto": auto, "unscheduled_audited": extra})
+    return out
+
+
+def check_arm_schedule(log: dict, schedule_rows: list[dict], n: int,
+                       expected_genomes: dict | None = None) -> dict:
+    """L6 prereg §2.4 / §6.5: every candidate record names its arm, and it is the schedule's
+    arm for that index; the two baselines (seq 1 and seq N+2) are brackets and carry none.
+    With `expected_genomes` ({seq: genome hex} from the host twin of the operators) the
+    record's genome must also be the one the scheduled operator produces for that seed —
+    naming the right arm while running the wrong operator is refused too."""
+    if not isinstance(n, int) or isinstance(n, bool) or n < 1:
+        raise RecordError("check_arm_schedule needs the session's N")
+    by_seq = {}
+    for row in schedule_rows:
+        if row["arm"] not in ARMS:
+            raise RecordError(f"schedule names arm {row['arm']!r}, not one of {ARMS}")
+        by_seq[row["seq"]] = row["arm"]
+    first, last = 1, n + 2
+    checked, brackets = [], []
+    for r in log["loop_records"]:
+        seq, arm = r["seq"], r.get("arm")
+        if seq in (first, last):
+            if arm is not None:
+                raise RecordError(f"seq {seq} is a baseline bracket and must not carry an arm (got {arm!r})")
+            brackets.append(seq)
+            continue
+        if seq > last:
+            raise RecordError(f"seq {seq} lies beyond the session's N + 2 = {last}")
+        if arm is None:
+            raise RecordError(f"seq {seq}: loop_record.arm is required for a candidate (prereg §2.4)")
+        if arm not in ARMS:
+            raise RecordError(f"seq {seq}: arm {arm!r} is not one of {ARMS}")
+        if seq not in by_seq:
+            raise RecordError(f"seq {seq}: the schedule has no row for this candidate")
+        if arm != by_seq[seq]:
+            raise RecordError(f"seq {seq}: the record says arm {arm!r} but the schedule says {by_seq[seq]!r} "
+                              f"(prereg §2.4: a swapped arm is refused)")
+        if expected_genomes is not None:
+            want = expected_genomes.get(seq)
+            if want is None:
+                raise RecordError(f"seq {seq}: no expected genome from the operator twin")
+            if r["genome"] != want:
+                raise RecordError(f"seq {seq}: the genome is not what the scheduled {arm} operator produces "
+                                  f"for this seed (twin mismatch)")
+        checked.append(seq)
+    return {"checked": checked, "brackets": brackets, "n": n}
+
+
+def check_l6_identity(app_identity: dict, master_seed: int, schedule_mode: str,
+                      operator_data_sha256: str) -> dict:
+    """L6 prereg §2.4: the IDENT names the master seed and the operator-image identity (the
+    hash of the map data compiled in), and the schedule mode the page asked for. Read from
+    the raw record (additive 1.1.0 fields); each must equal what the host wrote."""
+    missing = [k for k in L6_IDENTITY_FIELDS if k not in app_identity]
+    if missing:
+        raise RecordError(f"app_identity lacks the L6 fields {missing} (prereg §2.4)")
+    if app_identity["master_seed"] != master_seed:
+        raise RecordError(f"app_identity master_seed {app_identity['master_seed']!r} != the page's {master_seed}")
+    if app_identity["schedule_mode"] != schedule_mode:
+        raise RecordError(f"app_identity schedule_mode {app_identity['schedule_mode']!r} != {schedule_mode!r}")
+    _hex(app_identity["operator_data_sha256"], HEX64, "operator_data_sha256")
+    if app_identity["operator_data_sha256"] != operator_data_sha256:
+        raise RecordError("app_identity operator_data_sha256 is not the pinned map derivation: the image's "
+                          "compiled-in map data is not the one regenerated from local_map.json")
+    return {k: app_identity[k] for k in L6_IDENTITY_FIELDS}

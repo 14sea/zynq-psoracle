@@ -261,6 +261,27 @@ to the stop. Validator checks the §7 consistency rules per record (commit chain
 Rule (viii)'s closing obligations are checked against `epoch_end.kind` (spec §3c/§4.0);
 `CRASHED` must be `written_by: collector`.
 
+### L6 additions (additive; proposed 2026-09-01 with the §4 instrument batch, for the §2 image)
+
+`loop_record` 1.1.0: `arm ∈ {random_safe, map_guided}` on every candidate record, **absent**
+on the two baseline brackets (seq 1, seq N+2). Checked by
+`validators/records.check_arm_schedule` against the preregistered schedule
+(`host/l6_schedule.py`), optionally against the operators' host twin
+(`host/l6_operators.py`).
+
+`app_identity` 1.1.0: `master_seed` (int, the identity page's seed word), `schedule_mode ∈
+{abba, random_safe_forced, map_guided_forced}` (the page's flags bits 2–3),
+`operator_data_sha256` (64 hex — the hash of the map data compiled into the image, which
+the host regenerates from the pinned `local_map.json`). Checked by `check_l6_identity`.
+
+Standalone `run_log` (host-written keys): `timing` — `clocks`, `t_go_mono`,
+`records[seq] = {t_signreq, t_reply, t_auditreq, hb[], audit[], t_rec, hb_count,
+audit_chunks, wall, breakdown}` on the host's monotonic clock; `l6` — the session plan
+(mode, master seed, N, schedule, audit seqs, expected frames, CRC budget, timeout and
+their inputs). The validator ignores both; `host/l6_rate.py` refuses a log without
+`timing`. Evidence companions: `console.ts.log` (`<mono> <wall> <line>` per console line;
+`console.log` stays the verbatim bytes), `timeline.json`, `rate_report.json`.
+
 ### `run_log` additions (additive → 1.1.0 for standalone logs)
 
 `control_plane: uboot | standalone` (absent = `uboot`), `identity_page`, `app_identity`,

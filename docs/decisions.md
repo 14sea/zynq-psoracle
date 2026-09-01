@@ -680,3 +680,23 @@ verified, nothing written. PERIPHCLK = CPU_3x2x = CPU_6x4x/2 = 333.33 MHz in eit
 nothing in the L5 PASS depended on this bit; the manifest's clock note is now board-confirmed
 rather than assumed. Evidence `evidence/preflight/slcr_17A6_2026-09-01-05.json`. The
 session-1/4 findings keep their "still unread" sentences as the record of their time.
+
+## 2026-09-01 — L6 prereg v0.2 reviewed; §4 host-only instrument batch authorised and delivered
+
+The owner reviewed `docs/l6_soak_prereg.md` v0.2 and passed it: D-s1 (watchdog ON, the
+actual prescaler/load pinned by build and tests), D-s2 (sampled audit plus firmware
+auto-audit of every non-`SCORED` self-report), D-s3 (2 h, N only from the C1/C2 record
+hashes and the fixed formula) and D-s4 (CRC budget from the pre-session expected frame
+count; a missing AUDIT/REC/TERM an independent HOLD) are closed, and §3a resolves the
+timing contradiction. `04d09ea` was pushed.
+
+Authorised: the §4 host-only batch — frame timestamps with a raw timestamped log,
+`l6_rate.py`, the sampled audit policy with its negatives, the arm-aware schema/validator
+with a schedule twin, the `P3-L6` ruling grammar, calibration-hash → N/timeout, and
+expected-frame-count → CRC budget. Boundary: host code, validators, fixtures, tests,
+manifest draft and documents, plus a Python reference of the operators and the schedule;
+**no firmware change, no two-operator image, no ruling, no board.** Delivered the same
+day: `docs/l6_instrument.md` maps every item to its file and its test and lists twelve
+choices the review should confirm or overturn. `manifests/l6_manifest.json` is a DRAFT
+whose image, frozen-prereg and calibration pins are null, and `host/l6_runner.py` refuses
+to run on it — pinned by a test. The §2 firmware/image work waits for the review.
