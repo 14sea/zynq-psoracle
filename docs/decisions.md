@@ -1043,3 +1043,25 @@ with the push shape noted as what the C1 #1–#3 evidence contains. A guard now 
 frozen text that presents `serve_audit` or the nothing-measured state as current. New
 prereg sha `8daa81f22add85660159e5c2474ecd4bda29d2a815c90fb5fdb8c1ef12c350ae` pinned; the manifest hash changes with it and the next ruling
 pair binds the new one. Firmware and image untouched.
+
+## 2026-09-01 — C1 #4 (ruling 2026-09-01-09): PASS — first complete, fully audited C1 under v0.3 / pull-v2; calibration pin is the owner's
+
+Owner-issued ruling pair (whole-of-probe P3-L6 + provisioning P3-K, both binding prereg
+`8daa81f2…`, image `e19e1b12…`, manifest `73ec76a7…`), power cycle, boundary PASS, then the
+runner in the background with no shell timeout. The board completed the session: 66 SCORED
+records (opening baseline, 64 random-safe candidates, closing baseline), both baselines
+`[18, 22, 20, 20, 20, 18]`, the closing unsigned control refused with fault 13, TERM
+COMPLETED/budget, 1056 HB, 528 audit chunks pulled. Every audit was served over the sparse
+pull and verified (stream/staged/readback hashes equal for all 66); the inbound ledger holds
+exactly the 1785 frames the prereg expects, 0 CRC drops (budget 8), 0 rereads, 0 aborts —
+the byte loss of C1 #1/#3 did not occur and the retry path went unused. The validator
+accepted the log; the runner wrote `rate_report.json` (`786dc3ec…`): 3909.9 evals/h, CoV
+0.0159 over 63 steady-state periods, audit 0.44 s of a 0.92 s period (C1 #3: 1586 evals/h,
+audit 76 % of the link). Found on the way: all 66 genomes and functional readouts are
+bit-identical to C1 #3's under the superseded image — the pull firmware changed the
+transport only. Recorded: `docs/l6_c1_session4_findings.md`, the manifest's
+hardware_history and standing, this table. NOT done here, by the ruling's scope:
+`calibration.C1` stays null until the owner pins the rate report's sha; no C2, no S, no
+Claim B data, no extra diagnostics. The manifest changed (history/standing), so the C2
+ruling pair binds the post-pin hash.
+
