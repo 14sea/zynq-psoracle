@@ -46,7 +46,7 @@ longer a matter of trust.
 
 `evidence/tests/` — the fail-closed report from `host/run_tests.sh`
 (`host/test_report.py`: atomic write → manifest registration → `git add`; any failure exits 3
-whatever the suite said). **373 tests, 0 skipped, `boundary_available: true`.**
+whatever the suite said). **384 tests, 0 skipped, `boundary_available: true`.**
 
 ## 3. What is actually proven, and by what
 
@@ -56,7 +56,7 @@ whatever the suite said). **373 tests, 0 skipped, `boundary_available: true`.**
 | that test would catch the defect it was written for | two discrimination tests: the old flat record and `CLOSING_CONTROL` as an outcome are both rejected |
 | `p3_derive.c` equals the Python reference | `tests/test_firmware_twin.py`, all 256 corpus entries, bit for bit |
 | the audit condition holds for a session | `validators.records.check_audit_policy`, called by `host/l5_runner.py`; discrimination tests both directions |
-| the package does not contradict itself | `tests/test_package_consistency.py`, including a live-verified drift guard |
+| the package does not contradict itself | `tests/test_package_consistency.py`: one pinned image named consistently, and a **repo-wide** sweep that allows a withdrawn hash only in files explicitly listed as historical. Both halves are live-verified — see below |
 | the image is the pinned one before a session starts | `host/l5_runner.py` refuses otherwise; asserted on the refusal *reason* |
 
 ## 4. The audit condition, restated
@@ -70,6 +70,26 @@ refusal under rule (vii). `verified: "audited"` means the words were **served**.
 
 The earlier wording — "the first session audits every candidate" — was not implementable and
 has been replaced rather than quietly under-delivered.
+
+### The consistency guard, and what a review already caught it missing
+
+The first version of this guard scanned `docs/*.md` only. Review round 5 found what that
+missed: `manifests/l5_bsp_inputs.json`'s `purpose` still described the input set as feeding
+image `7540239f…`, and `host/gen_bsp_input_manifest.py` — which writes that string — would
+have reintroduced it after any regeneration. Both are fixed: the generator now names the
+image **by reference** (`l5_manifest.json` `pinned_at_build.app_image_sha256`) and never by
+value, so there is one source of truth and no copy to go stale.
+
+The guard is now repo-wide over tracked text, with an explicit allowlist of files that may
+keep a withdrawn hash *because they are history* — findings, decisions, superseded packages,
+the verbatim review records and the manifest's own `withdrawn_images`. A second test asserts
+every allowance is still real, so a stale exemption cannot quietly widen the hole. **History
+is not scrubbed**: rewriting those records to tidy the sweep would be falsifying evidence.
+
+Both directions were verified live rather than asserted: the guard was run against the
+defect before it was fixed (it named `manifests/l5_bsp_inputs.json` *and* the generator), and
+the earlier drift check was verified by temporarily editing the preregistration to name a
+withdrawn hash. Both discriminations are now permanent tests.
 
 ## 5. Limitations, stated as limitations
 
@@ -94,8 +114,11 @@ has been replaced rather than quietly under-delivered.
 
 ## 6. If this package passes
 
-In one batch, in this order: push the local commits (currently 12 ahead of
-`origin/main` `90566b4`, `90566b4` itself still awaiting ratification) → owner creates
+In one batch, in this order: push the local commits (everything ahead of `origin/main`
+`90566b4`, which is itself still awaiting ratification — `git rev-list --count
+origin/main..HEAD` for the current number, deliberately not written here, since a figure
+that changes with every commit is exactly the kind of stale statement §5's guard exists to
+prevent) → owner creates
 `whole-of-probe P3-L5` and `provisioning P3-K` → power cycle → re-run
 `host/verify_principal_boundary.py` as the runner (< 6 h) → **preflight `CPU_CLK_CTRL`** →
 run `host/l5_runner.py --audit-all --budget 8` in the background, no shell timeout, waited on

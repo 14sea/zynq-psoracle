@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "purpose": "Post-build provenance for the pinned P3 L5 application image, regenerated after a clean rebuild (reviewer 2026-08-31).",
   "git": {
-    "head": "a8f607d962d8972480852d5ac4d239868c27f588",
+    "head": "24d25365aea04ee214cfbc8a5237b5db1a93301e",
     "worktree_dirty": true
   },
   "toolchain": {
@@ -16,7 +16,7 @@
   },
   "bsp_inputs": {
     "manifest": "manifests/l5_bsp_inputs.json",
-    "manifest_sha256": "ab7d06d8302fc3413eb7742219a240937398587632ab1e831860d3ad091a5a04",
+    "manifest_sha256": "e22dbfac8a7be02e352ce1d5c5af3ce8d8afd6c917994986606f6ca3f64ecb1d",
     "count": 65
   },
   "image": {
@@ -32,7 +32,7 @@
     "sha256": "a78e6fa381584d5fddacc5f82977f96320d60e832d1b37404b43a6772ab8fd29"
   },
   "tests": {
-    "report": "evidence/tests/test_report_2026-09-01T071516Z.json",
+    "report": "evidence/tests/test_report_2026-09-01T071959Z.json",
     "note": "the fail-closed test evidence (count / skipped / boundary / head_at_run) is this report; run host/run_tests.sh in a staged state so it covers the new files."
   }
 }

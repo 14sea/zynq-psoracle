@@ -363,3 +363,31 @@ permanent test rather than a claim.
 
 382 tests / 0 skipped. Nothing pushed, no ruling, no board contact; the firmware has still
 never run on hardware.
+
+## 2026-09-01 — round 5 HOLD: a provenance manifest still named a withdrawn image
+
+The reviewer held the package on one document-consistency blocker:
+`manifests/l5_bsp_inputs.json`'s `purpose` still described the input set as feeding image
+`7540239f…`, withdrawn twice over by then, so the provenance manifest and the post-build
+package disagreed about the same input set.
+
+Root cause was one level deeper than the artefact: `host/gen_bsp_input_manifest.py`
+**hard-coded** that hash into the string it writes, so regenerating would have reintroduced
+it. Fixed by naming the image **by reference** — `l5_manifest.json`
+`pinned_at_build.app_image_sha256` — and never by value. One source of truth, no copy to go
+stale.
+
+My own guard should have caught this and did not: it scanned `docs/*.md` only. It is now
+repo-wide over tracked text with an explicit allowlist of files that may keep a withdrawn
+hash *because they are history*, plus a test that every allowance is still real so a stale
+exemption cannot widen the hole. The guard was written and run **before** the fix and named
+both the manifest and its generator; that discrimination is a permanent test.
+
+**History was not scrubbed.** `docs/l5_findings.md`, `docs/decisions.md` and
+`docs/l5_review_result.md` keep their references to the withdrawn images, as the reviewer
+asked: tidying them to make a sweep pass would be falsifying the record.
+
+The image is untouched (`d3828a8c…`, evidence regenerated and still matching); only
+descriptive metadata changed. A manual repo-wide sweep corroborates the guard: every
+remaining occurrence is in a historical context. 384 tests / 0 skipped. Nothing pushed, no
+ruling, no board contact.

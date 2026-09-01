@@ -69,6 +69,68 @@ class PinnedImage(unittest.TestCase):
         self.assertEqual(inputs["count"], len(inputs["files"]))
 
 
+class WithdrawnHashesStayInHistory(unittest.TestCase):
+    """A withdrawn image hash may appear ONLY where it is history.
+
+    Scope lesson: the first version of this guard scanned `docs/*.md` only, and a review
+    caught what it missed — `manifests/l5_bsp_inputs.json`'s `purpose` still described the
+    input set as feeding image `7540239f…`, by then withdrawn twice over. The provenance
+    manifest and the post-build package thus disagreed about the same input set, and the
+    generator that wrote the string would have reintroduced it. So the scan is now
+    repo-wide over tracked text, and every file allowed to mention a withdrawn hash must say
+    why, here, deliberately.
+
+    History is NOT scrubbed: findings, decisions and superseded packages keep their hashes,
+    because rewriting them would be falsifying the record.
+    """
+
+    ALLOWED = {
+        "manifests/l5_manifest.json": "withdrawn_images IS the history",
+        "docs/l5_wire_findings.md": "§7 image history",
+        "docs/l5_findings.md": "the round-2 record",
+        "docs/decisions.md": "a decision log is historical by nature",
+        "docs/status.md": "names them explicitly as withdrawn",
+        "docs/l5_post_build_package.md": "the withdrawn-images table",
+        "docs/l5_review_package.md": "superseded package, kept as record",
+        "docs/l5_review_result.md": "the round-2 review, verbatim",
+        "docs/l5_prereg.md": "the image-change-on-record paragraph",
+        "tests/test_package_consistency.py": "this guard names them to test itself",
+    }
+    # evidence/ is recorded observation: never edited, never scanned
+    SKIP_PREFIXES = ("evidence/", "data/", "builds/", "imported/", "gate_runs/", "fixtures/")
+    TEXT_SUFFIXES = (".py", ".md", ".json", ".c", ".h", ".sh", ".v", ".tcl", ".xdc")
+
+    def test_no_current_context_still_names_a_withdrawn_image(self):
+        import subprocess
+        tracked = subprocess.check_output(["git", "-C", str(R), "ls-files"], text=True).split()
+        short = {w[:8] for w in WITHDRAWN}
+        offenders = []
+        for rel in tracked:
+            if rel.startswith(self.SKIP_PREFIXES) or not rel.endswith(self.TEXT_SUFFIXES):
+                continue
+            if rel in self.ALLOWED:
+                continue
+            try:
+                text = (R / rel).read_text()
+            except (OSError, UnicodeDecodeError):
+                continue
+            for s in short:
+                if s in text:
+                    offenders.append(f"{rel} still names withdrawn {s}…")
+        self.assertEqual(offenders, [], "; ".join(offenders))
+
+    def test_every_allowance_is_still_needed_and_real(self):
+        """An allowance that no longer applies is a stale exemption: it would let a future
+        drift in unnoticed."""
+        short = {w[:8] for w in WITHDRAWN}
+        for rel in self.ALLOWED:
+            path = R / rel
+            self.assertTrue(path.is_file(), f"{rel} is allowed to keep history but is gone")
+            text = path.read_text()
+            self.assertTrue(any(s in text for s in short),
+                            f"{rel} is exempted but names no withdrawn hash; drop the exemption")
+
+
 class DocumentsAgree(unittest.TestCase):
     """A withdrawn hash may be *discussed* — the history is evidence — but never presented
     as the current one."""
