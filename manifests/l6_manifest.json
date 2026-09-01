@@ -17,7 +17,9 @@
       "bitstream_sha256": "956379fa8d23f8a6f1e0c80fe18b8c4aee68e76cc650499911a4bdb7807e610a",
       "manifest": "builds/p3/carrier_manifest.json",
       "manifest_sha256": "2a7abc2b4054fee1ed02edc38dcae23a5a64b2174ef571401b32b309a4123dfa",
-      "note": "the frozen carrier (unchanged since L1): host/l6_runner.py hashes the --manifest and --bitstream files and refuses anything else (board-phase preflight, owner 2026-09-01)"
+      "note": "the frozen carrier (unchanged since L1): host/l6_runner.py hashes the --manifest and --bitstream files and refuses anything else (board-phase preflight, owner 2026-09-01)",
+      "nonce_seed": "9e3779b97f4a7c15",
+      "nonce_seed_note": "the PL's NONCE_SEED (carrier build constant, = manifests/l5_manifest.json carrier.nonce_seed); pinned HERE and used directly by host/l6_runner.py — the --l5-manifest input was removed because a foreign L5 manifest could change the chain the validator models and turn a valid silicon nonce chain into a false KILL (closing review 2026-09-01, blocker 3)"
     },
     "board": {
       "boardid": "17A6",
@@ -203,17 +205,19 @@
       "session",
       "master_seed",
       "prereg_sha256",
-      "image_sha256"
+      "image_sha256",
+      "l6_manifest_sha256"
     ],
     "provisioning P3-K": [
       "session",
       "prereg_sha256",
-      "image_sha256"
+      "image_sha256",
+      "l6_manifest_sha256"
     ],
-    "note": "each ruling names the session it authorises and the frozen prereg + pinned image it was issued against; the runner refuses any mismatch, so a C1 ruling cannot run C2 or S and no ruling outlives a re-freeze or a rebuild. --provision-ruling is mandatory: without a P3-K ruling the runner never claims the L6 ruling nor opens the port."
+    "note": "each ruling names the session it authorises and the frozen prereg + pinned image it was issued against; the runner refuses any mismatch, so a C1 ruling cannot run C2 or S and no ruling outlives a re-freeze or a rebuild. --provision-ruling is mandatory: without a P3-K ruling the runner never claims the L6 ruling nor opens the port. l6_manifest_sha256 = the sha256 of THIS file as committed when the ruling was issued: the runner reads the carrier pins, the soak duration and the calibration pins from it, so a swapped manifest with the prereg/image/seed untouched must not pass (closing review blocker 1). C1, C2 and S each bind the manifest hash of their time, since the calibration pins are written between them."
   },
   "principal_binding": {
-    "runner_user": "== the OS user running host/l6_runner.py",
+    "runner_user": "== pwd.getpwuid(os.getuid()).pw_name (the effective UID's name, as the boundary verifier resolves it; never getpass/LOGNAME/USER, which an environment variable can forge — closing review blocker 2)",
     "signer_user": "== --signer-user",
     "key": "== <boundary.key_store>/K.bin (== --key)",
     "note": "the D4 boundary record is bound to the invocation, not only to itself (board-phase preflight blocker 3)"

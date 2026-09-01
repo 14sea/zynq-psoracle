@@ -63,13 +63,16 @@ a session not in {C1, C2, S}; no `--provision-ruling`, or one already used or wi
 wrong text; `prereg.sha256` not the hash of `docs/l6_soak_prereg.md` (frozen `90f5fa69…`);
 `app_image_sha256` not the file's hash (pinned `bd1454cd…`); the watchdog not pinned ON
 with prescaler 7 / load 1 250 000 035; **either ruling not bound** to this session, the
-frozen prereg and the pinned image (the L6 ruling also to the pinned master seed); the
+frozen prereg, the pinned image and the sha256 of the L6 manifest file in force (the L6
+ruling also to the pinned master seed) — the manifest carries the carrier pins, the soak
+duration and the calibration pins, so C1, C2 and S each bind the manifest of their time; the
 carrier manifest or bitstream file not hashing to the frozen carrier; a `--master-seed`
 that is not the session's pin, or for S a `--duration-s` other than 7200; for S, either
 calibration record missing or not hashing to its pin (**null until C1/C2 have run**); the
-boundary older than 6 h, failed, or not bound to this invocation (OS user, `--signer-user`,
-`--key`); an existing evidence directory; the map derivation not regenerating to the
-pinned hash. Both rulings are consumed only after all of these.
+boundary older than 6 h, failed, or not bound to this invocation (the effective UID's name via
+`pwd.getpwuid(os.getuid())` — never `LOGNAME`/`USER` —, `--signer-user`, `--key`); an existing evidence directory; the map derivation not regenerating to the
+pinned hash. The nonce seed the validator models is the manifest's own pin (no
+`--l5-manifest` input). Both rulings are consumed only after all of these.
 `tests/test_l6_runner.py::BoardPhasePreflight` reaches each refusal with every earlier
 check satisfied. Seeds: C1 = C2 = `0x4c364341`, S = `0x4c36534f` (owner 2026-09-01);
 every L6 `(master_seed, index)` tuple is excluded from any future Claim B schedule.

@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import contextlib
 import copy
-import getpass
 import hashlib
+import os
+import pwd
 import io
 import json
 import sys
@@ -121,15 +122,20 @@ class Refusals(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp())
         (self.tmp / "img.bin").write_bytes(self.IMAGE_STANDIN)
         self.image_sha = hashlib.sha256(self.IMAGE_STANDIN).hexdigest()
+        self.manifest()                      # the default manifest, which the rulings bind
         self.write_ruling("ruling.json", l6.RULING_TEXT, "C1", master_seed=L6M["sessions"]["C1"]["master_seed"])
         self.write_ruling("l5ruling.json", "whole-of-probe P3-L5", "C1")
         self.write_ruling("pk.json", l6.PROVISION_RULING_TEXT, "C1")
         self.boundary(True)
 
-    def write_ruling(self, name, text, session, master_seed=None, prereg=None, image=None, **extra):
+    def manifest_sha(self, path: Path | None = None) -> str:
+        return hashlib.sha256((path or self.tmp / "l6_manifest.json").read_bytes()).hexdigest()
+
+    def write_ruling(self, name, text, session, master_seed=None, prereg=None, image=None, l6m=None, **extra):
         r = {"ruling": text, "boardid": "17A6", "granted_by": "14sea", "date": "2026-09-99-01",
              "session": session, "prereg_sha256": self.PREREG_SHA if prereg is None else prereg,
-             "image_sha256": self.image_sha if image is None else image}
+             "image_sha256": self.image_sha if image is None else image,
+             "l6_manifest_sha256": self.manifest_sha() if l6m is None else l6m}
         if master_seed is not None:
             r["master_seed"] = master_seed
         r.update(extra)
@@ -138,14 +144,18 @@ class Refusals(unittest.TestCase):
     def boundary(self, ok: bool, runner_user=None, signer_user="p3signer", key_store="/var/lib/p3signer/keys"):
         (self.tmp / "boundary.json").write_text(json.dumps(
             {"schema": "principal_boundary", "schema_version": "1.0.0",
-             "runner_user": getpass.getuser() if runner_user is None else runner_user,
+             "runner_user": pwd.getpwuid(os.getuid()).pw_name if runner_user is None else runner_user,
              "signer_user": signer_user, "pod_group": "p3jtag", "key_store": key_store,
              "all_passed": ok, "checks": [{"check": c, "passed": ok, "detail": "fixture"} for c in
                                           ("R1_runner_is_not_signer", "R2_runner_cannot_read_key",
                                            "R3_runner_cannot_open_pod", "R4_signer_reachable_and_holds_key",
                                            "R5_signer_in_pod_group")], "at": time.time()}))
 
-    def manifest(self, *, frozen=True, image=True, watchdog=True, calib=None, carrier=None) -> Path:
+    def manifest(self, *, frozen=True, image=True, watchdog=True, calib=None, carrier=None,
+                 duration=None, rebind=True) -> Path:
+        """Writes the fixture manifest and, by default, re-binds both rulings to its hash
+        (as the owner would issue them against the committed manifest of the time); a
+        tamper test passes rebind=False to keep the rulings bound to the earlier file."""
         m = copy.deepcopy(L6M)
         m["prereg"]["sha256"] = self.PREREG_SHA if frozen else None
         # the committed manifest pins the real image; the fixture pins the stand-in or nulls it
@@ -157,17 +167,31 @@ class Refusals(unittest.TestCase):
                 m["calibration"][k]["rate_report_sha256"] = sha
         if carrier:
             m["instrument"]["carrier"].update(carrier)
+        if duration is not None:
+            m["sessions"]["S"]["duration_s"] = duration
         p = self.tmp / "l6_manifest.json"
         p.write_text(json.dumps(m))
+        if rebind:
+            for name in ("ruling.json", "pk.json"):
+                rp = self.tmp / name
+                if rp.exists():
+                    r = json.loads(rp.read_text()); r["l6_manifest_sha256"] = self.manifest_sha(p)
+                    rp.write_text(json.dumps(r))
         return p
 
     def args(self, session="C1", ruling="ruling.json", manifest: Path | None = None, extra=(),
              pk="pk.json", bitstream=None, carrier_manifest=None) -> list[str]:
+        # SAFETY: the manifest is the one on disk (never rewritten here — a rewrite re-binds
+        # the rulings and can make a tamper test pass preflight), and the port is a path
+        # that cannot exist, so a fixture defect can never reach a board. Found live
+        # 2026-09-01: a rebinding args() let the P3-K tamper loop pass every check and
+        # the runner claimed the fixture ruling and tried to open /dev/ebaz-uart (absent).
         argv = ["--ruling", str(self.tmp / ruling), "--session", session,
                 "--boundary", str(self.tmp / "boundary.json"), "--out", str(self.tmp / "out"),
                 "--manifest", str(carrier_manifest or R / "builds/p3/carrier_manifest.json"),
                 "--bitstream", str(bitstream or R / "builds/p3/p3.bit"), "--image", str(self.tmp / "img.bin"),
-                "--l6-manifest", str(manifest or self.manifest()), *extra]
+                "--l6-manifest", str(manifest or self.tmp / "l6_manifest.json"),
+                "--port", str(self.tmp / "no-such-port"), *extra]
         if pk:
             argv += ["--provision-ruling", str(self.tmp / pk)]
         return argv
@@ -216,6 +240,7 @@ class Refusals(unittest.TestCase):
         self.assertEqual(rc, 2); self.assertIn("D-s1", err); self.assertIn(str(LOAD), err)
 
     def _s_rulings(self):
+        """S rulings bound to the manifest currently on disk (tmp/l6_manifest.json)."""
         self.write_ruling("ruling.json", l6.RULING_TEXT, "S", master_seed=L6M["sessions"]["S"]["master_seed"])
         self.write_ruling("pk.json", l6.PROVISION_RULING_TEXT, "S")
 
@@ -274,15 +299,17 @@ class BoardPhasePreflight(Refusals):
     def test_2_the_l6_ruling_is_bound_to_session_seed_prereg_and_image(self):
         seed = L6M["sessions"]["C1"]["master_seed"]
         cases = {"session": dict(session="C2"), "master_seed": dict(master_seed=seed + 1),
-                 "prereg_sha256": dict(prereg="00" * 32), "image_sha256": dict(image="11" * 32)}
+                 "prereg_sha256": dict(prereg="00" * 32), "image_sha256": dict(image="11" * 32),
+                 "l6_manifest_sha256": dict(l6m="22" * 32)}
         for field, kw in cases.items():
             kw = {"session": "C1", "master_seed": seed, **kw}
             self.write_ruling("ruling.json", l6.RULING_TEXT, **kw)
             rc, err = self.run_main(self.args())
             self.assertEqual(rc, 2, field); self.assertIn("is bound to " + field, err, field)
-        for missing in ("session", "master_seed", "prereg_sha256", "image_sha256"):
+        for missing in ("session", "master_seed", "prereg_sha256", "image_sha256", "l6_manifest_sha256"):
             r = json.loads((self.tmp / "ruling.json").read_text()); r["session"] = "C1"; r["master_seed"] = seed
             r["prereg_sha256"] = self.PREREG_SHA; r["image_sha256"] = self.image_sha
+            r["l6_manifest_sha256"] = self.manifest_sha()
             del r[missing]
             (self.tmp / "ruling.json").write_text(json.dumps(r))
             rc, err = self.run_main(self.args())
@@ -295,7 +322,7 @@ class BoardPhasePreflight(Refusals):
 
     def test_2_the_p3k_ruling_is_bound_to_session_prereg_and_image(self):
         for field, kw in {"session": dict(session="S"), "prereg_sha256": dict(prereg="00" * 32),
-                          "image_sha256": dict(image="11" * 32)}.items():
+                          "image_sha256": dict(image="11" * 32), "l6_manifest_sha256": dict(l6m="22" * 32)}.items():
             self.write_ruling("pk.json", l6.PROVISION_RULING_TEXT, **{"session": "C1", **kw})
             rc, err = self.run_main(self.args())
             self.assertEqual(rc, 2, field); self.assertIn("'provisioning P3-K' is bound to " + field, err, field)
@@ -304,6 +331,20 @@ class BoardPhasePreflight(Refusals):
         self.boundary(True, runner_user="someone-else")
         rc, err = self.run_main(self.args())
         self.assertEqual(rc, 2); self.assertIn("is not this OS user", err)
+        # closing review blocker 2: forging LOGNAME/USER must not satisfy it — the identity
+        # is the effective UID's name, as the boundary verifier resolves it
+        saved = {k: os.environ.get(k) for k in ("LOGNAME", "USER")}
+        try:
+            os.environ["LOGNAME"] = os.environ["USER"] = "someone-else"
+            rc, err = self.run_main(self.args())
+            self.assertEqual(rc, 2); self.assertIn("is not this OS user", err)
+            self.assertIn(repr(pwd.getpwuid(os.getuid()).pw_name), err)
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
         self.boundary(True)
         rc, err = self.run_main(self.args(extra=("--signer-user", "other")))
         self.assertEqual(rc, 2); self.assertIn("--signer-user 'other' is not the record's", err)
@@ -335,6 +376,65 @@ class BoardPhasePreflight(Refusals):
         rc, err = self.run_main(self.args(session="S", manifest=m, extra=(
             "--calibration-c1", str(c1), "--calibration-c2", str(c2), "--duration-s", "600")))
         self.assertEqual(rc, 2); self.assertIn("exactly the pinned 7200", err)
+
+
+class ManifestBinding(Refusals):
+    """Closing review blocker 1: the manifest carries the carrier pins, the soak duration and
+    the calibration pins, so a ruling that does not name the manifest's hash lets a swapped
+    manifest re-specify all of them with prereg/image/seed intact. Each tamper below keeps
+    those three intact and must be refused on l6_manifest_sha256."""
+
+    def _refused_on_manifest_hash(self, argv):
+        rc, err = self.run_main(argv)
+        self.assertEqual(rc, 2)
+        self.assertIn("is bound to l6_manifest_sha256", err, err)
+        return err
+
+    def test_a_swapped_carrier_pin_is_refused_by_the_manifest_binding(self):
+        other = self.tmp / "p3.bit"; other.write_bytes(b"another carrier")
+        m = self.manifest(carrier={"bitstream_sha256": hashlib.sha256(b"another carrier").hexdigest()}, rebind=False)
+        self._refused_on_manifest_hash(self.args(manifest=m, bitstream=other))
+
+    def test_a_shortened_soak_duration_is_refused_by_the_manifest_binding(self):
+        c1, c2 = self.tmp / "c1.json", self.tmp / "c2.json"
+        c1.write_text(json.dumps(report("C1", 120.0))); c2.write_text(json.dumps(report("C2", 100.0)))
+        sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
+        self.manifest(calib={"C1": sha(c1), "C2": sha(c2)})         # the manifest the S rulings were issued against
+        self._s_rulings()
+        m = self.manifest(calib={"C1": sha(c1), "C2": sha(c2)}, duration=600, rebind=False)
+        self._refused_on_manifest_hash(self.args(session="S", manifest=m, extra=(
+            "--calibration-c1", str(c1), "--calibration-c2", str(c2), "--duration-s", "600")))
+
+    def test_swapped_calibration_pins_are_refused_by_the_manifest_binding(self):
+        c1, c2 = self.tmp / "c1.json", self.tmp / "c2.json"
+        c1.write_text(json.dumps(report("C1", 120.0))); c2.write_text(json.dumps(report("C2", 100.0)))
+        sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
+        self.manifest(calib={"C1": sha(c1), "C2": sha(c2)})
+        self._s_rulings()
+        fast = self.tmp / "c1_fast.json"; fast.write_text(json.dumps(report("C1", 9000.0)))
+        m = self.manifest(calib={"C1": sha(fast), "C2": sha(c2)}, rebind=False)
+        self._refused_on_manifest_hash(self.args(session="S", manifest=m, extra=(
+            "--calibration-c1", str(fast), "--calibration-c2", str(c2))))
+
+    def test_the_bound_manifest_passes_to_the_boundary(self):
+        """The same S run with rulings bound to the manifest in force reaches the last gate."""
+        c1, c2 = self.tmp / "c1.json", self.tmp / "c2.json"
+        c1.write_text(json.dumps(report("C1", 120.0))); c2.write_text(json.dumps(report("C2", 100.0)))
+        sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
+        m = self.manifest(calib={"C1": sha(c1), "C2": sha(c2)})
+        self._s_rulings(); self.boundary(False)
+        rc, err = self.run_main(self.args(session="S", manifest=m, extra=(
+            "--calibration-c1", str(c1), "--calibration-c2", str(c2))))
+        self.assertIn("principal boundary NOT established", err)
+
+    def test_the_nonce_seed_is_the_manifests_own_pin_and_there_is_no_l5_manifest_input(self):
+        import inspect
+        src = inspect.getsource(l6.main) + inspect.getsource(l6.preflight)
+        self.assertNotIn('"--l5-manifest"', src); self.assertNotIn("l5_manifest", src)
+        self.assertNotIn("l5_manifest.json", inspect.getsource(l6))
+        self.assertEqual(L6M["instrument"]["carrier"]["nonce_seed"],
+                         json.loads((R / "manifests/l5_manifest.json").read_text())["carrier"]["nonce_seed"])
+        self.assertEqual(L6M["instrument"]["carrier"]["nonce_seed"], "9e3779b97f4a7c15")
 
 
 class Checks(unittest.TestCase):

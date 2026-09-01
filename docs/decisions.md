@@ -833,3 +833,28 @@ must match; S's T must equal the pinned 7200), `tests/test_l6_runner.py::
 BoardPhasePreflight` (each blocker reached and refused by name; P3-K never consumed by a
 refusal). After the closing review: a staged board batch — C1 PASS → pin C1 → C2 PASS →
 pin C2 → derive N → S — with no further architecture review, and any HOLD/KILL stopping it.
+
+## 2026-09-01 — closing review of the preflight batch: HOLD on three blockers; corrected host-only
+
+The five preflight fixes of `2faacca` were confirmed (650 tests independently). Three more
+blockers: (1) the L6 manifest — which carries the carrier pins, the soak duration and the
+calibration pins — was not bound by the rulings, so a swapped manifest with prereg/image/
+seed intact re-specified all three; (2) `getpass.getuser()` trusts `LOGNAME`/`USER`, so the
+boundary's runner name could be forged by environment; (3) the nonce seed came from an
+unbound `--l5-manifest`, so a foreign L5 manifest could turn a valid silicon nonce chain
+into a false KILL. Corrections, host-only: both rulings bind `l6_manifest_sha256` (C1, C2
+and S each to the manifest of their time, since the calibration pins are written between
+them) with tamper tests for the carrier pin, the soak duration and the calibration pins;
+the runner identity is `pwd.getpwuid(os.getuid()).pw_name`, as the boundary verifier
+resolves it, with a LOGNAME/USER-forgery negative; `9e3779b97f4a7c15` is pinned in
+`manifests/l6_manifest.json` `instrument.carrier.nonce_seed`, used directly, and the
+`--l5-manifest` input is gone. The canonical table says closing review HOLD until the short
+re-review passes. Frozen prereg, firmware and image untouched.
+
+Test-fixture incident while correcting: the P3-K binding loop's `args()` rewrote the
+fixture manifest and re-bound the rulings, so the tampered ruling passed every preflight
+check and `main()` claimed the fixture ruling and tried to open the serial port — refused,
+because `/dev/ebaz-uart` was absent (no board attached); no hardware was reached. The
+fixture's own "no evidence dir before the checks pass" guard is what caught it. Fixed:
+`args()` never rewrites the manifest, and every fixture invocation passes `--port` as a
+path that cannot exist, so no test can reach a board whatever else goes wrong.

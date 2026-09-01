@@ -14,20 +14,22 @@ a `provisioning P3-K` ruling present, parseable and unconsumed (mandatory: witho
 L6 ruling is never claimed and the port never opened); the manifest's frozen
 preregistration hash; a pinned two-operator image that the file on disk hashes to; the
 watchdog pinned ON with the D-s1 load value; BOTH rulings bound to this session, the
-frozen prereg and the pinned image (and the L6 ruling to the pinned master seed); the
-frozen carrier (manifest file and bitstream file hash to their pins); the pinned master
+frozen prereg, the pinned image and the sha256 of the L6 manifest file itself (and the L6
+ruling to the pinned master seed); the
+frozen carrier (manifest file and bitstream file hash to their pins; the nonce seed is the
+manifest's own pin — there is no --l5-manifest input); the pinned master
 seed and, for S, exactly the pinned duration; for S, both calibration reports hashing to
-their pins; the principal boundary < 6 h AND bound to this invocation (OS user, signer
-user, key path); the evidence directory not existing. Board-phase preflight blockers 1–5
+their pins; the principal boundary < 6 h AND bound to this invocation (the effective
+UID's name, signer user, key path); the evidence directory not existing. Board-phase preflight blockers 1–5
 (owner 2026-09-01) are each a named refusal with a negative test.
 """
 from __future__ import annotations
 
 import argparse
-import getpass
 import hashlib
 import json
 import os
+import pwd
 import secrets
 import shutil
 import sys
@@ -66,12 +68,15 @@ def _sha(path: Path) -> str:
 
 
 def bind_ruling(ruling: dict, text: str, session: str, prereg_sha: str, image_sha: str,
-                master_seed: int | None) -> None:
-    """A ruling authorises ONE session against ONE frozen prereg and ONE pinned image (and,
-    for the L6 ruling, one master seed). Missing or mismatching bindings are refusals by
-    name, so a C1 ruling cannot be spent on C2 or S and no ruling survives a re-freeze or a
-    rebuild (board-phase preflight blocker 2, owner 2026-09-01)."""
-    want = {"session": session, "prereg_sha256": prereg_sha, "image_sha256": image_sha}
+                l6m_sha: str, master_seed: int | None) -> None:
+    """A ruling authorises ONE session against ONE frozen prereg, ONE pinned image and ONE
+    L6 manifest (and, for the L6 ruling, one master seed). Missing or mismatching bindings
+    are refusals by name, so a C1 ruling cannot be spent on C2 or S, no ruling survives a
+    re-freeze or a rebuild, and a swapped manifest — which carries the carrier pins, the
+    soak duration and the calibration pins — is refused even with prereg/image/seed intact
+    (board-phase preflight blocker 2; closing review blocker 1, owner 2026-09-01)."""
+    want = {"session": session, "prereg_sha256": prereg_sha, "image_sha256": image_sha,
+            "l6_manifest_sha256": l6m_sha}
     if master_seed is not None:
         want["master_seed"] = master_seed
     for k, v in want.items():
@@ -341,6 +346,7 @@ def preflight(a) -> dict:
         raise bsn.SessionRefusal(f"the provisioning ruling {a.provision_ruling} was already used")
     pk = pr._parse_ruling(a.provision_ruling, text=PROVISION_RULING_TEXT)
     l6m = json.loads(a.l6_manifest.read_text())
+    l6m_sha = _sha(a.l6_manifest)      # the rulings bind THIS file: it carries every other pin
     pinned_prereg = l6m["prereg"]["sha256"]
     if not pinned_prereg:
         raise bsn.SessionRefusal("the L6 preregistration is not frozen (manifests/l6_manifest.json prereg.sha256 is null)")
@@ -359,8 +365,8 @@ def preflight(a) -> dict:
         raise bsn.SessionRefusal("D-s1: the watchdog must be pinned ON with prescaler 7 and load 1250000035")
     # blocker 2: both rulings are bound to THIS session and to the frozen prereg + pinned image
     pinned_seed = l6m["sessions"][a.session].get("master_seed")
-    bind_ruling(ruling, "whole-of-probe P3-L6", a.session, pinned_prereg, pinned, pinned_seed)
-    bind_ruling(pk, "provisioning P3-K", a.session, pinned_prereg, pinned, None)
+    bind_ruling(ruling, "whole-of-probe P3-L6", a.session, pinned_prereg, pinned, l6m_sha, pinned_seed)
+    bind_ruling(pk, "provisioning P3-K", a.session, pinned_prereg, pinned, l6m_sha, None)
     # blocker 4: the frozen carrier, by the files' own hashes, not the CLI's word
     car = l6m["instrument"]["carrier"]
     if _sha(a.manifest) != car["manifest_sha256"]:
@@ -386,7 +392,7 @@ def preflight(a) -> dict:
     records.boundary_established(boundary, time.time())
     # blocker 3: the D4 record is bound to this invocation — the OS user IS the runner
     # principal, the signer user and the key path ARE the record's
-    me = getpass.getuser()
+    me = pwd.getpwuid(os.getuid()).pw_name   # the effective UID's name, never LOGNAME/USER
     if boundary["runner_user"] != me:
         raise bsn.SessionRefusal(f"principal boundary: the record's runner_user {boundary['runner_user']!r} is not this OS user {me!r}")
     if boundary["signer_user"] != a.signer_user:
@@ -400,12 +406,11 @@ def preflight(a) -> dict:
     data = lo.operator_data(g.load_manifest(), lo.load_local_map())
     if lo.operator_data_sha256(data) != l6m["operator"]["operator_data_sha256"]:
         raise bsn.SessionRefusal("the operator data regenerated from local_map.json is not the pinned derivation")
-    l5m = json.loads(a.l5_manifest.read_text())
     return {"ruling": ruling, "l6_manifest": l6m, "manifest": manifest, "bitstream": a.bitstream,
             "image": a.image, "image_sha256": image_sha, "plan": plan, "expected_genomes": expected_genomes(plan, data),
             "signer": l3.SubprocessSigner(a.key, signer_user=a.signer_user),
             "provision_execute": a.provision_ruling is not None, "provision_ruling": a.provision_ruling,
-            "token": secrets.token_hex(16), "seed_nonce": int(l5m["carrier"]["nonce_seed"], 16),
+            "token": secrets.token_hex(16), "seed_nonce": int(car["nonce_seed"], 16),
             "heartbeat_s": l6m["protocol"]["heartbeat_s"]}
 
 
@@ -419,7 +424,6 @@ def main(argv=None) -> int:
     ap.add_argument("--boundary", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--manifest", type=Path, required=True, help="the carrier manifest")
-    ap.add_argument("--l5-manifest", type=Path, default=R / "manifests/l5_manifest.json")
     ap.add_argument("--l6-manifest", type=Path, default=L6_MANIFEST)
     ap.add_argument("--prereg", type=Path, default=PREREG)
     ap.add_argument("--bitstream", type=Path, required=True)
