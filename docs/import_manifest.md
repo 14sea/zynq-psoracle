@@ -352,6 +352,7 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-01T094951Z.json` |
 | `evidence/tests/test_report_2026-09-01T093833Z.json` |
 | `evidence/tests/test_report_2026-09-01T093330Z.json` |
 | `evidence/tests/test_report_2026-09-01T093157Z.json` |
@@ -439,6 +440,16 @@ revisions and neither may be silently substituted for the other.
 | `docs/l5_diag_spec.md` |
 | `docs/l5_session2_findings.md` |
 | `tests/test_axi_map_vs_rtl.py` |
+| `evidence/boundary/principal_boundary_2026-09-01-04.json` |
+| `evidence/l5_17A6_2026-09-01-04/L5_0_preflight.json` |
+| `evidence/l5_17A6_2026-09-01-04/L5_1_identity_page.json` |
+| `evidence/l5_17A6_2026-09-01-04/audits.json` |
+| `evidence/l5_17A6_2026-09-01-04/console.log` |
+| `evidence/l5_17A6_2026-09-01-04/run_log.json` |
+| `evidence/l5_17A6_2026-09-01-04/summary.json` |
+| `evidence/l5_17A6_2026-09-01-04/ymodem.log` |
+| `evidence/l5_17A6_2026-09-01-04/ymodem_app.log` |
+| `docs/l5_session4_findings.md` |
 | `evidence/boundary/principal_boundary_2026-09-01-03.json` |
 | `evidence/l5_17A6_2026-09-01-03/L5_0_preflight.json` |
 | `evidence/l5_17A6_2026-09-01-03/L5_1_identity_page.json` |
