@@ -1,18 +1,13 @@
-# L6 — calibration and soak of the P3 loop (preregistration v0.4, DRAFT; rec-v3 revision)
+# L6 preregistration v0.4 — draft, MERGED INTO THE FROZEN TEXT 2026-09-02 (historical)
 
-> **Standing: DRAFT, NOT FROZEN.** v0.3 (`docs/l6_soak_prereg.md`, sha `8daa81f2…`) stays
-> frozen and historical; it is not overwritten. This draft is the text that becomes v0.4
-> when the owner freezes it — after the rec-v3 review package
-> (`docs/l6_rec_batch_package.md`) passes and the rec-v3 image is promoted board-ready.
-> Freezing authorises nothing by itself: C1, C2 and S each still need their own ruling
-> pair, a power cycle and a fresh boundary record. `host/l6_runner.py` implements rec-v3
-> already and refuses to run against v0.3 or a pull-v2 image, by construction.
+> **Standing: HISTORICAL. Every delta below was merged into the frozen `docs/l6_soak_prereg.md`
+> v0.4 on 2026-09-02 (owner-authorised promotion/freeze batch after the rec-v3 correction
+> batch re-review PASS and the full P3 compatibility review PASS); this file records what the
+> draft asked for and is no longer the text a ruling binds. v0.3 (sha `8daa81f2…`) is
+> superseded, in git history.**
 >
-> **Written 2026-09-01** after S #1 (ruling `2026-09-01-11`, HOLD: `REC 465` lost ~536
-> console bytes at go+231 s; the pull protocol could re-request any audit chunk but not
-> the record; a host crash-path summary defect found on the way) under the owner's
-> pre-board protocol correction batch. Everything not stated as changed below is v0.3's,
-> verbatim in force.
+> Written 2026-09-01 after S #1 and corrected 2026-09-02 (blockers 1–4 of the owner's
+> review). Everything not stated as changed below was v0.3's text, verbatim in force.
 
 ## 0. The two questions, and what they are not
 

@@ -1231,3 +1231,32 @@ eab69c5, image promotion, v0.4 freeze. Next: the owner's full P3 compatibility r
 `docs/l6_rec_batch_package.md`; on its pass, push, promotion and freeze are ruled again.
 Board and rulings stay forbidden.
 
+## 2026-09-02 — full P3 compatibility review of the rec-v3 batch: PASS (host-only, scoped); push approved; promotion/freeze batch executed
+
+The owner's full review found no remaining blocker and ruled PASS — host-only, scoped: not
+a board or L6 session PASS. Checked: the P3 core interlock unrelaxed (RTL, carrier, AXI
+decode, DMA, oracle, ARM, score untouched; REC closes delivery and adds no scoring path);
+the REC transaction closed and bounded (one serialisation, same bytes ≤ 3, inter-byte and
+whole-line bounds, STOP_REC on exhaustion; the candidate ELF's linker map links the same
+firmware/p3_rectx.c the host test drives); the host acceptance boundary (first valid REC
+once; identical resend re-ACKed; other content PROTOCOL_REC; broken REC re-requested,
+never ACKed on a header; foreign seq / advance-without-ACK terminate); PASS not narrative
+(record/ledger seq sets equal, accepted, no conflict, attempt, RECACK; the control's exact
+shape); audit/CRC/KILL-HOLD boundaries kept; calibrations not reusable across protocols
+(binding; the pull-v2 reports refused); image and provenance (403f4ab5… twice from
+scratch; cd8360dc… DEFECTIVE; e19e1b12… the pull-v2 authority at the time; S #1
+counterfactual still a HOLD). 863 tests independently. Rulings: push 6fe2d51, eab69c5,
+2b2096f — done; a single host-only promotion/freeze batch — done in this commit:
+403f4ab5… is the sole pinned_at_build (board_ready true, protocol rec-v3); e19e1b12…
+moved to superseded_images, NOT defective, its hardware_history (C1 #4, C2 #1, S #1)
+attributed and kept; cd8360dc… stays DEFECTIVE; the v0.4 draft merged into the
+self-contained frozen docs/l6_soak_prereg.md (new sha pinned in the manifest; v0.3 and
+v0.2 in the supersedes chain and in git history; the draft file marked merged/historical);
+calibration.C1/C2 null under rec-v3, the pull-v2 pins kept as calibration.historical_pull_v2
+with the tests proving they cannot be fed to S; the manifest's status, the authority
+guards (tests/test_package_consistency.py: protocol rec-v3, two superseded, two withdrawn,
+v0.4 present tense, historical calibrations) and evidence/l6_build regenerated for the
+promoted image (the e19e1b12… record preserved). Not ruled: any ruling or board
+operation. Next: a frozen-artifact/hash short review of this batch; on its pass, the
+rec-v3 C1 and C2 ruling pairs are issued separately.
+

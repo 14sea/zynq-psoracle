@@ -1,20 +1,28 @@
 {
   "schema": "l6_manifest",
   "schema_version": "0.1.0",
-  "status": "FROZEN preregistration v0.3 (pull-protocol) + board-ready pull-v2 image e19e1b12… (promoted from next_image 2026-09-01; bd1454cd… superseded, not defective). This manifest still authorises no ruling and no board contact: each session needs its own bound ruling pair (whole-of-probe P3-L6 + provisioning P3-K, binding THIS file's committed sha256), a power cycle and a fresh boundary record; calibration.C1 is pinned (786dc3ec…, C1 #4 PASS 2026-09-01-09); calibration.C2 is pinned (a13e301f…, C2 #1 PASS 2026-09-01-10). Both calibrations are pinned; S #1 (ruling 2026-09-01-11) ran and HOLDed at 231 s on a lost REC line (docs/l6_s_session1_findings.md); it is archived, not re-run; the next S needs a named fix (REC re-request and the crash-path summary), review, its own ruling pair bound to THIS file's committed sha256, a power cycle, --duration-s 7200 and both pinned reports. S is not a Claim B data run. The byte-loss stop-loss is lifted for pull-v2 (owner 2026-09-01); its history stays; any future fault is re-counted under the frozen prereg §7.",
+  "status": "FROZEN preregistration v0.4 (rec-v3) + board-ready rec-v3 image 403f4ab5… (promoted 2026-09-02; e19e1b12… superseded, NOT defective; cd8360dc… withdrawn DEFECTIVE). This manifest still authorises no ruling and no board contact: each session needs its own bound ruling pair (whole-of-probe P3-L6 + provisioning P3-K, binding THIS file's committed sha256), a power cycle and a fresh boundary record; calibration.C1/C2 are null until the rec-v3 C1 and C2 have run under v0.4 (the pull-v2 calibrations are historical and refused). Order: frozen-artifact/hash short review → C1 ruling pair → C2 ruling pair → owner pins the bound records → S ruling pair. The byte-loss stop-loss lifted for pull-v2 (owner 2026-09-01) stands; S #1 counts as S failure #1 under §7.",
   "prereg": {
     "path": "docs/l6_soak_prereg.md",
-    "version": "v0.3",
-    "sha256": "8daa81f22add85660159e5c2474ecd4bda29d2a815c90fb5fdb8c1ef12c350ae",
-    "frozen": "2026-09-01, host-only, after the pull-batch package review PASS and the frozen-artifact doc-consistency correction (owner)",
-    "supersedes": {
-      "version": "v0.2",
-      "sha256": "90f5fa699e8de8f969802b95719b3827285d65af8216e48887e026fb1fe89bcf",
-      "note": "frozen 2026-09-01, ran C1 #1–#3; text in git history"
-    },
-    "frozen_when": "sha256 recorded here and every later artifact pins it; host/l6_runner.py refuses a prereg that does not hash to it",
-    "protocol": "pull-v2",
-    "protocol_note": "the wire protocol the frozen text preregisters; host/l6_runner.py implements rec-v3 (prereg v0.4 draft) and refuses to run a session against a preregistration or image of another protocol — no session runs until v0.4 is frozen and a rec-v3 image is board-ready"
+    "version": "v0.4",
+    "protocol": "rec-v3",
+    "sha256": "12799ef9ea31467fd1f25c16948d26bed47e42015400d7c8e2badcf10da25b39",
+    "frozen": "2026-09-02, host-only, owner's promotion/freeze batch after the rec-v3 correction batch re-review PASS and the full P3 compatibility review PASS; the v0.4 draft merged into the standalone text",
+    "supersedes": [
+      {
+        "version": "v0.3",
+        "sha256": "8daa81f22add85660159e5c2474ecd4bda29d2a815c90fb5fdb8c1ef12c350ae",
+        "protocol": "pull-v2",
+        "note": "frozen 2026-09-01, ran C1 #4, C2 #1, S #1; text in git history"
+      },
+      {
+        "version": "v0.2",
+        "sha256": "90f5fa699e8de8f969802b95719b3827285d65af8216e48887e026fb1fe89bcf",
+        "protocol": "push-v1",
+        "note": "frozen 2026-09-01, ran C1 #1–#3; text in git history"
+      }
+    ],
+    "frozen_when": "sha256 recorded here and every later artifact pins it; host/l6_runner.py refuses a prereg that does not hash to it"
   },
   "instrument": {
     "psmap_commit": "191ab0585332e75ac6f15179dc80eeec2d29f9f9",
@@ -35,13 +43,13 @@
     "genome_addresses_sha256": "895baf85ed31df9beae28a533646182ffb8d0e0735c9849ede9641af81ee7458"
   },
   "pinned_at_build": {
-    "app_image_sha256": "e19e1b1289ddd9e04bb68f52a42af39d1ec2053055a190a2f2493d8f0447b7de",
-    "elf_sha256": "2951cd58aede9b63dcf716b2d274dbc25ae854fa25d741671ab1bc04ceb76977",
+    "app_image_sha256": "403f4ab5e8073e13cde74168636e35b8721505f4b73d2da579d2e36788ee28cd",
+    "elf_sha256": "8687ef8dfb80da3b53d4bc82130e9e9b52eb8e8b520848868038cfa85bed6ae1",
     "app_image_bytes": 98324,
     "board_ready": true,
-    "protocol": "pull-v2",
-    "app_image": "firmware/bsp/out/p3_app_l6.bin (raw binary, 98324 bytes, loaded at 0x02000000, `go`) — IMAGE=p3_app_l6 firmware/bsp/build.sh",
-    "standing": "PROMOTED to board-ready 2026-09-01 (owner's freeze batch) after the pull-batch package review PASS. Built twice byte-identical. RAN ON 17A6 in C1 #4 (ruling 2026-09-01-09, evidence/l6_17A6_2026-09-01-09-C1/): PASS — 66 SCORED records (opening baseline, 64 random-safe candidates, closing baseline), 66/66 audits served and verified over the pull, 0 CRC drops, 0 rereads, closing control refused, TERM COMPLETED; rate report 786dc3ec… pinned as calibration.C1 (owner 2026-09-01). RAN ON 17A6 in C2 #1 (ruling 2026-09-01-10, evidence/l6_17A6_2026-09-01-10-C2/): PASS — map_guided_forced, 66 SCORED, 66/66 audits verified over the pull, 0 CRC drops, 0 rereads, closing control refused, TERM COMPLETED; rate report a13e301f… pinned as calibration.C2 (owner 2026-09-01). RAN ON 17A6 in S #1 (ruling 2026-09-01-11, evidence/l6_17A6_2026-09-01-11-S/): HOLD — 464 SCORED records in 231 s, 31/31 due audits verified, then REC 465 lost ~536 console bytes and the collector ended the epoch on the seq gap (prereg §6 item 4); a host crash-path summary defect found on the way; archived, not re-run. All 66 genomes and functional readouts equal C1 #3's under the superseded image bd1454cd… (same master seed) — the pull firmware changed the transport only. The superseded image bd1454cd… RAN ON 17A6 in C1 #1–#3 under prereg v0.2 (see hardware_history and superseded_images); the sessions' evidence stands under it.",
+    "protocol": "rec-v3",
+    "app_image": "firmware/bsp/out/p3_app_l6.bin (raw binary, loaded at 0x02000000, `go`) — IMAGE=p3_app_l6 firmware/bsp/build.sh",
+    "standing": "PROMOTED to board-ready 2026-09-02 (owner's promotion/freeze batch) after the rec-v3 correction batch re-review PASS and the full P3 compatibility review PASS (host-only, scoped). Built twice byte-identical. This image (403f4ab5…) has not yet run on hardware: its first hardware evidence will be a C1 session under a v0.4-bound ruling, and the forced REC-retry control makes that evidence arrive within seconds of go. The sessions in hardware_history RAN ON 17A6 under the superseded images: bd1454cd… (push-v1, prereg v0.2: C1 #1–#3) and e19e1b12… (pull-v2, prereg v0.3: C1 #4 PASS, C2 #1 PASS, S #1 HOLD); their evidence stands under those images. The first rec-v3 candidate cd8360dc… was withdrawn DEFECTIVE and never ran.",
     "watchdog_enabled": true,
     "watchdog_prescaler": 7,
     "watchdog_load_value": 1250000035,
@@ -73,7 +81,7 @@
     },
     "operator_data_sha256_compiled_in": "0c9c82a812be754dbba83c02b24b4321a95af46464a201a6f3c51374f2c80d79",
     "operator_image_note": "§2.1: firmware/p3_data.h carries P3_OPERATOR_DATA_SHA256 = the derivation hash of the map data compiled in (host/gen_firmware_data.py from local_map.json via host/l6_operators.py); the IDENT names it and the host regenerates and compares (tests/test_firmware_twin.py, host/gen_firmware_data.py --check)",
-    "build_evidence": "evidence/l6_build/build_evidence.json (regenerated for this image; the bd1454cd… build record is preserved as evidence/l6_build/build_evidence_bd1454cd.json)",
+    "build_evidence": "evidence/l6_build/build_evidence.json (regenerated for this image; the e19e1b12… record preserved as build_evidence_e19e1b12.json, bd1454cd… as build_evidence_bd1454cd.json)",
     "hardware_history": [
       {
         "session": "C1 #1",
@@ -148,6 +156,13 @@
         "elf_sha256": "388601fd431096dfb8de472a3cff0975930b0318e973d7d2f5ef307939ea6178",
         "why": "SUPERSEDED by the pull-protocol image, NOT defective: the push-protocol two-operator image that ran C1 #1–#3 on 17A6 under prereg v0.2 — including a complete 66-record COMPLETED epoch in C1 #3 — and whose audit push could not survive the console's byte losses. It stays identifiable because the session evidence belongs to it.",
         "prereg": "v0.2 90f5fa69…"
+      },
+      {
+        "sha256": "e19e1b1289ddd9e04bb68f52a42af39d1ec2053055a190a2f2493d8f0447b7de",
+        "elf_sha256": "2951cd58aede9b63dcf716b2d274dbc25ae854fa25d741671ab1bc04ceb76977",
+        "why": "SUPERSEDED by the rec-v3 image, NOT defective: the pull-v2 two-operator image that ran C1 #4 (PASS), C2 #1 (PASS) and S #1 (HOLD: a REC line lost bytes, which pull-v2 could not re-request) on 17A6 under prereg v0.3. Its calibrations are pinned as calibration.historical_pull_v2 and may not budget a rec-v3 soak (D-r5). It stays identifiable because the session evidence belongs to it.",
+        "prereg": "v0.3 8daa81f2…",
+        "build_evidence": "evidence/l6_build/build_evidence_e19e1b12.json"
       }
     ],
     "withdrawn_images": [
@@ -162,7 +177,7 @@
         "build_evidence": "evidence/l6_next_build/build_evidence_cd8360dc.json"
       }
     ],
-    "promoted_note": "next_image was promoted here 2026-09-01 and the key removed: one image, one authority. evidence/l6_next_build/ is that candidate phase's historical record."
+    "promoted_note": "next_image (403f4ab5…) was promoted here 2026-09-02 and the key removed: one image, one authority. evidence/l6_next_build/ is the candidate phase's record (cd8360dc… withdrawn, 403f4ab5… reviewed)."
   },
   "identity_page": {
     "layout": 2,
@@ -267,24 +282,42 @@
   },
   "calibration": {
     "C1": {
-      "rate_report_sha256": "786dc3ec9b4b30315f3656809a8907b7ee13f91d06aeeff1c52e203ecc2b5247",
-      "evidence": "evidence/l6_17A6_2026-09-01-09-C1/rate_report.json",
-      "session": "C1 #4",
-      "ruling": "2026-09-01-09",
-      "pinned_by": "14sea",
-      "pinned_at": "2026-09-01",
-      "note": "owner adjudication 2026-09-01 after independent re-check (66 scored / 66 host-verified audits / nonce chain 67; 66×3 audit hashes recomputed equal; 64 arms match the random-safe schedule, brackets [1,66]; 1785 inbound frames exact, CRC 0/8, no abort, no retry; rate report regenerated field-identical: 3909.91 eval/h, CoV 0.01588, failure rate 0). The S runner imports rate_A only from bytes hashing to this pin."
+      "rate_report_sha256": null,
+      "evidence": null
     },
     "C2": {
-      "rate_report_sha256": "a13e301f2f2ee2bbc12751fb883b4e189f0e27122e6899d5aa3c53f514568959",
-      "evidence": "evidence/l6_17A6_2026-09-01-10-C2/rate_report.json",
-      "session": "C2 #1",
-      "ruling": "2026-09-01-10",
-      "pinned_by": "14sea",
-      "pinned_at": "2026-09-01",
-      "note": "owner adjudication 2026-09-01 after independent re-check (66 scored / 66 audited / nonce chain 67; 66×3 hashes equal; 64 map-guided genomes match twin/schedule; 1785 inbound frames, CRC 0/8, no retry/timeout/abort; rate report regenerated field-identical: 3632.996 eval/h, CoV 0.01501, failure rate 0; C1/C2 baselines identical, all 64 candidates differ). The S runner imports rate_B only from bytes hashing to this pin. Owner-verified S derivation from the two pins: abba, seed 1278628687, N 6539, sampled audits 412, expected inbound frames 121449, CRC budget 486, duration 7200 s, runner timeout 8702 s — the runner derives these itself and refuses a mismatch."
+      "rate_report_sha256": null,
+      "evidence": null
     },
-    "note": "D-s3: filled by the owner after C1 and C2; the S runner imports rate_A/rate_B ONLY from rate reports whose bytes hash to these pins. prereg v0.4 (rec-v3): a report must also carry a `binding` equal to the current image/prereg/protocol/session/mode/seed pins; the C1 #4 and C2 #1 reports pinned here were made under v0.3/pull-v2 and carry none — they are refused by the rec-v3 runner and C1/C2 are re-run under the new image before any S"
+    "historical_pull_v2": {
+      "C1": {
+        "rate_report_sha256": "786dc3ec9b4b30315f3656809a8907b7ee13f91d06aeeff1c52e203ecc2b5247",
+        "evidence": "evidence/l6_17A6_2026-09-01-09-C1/rate_report.json",
+        "session": "C1 #4",
+        "ruling": "2026-09-01-09",
+        "pinned_by": "14sea",
+        "pinned_at": "2026-09-01",
+        "note": "owner adjudication 2026-09-01 after independent re-check (66 scored / 66 host-verified audits / nonce chain 67; 66×3 audit hashes recomputed equal; 64 arms match the random-safe schedule, brackets [1,66]; 1785 inbound frames exact, CRC 0/8, no abort, no retry; rate report regenerated field-identical: 3909.91 eval/h, CoV 0.01588, failure rate 0). The S runner imports rate_A only from bytes hashing to this pin.",
+        "image_sha256": "e19e1b1289ddd9e04bb68f52a42af39d1ec2053055a190a2f2493d8f0447b7de",
+        "prereg": "v0.3 8daa81f2…",
+        "protocol": "pull-v2",
+        "standing": "HISTORICAL — a v0.3/pull-v2 calibration (C1 #4 PASS, pinned by the owner 2026-09-01); NOT reusable under rec-v3 (D-r5): carries no binding and is refused by host/l6_runner.py for any S"
+      },
+      "C2": {
+        "rate_report_sha256": "a13e301f2f2ee2bbc12751fb883b4e189f0e27122e6899d5aa3c53f514568959",
+        "evidence": "evidence/l6_17A6_2026-09-01-10-C2/rate_report.json",
+        "session": "C2 #1",
+        "ruling": "2026-09-01-10",
+        "pinned_by": "14sea",
+        "pinned_at": "2026-09-01",
+        "note": "owner adjudication 2026-09-01 after independent re-check (66 scored / 66 audited / nonce chain 67; 66×3 hashes equal; 64 map-guided genomes match twin/schedule; 1785 inbound frames, CRC 0/8, no retry/timeout/abort; rate report regenerated field-identical: 3632.996 eval/h, CoV 0.01501, failure rate 0; C1/C2 baselines identical, all 64 candidates differ). The S runner imports rate_B only from bytes hashing to this pin. Owner-verified S derivation from the two pins: abba, seed 1278628687, N 6539, sampled audits 412, expected inbound frames 121449, CRC budget 486, duration 7200 s, runner timeout 8702 s — the runner derives these itself and refuses a mismatch.",
+        "image_sha256": "e19e1b1289ddd9e04bb68f52a42af39d1ec2053055a190a2f2493d8f0447b7de",
+        "prereg": "v0.3 8daa81f2…",
+        "protocol": "pull-v2",
+        "standing": "HISTORICAL — a v0.3/pull-v2 calibration (C2 #1 PASS, pinned by the owner 2026-09-01); NOT reusable under rec-v3 (D-r5): carries no binding and is refused by host/l6_runner.py for any S"
+      }
+    },
+    "note": "D-s3 + D-r5: filled by the owner after the rec-v3 C1 and C2; the S runner imports rate_A/rate_B ONLY from rate reports whose bytes hash to these pins AND whose binding equals the current image/prereg/protocol/session/mode/seed pins. The pull-v2 pins are kept above as explicit historical records and tests prove they cannot be fed to S."
   },
   "rulings_required": [
     "whole-of-probe P3-L6",
@@ -324,23 +357,5 @@
     "signer_user": "== --signer-user",
     "key": "== <boundary.key_store>/K.bin (== --key)",
     "note": "the D4 boundary record is bound to the invocation, not only to itself (board-phase preflight blocker 3)"
-  },
-  "next_image": {
-    "app_image_sha256": "403f4ab5e8073e13cde74168636e35b8721505f4b73d2da579d2e36788ee28cd",
-    "elf_sha256": "8687ef8dfb80da3b53d4bc82130e9e9b52eb8e8b520848868038cfa85bed6ae1",
-    "app_image_bytes": 98324,
-    "board_ready": false,
-    "protocol": "rec-v3",
-    "app_image": "firmware/bsp/out/p3_app_l6.bin (raw binary, loaded at 0x02000000, `go`) — IMAGE=p3_app_l6 firmware/bsp/build.sh",
-    "standing": "CANDIDATE, host-only, NOT board-ready, NEVER run on hardware: the rec-v3 image after the owner's review of the first candidate (2026-09-02; cd8360dc… withdrawn DEFECTIVE — see withdrawn_images): whole-line bounded receive (p3_rectx_recv_line), stale acknowledgements in the sign-reply wait bound to the previous transaction, the stale limit exact; host side: broken resend of an accepted record → RECGET, REC closure gate, exact control shape. Two from-scratch builds byte-identical. Promotion to pinned_at_build needs the owner's short re-review of the correction batch and then the full P3 compatibility review; then v0.4 frozen; then NEW C1/C2 under it before any S.",
-    "build_evidence": "evidence/l6_next_build/build_evidence.json (records of the two earlier candidate phases preserved as build_evidence_e19e1b12.json and build_evidence_cd8360dc.json)",
-    "wire": "app_identity 1.2.0 (+ protocol, rec_retry_control); loop_record 1.1.0 unchanged; REC is a transaction: REC → RECACK | RECGET → REC (same bytes) ×≤3; STOP_REC when unacknowledged; host/l6_rec.py, firmware/p3_rectx.c"
-  },
-  "next_prereg": {
-    "path": "docs/l6_soak_prereg_v0.4_draft.md",
-    "version": "v0.4-draft",
-    "protocol": "rec-v3",
-    "sha256": null,
-    "status": "DRAFT — v0.3 stays frozen and historical; v0.4 is frozen only by the owner after the review package passes; host/l6_runner.py already implements rec-v3 and refuses to run against v0.3"
   }
 }

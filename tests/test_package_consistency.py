@@ -103,11 +103,14 @@ class PinnedL6Image(unittest.TestCase):
         nxt = L6.get("next_image")
         if nxt is None:
             self.assertTrue(L6_PINNED["board_ready"])
-            self.assertEqual(L6_PINNED["protocol"], "pull-v2")
+            self.assertEqual(L6_PINNED["protocol"], "rec-v3")           # promotion 2026-09-02
+            self.assertEqual(L6["prereg"]["protocol"], "rec-v3")
             self.assertIn("promoted", L6_PINNED["promoted_note"])
             sup = L6_PINNED["superseded_images"]
-            self.assertTrue(sup and sup[0]["sha256"].startswith("bd1454cd"))
-            self.assertIn("NOT defective", sup[0]["why"])
+            self.assertEqual([s["sha256"][:8] for s in sup], ["bd1454cd", "e19e1b12"])
+            for s in sup:
+                self.assertIn("NOT defective", s["why"])
+            self.assertEqual([w["sha256"][:8] for w in L6_PINNED["withdrawn_images"]], ["47b8fa09", "cd8360dc"])
             e = json.loads((R / "evidence/l6_next_build/build_evidence.json").read_text())
             self.assertEqual(e["image"]["bin_sha256"], L6_PINNED["app_image_sha256"],
                              "the promoted pin is the candidate the review passed")
@@ -162,6 +165,28 @@ class PinnedL6Image(unittest.TestCase):
         self.assertIn("v0.2 HISTORICAL — resolved by pull-v2", text)
         self.assertIn("`AUDIT_READY` → (`AUDITGET` → `AUDIT`)×chunks", text)
         self.assertIn("pull-v2", text)
+        # v0.4 (2026-09-02): the frozen text preregisters rec-v3 in the present tense
+        self.assertIn("FROZEN 2026-09-02", text.splitlines()[0]); self.assertIn("v0.4", text.splitlines()[0])
+        for present in ("rec-v3", "`RECACK {seq}`", "`RECGET {seq}`", "STOP_REC", "rec_closure_findings",
+                        "rec_control_findings", "D-r5", "403f4ab5", "historical_pull_v2", "may not be reused"):
+            self.assertIn(present, text, present)
+        self.assertNotIn("cd8360dc… is `next_image`", text)
+
+    def test_the_v0_3_calibrations_are_historical_and_unpinned(self):
+        """Promotion/freeze batch 2026-09-02: under rec-v3 the active C1/C2 pins are null;
+        the pull-v2 reports stay on record as historical and are refused for S by the
+        runner (tests/test_l6_runner.py checks the real files)."""
+        for k in ("C1", "C2"):
+            self.assertIsNone(L6["calibration"][k]["rate_report_sha256"], k)
+        hist = L6["calibration"]["historical_pull_v2"]
+        self.assertEqual(hist["C1"]["rate_report_sha256"][:8], "786dc3ec")
+        self.assertEqual(hist["C2"]["rate_report_sha256"][:8], "a13e301f")
+        for k in ("C1", "C2"):
+            self.assertEqual(hist[k]["image_sha256"][:8], "e19e1b12"); self.assertEqual(hist[k]["protocol"], "pull-v2")
+            self.assertIn("HISTORICAL", hist[k]["standing"])
+            path = R / hist[k]["evidence"]
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), hist[k]["rate_report_sha256"])
+            self.assertNotIn("binding", json.loads(path.read_text()), "a pull-v2 report carries no rec-v3 binding")
 
     def test_the_frozen_prereg_hashes_to_its_pin(self):
         """Frozen 2026-09-01 after the compatibility review PASS: the document on disk must
@@ -232,9 +257,9 @@ class HardwareHistoryIsConsistent(unittest.TestCase):
         if self.SESSIONS:
             self.assertIn("RAN ON 17A6", standing)
             self.assertNotIn("Never run on hardware", standing)
-            # the sessions belong to the superseded image: the standing must attribute them
-            if L6_PINNED.get("superseded_images"):
-                self.assertIn(L6_PINNED["superseded_images"][0]["sha256"][:8], standing)
+            # the sessions belong to the superseded images: the standing must attribute them
+            for s in L6_PINNED.get("superseded_images", []):
+                self.assertIn(s["sha256"][:8], standing)
             self.assertEqual(len(history), len(self.SESSIONS), (history, self.SESSIONS))
             for h, d in zip(history, self.SESSIONS):
                 self.assertTrue((R / h["evidence"]).is_dir(), h)
@@ -302,6 +327,7 @@ class WithdrawnHashesStayInHistory(unittest.TestCase):
         "docs/l6_rec_batch_package.md": "names the withdrawn first candidate and the four blockers that withdrew it",
         "docs/l6_rec_transaction_design.md": "§8: the review of the first candidate, by hash",
         "docs/import_manifest.md": "lists the preserved build record of the withdrawn candidate by its file name",
+        "docs/l6_soak_prereg.md": "§1: names the withdrawn candidate as one the frozen text forbids to run",
     }
     # evidence/ is recorded observation: never edited, never scanned
     SKIP_PREFIXES = ("evidence/", "data/", "builds/", "imported/", "gate_runs/", "fixtures/")

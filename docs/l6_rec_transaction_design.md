@@ -2,9 +2,9 @@
 
 > **Standing: host-only, delivered 2026-09-01 in the owner's pre-board protocol
 > correction batch after S #1; corrected 2026-09-02 after the owner's review (§8).** No
-> ruling, no board, no prereg freeze, no S. The candidate image `403f4ab5…` is
-> `next_image`, `board_ready: false`, never run; the first candidate `cd8360dc…` is
-> withdrawn DEFECTIVE (§8).
+> ruling, no board, no S. After the owner's full P3 compatibility review PASS (2026-09-02)
+> the image `403f4ab5…` is the board-ready pin (`protocol: rec-v3`) and prereg v0.4 is
+> frozen; it has never run; the first candidate `cd8360dc…` is withdrawn DEFECTIVE (§8).
 
 ## 1. What it has to fix
 

@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "purpose": "Post-build provenance for the pinned P3 L6 application image, regenerated after a clean rebuild (reviewer 2026-08-31).",
   "git": {
-    "head": "2b2096f75a3cee1c999f92725514543d4a144ae1",
+    "head": "fa898c3fbfeed0fdd3b285e5bd0da32575823485",
     "worktree_dirty": true
   },
   "toolchain": {
@@ -22,22 +22,22 @@
   "image": {
     "bin": "firmware/bsp/out/p3_app_l6.bin",
     "bin_bytes": 98324,
-    "bin_sha256": "403f4ab5e8073e13cde74168636e35b8721505f4b73d2da579d2e36788ee28cd",
-    "elf_sha256": "8687ef8dfb80da3b53d4bc82130e9e9b52eb8e8b520848868038cfa85bed6ae1",
+    "bin_sha256": "e19e1b1289ddd9e04bb68f52a42af39d1ec2053055a190a2f2493d8f0447b7de",
+    "elf_sha256": "2951cd58aede9b63dcf716b2d274dbc25ae854fa25d741671ab1bc04ceb76977",
     "reproduced_byte_identical": true,
-    "expected_bin_sha256": "403f4ab5e8073e13cde74168636e35b8721505f4b73d2da579d2e36788ee28cd"
+    "expected_bin_sha256": "e19e1b1289ddd9e04bb68f52a42af39d1ec2053055a190a2f2493d8f0447b7de"
   },
   "linker_map": {
     "path": "evidence/l6_build/p3_app_l6.map",
-    "sha256": "963dcd0fb3f5b6bcb4c0ea347bb1672a2dd9194bd23b6c4cfb87c60e7f6ed16d"
+    "sha256": "628dbacea41fc1dbab92e0f635afa673fd312b5e17a0922f9cc9aebfa6e6b1e8"
   },
   "tests": {
-    "report": "evidence/tests/test_report_2026-09-02T084227Z.json",
-    "report_sha256": "829984911b9f15833b9f0dec19ff7aca94d764349d3b2706e6326180ac538a40",
+    "report": "evidence/tests/test_report_2026-09-01T193428Z.json",
+    "report_sha256": "0d36b8e5d78c5866f4be66fe2d1923a9a9952a441187edaaea61a577faaba6a5",
     "status": "cited and verified green by the generator",
-    "ran": 864,
+    "ran": 774,
     "skipped": 1,
-    "head_at_run": "2b2096f75a3cee1c999f92725514543d4a144ae1",
+    "head_at_run": "fa898c3fbfeed0fdd3b285e5bd0da32575823485",
     "result_line": "OK (skipped=1)",
     "note": "the fail-closed test evidence (count / skipped / boundary / head_at_run) is this report, cited explicitly and verified green by the generator; run host/run_tests.sh in a staged state so it covers the new files."
   }

@@ -1,13 +1,15 @@
-# L6 — calibration and soak of the P3 loop (preregistration v0.3, FROZEN 2026-09-01; D-s1..D-s4 ruled 2026-09-01; pull-protocol revision)
+# L6 — calibration and soak of the P3 loop (preregistration v0.4, FROZEN 2026-09-02; D-s1..D-s4 ruled 2026-09-01; rec-v3 revision)
 
-> **Standing: v0.3, FROZEN 2026-09-01 (host-only) — its sha256 is pinned in
+> **Standing: v0.4, FROZEN 2026-09-02 (host-only) — its sha256 is pinned in
 > `manifests/l6_manifest.json` `prereg.sha256` and `host/l6_runner.py` refuses any text that
-> does not hash to it. v0.3 supersedes the frozen v0.2 (sha `90f5fa69…`, in git history):
-> after C1's three transport/instrument HOLDs and the byte-loss stop-loss, the audit
-> transport became the host-paced sparse pull (`docs/l6_audit_pull_design.md`, package
-> `docs/l6_pull_batch_package.md`, both review-passed) and the image became `e19e1b12…`
-> (pull-v2). Freezing authorises nothing by itself: the board phase still waits for its own
-> rulings — no ruling exists.** Written 2026-09-01 on the `zynq-fabricmap` owner ruling recorded in
+> does not hash to it. v0.4 supersedes the frozen v0.3 (sha `8daa81f2…`, in git history),
+> which itself superseded v0.2 (sha `90f5fa69…`): after S #1 (ruling `2026-09-01-11`) lost
+> ~536 console bytes inside `REC 465` — the one frame type the pull protocol could not
+> re-request — the loop record became a transaction (rec-v3: `docs/l6_rec_transaction_design.md`,
+> package `docs/l6_rec_batch_package.md`, correction batch and full P3 compatibility
+> review passed 2026-09-02) and the image became `403f4ab5…`. Freezing authorises nothing
+> by itself: the board phase still waits for its own rulings — no ruling exists.** Written
+> 2026-09-01 on the `zynq-fabricmap` owner ruling recorded in
 > `zynq-fabricmap/docs/claimb_resumption_memo.md` §0: Claim B's readback leg is
 > RESUMPTION-ELIGIBLE but stays PAUSED "until a calibration/soak preregistration has passed
 > and the two-operator image has completed P3 compatibility review", and "the first Claim B
@@ -16,30 +18,38 @@
 > Claim B's own preregistration, arms, budget and score stay `zynq-fabricmap`'s.
 
 Frozen when: committed with its content sha256 recorded in `manifests/l6_manifest.json` and
-every later artifact pinning that hash. **That is now the case for v0.3** (2026-09-01, after
-the pull-batch package review PASS); v0.2 was frozen the same day and is superseded, not
-erased — its hash and text live in git history and in the session evidence that ran under
-it. Any edit from here is a new version with a new hash and a new freeze.
+every later artifact pinning that hash. **That is now the case for v0.4** (2026-09-02, after
+the rec-v3 correction batch re-review PASS and the full P3 compatibility review PASS);
+v0.3 and v0.2 were frozen on 2026-09-01 and are superseded, not erased — their hashes and
+texts live in git history and in the session evidence that ran under them. Any edit from
+here is a new version with a new hash and a new freeze.
 
 ## 0. The two questions, and what they are not
 
 - **Q1 (calibration).** On the P3 path, with the image Claim B will actually use, what is the
   measured end-to-end rate per candidate — sign round trip, staging, link-2 witness, DMA,
-  link-3 readback, audit service, ARM + settle + score — and its failure rate? Claim B's
-  preregistration (`claimb_preregistration.md` §6, "The budget still cannot be frozen here")
-  defines exactly this calibration and says the budget derives from it. **No PASS
-  calibration exists to pin: `calibration.C1`/`C2` are null.** What does exist is
-  informational only: L5 session 4 carried no per-frame timestamps at all (a v0.2
-  historical gap, closed by the §4 instrument batch), and C1 #1/#3 — HOLD sessions on the
-  superseded push-protocol image `bd1454cd…` — measured ≈ 1470–1586 evaluations/hour with
-  CoV ≈ 0.02 (`docs/l6_c1_session1_findings.md` §4, `docs/l6_c1_session3_findings.md`
-  §3.2). Those numbers may size expectations but may not be pinned: the sessions were
-  HOLDs and the audit transport has since changed to pull-v2, which changes the audit
-  stage's cost. C1 under this v0.3 is what produces the pinnable record.
+  link-3 readback, audit service, record transaction, ARM + settle + score — and its failure
+  rate? Claim B's preregistration (`claimb_preregistration.md` §6, "The budget still cannot
+  be frozen here") defines exactly this calibration and says the budget derives from it.
+  **No PASS
+  calibration exists to pin under rec-v3: `calibration.C1`/`C2` are null.** What does exist is
+  historical: C1 #4 (`786dc3ec…`, 3909.9 evaluations/hour, CoV 0.016) and C2 #1
+  (`a13e301f…`, 3633.0 evaluations/hour, CoV 0.015), both PASS on 17A6 under v0.3 and the
+  pull-v2 image `e19e1b12…`, both pinned by the owner at the time and recorded in the
+  manifest as `calibration.historical_pull_v2`. **They may not be reused**: the record
+  transaction adds one host round trip inside every candidate's period, so the nominal
+  candidate period of the rec-v3 image is not the pull-v2 image's; the runner refuses a
+  calibration report that carries no rec-v3 binding (D-r5). Before them, L5 session 4
+  carried no per-frame timestamps at all (a v0.2 historical gap, closed by the §4
+  instrument batch), and C1 #1/#3 — HOLD sessions on the push-protocol image
+  `bd1454cd…` — measured ≈ 1470–1586 evaluations/hour with CoV ≈ 0.02. Those numbers may
+  size expectations but may not be pinned. C1 and C2 under this v0.4 are what produce the
+  pinnable records.
 - **Q2 (soak).** Does the P3 loop hold every invariant L5 established — heartbeat cadence,
   nonce chain, host-recomputed audits, baseline equality, fail-closed ends — **for hours,
   unattended, under the sampled audit policy and with the watchdog decided**? L5's PASS
-  explicitly excluded long-run stability.
+  explicitly excluded long-run stability. S #1 (v0.3) ran 231 s of a correct soak and then
+  lost a record line; it established nothing about hours.
 
 **Not Claim B.** No primary metric, no holdout, no comparison between arms is made or
 reported as a finding here; the arms run only so that the *instrument* is calibrated and
@@ -52,7 +62,7 @@ host-supplied. **Not cross-chip**: `17A6` only. **Nothing about the ICAPE2 readb
 |---|---|
 | instrument repositories | `zynq-psmap` `191ab05`; `zynq-psoracle` at the commit that freezes this document; `zynq-fabricmap` artifacts at `71666b02` (link 1, `local_map.json`, certificates), re-verified by hash at session start (fabricmap's falsifier 3) |
 | carrier | `builds/p3/p3.bit` `956379fa…` (unchanged since L1) |
-| application image | **the two-operator image** (§2) — built, byte-identical across two from-scratch builds, P3-compatibility-reviewed, pinned in `manifests/l6_manifest.json`. **L6 does not run on `a7c73d1f…`**: calibrating one image to budget another would repeat the mistake `zynq-autoehw` caught (a "2 h" derived from the wrong path's rate) |
+| application image | **the rec-v3 two-operator image `403f4ab5…`** (§2) — built, byte-identical across two from-scratch builds, P3-compatibility-reviewed (2026-09-02), pinned in `manifests/l6_manifest.json`. **L6 does not run on `a7c73d1f…`, `bd1454cd…` or `e19e1b12…`**: calibrating one image to budget another would repeat the mistake `zynq-autoehw` caught (a "2 h" derived from the wrong path's rate); `cd8360dc…` is withdrawn DEFECTIVE and must not run |
 | board / control plane | EBAZ4203 `17A6`, U-Boot → standalone crossing, D4 principal boundary verified as the runner < 6 h before every session |
 | genome universe | 292 bits over the twelve target FARs, addresses sha256 `895baf85…` (`manifests/l5_manifest.json` `genome`) |
 
@@ -101,17 +111,61 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
    complete means NO ARM**: the record is the new outcome `STOP_AUDIT` (evidence: the
    oracle self-report + `audit_stop {why, chunks_served}`, never `audited`, always a HOLD
    under either policy) and the epoch stops (restore, TERM).
+6b. **The loop record is a transaction (rec-v3, v0.4).** For every record the application
+   sends `REC` and waits, with a bound (`P3_REC_IDLE_POLLS`, a count of RX-FIFO polls like
+   the settle poll), for the host's `RECACK {seq}` (accepted, or a byte-identical duplicate
+   of the accepted record) or `RECGET {seq}` (a REC-shaped line for this seq arrived
+   broken); on a `RECGET`, or when the wait runs out, it sends **the same bytes** again (the
+   record is serialised once; the serialiser's tally counts it once); after **3
+   transmissions** without an acknowledgement the epoch stops (`STOP_REC`: restore, TERM)
+   and **no further candidate is proposed**. Token, frame seq and payload seq bind every
+   line; the application answers only its own record's `RECACK`/`RECGET` and ignores stale
+   or foreign lines (bounded). Before every `SIGNREQ` it drains the RX FIFO (stale host
+   lines are stale by construction). The state machine is `firmware/p3_rectx.c`, a pure
+   unit compiled on the host and driven by the contract test over a pipe; `p3_app.c`
+   supplies only its I/O.
+6c. **The forced REC-retry control.** Identity page `flags.bit4`. When set — **and the
+   runner sets it in every session** — the application corrupts the CRC of the first
+   transmission of the opening baseline's record (seq 1, one hex digit of the CRC field)
+   so that every session proves the real wire retry within its first seconds. **The
+   preregistered shape is exact**: the host's per-seq ledger for seq 1 reads attempts
+   `["crc", "ok"]` and nothing more, accepted, no conflict, exactly one `RECGET` sent by
+   the host and at least one `RECACK`. Any other shape — a third attempt because the
+   RECACK was lost, a second RECGET, a resend accepted without a RECGET — is a different
+   transport event that makes the control's evidence ambiguous and is a HOLD naming the
+   shape (`host/l6_checks.rec_control_findings`). The deliberate drop counts against the
+   D-s4 budget like any other. The IDENT echoes the flag.
+6d. **`app_identity` 1.2.0** adds `protocol` (`"rec-v3"`) and `rec_retry_control` (bool).
+   The runner refuses an image whose IDENT does not declare `rec-v3`, and a session whose
+   IDENT does not echo the page's control flag.
+6e. **Every wait for a host line is bounded on the whole line.** The application's receiver
+   (`p3_rectx_recv_line`, the pure unit) abandons a line as partial when no byte arrives for
+   the idle bound after at least one did, and in any case after four idle bounds in all,
+   so a `RECACK`/`RECGET` (or an `AUDITGET`) cut mid-line, with its newline lost, is
+   discarded and the transaction's own bound then runs out — a resend, or `STOP_REC` —
+   never a block until the watchdog. (The L5 sign-reply wait is unchanged and remains
+   watchdog-covered.) Per wait, at most `P3_RECTX_STALE_LIMIT` (64) lines that are not
+   this transaction's are ignored; the 64th ends the wait like the bound.
+6f. **A stale acknowledgement in the sign-reply wait is skipped only when it names the
+   transaction just completed** — frame seq and payload seq both equal to the previous
+   record's seq, at most `P3_REPLY_STALE_LIMIT` (8) of them; any other `RECACK`/`RECGET`
+   there ends the epoch PROTOCOL.
 7. Review by the owner against this list, item by item, before any L6 ruling; the image
    hash is then pinned in `manifests/l6_manifest.json` and this document is frozen.
 
-## 3. Decisions — RULED by the owner, 2026-09-01
+## 3. Decisions — RULED by the owner, 2026-09-01 (D-s1..D-s4) and 2026-09-02 (D-r1..D-r5)
 
 | id | ruling |
 |---|---|
 | **D-s1** watchdog | **ON.** Prescaler 7, 30 s (`load 1 250 000 035` at PERIPHCLK 333.33 MHz, board-confirmed 2026-09-01-05). Arm and kick are gated by the identity page's `flags.bit1`; the **bit1 = 0 path keeps L5's behaviour exactly**. The build and its tests must pin the **actual** load value written, not the derivation. |
-| **D-s2** audit policy for the soak | **Sampled, accepted in principle, with the timing requirement of §3a as a condition.** (v0.2 history: the v0.1 wording "every non-`SCORED` self-reporting record audited" was not implementable under the push-era wire protocol; §3a fixed the rule, and v0.3's pull transport (§2.6a) is its implementation — the words persist on the board until pulled or the record is emitted.) |
-| **D-s3** soak duration | **2 h, accepted.** N = ⌊0.9 × min(rate_A, rate_B) × T⌋, with rate_A and rate_B imported **only** from the two calibration records (C1, C2) by their hashes. |
-| **D-s4** CRC budget | **Frame-count scaling, with a closed formula:** `budget = ceil(4 × expected_protocol_frames / 1000)`, where `expected_protocol_frames` is derived **before the session starts** from N, the audit schedule and the fixed brackets (`IDENT`×1, `SIGNREQ`×(N+2), `HB`×16 per candidate, `AUDIT_READY`×1 + `AUDIT`×8 per audited candidate — protocol `pull-v2`, `host/l6_schedule.expected_frames`; retransmitted chunks arrive on top and are what the budget is FOR; the host's `AUDITGET`/`AUDITDONE`/`AUDITABORT` are outbound and not budgeted — `REC`×(N+2), `CLOSE`×1, `TERM`×1) — **never from the count actually received**. Independently of the CRC total, **any missing `AUDIT`, `REC` or `TERM`** is the corresponding structural defect and is a HOLD even when the CRC drops are within budget. |
+| **D-s2** audit policy for the soak | **Sampled, accepted in principle, with the timing requirement of §3a as a condition.** (v0.2 history: the v0.1 wording "every non-`SCORED` self-reporting record audited" could not be honoured under the push-era wire protocol; §3a fixed the rule, and the pull transport (§2.6a) is its implementation — the words persist on the board until pulled or the record is emitted.) |
+| **D-s3** soak duration | **2 h, accepted.** N = ⌊0.9 × min(rate_A, rate_B) × T⌋, with rate_A and rate_B imported **only** from the two calibration records (C1, C2) by their hashes **and their bindings (D-r5)**. |
+| **D-s4** CRC budget | **Frame-count scaling, with a closed formula:** `budget = ceil(4 × expected_protocol_frames / 1000)`, where `expected_protocol_frames` is derived **before the session starts** from N, the audit schedule and the fixed brackets (`IDENT`×1, `SIGNREQ`×(N+2), `HB`×16 per candidate, `AUDIT_READY`×1 + `AUDIT`×8 per audited candidate — protocol `rec-v3` keeps pull-v2's inbound brackets, `host/l6_schedule.expected_frames`; retransmitted chunks and records arrive on top and are what the budget is FOR; the host's `AUDITGET`/`AUDITDONE`/`AUDITABORT`/`RECACK`/`RECGET` are outbound and not budgeted; the control's deliberately corrupted first `REC` of seq 1 is a CRC drop, not a frame — `REC`×(N+2), `CLOSE`×1, `TERM`×1) — **never from the count actually received**. Independently of the CRC total, **any missing `AUDIT`, `REC` or `TERM`** is the corresponding structural defect and is a HOLD even when the CRC drops are within budget; under rec-v3 a missing `REC` can only mean the transaction was exhausted or the board advanced without acknowledgement, both of which are ends in their own right. |
+| **D-r1** one ledger | Every inbound line that fails CRC or is malformed, of any type, is counted once in the session's inbound ledger (`timeline.json`) and, when it is a REC attempt, also in the per-seq REC ledger (`audits.json` `recs[]`, raw lines verbatim). Retries never remove the original broken line from either. |
+| **D-r2** content is the validator's | A CRC-valid record is accepted once and judged by `validate_standalone_run_log`; a retry never replaces an accepted record; a same-seq record with other content is a PROTOCOL end; a falsifier cannot be washed out by retransmission. |
+| **D-r3** current-candidate authority | The host acknowledges only the record of the candidate whose sign exchange the relay answered and whose record is outstanding; a `REC` for another seq, and a `SIGNREQ` while a record is outstanding, end the epoch PROTOCOL ("the board advanced without an acknowledgement"). **A byte-identical duplicate of the accepted record is the only thing re-acknowledged**: a broken resend of an accepted record draws a `RECGET`, and the next CRC-valid resend earns the `RECACK` only if it equals the accepted payload — otherwise PROTOCOL. |
+| **D-r4** the crash-path summary | A collector-written (`CRASHED`) `session_summary` carries `audit.audited` = the number of records whose served words the **host audit gate** verified (`validators.audit.verify`), never a pull count and never the firmware's mark; if the gate refuses the chunks the count is 0 with the refusal named. |
+| **D-r5** calibration binding | Every rate report carries `binding` = {image_sha256, prereg_sha256, protocol, session, schedule_mode, master_seed} written by the runner from the pins it verified; the S runner imports rate_A/rate_B only from reports whose bytes hash to the pins **and** whose binding equals the current pins; a report without a binding is refused. A new image, preregistration or protocol therefore needs new C1/C2. |
 
 ### 3a. The audit timing requirement (D-s2's blocker, and its resolution)
 
@@ -120,12 +174,12 @@ the host's `AUDITREQ` was attached to the sign reply, i.e. it reached the applic
 **before staging**, and the application pushed raw words only if it had been asked; there
 was no evidence ring, so a candidate the sampled schedule did not select that then turned
 out to be a non-`SCORED` self-report could no longer be audited — "all non-`SCORED`
-self-reporting records audited" could not be honoured after the fact. **v0.3's pull
+self-reporting records audited" could not be honoured after the fact. **The pull
 transport (§2.6a) removes the constraint**: the words persist in the board's buffers until
 the record is emitted, and the application itself announces `AUDIT_READY` for every
 non-`SCORED` self-report, so item 2 below is implementable directly. The rule stands
 unchanged; only its mechanism moved from an unconditional push to the unconditional
-announcement of a pull.
+announcement of a pull. rec-v3 leaves the audit transport untouched.
 
 **The rule, fixed here:**
 
@@ -148,10 +202,11 @@ announcement of a pull.
    A second negative: auto-served words that do not recompute are `Falsified` (KILL), as for
    any served words.
 
-Implemented in the v0.3 image (`e19e1b12…`) and validators; the pull transport, its
-retries (≤ 2 per chunk, every failed attempt kept verbatim in `audits.json` `pulls[]` and
-CRC-budgeted, a timeout an attempt but not a drop), the one inbound CRC ledger
-(`host/l6_console.py`, authoritative for every frame type) and `STOP_AUDIT` are §2.6a's.
+Implemented in the v0.3 image and carried unchanged into the v0.4 image (`403f4ab5…`) and
+validators; the pull transport, its retries (≤ 2 per chunk, every failed attempt kept
+verbatim in `audits.json` `pulls[]` and CRC-budgeted, a timeout an attempt but not a
+drop), the one inbound CRC ledger (`host/l6_console.py`, authoritative for every frame
+type) and `STOP_AUDIT` are §2.6a's.
 
 ## 4. Instrument changes required before any L6 ruling (host-only, tested, reviewed)
 
@@ -159,15 +214,18 @@ CRC-budgeted, a timeout an attempt but not a drop), the one inbound CRC ledger
    frame; `run_log.json` carries per-record timing (`t_signreq`, `t_reply`, `t_first_hb`, …,
    `t_rec`) and `console.log` gains a timestamped companion (`console.ts.log`) — the raw
    `console.log` bytes stay verbatim. A test proves the stage boundaries are attributable
-   from the frame sequence — under v0.3's pull: `SIGNREQ` → reply → `HB`×16 →
+   from the frame sequence — under the pull: `SIGNREQ` → reply → `HB`×16 →
    `AUDIT_READY` → (`AUDITGET` → `AUDIT`)×chunks, retries included → `AUDITDONE`/`AUDITABORT`
-   → `REC`; the audit stage is `AUDIT_READY` → `AUDITDONE`/`AUDITABORT` on the host clock,
-   and a pull with neither end is unclosed: wall time stands, breakdown none. (The v0.2
-   push shape, `HB`×16 → `AUDIT`×8 → `REC`, remains what the C1 #1–#3 evidence contains.)
+   → `REC` (→ `RECACK`); the audit stage is `AUDIT_READY` → `AUDITDONE`/`AUDITABORT` on the
+   host clock, and a pull with neither end is unclosed: wall time stands, breakdown none.
+   (The v0.2 push shape, `HB`×16 → `AUDIT`×8 → `REC`, remains what the C1 #1–#3 evidence
+   contains.) Under rec-v3 `t_rec` is the first CRC-valid `REC` of the seq — a retried
+   record's wall time honestly includes its retry.
 2. **Rate report.** `host/l6_rate.py` derives from a run log: per-candidate wall time and its
    breakdown, evaluations per hour, the coefficient of variation, and the failure rate —
-   the four numbers Claim B's §6 calibration asks for. Pure function, tested on session 4's
-   log (it must refuse: no timestamps) and on a synthetic timed log.
+   the four numbers Claim B's §6 calibration asks for — **and its `binding` (D-r5)**. Pure
+   function, tested on session 4's log (it must refuse: no timestamps) and on a synthetic
+   timed log.
 3. **Sampled audit policy** (D-s2, as fixed by §3a) in `validators/records.py`, with the host gate unchanged; the policy check must know the schedule and must require the §3a item-2 auto-audit for every non-`SCORED` self-report.
 4. **Arm-aware validator**: `loop_record.arm` required and checked against the schedule
    (§2.4); `check_audit_policy` and the chain unchanged.
@@ -175,27 +233,43 @@ CRC-budgeted, a timeout an attempt but not a drop), the one inbound CRC ledger
    `--duration`, the sampled policy, timestamps and the rate report; nothing else), plus
    `provisioning P3-K` per session as always. Old texts are refused.
 6. **Budget arithmetic in the runner**: N is an input pinned from the **two** calibration
-   records' hashes (D-s3), never typed by hand; the session timeout is derived from N and the
-   measured rates with margin, and is recorded.
+   records' hashes and bindings (D-s3, D-r5), never typed by hand; the session timeout is
+   derived from N and the measured rates with margin, and is recorded.
 7. **Expected-frame-count and CRC budget** (D-s4): computed before the session from N, the
    schedule and the brackets, recorded in the summary with the formula's inputs; the
    collector's structural checks (missing `AUDIT`/`REC`/`TERM`) stay independent of it.
+8. **The REC transaction's host side** (rec-v3) in `host/l6_console.py` (`RECACK`/`RECGET`,
+   idempotent duplicates, the conflicting-duplicate and advanced-without-ACK PROTOCOL ends,
+   the pending-window rule for malformed REC-shaped lines, the per-seq ledger), modelled in
+   `host/l6_rec.py` and tested over a faulty channel.
+9. **`crash_audit_count`** (D-r4) in `host/l6_checks.py`, used by the runner for every
+   collector-written summary; the S #1 counterfactual is a test.
+10. **`rec_control_findings`** (§2.6c) and **`rec_closure_findings`** (§6 condition 7) in
+    `host/l6_checks.py`, both called by the runner, both discrimination-tested.
+11. **Rate-report `binding`** (D-r5) in `host/l6_rate.py`; the runner's S plan refuses
+    unbound or mismatched calibrations by name.
+12. **Loss statistics** over all sessions and every frame type (`host/l6_loss_stats.py`,
+    `evidence/l6_console_loss_stats.json`, `docs/l6_console_loss_summary.md`): exposure and
+    events only, no root cause.
 
 ## 5. Sessions — fixed in advance
 
-| session | image | N | audit | watchdog | purpose | its own rulings |
-|---|---|---|---|---|---|---|
-| **C1** calibration, random-safe schedule forced | two-operator | 64 | all-self-reporting | D-s1 | rate + breakdown + failure rate, arm A | `P3-L6` + `P3-K` |
-| **C2** calibration, map-guided schedule forced | two-operator | 64 | all-self-reporting | D-s1 | same, arm B (operator compute time may differ) | `P3-L6` + `P3-K` |
-| **S** soak, A,B,B,A schedule | two-operator | ⌊0.9 × min(rate_A, rate_B) × T⌋, rates by C1/C2 record hash | sampled per §3a | D-s1 | Q2 | `P3-L6` + `P3-K` |
+| session | image | N | audit | watchdog | control | purpose | its own rulings |
+|---|---|---|---|---|---|---|---|
+| **C1** calibration, random-safe schedule forced | rec-v3 two-operator | 64 | all-self-reporting | D-s1 | armed | rate + breakdown + failure rate, arm A | `P3-L6` + `P3-K` |
+| **C2** calibration, map-guided schedule forced | rec-v3 two-operator | 64 | all-self-reporting | D-s1 | armed | same, arm B (operator compute time may differ) | `P3-L6` + `P3-K` |
+| **S** soak, A,B,B,A schedule | rec-v3 two-operator | ⌊0.9 × min(rate_A, rate_B) × T⌋, rates by the **rec-v3** C1/C2 record hashes and bindings | sampled per §3a | D-s1 | armed | Q2 | `P3-L6` + `P3-K` |
 
+Seeds: C1 = C2 = 1278624577 (0x4c364341), S = 1278628687 (0x4c36534f), pinned in the
+manifest; every L6 (master_seed, index) tuple is EXCLUDED from any future Claim B schedule.
 Each session: power cycle → boundary verifier as the runner → identity → carrier load
 (sha-gated) → provisioning → image load (sha-gated) → `dcache off` → identity page (master
-seed, N, flags, arm-schedule mode) → `go`; opening baseline, N candidates, closing baseline,
-closing unsigned control — the L5 brackets unchanged. Runner in the background, no shell
-timeout, waited on by pid. A calibration session is **not** a Claim B data point even though
-both arms run: its genomes are consumed by the calibration and the seed pairs are excluded
-from Claim B's schedule (recorded in the Claim B preregistration at freeze).
+seed, N, flags incl. bit4, arm-schedule mode) → `go`; opening baseline, N candidates,
+closing baseline, closing unsigned control — the L5 brackets unchanged. Runner in the
+background, no shell timeout, waited on by pid. A calibration session is **not** a Claim B
+data point even though both arms run: its genomes are consumed by the calibration and the
+seed pairs are excluded from Claim B's schedule (recorded in the Claim B preregistration at
+freeze).
 
 ## 6. PASS / HOLD / KILL — decided now
 
@@ -214,14 +288,25 @@ from Claim B's schedule (recorded in the Claim B preregistration at freeze).
    ≥ 0.9 T, and every `settle.polls` within [1, 10 × the C1/C2 median] — a slower gate is a
    finding, not a failure, but it stops the session as `STOP_SETTLE` would if it exceeds the
    bound;
-5. the record's arm equals the schedule's for every index.
+5. the record's arm equals the schedule's for every index;
+6. the forced REC-retry control exercised on seq 1 exactly as §2.6c states;
+7. **REC closure, machine-enforced** (`host/l6_checks.rec_closure_findings`, called by the
+   runner): the set of loop-record seqs equals the set of REC-ledger seqs; every ledger
+   accepted, without conflict, with at least one `RECACK` sent and an accepted attempt; no
+   ledger without a record (an exhausted or advanced-without-ACK transaction) and no
+   record without a ledger; every violation named by seq;
+8. the IDENT declaring `rec-v3` and echoing the control flag;
+9. for S, the rate report's `binding` equal to the pins and both calibrations bound to the
+   same image/prereg/protocol.
 
-**HOLD** — an instrument or transport failure (`PROTOCOL`, `CRASHED`, a lost ruling, a console
-fault, a validator rejection that is not a §3 falsifier), a CoV above 0.10, a `STOPPED` end at
-link 2/3 with the refusal correctly recorded. Re-run after the cause is fixed and named. A
-`CRASHED` soak after ≥ 1 h is a HOLD whose evidence is kept whole; it may be repeated **once**
-without a change only if the cause is named as transport (dmesg/usbip record), otherwise the
-fix comes first.
+**HOLD** — an instrument or transport failure (`PROTOCOL`, `CRASHED`, `STOP_REC` — the
+transaction exhausted, its attempts in the ledger —, `PROTOCOL_REC` — a conflicting
+duplicate, a REC for another seq, a SIGNREQ over an outstanding record —, a lost ruling,
+a console fault, a validator rejection that is not a §3 falsifier), the control not
+exercised, a CoV above 0.10, a `STOPPED` end at link 2/3 with the refusal correctly
+recorded. Re-run after the cause is fixed and named. A `CRASHED` soak after ≥ 1 h is a
+HOLD whose evidence is kept whole; it may be repeated **once** without a change only if
+the cause is named as transport (dmesg/usbip record), otherwise the fix comes first.
 
 **KILL** — any L5 prereg §3 item (they apply unchanged: the interlock and the nonce model are
 under the same test for hours), raised as `Falsified` by the validator.
@@ -233,7 +318,8 @@ stop, fix, prove with an authorised host-side soak before a third ruling; three 
 without `COMPLETED` → design review before further board time. L6's own: a soak that fails
 the same way twice is the result — the next step is a targeted fix with its own review, not a
 third soak. `zynq-psmap/docs/stop_loss.md`'s rule is inherited: a new instrument is not a new
-mechanism.
+mechanism. The owner's lifting of the pull-v2 byte-loss stop-loss (2026-09-01) stands; S #1
+counts as S failure #1 under it.
 
 ## 8. What L6 does not establish
 
@@ -244,10 +330,12 @@ extended by its own ruling).
 
 ## 9. Order of work, and the hand-back
 
-1. Host-only instrument changes (§4) with tests; owner review.
+1. Host-only instrument changes (§4) with tests; owner review. *(v0.2/v0.3: done.)*
 2. Two-operator image (§2) with twins and static audits; byte-identical rebuilds; owner's
-   P3 compatibility review; hash pinned; this document frozen (D-s1..D-s4 filled).
-3. Rulings C1, C2, S issued one session at a time, each with a power cycle.
+   P3 compatibility review; hash pinned; this document frozen. *(v0.4: `403f4ab5…`,
+   reviewed and promoted 2026-09-02.)*
+3. Rulings C1, C2, S issued one session at a time, each with a power cycle; the owner
+   pins the bound C1/C2 records before S.
 4. `docs/l6_findings.md`: the measured rate, the soak record, PASS/HOLD/KILL per §6.
 5. The whole L6 package goes to `zynq-fabricmap`'s owner for the separate decision on
    whether Claim B leaves PAUSED (`claimb_resumption_memo.md` §0); Claim B's own

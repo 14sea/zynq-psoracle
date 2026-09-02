@@ -1,13 +1,15 @@
 # L6 rec-v3 batch — delivery package for the full P3 compatibility review (host-only, 2026-09-01/02; correction batch 2026-09-02 after the owner's HOLD)
 
-> **Standing: host-only, awaiting the owner's full P3 compatibility review.** Authorised
+> **Standing: host-only. FULL P3 COMPATIBILITY REVIEW PASSED (owner, 2026-09-02, scoped —
+> not a board or L6 session PASS); the image was promoted and prereg v0.4 frozen in the
+> owner-authorised promotion/freeze batch the same day.** Authorised
 > after S #1's HOLD as a "pre-board protocol correction batch" that is NOT host-only in
 > scope — firmware, image and preregistration draft change — but IS host-only in effect:
-> no board, no ruling, no v0.4 freeze, no S re-run, no promotion. The candidate image
-> `403f4ab5…` is `next_image` with `board_ready: false` and has never run (the first
-> candidate `cd8360dc…` is withdrawn DEFECTIVE — §0); the frozen v0.3
-> and its pinned image `e19e1b12…` are untouched; `host/l6_runner.py` now implements
-> rec-v3 and refuses to run against v0.3 or a pull-v2 image, by construction.
+> no board, no ruling, no S re-run. After the review: `403f4ab5…` is `pinned_at_build`,
+> `board_ready: true`, `protocol: rec-v3`, never run (the first candidate `cd8360dc…` is
+> withdrawn DEFECTIVE — §0); `e19e1b12…` is superseded, NOT defective, its sessions'
+> evidence and its calibrations kept as history; v0.4 is frozen (hash pinned in the
+> manifest), v0.3 in git history; `host/l6_runner.py` implements rec-v3 and binds to v0.4.
 
 ## 0. The owner's review of the first candidate (2026-09-02): HOLD, four blockers — closed in the correction batch
 
@@ -118,7 +120,9 @@ directory. The rec-v3 image has never run.
 
 ## 7. Next (the owner's)
 
-Short re-review of the correction batch (§0), then the full P3 compatibility review of this package → promote `next_image` (board-ready,
+*(Done 2026-09-02: the short re-review of §0, the full review, the promotion and the freeze.)*
+A frozen-artifact/hash short review of the promotion/freeze batch, then the rec-v3 C1 and
+C2 ruling pairs, one at a time. Originally: short re-review of the correction batch (§0), then the full P3 compatibility review of this package → promote `next_image` (board-ready,
 `protocol: rec-v3`) → freeze v0.4 (new prereg hash; the manifest's `prereg` block moves to
 v0.4 with v0.3 recorded as superseded) → rulings for NEW C1 and C2 under the rec-v3 image
 (power cycle each) → the owner pins the bound calibrations → S under its own ruling.
