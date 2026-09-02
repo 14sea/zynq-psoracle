@@ -61,10 +61,27 @@ MAX_ATTEMPTS = 3                  # board: first transmission + two resends (IDE
 WAIT_MAX = 3                      # board: AUDITWAIT announcements before giving the audit up
 HOST_MAX_GETS = 2                 # host: SIGNGET / TERMGET per seq
 HOST_MAX_REPLAYS = MAX_ATTEMPTS   # host: cached-reply replays, DONE replays, re-ACKs per seq
-BOARD_BOUND_S = 10.0              # board: the idle bound before a resend (a count of polls in C)
+# The board's idle bound before a resend is a COUNT of RX polls in C (`P3_*_IDLE_POLLS`).
+# The host's linger after the first TERM assumes an upper bound on that count's WALL time,
+# so the relation is a contract the firmware batch must prove (review 2026-09-02, item 4):
+#   every rel-v4 wait bound (IDENT, SIGNREQ, AUDIT_READY, AUDITWAIT, REC, TERM) ≤
+#   BOARD_BOUND_WALL_MAX_S of wall-clock on the pinned clocks (CPU 6:2:1, the poll loop's
+#   measured cost), pinned as a poll count in the image and shown by a source-audit test and
+#   the C twin's timing; TERM_LINGER_S is derived from it, never the other way round.
+BOARD_BOUND_WALL_MAX_S = 10.0     # contract: the wall-time upper bound of one board bound
+BOARD_BOUND_S = BOARD_BOUND_WALL_MAX_S   # the twins model the bound at its upper bound
+LINGER_MARGIN_S = 2.0
 # host: after the first TERM the runner keeps reading for the board's possible resends (our
 # TERMACK may have been lost): two more transmissions, one bound apart, plus a margin
-TERM_LINGER_S = (MAX_ATTEMPTS - 1) * BOARD_BOUND_S + 2.0
+TERM_LINGER_S = (MAX_ATTEMPTS - 1) * BOARD_BOUND_WALL_MAX_S + LINGER_MARGIN_S
+FIRMWARE_BOUND_CONTRACT = {
+    "poll_bound_wall_max_s": BOARD_BOUND_WALL_MAX_S,
+    "applies_to": ("P3_IDENT_IDLE_POLLS", "P3_SIGN_IDLE_POLLS", "P3_PULL_IDLE_POLLS", "P3_REC_IDLE_POLLS", "P3_TERM_IDLE_POLLS"),
+    "proof": "firmware batch: the poll count pinned in the image, its wall time on the pinned clocks bounded in a "
+             "source-audit test (tests/test_firmware_audit.py) and measured by the C twin; the host derives "
+             "TERM_LINGER_S = (MAX_ATTEMPTS - 1) * poll_bound_wall_max_s + LINGER_MARGIN_S",
+}
+CLOSING_CONTROL_FIELDS = ("fault", "kind", "status", "nonce_before", "nonce_after")
 HB_PER_RECORD = 16
 STOP_IDENT, STOP_SIGN = "STOP_IDENT", "STOP_SIGN"
 # a broken line whose head reads as one of these is asked for again by the host
@@ -73,10 +90,11 @@ GETTABLE = {n.T_SIGNREQ: T_SIGNGET, n.T_TERM: T_TERMGET}
 
 def hb_missing_budget(scored_records: int) -> int:
     """The preregistered bound on missing heartbeats over a session: floor(R / 1000) with
-    R = the number of SCORED records (the records the protocol fixes 16 HB for) — i.e.
-    99.9 % of the 16 × R expected frames present, taken per record and rounded DOWN, so
-    a 64-candidate calibration (R = 66) tolerates none and a 2 h soak (R ≈ 6541)
-    tolerates 6; never two missing in one record (`heartbeat_findings_rel`)."""
+    R = the number of SCORED records (the records the protocol fixes 16 HB for). With at
+    most one heartbeat missing per record (`heartbeat_findings_rel`) this means: at least
+    99.9 % of the SCORED records carry all 16 heartbeats (NOT "99.9 % of the 16 R frames"
+    — review 2026-09-02); rounded DOWN, so a 64-candidate calibration (R = 66) tolerates
+    none and a 2 h soak (R ≈ 6541) tolerates 6."""
     if scored_records < 0:
         raise ValueError("scored_records must be >= 0")
     return math.floor(scored_records / 1000)
@@ -304,7 +322,13 @@ class IdentHost:
         if f["token"] != self.token or f["type"] != n.T_IDENT:
             return
         if self.refused:
-            self.ledger.note("refused-repeat", None, self.clock())   # still no ack; the board will exhaust
+            # still no ack; the board will exhaust — but only a byte-identical repeat is the
+            # board's resend (review 2026-09-02): other bytes are a different IDENT, a conflict
+            if f["payload"] == self.payload:
+                self.ledger.note("refused-repeat", None, self.clock())
+            else:
+                self.ledger.note("conflict", line, self.clock()); self.ledger.conflict = True
+                self.protocol_end = "PROTOCOL_IDENT: a second, different IDENT after a refusal"
             return
         if self.payload is not None:
             if f["payload"] == self.payload:
@@ -324,7 +348,7 @@ class IdentHost:
             # verified and found wanting: NO acknowledgement, and no epoch end from the host
             # (review 2026-09-02, item 4): the board resends, exhausts, and stops itself
             # with STOP_IDENT — its TERM ends the epoch; the findings are the HOLD
-            self.findings, self.refused, self.identity = findings, True, ident
+            self.findings, self.refused, self.identity, self.payload = findings, True, ident, f["payload"]
             self.ledger.note("refused", line, self.clock())
             return
         self.payload, self.identity = f["payload"], ident
@@ -476,17 +500,37 @@ class TermHost:
         return True
 
 
+def closing_control_findings(summary: dict) -> list[str]:
+    """v0.6 §2.6o: an application-written TERM carries the COMPLETE closing control —
+    all five fields, typed (fault int, kind str, status str, nonces 16 hex). A missing
+    block, a missing field or a wrong type is named (review 2026-09-02, item 2)."""
+    cc = summary.get("closing_control")
+    if not isinstance(cc, dict):
+        return ["TERM carries no closing_control block (v0.6 §2.6o requires the complete closing control)"]
+    out = []
+    for k in CLOSING_CONTROL_FIELDS:
+        if k not in cc:
+            out.append(f"TERM closing_control lacks {k!r}")
+    if "fault" in cc and not isinstance(cc["fault"], int):
+        out.append("TERM closing_control.fault is not an integer")
+    for k in ("kind", "status"):
+        if k in cc and not isinstance(cc[k], str):
+            out.append(f"TERM closing_control.{k} is not a string")
+    for k in ("nonce_before", "nonce_after"):
+        v = cc.get(k)
+        if k in cc and not (isinstance(v, str) and len(v) == 16 and all(c in "0123456789abcdef" for c in v)):
+            out.append(f"TERM closing_control.{k} is not 16 lowercase hex chars")
+    return out
+
+
 def closing_from_term(summary: dict) -> dict | None:
     """rel-v4: the TERM payload repeats the closing unsigned control's fields
     (`closing_control`), so a lost CLOSE is reconstructed from the re-requestable TERM.
-    Returns the closing_negative record (marked `source: TERM`) or None."""
-    cc = summary.get("closing_control")
-    if not isinstance(cc, dict):
+    Returns the closing_negative record (marked `source: TERM`) only when the block is
+    complete and well-typed, else None (the defect is `closing_control_findings`')."""
+    if closing_control_findings(summary):
         return None
-    for k in ("fault", "kind", "status", "nonce_before", "nonce_after"):
-        if k not in cc:
-            return None
-    return dict(cc, source="TERM")
+    return dict(summary["closing_control"], source="TERM")
 
 
 # ------------------------------------------------------------------ heartbeats

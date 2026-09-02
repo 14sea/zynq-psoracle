@@ -124,7 +124,12 @@ def recovery_by_seq(tim: dict[int, dict], seqs: list[int], audits: dict | None, 
     themselves (they only follow a timeout)."""
     pulls = {int(p["seq"]): p for p in (audits or {}).get("pulls", [])}
     recs = {int(r["seq"]): r for r in (audits or {}).get("recs", [])}
-    signs = {int(x["seq"]): x for x in ((audits or {}).get("signs") or [])}
+    sign_list = (audits or {}).get("signs") or []
+    signs: dict[int, dict] = {}
+    for x in sign_list:
+        if int(x["seq"]) in signs:
+            raise RateError(f"more than one sign ledger for seq {x['seq']}: refused, never last-wins")
+        signs[int(x["seq"])] = x
     hb_seen: dict[int, set] = {}
     for f in frames or []:
         if f.get("dir") == "rx" and f.get("type") == "HB" and isinstance(f.get("hb_i"), int) and f.get("seq") is not None:
@@ -238,6 +243,19 @@ def _check_ledgers(records: dict, audits, frames) -> bool:
     extra = sorted(set(pull_list) - seqs)
     if extra:
         raise RateError(f"audits ledger has pull ledgers for seqs that are not records: {extra[:8]}")
+    if audits.get("signs") is not None:
+        # rel-v4: exactly one sign ledger per record and none besides (item 1)
+        if not isinstance(audits["signs"], list):
+            raise RateError("audits ledger invalid: signs is not a list")
+        sign_list = [int(s["seq"]) for s in audits["signs"] if isinstance(s, dict) and "seq" in s]
+        if len(sign_list) != len(audits["signs"]):
+            raise RateError("audits ledger invalid: a sign ledger without a seq")
+        dup_sign = sorted({s for s in sign_list if sign_list.count(s) > 1})
+        if dup_sign:
+            raise RateError(f"audits ledger has more than one sign ledger for seq {dup_sign[:8]}: refused, never last-wins")
+        if set(sign_list) != seqs:
+            raise RateError(f"sign ledgers {sorted(set(sign_list))[:8]}… do not match the records {sorted(seqs)[:8]}… "
+                            f"(rel-v4: one sign transaction per record)")
     pulled = {int(p["seq"]) for p in audits["pulls"] if isinstance(p, dict) and p.get("done")}
     audited = {s for s, r in records.items() if r.get("verified") == "audited"}
     if not audited <= pulled:

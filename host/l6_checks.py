@@ -171,6 +171,24 @@ REL_RECOVERY_KEYS = ("max_sign_retries", "max_ready_resends", "max_ident_repeats
 REL_TERMINAL = ("STOP_SIGN", "STOP_IDENT")
 
 
+def unique_ledgers_by_seq(ledgers: list[dict], what: str) -> tuple[dict, list[str], set]:
+    """Exactly one ledger per seq (review 2026-09-02, item 1: a dict comprehension kept the
+    last of two same-seq ledgers). Returns the by-seq map of the UNIQUE ledgers (a seq with
+    more than one is left out), a finding per duplicated seq, and the duplicated seqs."""
+    by: dict[int, dict] = {}
+    dup: set[int] = set()
+    for s in ledgers or []:
+        try:
+            seq = int(s["seq"])
+        except (KeyError, TypeError, ValueError):
+            return {}, [f"a {what} ledger without a seq"], set()
+        if seq in by or seq in dup:
+            dup.add(seq); by.pop(seq, None)
+        else:
+            by[seq] = s
+    return by, [f"seq {q}: more than one {what} ledger (refused, never last-wins)" for q in sorted(dup)], dup
+
+
 def rel_closure_findings(log: dict, ledgers: dict, pulls: list[dict]) -> list[str]:
     """v0.6 §6.10, machine-enforced (review 2026-09-02, item 5): the rel-v4 transactions
     closed. The identity acknowledged (accepted, no conflict, not refused, ≥ 1 ack); the
@@ -195,14 +213,16 @@ def rel_closure_findings(log: dict, ledgers: dict, pulls: list[dict]) -> list[st
     if proto != "rel-v4":
         out.append(f"the IDENT declares wire protocol {proto!r}, not rel-v4")
     records = {r["seq"]: r for r in log["loop_records"]}
-    signs = {int(s["seq"]): s for s in (ledgers.get("signs") or [])}
+    signs, dup, dup_seqs = unique_ledgers_by_seq(ledgers.get("signs") or [], "sign")
+    out += dup
     for seq in sorted(records):
         s = signs.get(seq)
         if s is None:
-            out.append(f"seq {seq}: record without a sign ledger")
+            if seq not in dup_seqs:                     # a duplicated seq is already named once
+                out.append(f"seq {seq}: record without a sign ledger")
         elif not s.get("accepted") or s.get("conflict"):
             out.append(f"seq {seq}: sign transaction not accepted or in conflict")
-    for seq in sorted(set(signs) - set(records)):
+    for seq in sorted((set(signs) | dup_seqs) - set(records)):
         out.append(f"seq {seq}: sign ledger without a record")
     for seq in sorted(records):
         if records[seq]["outcome"] in REL_TERMINAL:
@@ -226,6 +246,9 @@ def rel_closure_findings(log: dict, ledgers: dict, pulls: list[dict]) -> list[st
             out.append("TERM transaction not accepted (or in conflict)")
         elif int(term.get("acks_sent", 0)) < 1:
             out.append("TERM accepted but never acknowledged")
+    if summary.get("written_by") == "app":
+        import l6_rel as rel
+        out += rel.closing_control_findings(summary)          # §2.6o: the complete closing control, always
     if ledgers.get("closing_conflict"):
         cc = ledgers["closing_conflict"]
         out.append(f"CLOSE and TERM.closing_control disagree: CLOSE {cc.get('close')} vs TERM {cc.get('term')}")
@@ -237,7 +260,10 @@ def rel_control_findings(sign_ledgers: list[dict], armed: bool) -> list[str]:
     attempts ["crc", "ok"], one SIGNGET, no replay, accepted, no conflict."""
     if not armed:
         return ["the SIGNREQ-retry control was not armed (flags.bit5)"]
-    led = next((s for s in sign_ledgers if int(s.get("seq", -1)) == 1), None)
+    by, dup, _ = unique_ledgers_by_seq(sign_ledgers, "sign")
+    if dup:
+        return [f"SIGNREQ-retry control: {d}" for d in dup]     # never judged on a last-wins ledger
+    led = by.get(1)
     if led is None:
         return ["no sign ledger for seq 1: the SIGNREQ-retry control was not exercised"]
     shape = [a.get("outcome") for a in led.get("attempts", [])]

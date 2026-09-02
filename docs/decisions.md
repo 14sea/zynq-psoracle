@@ -1476,3 +1476,28 @@ TERM compared, a disagreement recorded and named. `tests/test_l6_rel_correction.
 on the real session and the loop condition; design revision 3; the v0.6 draft updated
 (§2.6j/6m/6o, D-p1 as ruled, §4.21–22, §6.10/12/13). No firmware, no image, no board, no
 ruling, no freeze.
+
+## 2026-09-02 — owner's second review of the rel-v4 batch: HOLD (two acceptance blockers, two pins before firmware, two minor); D-p1 semantics accepted; push and firmware still withheld — second correction batch delivered host-only
+
+The seven items' main paths confirmed; two new host acceptance blockers: (1) sign ledgers
+could still last-wins — dict comprehensions in `rel_closure_findings` and the rate
+collapsed two same-seq ledgers silently (two identical seq-1 ledgers passed the closure);
+(2) an app-written TERM without `closing_control` passed when a CLOSE existed. Before the
+firmware batch: (3) `flags.bit5` had no IDENT echo / verification; (4) the 22 s TERM linger
+assumed a 10 s board bound without a verifiable relation to the C poll count. Minor: a
+different second IDENT after a refusal was logged as a repeat; the heartbeat comment
+misstated the 99.9 %. Rulings: no push, D-p1 semantics accepted, no firmware start; a
+limited host/spec correction batch; board, rulings, freeze still forbidden.
+
+Delivered the same day, host-only (`docs/l6_rel_batch_package.md` §10): `unique_ledgers_by_seq`
+(exactly one sign ledger per seq, the seq set equal to the record set, duplicates /
+missing / extra named, never last-wins) shared by the closure and the control check and
+refused by the rate; `l6_rel.closing_control_findings` (the complete typed block mandatory
+for every app-written TERM; rebuilt only from a complete block; both present must agree);
+IDENT 1.3.0 `sign_retry_control` verified by `check_l6_identity` under rel-v4 at both
+checks; `BOARD_BOUND_WALL_MAX_S` = 10 s + `FIRMWARE_BOUND_CONTRACT` (the five poll-count
+bounds, the proof named) with `TERM_LINGER_S` derived from it and the v0.6 draft §2.6p
+stating it as an unverified contract until the firmware batch; refused-repeat compares
+bytes; the heartbeat docstring corrected. `tests/test_l6_rel_correction2.py` (11), the
+v0.6 draft (§2.6d/6o/6p, §6.10, §4.22), design revision 4 (● marks). No firmware, no
+image, no board, no ruling, no freeze.

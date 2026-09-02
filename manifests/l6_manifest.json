@@ -374,7 +374,7 @@
     "version": "v0.6-draft",
     "protocol": "rel-v4",
     "sha256": null,
-    "status": "DRAFT (self-contained text) — v0.4 stays frozen and in force; owner 2026-09-02: v0.5 is NOT frozen (superseded by this draft, its content carried verbatim), C1 → C2 → S run ONCE under v0.6 and the rel-v4 image; owner 2026-09-02: the rel-v4 host batch reviewed HOLD on seven integration items, closed in its correction batch (docs/l6_rel_batch_package.md §8, unreviewed); D-p1 bounds accepted (3 transmissions, GET ≤ 2, WAIT ≤ 3, replay ≤ 3; the third WAIT is not a final failure); frozen only after that correction batch is reviewed PASS, the firmware batch has built the rel-v4 image (twice byte-identical) and it passed a full P3 compatibility review. C1 #5 (2026-09-02-01) is and stays HOLD under v0.4. The stop-loss stays TRIGGERED.",
+    "status": "DRAFT (self-contained text) — v0.4 stays frozen and in force; owner 2026-09-02: v0.5 is NOT frozen (superseded by this draft, its content carried verbatim), C1 → C2 → S run ONCE under v0.6 and the rel-v4 image; owner 2026-09-02: the rel-v4 host batch reviewed HOLD on seven integration items, closed in its correction batch (§8, main paths confirmed by the owner) and a second correction batch (§10: sign ledgers never last-wins, the typed closing_control mandatory, the bit5 IDENT echo, the bound contract; unreviewed); D-p1 bounds accepted (3 transmissions, GET ≤ 2, WAIT ≤ 3, replay ≤ 3; the third WAIT is not a final failure); frozen only after that correction batch is reviewed PASS, the firmware batch has built the rel-v4 image (twice byte-identical) and it passed a full P3 compatibility review. C1 #5 (2026-09-02-01) is and stays HOLD under v0.4. The stop-loss stays TRIGGERED.",
     "pass_conditions_draft": {
       "nominal_cov_max": 0.1,
       "min_clean_periods": 60,
@@ -400,6 +400,18 @@
       "max_term_retries": 3,
       "max_done_replays": 3,
       "note": "v0.6 §6.13 (host/l6_checks.rel_recovery_findings, C1/C2); hb_missing is bounded by l6_rel.hb_missing_budget(R) = floor(R/1000) with at most one missing per record (§6.11); merged into pass_conditions at the freeze"
+    },
+    "firmware_bound_contract": {
+      "poll_bound_wall_max_s": 10.0,
+      "applies_to": [
+        "P3_IDENT_IDLE_POLLS",
+        "P3_SIGN_IDLE_POLLS",
+        "P3_PULL_IDLE_POLLS",
+        "P3_REC_IDLE_POLLS",
+        "P3_TERM_IDLE_POLLS"
+      ],
+      "term_linger_s": 22.0,
+      "note": "host/l6_rel.FIRMWARE_BOUND_CONTRACT — a stated contract until the firmware batch pins the poll counts, bounds their wall time in a source-audit test and measures it with the C twin; IDENT 1.3.0 must echo flags.bit5 as sign_retry_control"
     }
   }
 }

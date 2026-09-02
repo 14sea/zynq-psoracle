@@ -1,8 +1,8 @@
-# Frame reliability design — rel-v4: every board→host frame re-requestable, reconstructible or budgeted (revision 3, 2026-09-02)
+# Frame reliability design — rel-v4: every board→host frame re-requestable, reconstructible or budgeted (revision 4, 2026-09-02)
 
-> **Standing: DESIGN, host-authored; revision 3 after the owner's HOLD of revision 2 (seven
-> integration items on the host batch, closed below and marked ◆; revision 1's four items
-> stay marked ▲). The HOST SIDE and the BOARD TWINS of this
+> **Standing: DESIGN, host-authored; revision 4 after the owner's second review (two host
+> acceptance blockers, two items to pin before the firmware batch, two minor items — closed
+> and marked ●; revision 3's ◆ and revision 1's ▲ stay). The HOST SIDE and the BOARD TWINS of this
 > design are implemented in `host/l6_rel.py` behind the protocol switch `rel-v4`
 > (`host/l6_console.py`, `host/l6_runner.py`; rec-v3 unchanged by test); the validator
 > carries the STOP_SIGN contract and the orphan-entry rule; `tests/test_l6_rel.py` runs
@@ -175,6 +175,13 @@ With 3.6, `TERM` is re-requestable, so `CLOSE` is **class (ii)**.
 
 ### 3.6 `TERM` → a transaction (host implemented; firmware small)
 
+● The linger rests on a contract, not a model: every rel-v4 idle bound is a poll count in
+the image whose wall time on the pinned clocks is ≤ `BOARD_BOUND_WALL_MAX_S` = 10 s
+(`l6_rel.FIRMWARE_BOUND_CONTRACT`: the counts named, the proof = a source-audit test plus
+the C twin's measurement in the firmware batch); `TERM_LINGER_S` = (MAX_ATTEMPTS − 1) ×
+10 s + 2 s is derived from it. Until the firmware batch proves the bound, "the runner
+always catches both TERM resends" is a stated contract, not a verified fact.
+
 After `TERM` the board waits bounded for `TERMACK {seq}`; on `TERMGET` or the bound it
 resends the same bytes, ≤ 3 transmissions; then halts as today (nothing follows a
 `TERM`, so exhaustion changes nothing on the board). The host (`l6_rel.TermHost`)
@@ -190,6 +197,11 @@ epoch exactly as before; the runner's own bound always wins. Tests (`TermTransac
 `test_l6_rel_correction::Session::test_3`). **Class (i).**
 
 ### 3.7 `IDENT` → a handshake completed BEFORE the first `SIGNREQ` (host implemented; firmware small)
+
+● The IDENT (1.3.0) echoes `flags.bit5` as `sign_retry_control`, exactly as bit4 is echoed
+as `rec_retry_control`; `check_l6_identity` verifies both under rel-v4, before the
+acknowledgement and at adjudication (`l6_runner._sign_control_expectation`); after a
+refusal only a byte-identical repeat is a `refused-repeat` — other bytes are a conflict.
 
 ▲ (item 2) The earlier revision let the first sign reply count as the acknowledgement;
 that would let the host enter the signing path before it had verified the identity. Now:
@@ -244,7 +256,11 @@ the board→host bytes through the real reader, and the `truncate` cases show th
 the IDENT declaring rel-v4, every record's sign transaction accepted without conflict and
 no sign ledger without a record, no `STOP_SIGN`/`STOP_IDENT`, no `PROTOCOL` end, every
 host-completed pull confirmed by the board's record, the TERM transaction accepted and
-acknowledged, CLOSE/TERM agreement), `rel_control_findings` (§6.12: seq 1 exactly
+acknowledged, CLOSE/TERM agreement, ● the TERM's `closing_control` complete and typed —
+`l6_rel.closing_control_findings`: a missing block, a missing field, a wrong type each
+named, whether or not a CLOSE arrived; ● exactly one sign ledger per record with the seq
+sets equal — `unique_ledgers_by_seq`, a duplicate named and never last-wins, shared by the
+control check and refused by the rate), `rel_control_findings` (§6.12: seq 1 exactly
 `["crc", "ok"]`, one `SIGNGET`, no replay), `rel_recovery_findings` (§6.13: `sign_retries`,
 `ready_resends`, `ident_repeats`, `term_retries`, `done_replays` each within the pinned
 bound — the manifest's `next_prereg.rel_pass_conditions_draft`) and

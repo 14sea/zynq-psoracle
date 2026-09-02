@@ -1,7 +1,9 @@
 # L6 rel-v4 host batch — delivery package for review (host-only, 2026-09-02, after the correction-batch review)
 
-> **Standing: host-only. Reviewed 2026-09-02: HOLD on seven integration items — closed in the
-> correction batch of §8 (host-only, delivered, NOT yet reviewed); D-p1 bounds accepted with
+> **Standing: host-only. Reviewed 2026-09-02 twice: HOLD on seven integration items (closed in
+> §8, reviewed: main paths confirmed) and then HOLD on two new host acceptance blockers plus
+> two items to pin before the firmware batch and two minor items (closed in §10, delivered,
+> NOT yet reviewed); D-p1 bounds accepted with
 > the exact semantics recorded in the v0.6 draft §3. No firmware, no image, no board, no
 > ruling, no freeze; the stop-loss stands; `866bc5b` not pushed.** The owner's review of the correction batch
 > (2026-09-02): PASS the correction line / HOLD the design on four items; D-t1 accepted;
@@ -134,3 +136,21 @@ WAIT ≤ 3, replay/re-ack ≤ 3 — and the third WAIT is not a final failure. D
 2. Push of the commit, if the review passes.
 3. The start of the firmware batch (unchanged scope; the C twins now also cover the
    IDENT refusal path, the AUDITWAIT counts and the CLOSE/TERM redundancy).
+
+## 10. Owner's second review (2026-09-02): HOLD — two acceptance blockers, two pins, two minor items — the second correction batch
+
+| # | item (owner) | closed by | proof (`tests/test_l6_rel_correction2.py`) |
+|---|---|---|---|
+| 1 | sign ledgers could last-wins (dict comprehensions in `rel_closure_findings` and `recovery_by_seq`); two identical seq-1 ledgers passed the closure | `l6_checks.unique_ledgers_by_seq`: exactly one ledger per seq, a duplicated seq named ("more than one sign ledger (refused, never last-wins)") and dropped from the map; the closure requires the sign-ledger seq set == the record seq set (missing / extra named by seq); `rel_control_findings` refuses a duplicated ledger before judging seq 1; the rate's `_check_ledgers` refuses duplicate / missing / extra sign ledgers and `recovery_by_seq` raises on a duplicate | `SignLedgersNeverLastWins` (4): the duplicate before and after the good one, an identical duplicate and a differing one, missing / extra / seq-less, and the rate report in both orders |
+| 2 | an app-written TERM without `closing_control` passed when a CLOSE existed | `l6_rel.closing_control_findings`: the complete, typed five-field block is mandatory for every app-written summary — a missing block, a missing field, a wrong type each named; `rel_closure_findings` calls it regardless of CLOSE; `closing_from_term` rebuilds only from a complete block; both present must agree (§8 item 7) | `ClosingControlIsMandatory` (3): the three defects named; on the real session — CLOSE lost + complete TERM rebuilt, CLOSE lost + TERM without the block not rebuilt and named, CLOSE present + TERM without the block still named, both present and equal no finding |
+| 3 | `flags.bit5` had no identity echo / verification | IDENT 1.3.0 `sign_retry_control`; `check_l6_identity(..., sign_retry_control=)`; the runner asks it under rel-v4 at both checks (`_sign_control_expectation`: None under rec-v3) | `Bit5Echo` (2): false / missing / non-bool refused, not asked under rec-v3; the runner's two calls |
+| 4 | the 22 s linger assumed a 10 s board bound with no verifiable relation to the C poll count | `l6_rel.BOARD_BOUND_WALL_MAX_S` = 10 s, `FIRMWARE_BOUND_CONTRACT` naming the five poll-count bounds and the proof (source-audit test + C twin measurement in the firmware batch); `TERM_LINGER_S` derived from it; the twins model the bound at its upper bound; the v0.6 draft §2.6p states the contract and that it is unverified until the firmware batch | `BoundContract` (1) |
+| 5 | after a refusal, a different second IDENT was logged as `refused-repeat` | byte-identical → `refused-repeat`; other bytes → `conflict`, `PROTOCOL_IDENT` | `MinorItems::test_5` |
+| 6 | the heartbeat comment said "99.9 % of the 16 R frames" | the docstring says "at least 99.9 % of the SCORED records carry all 16 heartbeats" | `MinorItems::test_6` |
+
+## 11. Asked of the owner (second correction batch)
+
+1. Short review of §10.
+2. Push of `866bc5b`, `e2c0caf` and this commit, if it passes.
+3. The start of the firmware batch — with the bound contract (§10 item 4) and the IDENT
+   1.3.0 echo (§10 item 3) as two of its deliverables.

@@ -101,6 +101,12 @@ def bind_ruling(ruling: dict, text: str, session: str, prereg_sha: str, image_sh
             raise bsn.SessionRefusal(f"ruling {text!r} is bound to {k} = {got!r}, this session needs {v!r}")
 
 
+def _sign_control_expectation(plan: dict):
+    """rel-v4: the IDENT must echo flags.bit5 (v0.6 §2.6d); under rec-v3 the image has no
+    such field and nothing is expected (None = not checked)."""
+    return bool(plan["flags"] & ls.FLAG_SIGN_CONTROL) if plan.get("protocol") == "rel-v4" else None
+
+
 def session_loop_continues(collector, console, now: float, deadline: float) -> bool:
     """The console loop's condition (review 2026-09-02, item 3): read while the epoch is
     open — and, under rel-v4, for `TERM_LINGER_S` after the first TERM, so that a TERM the
@@ -290,7 +296,8 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         def identity_check(ident: dict) -> list[str]:
             try:                                     # rel-v4: the IDENT is verified BEFORE it is acknowledged
                 records.check_l6_identity(ident, plan["master_seed"], plan["mode"], l6m["operator"]["operator_data_sha256"],
-                                          protocol=plan["protocol"], rec_retry_control=bool(plan["flags"] & ls.FLAG_REC_CONTROL))
+                                          protocol=plan["protocol"], rec_retry_control=bool(plan["flags"] & ls.FLAG_REC_CONTROL),
+                                          sign_retry_control=_sign_control_expectation(plan))
             except records.RecordError as exc:
                 return [str(exc)]
             return []
@@ -351,7 +358,8 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
             summary["arm_check"] = records.check_arm_schedule(log, plan["schedule"], plan["n"], cfg["expected_genomes"])
             summary["l6_identity"] = records.check_l6_identity(
                 log["app_identity"] or {}, plan["master_seed"], plan["mode"], l6m["operator"]["operator_data_sha256"],
-                protocol=plan["protocol"], rec_retry_control=bool(plan["flags"] & ls.FLAG_REC_CONTROL))
+                protocol=plan["protocol"], rec_retry_control=bool(plan["flags"] & ls.FLAG_REC_CONTROL),
+                sign_retry_control=_sign_control_expectation(plan))
             findings += lc.structural_findings(log, collector.audits, plan["audit_seqs"], timeline.frames,
                                                protocol=plan["protocol"])
             findings += lc.baseline_findings(log)

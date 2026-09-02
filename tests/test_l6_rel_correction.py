@@ -179,7 +179,9 @@ class Session(unittest.TestCase):
     def test_5a_rel_closure_names_every_defect(self):
         log = {"app_identity": {"protocol": "rel-v4"},
                "loop_records": [{"seq": 1, "outcome": "SCORED", "verified": "audited"}, {"seq": 2, "outcome": "SCORED", "verified": "audited"}],
-               "session_summary": {"written_by": "app", "epoch_end": {"kind": "COMPLETED", "reason": "budget"}}}
+               "session_summary": {"written_by": "app", "epoch_end": {"kind": "COMPLETED", "reason": "budget"},
+                                   "closing_control": {"fault": 13, "kind": "unsigned", "status": "0x00000982",
+                                                       "nonce_before": "3" * 16, "nonce_after": "4" * 16}}}
         good = {"ident": {"accepted": True, "acks_sent": 1, "conflict": False, "refused": False},
                 "signs": [{"seq": 1, "accepted": True, "conflict": False}, {"seq": 2, "accepted": True, "conflict": False}],
                 "term": {"accepted": True, "acks_sent": 1, "conflict": False}, "closing_conflict": None}

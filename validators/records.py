@@ -759,7 +759,7 @@ def check_arm_schedule(log: dict, schedule_rows: list[dict], n: int,
 
 def check_l6_identity(app_identity: dict, master_seed: int, schedule_mode: str,
                       operator_data_sha256: str, protocol: str | None = None,
-                      rec_retry_control: bool | None = None) -> dict:
+                      rec_retry_control: bool | None = None, sign_retry_control: bool | None = None) -> dict:
     """L6 prereg §2.4: the IDENT names the master seed and the operator-image identity (the
     hash of the map data compiled in), and the schedule mode the page asked for. Read from
     the raw record (additive 1.1.0 fields); each must equal what the host wrote.
@@ -780,6 +780,11 @@ def check_l6_identity(app_identity: dict, master_seed: int, schedule_mode: str,
         got = app_identity.get("rec_retry_control")
         if not isinstance(got, bool) or got != rec_retry_control:
             raise RecordError(f"app_identity rec_retry_control is {got!r}, the identity page armed {rec_retry_control}")
+    if sign_retry_control is not None:
+        # rel-v4 (v0.6 §2.6d, IDENT 1.3.0): the page's flags.bit5 echoed, like bit4
+        got = app_identity.get("sign_retry_control")
+        if not isinstance(got, bool) or got != sign_retry_control:
+            raise RecordError(f"app_identity sign_retry_control is {got!r}, the identity page armed {sign_retry_control}")
     if app_identity["master_seed"] != master_seed:
         raise RecordError(f"app_identity master_seed {app_identity['master_seed']!r} != the page's {master_seed}")
     if app_identity["schedule_mode"] != schedule_mode:
@@ -789,7 +794,7 @@ def check_l6_identity(app_identity: dict, master_seed: int, schedule_mode: str,
         raise RecordError("app_identity operator_data_sha256 is not the pinned map derivation: the image's "
                           "compiled-in map data is not the one regenerated from local_map.json")
     out = {k: app_identity[k] for k in L6_IDENTITY_FIELDS}
-    for k in ("protocol", "rec_retry_control"):
+    for k in ("protocol", "rec_retry_control", "sign_retry_control"):
         if k in app_identity:
             out[k] = app_identity[k]
     return out

@@ -35,7 +35,7 @@ from validators import records  # noqa: E402
 TOKEN = "5c" * 16
 IDENT_PAYLOAD = {"schema": "app_identity", "schema_version": "1.2.0", "control_plane": "standalone", "token": TOKEN,
                  "protocol": "rel-v4", "master_seed": 7, "schedule_mode": "random_safe_forced",
-                 "operator_data_sha256": "0" * 64, "rec_retry_control": True, "pss_idcode": "0x13722093",
+                 "operator_data_sha256": "0" * 64, "rec_retry_control": True, "sign_retry_control": True, "pss_idcode": "0x13722093",
                  "uboot_epoch": 0, "carrier_sha256": "1" * 64, "nonce_at_start": "2" * 16, "findings": [],
                  "app_epoch": 0, "status_at_start": "0x0"}
 IDENT_LINE = n.build_line(n.T_IDENT, 0, TOKEN, n.encode_payload(IDENT_PAYLOAD))

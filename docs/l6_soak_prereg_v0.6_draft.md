@@ -169,9 +169,12 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
    shape (`host/l6_checks.rec_control_findings`). The deliberate drop counts against the
    D-s4 budget like any other. The IDENT echoes the flag. **In the rate report the
    control is attributed as `control`, never as a recovery (D-t2).**
-6d. **`app_identity` 1.2.0** adds `protocol` (`"rec-v3"`) and `rec_retry_control` (bool).
-   The runner refuses an image whose IDENT does not declare `rec-v3`, and a session whose
-   IDENT does not echo the page's control flag.
+6d. **`app_identity` 1.2.0** adds `protocol` (`"rec-v3"`) and `rec_retry_control` (bool);
+   **1.3.0 (rel-v4) adds `sign_retry_control` (bool)** — the page's `flags.bit5` echoed as
+   the application decoded it. The runner refuses an image whose IDENT does not declare
+   the pinned protocol, and a session whose IDENT does not echo BOTH control flags
+   (`validators.records.check_l6_identity(..., rec_retry_control, sign_retry_control)`,
+   asked before the IDENTACK and again at adjudication; under rec-v3 only bit4 is asked).
 6e. **Every wait for a host line is bounded on the whole line.** The application's receiver
    (`p3_rectx_recv_line`, the pure unit) abandons a line as partial when no byte arrives for
    the idle bound after at least one did, and in any case after four idle bounds in all,
@@ -248,13 +251,25 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
 6o. **`TERM` is a transaction** (`TERMACK`/`TERMGET`, the same bytes, ≤ 3, then halt) and
    **carries the closing control's fields** (`closing_control {fault, kind, status,
    nonce_before, nonce_after}`) so a lost `CLOSE` is reconstructed from it (marked
-   `source: TERM`); a `CLOSE` that did arrive is compared with it and a disagreement is a
-   closure finding. The runner keeps reading for `TERM_LINGER_S` = 22 s after the first
-   TERM so a resent TERM (our ACK lost) is re-acknowledged.
+   `source: TERM`). **The application-written TERM MUST carry the complete, typed block**
+   (five fields: `fault` int, `kind` str, `status` str, `nonce_before`/`nonce_after` 16
+   hex): a missing block, a missing field or a wrong type is a closure finding
+   (`l6_rel.closing_control_findings`) whether or not a `CLOSE` arrived; a lost `CLOSE` is
+   rebuilt only from a complete block; a `CLOSE` that did arrive stands and is compared
+   with the block — a disagreement is a closure finding. The runner keeps reading for
+   `TERM_LINGER_S` after the first TERM so a resent TERM (our ACK lost) is re-acknowledged.
 6p. **Every new bounded wait is the §2.6e receiver** (whole-line bound, stale lines ignored
    up to `P3_RECTX_STALE_LIMIT`), implemented as pure units in the pattern of
    `firmware/p3_rectx.c` (`p3_signtx.c`, `p3_termtx.c`, the pull's wait state) and driven
-   on the host by the wire-contract test against the twins of `host/l6_rel.py`.
+   on the host by the wire-contract test against the twins of `host/l6_rel.py`. **The
+   bound contract**: every rel-v4 idle bound is a poll count in the image
+   (`P3_IDENT_IDLE_POLLS`, `P3_SIGN_IDLE_POLLS`, `P3_PULL_IDLE_POLLS`, `P3_REC_IDLE_POLLS`,
+   `P3_TERM_IDLE_POLLS`) whose wall time on the pinned clocks is **≤
+   `BOARD_BOUND_WALL_MAX_S` = 10 s** (`host/l6_rel.FIRMWARE_BOUND_CONTRACT`); the firmware
+   batch pins the counts, bounds their wall time in a source-audit test and measures it
+   with the C twin; the host's `TERM_LINGER_S` = (MAX_ATTEMPTS − 1) × 10 s + 2 s = 22 s is
+   derived from that bound and from nothing else. Until the firmware batch proves it, the
+   relation is a stated contract, not a verified fact.
 7. Review by the owner against this list, item by item, before any L6 ruling; the image
    hash is then pinned in `manifests/l6_manifest.json` and this document is frozen.
    *(Items 1–6f: reviewed and pinned 2026-09-02 for v0.4. Items 6g–6h: the transport
@@ -425,7 +440,10 @@ type) and `STOP_AUDIT` are §2.6a's.
     unchanged; the validator contract. **Integration negatives on the real session and
     the runner's loop condition** (`tests/test_l6_rel_correction.py`: the live pull
     ledger, the verdict from the board's record, the TERM linger, the IDENT wiring, the
-    §6.10–13 gates, STOP_SIGN's protocol gate, the CLOSE/TERM comparison).
+    §6.10–13 gates, STOP_SIGN's protocol gate, the CLOSE/TERM comparison;
+    `tests/test_l6_rel_correction2.py`: sign ledgers never last-wins in both orders, the
+    mandatory closing_control in four cases, the bit5 echo, the bound contract, the
+    refused-repeat comparison).
 23. **The firmware batch** (opened by the owner 2026-09-02; starts after items 19–22 are
     reviewed PASS): §2.6i–6p in the firmware, the C twins driven by the wire-contract test
     against `host/l6_rel.py`, two byte-identical builds, `next_image`, a full P3
@@ -496,9 +514,12 @@ are excluded from Claim B's schedule (recorded in the Claim B preregistration at
    same image/prereg/protocol, both calibrations' input files hashing to their `inputs`;
 10. **rel-v4 transactions closed**, machine-enforced (`host/l6_checks.rel_closure_findings`
    over `audits.json` `ident`/`signs`/`term`/`closing_conflict` + `pulls`): the identity
-   accepted, acknowledged, not refused, no conflict; the IDENT declaring `rel-v4`; every
-   record's sign transaction accepted with no conflict and no sign ledger without a
-   record (and every notary entry's seq recorded, rule vii-b); no `STOP_SIGN`,
+   accepted, acknowledged, not refused, no conflict; the IDENT declaring `rel-v4` and
+   echoing both control flags; **exactly one sign ledger per record and the sign-ledger
+   seq set equal to the record seq set** (a duplicated, missing or extra seq named;
+   never last-wins — the control check and the rate refuse a duplicated ledger too),
+   every one accepted with no conflict (and every notary entry's seq recorded, rule
+   vii-b); the TERM's `closing_control` complete and typed; no `STOP_SIGN`,
    `STOP_IDENT` or `PROTOCOL_*` end; **every pull the host completed confirmed by the
    board's record** (`verified: audited` — a waited pull whose record says replayed-only
    is named with its counts); the TERM transaction accepted and acknowledged; CLOSE and
