@@ -311,10 +311,14 @@ class Refusals(unittest.TestCase):
         self.assertEqual(rc, 2); self.assertIn("not marked board-ready", err)
         for proto in ("push-v1", "pull-v2"):
             rc, err = self.run_main(self.args(manifest=self.manifest(protocol=proto)))
-            self.assertEqual(rc, 2, proto); self.assertIn("is not this runner's rec-v3", err)
-        # the frozen v0.3 is a pull-v2 preregistration: this runner refuses it until v0.4 is frozen
+            self.assertEqual(rc, 2, proto); self.assertIn("is not one this runner implements", err)
+        # the frozen v0.3 is a pull-v2 preregistration: an image and a prereg must name the same protocol
         rc, err = self.run_main(self.args(manifest=self.manifest(prereg_protocol="pull-v2")))
-        self.assertEqual(rc, 2); self.assertIn("freeze prereg v0.4 first", err)
+        self.assertEqual(rc, 2); self.assertIn("must name the same protocol", err)
+        # rel-v4 (host/l6_rel.py) is implemented: a rel-v4 image under a rec-v3 prereg is refused for the
+        # mismatch, never for the protocol itself
+        rc, err = self.run_main(self.args(manifest=self.manifest(protocol="rel-v4")))
+        self.assertEqual(rc, 2); self.assertIn("must name the same protocol", err); self.assertNotIn("not one this runner implements", err)
         # the committed manifest with this test's stand-in image: refused on the image pin
         # (owner's note 2026-09-02: this says nothing about the committed manifest's own
         # ability to run — the real pins are exercised by the preflight the owner ran

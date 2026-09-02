@@ -1393,3 +1393,51 @@ AUDITREQ in SIGNOK, AUDIT_READY resend, indexed HB with a budget, CLOSE in TERM,
 transaction, IDENT repeat; host-only parts first behind a protocol switch, one firmware
 batch → v0.6). `tests/test_l6_rate_v05.py` (14). No board, no ruling, no freeze; the
 stop-loss stands.
+
+## 2026-09-02 — owner's review of the correction batch: PASS (D-t1; the correction line) / HOLD (design, four items); v0.5 NOT frozen — straight to v0.6; two D-t2 fail-closed fixes; the rel-v4 host batch authorised and delivered
+
+Rulings. (1) Push `62d2922` — done, `origin/main = 62d2922` (owner's run: 911 green).
+(2) D-t1 accepted (planning = 64 × 3600 / bracketed span). D-t2 accepted with two
+fail-closed corrections: the ledger check compared sets and let a duplicate REC/pull
+ledger through (a later dict would keep the last) — exactly one REC ledger per seq, at most
+one pull ledger per seq, extra seqs refused; and the runner hashed the files on disk but
+computed the report from in-memory ledgers — the report must be computed from the three
+files as read back (one entry point). (3) v0.5 is NOT frozen: it still runs on rec-v3,
+which cannot survive a long soak, and a C1/C2 under it would have to be re-run after the
+reliable protocol and new image; v0.5's three rates, planning, recovery and input binding
+merge into v0.6 without an executable intermediate. (4) The reliability design: HOLD on
+four items — a lost AUDITDONE was still unrecovered (host audited / board replayed-only);
+"IDENTACK or the first sign reply" is unsafe, the handshake must complete before the first
+SIGNREQ; STOP_SIGN lacked its evidence contract (a signed request with no record, orphan
+notary entries, nonce consumption, validator rules); the "negligible" independence-based
+residual figure is unsupported by five events and must go; the HB 99.9 % needs its integer
+rounding and denominator pinned. (5) Stop-loss stays TRIGGERED; no C1/C2/S/Claim B ruling.
+Authorised: a host-only batch closing D-t2 and the four gaps, implementing the v0.6 host
+state machines, caches, validator and twins behind a new protocol switch with rec-v3
+proven unchanged, and per-frame loss/duplication/truncation/exhaustion tests. The firmware
+batch is formally opened but starts only after this batch is reviewed PASS; then a new
+image, a full P3 compatibility review, the self-contained v0.6 prereg and its freeze; then
+ONE C1 → C2 → S.
+
+Delivered the same day, host-only (`docs/l6_rel_batch_package.md`): D-t2 — duplicate
+ledgers refused by seq, `rate_report_from_evidence_dir` the only entry point (the runner
+calls it after writing run_log/audits/timeline; the CLI calls it); rel-v4
+(`host/l6_rel.py`): IDENT handshake verified before the acknowledgement and completed
+before the first SIGNREQ (a SIGNREQ without it is PROTOCOL_IDENT), the SIGNREQ transaction
+with one signature per seq and the cached reply replayed (notary `replays`), SIGNGET on a
+broken request, `audit_requested` folded into SIGNOK (no AUDITREQ frame), AUDIT_READY
+resent on the bound, the AUDITDONE handshake (AUDITWAIT → the same DONE replayed; exhaustion
+= STOP_AUDIT on the board and `unconfirmed` on the host), indexed heartbeats with the
+budget ⌊R/1000⌋ over R = SCORED records and never two missing per record, CLOSE
+reconstructed from TERM's `closing_control`, the TERM transaction (TERMACK/TERMGET,
+re-ack after the end); the validator's STOP_SIGN contract (terminal; `sign_stop` only;
+replayed-only; no nonce step; a notary entry behind it is not an orphan) and rule (vii-b)
+(an app-written epoch leaves no notary entry without a record; a crash may); the
+ConsoleSession switch `protocol="rel-v4"`, the runner selecting the protocol from the
+pinned image (`HOST_PROTOCOLS`, prereg/image must match), `l6_schedule.PROTOCOLS["rel-v4"]`,
+the timeline's `hb_i`, `structural_findings(protocol)`; `tests/test_l6_rel.py` (38: every
+frame lost / corrupted / duplicated / torn through the real reader / exhausted; the session
+end to end; rec-v3 unchanged; the validator); the design revision 2 with the four items
+closed and no probability attached; `docs/l6_soak_prereg_v0.6_draft.md` self-contained
+(v0.5's content carried verbatim, §2.6i–6p, D-p1, §4.19–23, §6.10–13), the v0.5 draft
+marked superseded, never frozen. No firmware, no image, no board, no ruling, no freeze.

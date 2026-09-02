@@ -86,6 +86,32 @@ class BothLedgersOrNeither(unittest.TestCase):
             full_report(frames=f)
         self.assertIn("no SIGNREQ for records [5]", str(cm.exception))
 
+    def test_duplicate_or_extra_ledgers_are_refused_never_last_wins(self):
+        """D-t2 correction (owner 2026-09-02): a set comparison let a second ledger for a
+        seq through, and the dict built later kept the last one."""
+        a = copy.deepcopy(AUDITS); a["recs"].append(copy.deepcopy(a["recs"][5]))
+        with self.assertRaises(lr.RateError) as cm:
+            full_report(audits=a)
+        self.assertIn("more than one REC ledger for seq [6]", str(cm.exception)); self.assertIn("never last-wins", str(cm.exception))
+        a = copy.deepcopy(AUDITS); a["pulls"].append(copy.deepcopy(a["pulls"][3]))
+        with self.assertRaises(lr.RateError) as cm:
+            full_report(audits=a)
+        self.assertIn("more than one pull ledger for seq [4]", str(cm.exception))
+        a = copy.deepcopy(AUDITS); extra = copy.deepcopy(a["pulls"][0]); extra["seq"] = 99; a["pulls"].append(extra)
+        with self.assertRaises(lr.RateError) as cm:
+            full_report(audits=a)
+        self.assertIn("pull ledgers for seqs that are not records: [99]", str(cm.exception))
+        a = copy.deepcopy(AUDITS); del a["recs"][0]["seq"]
+        with self.assertRaises(lr.RateError):
+            full_report(audits=a)
+
+    def test_the_report_from_the_evidence_dir_equals_the_in_memory_one_and_binds_the_bytes(self):
+        r = lr.rate_report_from_evidence_dir(C15, "C1")
+        m = full_report()
+        self.assertEqual(r["inputs"], INPUTS); self.assertEqual(r["run_log_sha256"], INPUTS["run_log"])
+        for k in ("inclusive", "nominal", "planning", "recovery", "cov", "evals_per_hour"):
+            self.assertEqual(r[k], m[k], k)
+
     def test_the_real_c1_5_ledgers_are_valid(self):
         r = full_report()
         self.assertEqual(r["nominal"]["excluded_seqs"], [39]); self.assertEqual(r["recovery"]["candidates_with_recovery"], 1)
@@ -138,8 +164,9 @@ class InputBinding(unittest.TestCase):
         self.assertIn("lc.calibration_inputs_findings(path, calibration[k], required=", src)
         self.assertIn('D-s3: {k} calibration inputs', src)
         run = inspect.getsource(l6.run_l6)
-        self.assertIn('_sha(out_dir / "run_log.json")', run); self.assertIn('_sha(out_dir / "audits.json")', run)
-        self.assertIn('_sha(out_dir / "timeline.json")', run); self.assertIn("inputs_sha256=inputs_sha", run)
+        # D-t2 (review 2026-09-02): the report is derived from the files read back from disk
+        self.assertIn('rate_report_from_evidence_dir(out_dir, plan["session"])', run)
+        self.assertNotIn("frames=timeline.frames", run); self.assertNotIn("console.pull_ledgers, \"recs\"", run.split("rate_report")[1][:10])
 
 
 class PlanningRate(unittest.TestCase):

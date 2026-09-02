@@ -239,8 +239,13 @@ def validate_run_log(log: dict) -> dict:
 # application then makes no ARM attempt and the epoch stops (restore, TERM). The record
 # carries the oracle self-report and can never be marked audited, so the sampled and the
 # all-self-reporting policies both refuse the log: it is always a HOLD, never a pass.
+# STOP_SIGN (rel-v4, docs/l6_frame_reliability_design.md §3.1): the sign exchange was not
+# acknowledged after the board's bounded resends — a TERMINAL record: nothing staged, no
+# ARM, no nonce consumed; the record carries `sign_stop {attempts, why}` and nothing else;
+# the host may or may not hold a notary entry for the seq (the reply may have been lost
+# after the signature) — that entry is NOT an orphan because this record names its seq.
 LOOP_OUTCOMES = ("SCORED", "REFUSED_BY_GATE", "STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL",
-                 "STOP_AXI", "STOP_ARM", "STOP_SETTLE", "STOP_AUDIT")
+                 "STOP_AXI", "STOP_ARM", "STOP_SETTLE", "STOP_AUDIT", "STOP_SIGN")
 EPOCH_END_KINDS = ("COMPLETED", "STOPPED", "PROTOCOL", "CRASHED")
 VERIFIED_MARKS = ("audited", "replayed-only")     # rule (ix): a bounded guarantee, said out loud
 CLOSING_STEPS = ("restore", "baseline", "unsigned_control")
@@ -352,6 +357,16 @@ def _check_loop_record(r):
         ref = validate(ev["sign_refusal"])
         if ref["seq"] != r["seq"]:
             raise RecordError("sign_refusal seq differs from the loop_record's")
+        return
+    if out == "STOP_SIGN":
+        _need(ev, ("sign_stop",), out)
+        _forbid(ev, ("sign_reply", "sign_refusal", "arm", "score", "app_oracle_record"), out)
+        ss = ev["sign_stop"]
+        if not isinstance(ss, dict) or not isinstance(ss.get("attempts"), int) or ss["attempts"] < 1 \
+                or not isinstance(ss.get("why"), str) or not ss["why"]:
+            raise RecordError("STOP_SIGN: sign_stop must carry attempts (an integer >= 1) and why")
+        if r["verified"] != "replayed-only":
+            raise RecordError("STOP_SIGN: nothing was staged, the record cannot be marked audited")
         return
     _need(ev, ("sign_reply",), out)
     reply = validate(ev["sign_reply"])
@@ -518,6 +533,15 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int,
     attempts = 0
     for seq in sorted(by_seq):
         r = by_seq[seq]
+        if r["outcome"] == "STOP_SIGN":
+            # rel-v4: the exchange was never acknowledged on the board; a notary entry for
+            # this seq may exist (the reply was lost after the signature) and consumed nothing
+            if seq != max(by_seq):
+                raise RecordError(f"(vii) seq {seq}: STOP_SIGN is terminal — no record may follow it")
+            e = notary_by_seq.get(seq)
+            if e is not None and e["answer"].get("schema") not in ("sign_reply", "sign_refusal"):
+                raise RecordError(f"(vii) seq {seq}: the notary entry behind STOP_SIGN is not a reply or refusal")
+            continue
         if r["outcome"] == "REFUSED_BY_GATE":
             e = notary_by_seq.get(seq)
             if e is None or e["answer"].get("schema") != "sign_refusal":
@@ -548,6 +572,15 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int,
             else:
                 chain = nc.step(chain)
                 attempts += 1
+    # (vii-b, rel-v4 review 2026-09-02) an application-written epoch leaves no notary entry
+    # without a record: every signature the host gave is accounted for by a record of its
+    # seq (SCORED, a stop, REFUSED_BY_GATE, or the terminal STOP_SIGN). A collector-written
+    # (CRASHED) summary may leave the in-flight candidate's entry, and says so by its kind.
+    if summary["written_by"] == "app":
+        orphans = sorted(s for s in notary_by_seq if s not in by_seq)
+        if orphans:
+            raise RecordError(f"(vii) notary entries without a record: {orphans} — a signed request the application "
+                              f"never recorded (a lost reply under rec-v3; under rel-v4 that seq must be a STOP_SIGN record)")
     # closing negative control consumes the last nonce (COMPLETED only)
     kind = summary["epoch_end"]["kind"]
     closing_neg = log.get("closing_negative")
@@ -583,7 +616,7 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int,
 # that carries one is a raw self-report like any other and must be auto-audited (review
 # 2026-09-01: exempting the outcome by NAME let a post-staging STOP_AXI with an unaudited
 # oracle record through). The classification is by content, `self_report_class`.
-NO_SELF_REPORT_OUTCOMES = ("REFUSED_BY_GATE",)
+NO_SELF_REPORT_OUTCOMES = ("REFUSED_BY_GATE", "STOP_SIGN")
 # L6 prereg §3a item 2: the non-SCORED outcomes that may carry a raw self-report — under
 # the sampled policy the firmware audits these unconditionally, before the record.
 AUTO_AUDIT_OUTCOMES = ("STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL", "STOP_ARM", "STOP_SETTLE", "STOP_AXI", "STOP_AUDIT")

@@ -52,9 +52,23 @@ import l6_timing as lt  # noqa: E402
 class ConsoleSession:
     def __init__(self, token: str, collector: n.Collector, relay: n.NotaryRelay, timeline: lt.Timeline,
                  audit_seqs: set[int], crc_budget: int, send, reader=None, clock=None,
-                 chunk_timeout_s: float = ap.CHUNK_TIMEOUT_S):
+                 chunk_timeout_s: float = ap.CHUNK_TIMEOUT_S, protocol: str = "rec-v3", identity_check=None):
         self.token, self.collector, self.relay, self.timeline = token, collector, relay, timeline
         self.audit_seqs, self.crc_budget, self.send = audit_seqs, crc_budget, send
+        # the protocol switch (owner 2026-09-02): rec-v3 is exactly what ran C1 #5; rel-v4
+        # (host/l6_rel.py) adds the IDENT handshake, the SIGNREQ transaction with the
+        # cached reply, AUDITWAIT replays, the TERM transaction and CLOSE-from-TERM. Every
+        # rel-v4 branch below is guarded by `self.rel`; under rec-v3 none of it runs.
+        import l6_rel as rel
+        self.protocol = protocol
+        self.rel = protocol == rel.PROTOCOL
+        self.ident = self.signer = self.termhost = None
+        self.last_pull: ap.PullHost | None = None
+        if self.rel:
+            clk = clock or (reader.mono if reader is not None else None) or __import__("time").monotonic
+            self.ident = rel.IdentHost(token, identity_check or (lambda ident: []), send=self._rel_send, clock=clk)
+            self.signer = rel.SignHost(token, relay, send=self._rel_send, audit_seqs=audit_seqs, clock=clk)
+            self.termhost = rel.TermHost(token, deliver=self._deliver_term, send=self._rel_send, clock=clk)
         # C1 #5 (owner's ruling 2026-09-02): the reader is the session's so a pull timeout can
         # quarantine a torn residue before the resend, and the reader's own resync fragments
         # reach the timeline; the clock arms the pull's monotonic deadline
@@ -171,6 +185,27 @@ class ConsoleSession:
         f = n.parse_line(line)
         self.send(line, f["type"], f["seq"])
 
+    def _rel_send(self, line: str) -> None:
+        f = n.parse_line(line)
+        self.send(line, f["type"], f["seq"])
+
+    def _deliver_term(self, line: str) -> None:
+        """rel-v4: the first CRC-valid TERM reaches the collector once; a lost CLOSE is
+        reconstructed from the TERM's `closing_control` (marked source TERM)."""
+        import l6_rel as rel
+        self.collector.on_line(line)
+        if self.collector.closing_negative is None and isinstance(self.collector.session_summary, dict):
+            cn = rel.closing_from_term(self.collector.session_summary)
+            if cn is not None:
+                self.collector.closing_negative = cn
+
+    def rel_ledgers_json(self) -> dict:
+        """rel-v4's transaction ledgers for audits.json (empty under rec-v3)."""
+        if not self.rel:
+            return {}
+        return {"ident": self.ident.ledger.to_json(), "signs": self.signer.ledgers_json(),
+                "term": self.termhost.ledger.to_json() if self.termhost.ledger else None}
+
     def _on_pull_timeout(self, seq: int, chunk: int) -> None:
         """The chunk deadline passed: whatever unterminated bytes the reader holds are a torn
         reply (C1 #5's 576 bytes) — quarantined now, never glued to the resend."""
@@ -198,7 +233,9 @@ class ConsoleSession:
             self.pull_ledgers.append({"seq": pl.seq, "done": pl.done, "failed": pl.failed, "why": pl.fail_reason,
                                       "attempts": pl.ledger.attempts, "crc_dropped": pl.ledger.crc_dropped,
                                       "timeouts": pl.ledger.timeouts, "lines_kept": pl.ledger.lines_kept,
-                                      "duplicates": pl.ledger.duplicates})
+                                      "duplicates": pl.ledger.duplicates, "waits_seen": pl.ledger.waits_seen,
+                                      "done_replays": pl.ledger.done_replays, "unconfirmed": pl.ledger.unconfirmed})
+            self.last_pull = pl                        # rel-v4: AUDITWAIT may still ask for its DONE
             self.puller = None
 
     def tick(self, dt_s: float | None = None) -> None:
@@ -211,7 +248,18 @@ class ConsoleSession:
 
     def on_line(self, line: str, t_mono: float, t_wall: float) -> None:
         if self.ended:
-            return                                  # after the end nothing is evidence
+            # after the end nothing is evidence — except, under rel-v4, the board's TERM
+            # resend, which is re-acknowledged (not observed) so the board can halt
+            if self.rel and line.startswith(n.MAGIC) and rx.head_fields(line)[0] == n.T_TERM:
+                try:
+                    f = n.parse_line(line)
+                except n.CrcError:
+                    self.termhost.on_broken_line(line, "crc"); return
+                except n.FrameError:
+                    self.termhost.on_broken_line(line, "malformed"); return
+                if f["token"] == self.token:
+                    self.termhost.on_term(f, line)
+            return
         self.timeline.observe(line, t_mono, t_wall)   # the ledger: frames, CRC drops, bad frames
         if not line.startswith(n.MAGIC):
             return                                  # console noise
@@ -241,6 +289,8 @@ class ConsoleSession:
                 self.collector.epoch_end = {"kind": "PROTOCOL", "last_seq": self.collector.last_rec_seq,
                                             "reason": f"PROTOCOL_CRC_BUDGET: {self.timeline.crc_dropped} > {self.crc_budget}"}
                 return
+            if self.rel and (self.signer.on_broken_line(line, "crc") or self.termhost.on_broken_line(line, "crc")):
+                return                              # rel-v4: a broken SIGNREQ/TERM is asked for again
             self._on_broken_line(line, "crc", t_mono)     # rec-v3: a broken REC is asked for again
             return
         except n.FrameError:
@@ -252,11 +302,34 @@ class ConsoleSession:
                     self.pending_rec_seq is not None or rx.head_fields(line)[1] == self.collector.last_rec_seq):
                 self._on_broken_line(line, "malformed", t_mono)   # rec-v3: a merged/torn REC line is a retry
                 return
+            if self.rel and (self.signer.on_broken_line(line, "malformed") or self.termhost.on_broken_line(line, "malformed")):
+                return
             self.collector.on_line(line)            # its rule: a malformed frame is CRASHED
             return
         if f["token"] != self.token:
             self.collector.on_line(line)            # a foreign token is the collector's refusal, never swallowed
             return
+        if self.rel:
+            import l6_rel as rel
+            if f["type"] == n.T_IDENT:
+                self.ident.on_line(line)            # verified before it is acknowledged
+                if self.ident.protocol_end:
+                    self._protocol_end(self.ident.protocol_end)
+                    return
+                self.collector.on_line(line)
+                return
+            if f["type"] == rel.T_AUDITWAIT:
+                pl = self.puller if (self.puller is not None and self.puller.seq == f["seq"]) else self.last_pull
+                if pl is not None and pl.seq == f["seq"]:
+                    self.collector.last_heard = self.collector.clock()
+                    pl.on_wait()                    # the same DONE/ABORT again, bounded
+                return
+            if f["type"] == n.T_TERM:
+                self.collector.last_heard = self.collector.clock()
+                self.termhost.on_term(f, line)      # delivered once, acknowledged, re-acknowledged
+                if self.termhost.protocol_end:
+                    self._protocol_end(self.termhost.protocol_end)
+                return
         if f["type"] == ap.T_READY and self.puller is None:
             # Transaction authority (whole-package review, blocker 1): a READY does not
             # authorise itself. The only candidate that may announce an audit is the one
@@ -283,7 +356,9 @@ class ConsoleSession:
             self.collector.last_heard = self.collector.clock()
             self._on_rec(f, line, t_mono)           # rec-v3: accept once, acknowledge, never append twice
             return
-        if f["type"] == n.T_SIGNREQ and self.pending_rec_seq is not None:
+        if f["type"] == n.T_SIGNREQ and self.pending_rec_seq is not None and not (self.rel and f["seq"] == self.pending_rec_seq):
+            # (rel-v4: a SIGNREQ resent for the SAME seq is the transaction asking for its
+            # reply again, not the board advancing; a NEW seq over an outstanding record is)
             # rec-v3 closure: no new candidate is signed while a record is outstanding — the
             # board may not have moved on without our acknowledgement
             self._protocol_end(f"PROTOCOL_REC: SIGNREQ seq {f['seq']} while the record of seq "
@@ -291,6 +366,14 @@ class ConsoleSession:
             return
         self.collector.on_line(line)
         if f["type"] != n.T_SIGNREQ:
+            return
+        if self.rel:
+            if not self.ident.established:
+                self._protocol_end("PROTOCOL_IDENT: a SIGNREQ before the identity handshake completed")
+                return
+            self.signer.on_signreq(f, line)         # one signature per seq; a resend gets the cached reply
+            if self.signer.protocol_end:
+                self._protocol_end(self.signer.protocol_end)
             return
         if f["seq"] in self.audit_seqs and f["seq"] not in self.audit_sent_for:
             self.audit_sent_for.add(f["seq"])

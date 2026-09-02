@@ -391,7 +391,7 @@ class SessionWiring(unittest.TestCase):
         self.assertIn("reader=reader, clock=time.monotonic", src)
         self.assertIn("console.tick()", src); self.assertNotIn("console.tick(0.02)", src)
         self.assertIn('summary["fragments"] = len(timeline.fragments)', src)
-        self.assertIn("frames=timeline.frames", src, "the rate report gets the ledgers")
+        self.assertIn('rate_report_from_evidence_dir(out_dir, plan["session"])', src, "the rate report is derived from the files on disk (D-t2)")
 
     def test_liveness_gaps_ignore_fragment_events(self):
         frames = [{"dir": "rx", "type": "HB", "seq": 1, "t_mono": 0.0}, {"dir": "rx", "type": "FRAGMENT", "seq": None, "t_mono": 5.0},
@@ -470,7 +470,9 @@ class V05Findings(unittest.TestCase):
 
     def test_the_draft_pass_conditions_in_the_manifest_are_these(self):
         self.assertEqual(MANIFEST["next_prereg"]["pass_conditions_draft"], DRAFT_PC)
-        self.assertEqual(MANIFEST["next_prereg"]["version"], "v0.5-draft"); self.assertIsNone(MANIFEST["next_prereg"]["sha256"])
+        self.assertEqual(MANIFEST["next_prereg"]["version"], "v0.6-draft"); self.assertIsNone(MANIFEST["next_prereg"]["sha256"])
+        self.assertEqual(MANIFEST["next_prereg"]["protocol"], "rel-v4")
+        self.assertEqual(MANIFEST["next_prereg"]["superseded_drafts"][0]["version"], "v0.5-draft", "v0.5 never frozen (owner)")
         self.assertEqual(MANIFEST["prereg"]["version"], "v0.4", "the frozen preregistration is still v0.4")
 
     def test_c1_5_is_a_hold_under_v04_and_the_runner_follows_the_manifest_not_the_draft(self):
@@ -480,7 +482,9 @@ class V05Findings(unittest.TestCase):
         self.assertEqual(lc.calibration_findings_v05(self.rep, DRAFT_PC), [])
         import l6_runner as l6
         src = inspect.getsource(l6.run_l6)
-        self.assertIn('if str(l6m["prereg"].get("version")) == "v0.5":', src)
+        self.assertIn('if str(l6m["prereg"].get("version")) in V05_RULE_VERSIONS:', src)
+        import l6_runner as l6r
+        self.assertEqual(l6r.V05_RULE_VERSIONS, ("v0.5", "v0.6"))
         self.assertIn("lc.calibration_findings_v05(rep, pc)", src)
         self.assertIn('lc.calibration_findings(rep, pc["cov_max"])', src)
 

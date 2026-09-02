@@ -23,7 +23,7 @@ BASELINE_SCORES = [18, 22, 20, 20, 20, 18]
 
 
 def structural_findings(log: dict, chunks: list[dict], requested_audit_seqs: set[int],
-                        frames: list[dict]) -> list[str]:
+                        frames: list[dict], protocol: str = "rec-v3") -> list[str]:
     """D-s4's independent rule: a missing AUDIT, REC or TERM is a structural defect whatever
     the CRC total. REC: every SIGNREQ the host answered has a loop record. AUDIT: every seq
     the host requested (and is SCORED) and every non-SCORED self-report has its chunks,
@@ -49,7 +49,11 @@ def structural_findings(log: dict, chunks: list[dict], requested_audit_seqs: set
                        f"{'requested' if seq in requested_audit_seqs else '§3a auto'})")
     if log["session_summary"].get("written_by") != "app":
         out.append("missing TERM: the session summary was not the application's")
-    out += heartbeat_completeness_findings(log, frames)
+    if protocol == "rel-v4":
+        import l6_rel as rel                        # indexed heartbeats, a budgeted loss
+        out += rel.heartbeat_findings_rel(log, frames)
+    else:
+        out += heartbeat_completeness_findings(log, frames)
     return out
 
 

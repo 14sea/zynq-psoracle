@@ -49,7 +49,9 @@ FRAMES_PER_AUDITED = {"AUDIT": 8}
 # corrupted first REC of seq 1 is a CRC drop, not a frame
 PROTOCOLS = {"push-v1": {"per_audited": {"AUDIT": 8}},
              "pull-v2": {"per_audited": {"AUDIT_READY": 1, "AUDIT": 8}},
-             "rec-v3": {"per_audited": {"AUDIT_READY": 1, "AUDIT": 8}}}
+             "rec-v3": {"per_audited": {"AUDIT_READY": 1, "AUDIT": 8}},
+             # rel-v4 keeps the inbound brackets (AUDITWAIT and every resend arrive on top)
+             "rel-v4": {"per_audited": {"AUDIT_READY": 1, "AUDIT": 8}}}
 CRC_PER_MILLE = 4                      # budget = ceil(4 × expected / 1000)
 SOAK_FRACTION = 0.9                    # D-s3: N = ⌊0.9 × min(rate) × T⌋
 TIMEOUT_MARGIN, TIMEOUT_FIXED_S = 1.25, 600.0

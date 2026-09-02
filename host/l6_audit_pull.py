@@ -58,6 +58,7 @@ MAX_RETRIES = 2                   # per chunk: at most three attempts
 # 83.6 ms, so ≈0.5 s is the candidate the v0.5 draft names for validation — not pinned here.
 CHUNK_TIMEOUT_S = 2.0
 BOARD_IDLE_LIMIT_S = 10.0         # board: wait for the host's next GET/DONE before aborting
+DONE_REPLAY_MAX = 3               # rel-v4: AUDITWAIT announcements the host answers by replaying DONE/ABORT
 BAUD, BITS_PER_BYTE = 115200, 10
 T_READY, T_GET, T_DONE, T_ABORT = "AUDIT_READY", "AUDITGET", "AUDITDONE", "AUDITABORT"
 AUTO_OUTCOMES = ("STOP_LINK2", "STOP_LINK3", "REFUSED_BY_PL", "STOP_ARM", "STOP_SETTLE", "STOP_AXI")
@@ -169,6 +170,9 @@ class Ledger:
     bytes_tx: int = 0
     lines_kept: list[str] = field(default_factory=list)
     duplicates: list[dict] = field(default_factory=list)   # stale byte-identical replies, ignored (never an attempt)
+    waits_seen: int = 0            # rel-v4: AUDITWAIT announcements from the board (our DONE/ABORT did not arrive)
+    done_replays: int = 0          # rel-v4: DONE/ABORT lines replayed in answer
+    unconfirmed: bool = False      # rel-v4: the board announced WAIT_MAX times — it will give the audit up
 
     def note(self, seq, chunk, attempt, outcome, line=None):
         self.attempts.append({"seq": seq, "chunk": chunk, "attempt": attempt, "outcome": outcome})
@@ -197,6 +201,7 @@ class PullHost:
         self.chunk = 0
         self.attempt = 0
         self.deadline: float | None = None       # monotonic: armed by every GET, disarmed by its reply
+        self.final_line: str | None = None       # the DONE or ABORT line, for a rel-v4 replay
         self.verified: dict[int, dict] = {}
         self.done = False
         self.failed = False
@@ -218,7 +223,21 @@ class PullHost:
     def _tx(self, mtype: str, payload: dict) -> None:
         line = n.build_line(mtype, self.seq, self.token, n.encode_payload(payload))
         self.ledger.bytes_tx += self.wire_len(line)
+        if mtype in (T_DONE, T_ABORT):
+            self.final_line = line
         self.send(line)
+
+    def on_wait(self) -> None:
+        """rel-v4 AUDITWAIT: the board did not see our DONE/ABORT — replay the same line,
+        bounded; after WAIT_MAX announcements the board gives the audit up, and the host
+        knows it: the pull is `unconfirmed` (its record will say replayed-only)."""
+        self.ledger.waits_seen += 1
+        if self.final_line is not None and self.ledger.done_replays < DONE_REPLAY_MAX:
+            self.ledger.done_replays += 1
+            self.ledger.bytes_tx += self.wire_len(self.final_line)
+            self.send(self.final_line)
+        if self.ledger.waits_seen >= DONE_REPLAY_MAX:
+            self.ledger.unconfirmed = True
 
     def _get(self) -> None:
         self.deadline = self.clock() + self.timeout_s

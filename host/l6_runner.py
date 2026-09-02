@@ -63,6 +63,8 @@ TOOL_VERSION = "l6_runner.py/0.2.0"
 # RECACK/RECGET lines it never reads, and a rec-v3 host would wait for records a pull-v2
 # image never transacts.
 HOST_PROTOCOL = "rec-v3"
+HOST_PROTOCOLS = ("rec-v3", "rel-v4")
+V05_RULE_VERSIONS = ("v0.5", "v0.6")     # the three-rate rule (nominal CoV + clean minimum + recovery bounds + planning)    # rel-v4: host/l6_rel.py, selected by the pinned image's protocol
 RULING_TEXT = "whole-of-probe P3-L6"
 PROVISION_RULING_TEXT = "provisioning P3-K"       # host/sign_arm.py's text; the signer re-checks it
 SESSIONS = ("C1", "C2", "S")
@@ -150,7 +152,7 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
                                  f"(mutation_bits / map data changed: C1/C2 must be re-run)")
             if rep.get("session") != k or rep.get("schedule_mode") != l6m["sessions"][k]["mode"]:
                 raise ValueError(f"calibration report {k} is not a {k} report of mode {l6m['sessions'][k]['mode']!r}")
-            if str(l6m["prereg"].get("version")) == "v0.5":
+            if str(l6m["prereg"].get("version")) in V05_RULE_VERSIONS:
                 # D-t1 (review 2026-09-02): the PLANNING rate — candidates over the whole
                 # bracketed span, every recovery included wherever it fell — sizes S
                 pl_ = rep.get("planning")
@@ -169,7 +171,7 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
         audit_seqs = ls.sampled_audit_seqs(n, l6m["audit"]["every"])
         settle_med = [lc.median_settle_polls_from_report(calibration[k]) for k in ("C1", "C2")]
         inputs.update({"rate_C1_per_h": rates["C1"], "rate_C2_per_h": rates["C2"], "duration_s": duration_s,
-                       "rate_source": "planning (v0.5 D-t1)" if str(l6m["prereg"].get("version")) == "v0.5" else "evals_per_hour (v0.4)",
+                       "rate_source": "planning (D-t1)" if str(l6m["prereg"].get("version")) in V05_RULE_VERSIONS else "evals_per_hour (v0.4)",
                        "soak_fraction": ls.SOAK_FRACTION, "n_formula": "floor(0.9 × min(rate) × T)",
                        "timeout_formula": "1.25 × (N+2) × 3600/min(rate) + 600",
                        "settle_polls_median_calibration": settle_med})
@@ -187,7 +189,8 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
     return {"session": session, "mode": mode, "master_seed": master_seed, "n": n, "schedule": sched,
             "audit_policy": audit_policy, "audit_seqs": audit_seqs, "expected_frames": expected,
             "crc_budget": budget, "crc_formula": "ceil(4 × expected_total / 1000)",
-            "session_timeout_s": timeout, "inputs": inputs, "protocol": HOST_PROTOCOL, "rec_retry_control": True,
+            "session_timeout_s": timeout, "inputs": inputs,
+            "protocol": l6m["pinned_at_build"].get("protocol", HOST_PROTOCOL), "rec_retry_control": True,
             "flags": ls.flags_for(mode, watchdog=bool(l6m["pinned_at_build"]["watchdog_enabled"]), rec_control=True)}
 
 
@@ -271,8 +274,16 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         # 0.4 s after `go` on exactly that, with nothing heard. Silence is measured from `go`.
         collector.last_heard = collector.clock()
         deadline = t_go + plan["session_timeout_s"]
+        def identity_check(ident: dict) -> list[str]:
+            try:                                     # rel-v4: the IDENT is verified BEFORE it is acknowledged
+                records.check_l6_identity(ident, plan["master_seed"], plan["mode"], l6m["operator"]["operator_data_sha256"],
+                                          protocol=plan["protocol"], rec_retry_control=bool(plan["flags"] & ls.FLAG_REC_CONTROL))
+            except records.RecordError as exc:
+                return [str(exc)]
+            return []
         console = lcs.ConsoleSession(token, collector, relay, timeline, plan["audit_seqs"], plan["crc_budget"], send,
-                                     reader=reader, clock=time.monotonic)
+                                     reader=reader, clock=time.monotonic, protocol=plan["protocol"],
+                                     identity_check=identity_check)
         while collector.epoch_end is None and time.monotonic() < deadline:
             for line, t_mono, t_wall in reader.poll():
                 console.on_line(line, t_mono, t_wall)
@@ -313,7 +324,7 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
             log["closing_negative"] = collector.closing_negative
         pr.write_record(out_dir, "run_log", log)
         pr.write_record(out_dir, "audits", {"chunks": collector.audits, "pulls": console.pull_ledgers,
-                                            "recs": console.rec_ledgers_json()})
+                                            "recs": console.rec_ledgers_json(), **console.rel_ledgers_json()})
         blank_commit = g.gate(g.build_streams(gn.frames_from_genome(gn.blank_genome(phen), phen), phen),
                               phen)["candidate_sha256"]
         findings = []
@@ -328,18 +339,16 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
             summary["l6_identity"] = records.check_l6_identity(
                 log["app_identity"] or {}, plan["master_seed"], plan["mode"], l6m["operator"]["operator_data_sha256"],
                 protocol=plan["protocol"], rec_retry_control=bool(plan["flags"] & ls.FLAG_REC_CONTROL))
-            findings += lc.structural_findings(log, collector.audits, plan["audit_seqs"], timeline.frames)
+            findings += lc.structural_findings(log, collector.audits, plan["audit_seqs"], timeline.frames,
+                                               protocol=plan["protocol"])
             findings += lc.baseline_findings(log)
             findings += lc.rec_closure_findings(log, console.rec_ledgers_json())      # v0.4 PASS condition 7
             findings += lc.rec_control_findings(console.rec_ledgers_json(), bool(plan["flags"] & ls.FLAG_REC_CONTROL))
             try:
-                # the report binds the three files AS WRITTEN (v0.5 blocker 2): run_log,
-                # audits and timeline are on disk already; their bytes are what is hashed
-                inputs_sha = {"run_log": _sha(out_dir / "run_log.json"), "audits": _sha(out_dir / "audits.json"),
-                              "timeline": _sha(out_dir / "timeline.json")}
-                rep = lr.rate_report(log, plan["session"], inputs_sha["run_log"],
-                                     audits={"pulls": console.pull_ledgers, "recs": console.rec_ledgers_json()},
-                                     frames=timeline.frames, inputs_sha256=inputs_sha)
+                # D-t2 (review 2026-09-02): the report is derived from the three files AS
+                # READ BACK from disk — run_log, audits and timeline were written above —
+                # so the bytes hashed into `inputs` are exactly the bytes computed on
+                rep = lr.rate_report_from_evidence_dir(out_dir, plan["session"])
                 pr.write_record(out_dir, "rate_report", rep)
                 summary["rate"] = {k: rep[k] for k in ("candidates", "evals_per_hour", "cov", "cov_wall", "failure_rate")}
                 summary["rate"]["nominal_cov"] = (rep.get("nominal") or {}).get("cov")
@@ -349,7 +358,7 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
                     # the PASS rule follows the preregistration the session is bound to: v0.4
                     # bounds the inclusive CoV (C1 #5 = HOLD stays HOLD); the v0.5 DRAFT's rule
                     # applies only once the manifest pins v0.5 (nothing here re-judges C1 #5)
-                    if str(l6m["prereg"].get("version")) == "v0.5":
+                    if str(l6m["prereg"].get("version")) in V05_RULE_VERSIONS:
                         findings += lc.calibration_findings_v05(rep, pc)
                     else:
                         findings += lc.calibration_findings(rep, pc["cov_max"])
@@ -428,12 +437,12 @@ def preflight(a) -> dict:
         raise bsn.SessionRefusal("D-s1: the watchdog must be pinned ON with prescaler 7 and load 1250000035")
     if not wd.get("board_ready"):
         raise bsn.SessionRefusal("the pinned image is not marked board-ready (freeze batch 2026-09-01: one image, one authority)")
-    if wd.get("protocol") != HOST_PROTOCOL:
-        raise bsn.SessionRefusal(f"the pinned image's protocol {wd.get('protocol')!r} is not this runner's {HOST_PROTOCOL} "
-                                 f"(prereg v0.4): an image without the REC transaction cannot run under it")
-    if l6m["prereg"].get("protocol") != HOST_PROTOCOL:
-        raise bsn.SessionRefusal(f"the frozen preregistration is a {l6m['prereg'].get('protocol')!r} one; this runner "
-                                 f"implements {HOST_PROTOCOL} — freeze prereg v0.4 first")
+    if wd.get("protocol") not in HOST_PROTOCOLS:
+        raise bsn.SessionRefusal(f"the pinned image's protocol {wd.get('protocol')!r} is not one this runner implements "
+                                 f"{HOST_PROTOCOLS} (prereg v0.4): an image without the REC transaction cannot run under it")
+    if l6m["prereg"].get("protocol") != wd.get("protocol"):
+        raise bsn.SessionRefusal(f"the frozen preregistration is a {l6m['prereg'].get('protocol')!r} one; the pinned image "
+                                 f"is {wd.get('protocol')!r} — the two must name the same protocol")
     # blocker 2: both rulings are bound to THIS session and to the frozen prereg + pinned image
     pinned_seed = l6m["sessions"][a.session].get("master_seed")
     bind_ruling(ruling, "whole-of-probe P3-L6", a.session, pinned_prereg, pinned, l6m_sha, pinned_seed)
@@ -457,7 +466,7 @@ def preflight(a) -> dict:
                 raise bsn.SessionRefusal(f"D-s3: {path} does not hash to the pinned {k} calibration record")
             calibration[k] = json.loads(path.read_text())
             # v0.5 blocker 2: the report's three input files must still hash to what it binds
-            bad = lc.calibration_inputs_findings(path, calibration[k], required=str(l6m["prereg"].get("version")) == "v0.5")
+            bad = lc.calibration_inputs_findings(path, calibration[k], required=str(l6m["prereg"].get("version")) in V05_RULE_VERSIONS)
             if bad:
                 raise bsn.SessionRefusal(f"D-s3: {k} calibration inputs: " + "; ".join(bad))
     if shutil.which("sb") is None:
@@ -480,7 +489,7 @@ def preflight(a) -> dict:
     plan = plan_session(l6m, a.session, a.master_seed, a.duration_s, calibration, a.session_timeout_s)
     # prereg v0.4: the run log and its rate report carry the pins the session ran under, so
     # a calibration can never be reused for another image, preregistration or protocol
-    plan["binding"] = {"image_sha256": image_sha, "prereg_sha256": pinned_prereg, "protocol": HOST_PROTOCOL,
+    plan["binding"] = {"image_sha256": image_sha, "prereg_sha256": pinned_prereg, "protocol": plan["protocol"],
                        "session": a.session, "schedule_mode": plan["mode"], "master_seed": plan["master_seed"]}
     data = lo.operator_data(g.load_manifest(), lo.load_local_map())
     if lo.operator_data_sha256(data) != l6m["operator"]["operator_data_sha256"]:

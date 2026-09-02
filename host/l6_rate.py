@@ -171,10 +171,28 @@ def _check_ledgers(records: dict, audits, frames) -> bool:
             isinstance(f, dict) and "dir" in f and "type" in f and "t_mono" in f for f in frames):
         raise RateError("timeline frames invalid: expected a non-empty list of {dir, type, t_mono, ...} (timeline.json)")
     seqs = set(records)
-    rec_seqs = {int(r["seq"]) for r in audits["recs"] if isinstance(r, dict) and "seq" in r}
+    # exactly ONE REC ledger per record and at most ONE pull ledger per seq, no extra seqs
+    # (review 2026-09-02, D-t2: a set comparison let a duplicate ledger through and the
+    # dict built later would have kept the last one)
+    rec_list = [int(r["seq"]) for r in audits["recs"] if isinstance(r, dict) and "seq" in r]
+    if len(rec_list) != len(audits["recs"]):
+        raise RateError("audits ledger invalid: a REC ledger without a seq")
+    dup_rec = sorted({s for s in rec_list if rec_list.count(s) > 1})
+    if dup_rec:
+        raise RateError(f"audits ledger has more than one REC ledger for seq {dup_rec[:8]}: refused, never last-wins")
+    rec_seqs = set(rec_list)
     if rec_seqs != seqs:
         raise RateError(f"audits ledger does not cover the records: REC ledgers for {sorted(rec_seqs)[:8]}…, "
                         f"records {sorted(seqs)[:8]}… (rec-v3 closure: one ledger per record)")
+    pull_list = [int(p["seq"]) for p in audits["pulls"] if isinstance(p, dict) and "seq" in p]
+    if len(pull_list) != len(audits["pulls"]):
+        raise RateError("audits ledger invalid: a pull ledger without a seq")
+    dup_pull = sorted({s for s in pull_list if pull_list.count(s) > 1})
+    if dup_pull:
+        raise RateError(f"audits ledger has more than one pull ledger for seq {dup_pull[:8]}: refused")
+    extra = sorted(set(pull_list) - seqs)
+    if extra:
+        raise RateError(f"audits ledger has pull ledgers for seqs that are not records: {extra[:8]}")
     pulled = {int(p["seq"]) for p in audits["pulls"] if isinstance(p, dict) and p.get("done")}
     audited = {s for s, r in records.items() if r.get("verified") == "audited"}
     if not audited <= pulled:
@@ -299,6 +317,28 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
             "definitions": dict(DEFINITIONS)}
 
 
+def rate_report_from_evidence_dir(evidence_dir, session: str | None = None) -> dict:
+    """THE entry point that binds bytes to numbers (review 2026-09-02, D-t2): the report is
+    computed from the three files AS READ FROM DISK — the same bytes that are hashed into
+    `inputs` — never from in-memory objects. The runner calls this after writing the
+    files; the CLI calls it. Both ledgers or neither: with neither file present the v0.4
+    report is made (no nominal); with one of the two present the report is refused."""
+    d = Path(evidence_dir)
+    raw = (d / "run_log.json").read_bytes()
+    ap_, tp_ = d / "audits.json", d / "timeline.json"
+    audits = frames = inputs = None
+    if ap_.exists() or tp_.exists():
+        ab = ap_.read_bytes() if ap_.exists() else None
+        tb = tp_.read_bytes() if tp_.exists() else None
+        audits = json.loads(ab) if ab is not None else None
+        frames = json.loads(tb).get("frames") if tb is not None else None
+        inputs = {"run_log": hashlib.sha256(raw).hexdigest(),
+                  "audits": hashlib.sha256(ab).hexdigest() if ab is not None else None,
+                  "timeline": hashlib.sha256(tb).hexdigest() if tb is not None else None}
+    return rate_report(json.loads(raw), session, hashlib.sha256(raw).hexdigest(), audits=audits, frames=frames,
+                       inputs_sha256=inputs)
+
+
 def binding_of(run_log: dict) -> dict | None:
     """The run log's own binding (`l6.binding`, written by the runner from the pins it
     verified), copied whole — never reconstructed from the identity frame alone."""
@@ -318,20 +358,8 @@ def main(argv=None) -> int:
     ap.add_argument("--session", choices=SESSIONS, default=None)
     ap.add_argument("--out", type=Path, default=None, help="default: <evidence_dir>/rate_report.json")
     a = ap.parse_args(argv)
-    path = a.evidence_dir / "run_log.json"
     try:
-        raw = path.read_bytes()
-        audits = frames = inputs = None
-        ap_, tp_ = a.evidence_dir / "audits.json", a.evidence_dir / "timeline.json"
-        if ap_.exists() or tp_.exists():
-            # both or neither: a half set of ledgers is refused by rate_report itself
-            audits = json.loads(ap_.read_text()) if ap_.exists() else None
-            frames = json.loads(tp_.read_text()).get("frames") if tp_.exists() else None
-            inputs = {"run_log": hashlib.sha256(raw).hexdigest(),
-                      "audits": hashlib.sha256(ap_.read_bytes()).hexdigest() if ap_.exists() else None,
-                      "timeline": hashlib.sha256(tp_.read_bytes()).hexdigest() if tp_.exists() else None}
-        rep = rate_report(json.loads(raw), a.session, hashlib.sha256(raw).hexdigest(), audits=audits, frames=frames,
-                          inputs_sha256=inputs)
+        rep = rate_report_from_evidence_dir(a.evidence_dir, a.session)
     except (OSError, ValueError, KeyError) as exc:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 2

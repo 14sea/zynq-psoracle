@@ -67,7 +67,15 @@ class Timeline:
             self.bad_frames += 1
             self.frames.append({"dir": "rx", "type": "BAD_FRAME", "seq": None, "t_mono": t_mono, "t_wall": t_wall})
             return
-        self.frames.append({"dir": "rx", "type": f["type"], "seq": f["seq"], "t_mono": t_mono, "t_wall": t_wall})
+        entry = {"dir": "rx", "type": f["type"], "seq": f["seq"], "t_mono": t_mono, "t_wall": t_wall}
+        if f["type"] == n.T_HB and f["payload"] != "-":
+            try:                                   # rel-v4: the heartbeat carries its index
+                i = n.decode_payload(f["payload"]).get("i")
+                if isinstance(i, int):
+                    entry["hb_i"] = i
+            except Exception:  # noqa: BLE001 — an undecodable HB payload: the frame is still an HB
+                pass
+        self.frames.append(entry)
 
     def note_fragment(self, frag: dict) -> None:
         """A torn line the reader quarantined (host/l6_reader.py): bytes that never became a
