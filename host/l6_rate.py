@@ -38,7 +38,7 @@ R = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(R / "host"))
 import l6_timing as lt  # noqa: E402
 
-TOOL_VERSION = "l6_rate.py/0.2.0"
+TOOL_VERSION = "l6_rate.py/0.3.0"
 SESSIONS = ("C1", "C2", "S")
 NON_FAILURE = ("SCORED", "REFUSED_BY_GATE")
 
@@ -66,6 +66,17 @@ DEFINITIONS = {
     "recovery": "the transport-recovery indicators of the session: candidates with a recovery, pull timeouts / retries / "
                 "CRC drops, REC retries, bad frames, fragments, stale duplicates, CRC drops in all (the seq-1 control's "
                 "deliberate drop counted apart). Bounded by v0.5 draft §6.3 so a nominal CoV cannot hide an unstable link",
+    "planning": "candidates × 3600 / (t_rec(last record) − t_signreq(first record)): every candidate the session scored "
+                "over EVERYTHING the session took — both brackets, both transitions, every recovery wherever it fell, the "
+                "last candidate's included (a recovery on the last candidate lands in the last→closing transition and is "
+                "outside every steady-state period; review 2026-09-02). The conservative planning rate: S's N is derived "
+                "from it under v0.5 (D-t1), never from the inclusive or nominal rate",
+    "inputs": "sha256 of the three evidence files the report was derived from — run_log.json, audits.json, timeline.json — "
+              "as written; a calibration pin is verified against all three (v0.5 blocker 2)",
+    "ledgers": "nominal, recovery and the per-candidate attribution exist only when BOTH ledgers are supplied and valid: "
+               "audits.json with a REC ledger for every record and a completed pull for every audited record, and the "
+               "timeline frames with a SIGNREQ for every record; one without the other is refused, never zero-filled "
+               "(v0.5 blocker 1)",
 }
 BINDING_KEYS = ("image_sha256", "prereg_sha256", "protocol", "session", "schedule_mode", "master_seed")
 NON_FRAME_EVENTS = ("CRC_DROP", "BAD_FRAME", "FRAGMENT")
@@ -142,8 +153,50 @@ def recovery_by_seq(tim: dict[int, dict], seqs: list[int], audits: dict | None, 
     return out
 
 
+SHA_HEX = 64
+
+
+def _check_ledgers(records: dict, audits, frames) -> bool:
+    """BOTH ledgers or neither (v0.5 blocker 1): one half alone would count the other
+    half's faults as zero. Returns False for neither (the v0.4 path: no nominal), True for
+    both valid; anything else is refused."""
+    if audits is None and frames is None:
+        return False
+    if audits is None or frames is None:
+        raise RateError("half the ledgers: nominal/recovery need BOTH audits (pulls, recs) and the timeline frames — "
+                        "one without the other is refused, never taken as zero faults")
+    if not isinstance(audits, dict) or not isinstance(audits.get("pulls"), list) or not isinstance(audits.get("recs"), list):
+        raise RateError("audits ledger invalid: expected {pulls: [...], recs: [...]} (audits.json)")
+    if not isinstance(frames, list) or not frames or not all(
+            isinstance(f, dict) and "dir" in f and "type" in f and "t_mono" in f for f in frames):
+        raise RateError("timeline frames invalid: expected a non-empty list of {dir, type, t_mono, ...} (timeline.json)")
+    seqs = set(records)
+    rec_seqs = {int(r["seq"]) for r in audits["recs"] if isinstance(r, dict) and "seq" in r}
+    if rec_seqs != seqs:
+        raise RateError(f"audits ledger does not cover the records: REC ledgers for {sorted(rec_seqs)[:8]}…, "
+                        f"records {sorted(seqs)[:8]}… (rec-v3 closure: one ledger per record)")
+    pulled = {int(p["seq"]) for p in audits["pulls"] if isinstance(p, dict) and p.get("done")}
+    audited = {s for s, r in records.items() if r.get("verified") == "audited"}
+    if not audited <= pulled:
+        raise RateError(f"audits ledger has no completed pull for audited records {sorted(audited - pulled)[:8]}")
+    signed = {f.get("seq") for f in frames if f.get("dir") == "rx" and f.get("type") == "SIGNREQ"}
+    if not seqs <= signed:
+        raise RateError(f"timeline frames carry no SIGNREQ for records {sorted(seqs - signed)[:8]}: not this session's timeline")
+    return True
+
+
+def _check_inputs(inputs_sha256) -> dict:
+    if not isinstance(inputs_sha256, dict) or set(inputs_sha256) != {"run_log", "audits", "timeline"}:
+        raise RateError("inputs_sha256 must name run_log, audits and timeline (the three files the report is derived from)")
+    for k, v in inputs_sha256.items():
+        if not (isinstance(v, str) and len(v) == SHA_HEX and all(c in "0123456789abcdef" for c in v)):
+            raise RateError(f"inputs_sha256[{k!r}] is not a sha256 hex digest")
+    return dict(inputs_sha256)
+
+
 def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str | None = None,
-                audits: dict | None = None, frames: list[dict] | None = None) -> dict:
+                audits: dict | None = None, frames: list[dict] | None = None,
+                inputs_sha256: dict | None = None) -> dict:
     timing = run_log.get("timing")
     if not isinstance(timing, dict) or not isinstance(timing.get("records"), dict) or not timing["records"]:
         raise RateError("the run log carries no per-frame timing (`timing.records`); a rate cannot be derived "
@@ -171,7 +224,13 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
     steady = {s: per[s] for s in candidates if (s + 1) in interior and per.get(s) is not None}
     transitions = {"opening_to_first_s": per.get(first) if candidates and candidates[0] == first + 1 else None,
                    "last_to_closing_s": per.get(candidates[-1]) if candidates and kind == "COMPLETED" else None}
-    ledgers_supplied = audits is not None or frames is not None
+    ledgers_supplied = _check_ledgers(records, audits, frames)
+    inputs = None
+    if ledgers_supplied:
+        inputs = _check_inputs(inputs_sha256)
+        if run_log_sha256 is not None and run_log_sha256 != inputs["run_log"]:
+            raise RateError("run_log_sha256 disagrees with inputs_sha256['run_log']: the report must name ONE run log file")
+        run_log_sha256 = inputs["run_log"]
     recov = recovery_by_seq(tim, seqs, audits, frames) if ledgers_supplied else {}
     rows = []
     for s in candidates:
@@ -207,6 +266,11 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
     else:
         nominal = None
         recovery = {"ledgers": "NOT SUPPLIED: nominal and recovery need audits.json and timeline.json (the runner supplies them; the CLI reads them from the evidence directory)"}
+    # the planning rate (D-t1, review 2026-09-02): candidates over the whole bracketed span
+    span = tim[last]["t_rec"] - tim[first]["t_signreq"]
+    planning = {"candidates": len(candidates), "span_s": span,
+                "evals_per_hour": (3600.0 * len(candidates) / span) if span > 0 and candidates else None,
+                "definition": "candidates × 3600 / (t_rec(last) − t_signreq(first)); brackets, transitions and every recovery included"}
     failures = [r["seq"] for r in rows if r["outcome"] not in NON_FAILURE]
     counts = {}
     for r in rows:
@@ -217,13 +281,14 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
         stages[st] = _stats(vals)
     settle_vals = [r["settle_polls"] for r in rows if isinstance(r["settle_polls"], int)]
     evals_per_hour = (3600.0 / period_stats["mean"]) if period_stats["mean"] else None
-    return {"schema": "l6_rate_report", "schema_version": "1.1.0", "tool": TOOL_VERSION,
+    return {"schema": "l6_rate_report", "schema_version": "1.2.0", "tool": TOOL_VERSION,
             "session": session, "schedule_mode": run_log.get("app_identity", {}).get("schedule_mode"),
             "epoch_end": run_log["session_summary"]["epoch_end"], "run_log_sha256": run_log_sha256,
             "records": len(seqs), "brackets": sorted(brackets), "candidates": len(candidates),
             "evals_per_hour": evals_per_hour, "cov": period_stats["cov"], "cov_wall": wall_stats["cov"],
             "steady_state_periods": len(per_vals), "transitions_s": transitions,
-            "inclusive": inclusive, "nominal": nominal, "recovery": recovery,
+            "inclusive": inclusive, "nominal": nominal, "recovery": recovery, "planning": planning,
+            "inputs": inputs,
             "operator_data_sha256": run_log.get("app_identity", {}).get("operator_data_sha256"),
             "failure_rate": (len(failures) / len(rows)) if rows else None, "failures": failures,
             "outcome_counts": counts, "period_s": period_stats, "wall_s": wall_stats, "stages_s": stages,
@@ -256,12 +321,17 @@ def main(argv=None) -> int:
     path = a.evidence_dir / "run_log.json"
     try:
         raw = path.read_bytes()
-        audits = frames = None
-        if (a.evidence_dir / "audits.json").exists():
-            audits = json.loads((a.evidence_dir / "audits.json").read_text())
-        if (a.evidence_dir / "timeline.json").exists():
-            frames = json.loads((a.evidence_dir / "timeline.json").read_text()).get("frames")
-        rep = rate_report(json.loads(raw), a.session, hashlib.sha256(raw).hexdigest(), audits=audits, frames=frames)
+        audits = frames = inputs = None
+        ap_, tp_ = a.evidence_dir / "audits.json", a.evidence_dir / "timeline.json"
+        if ap_.exists() or tp_.exists():
+            # both or neither: a half set of ledgers is refused by rate_report itself
+            audits = json.loads(ap_.read_text()) if ap_.exists() else None
+            frames = json.loads(tp_.read_text()).get("frames") if tp_.exists() else None
+            inputs = {"run_log": hashlib.sha256(raw).hexdigest(),
+                      "audits": hashlib.sha256(ap_.read_bytes()).hexdigest() if ap_.exists() else None,
+                      "timeline": hashlib.sha256(tp_.read_bytes()).hexdigest() if tp_.exists() else None}
+        rep = rate_report(json.loads(raw), a.session, hashlib.sha256(raw).hexdigest(), audits=audits, frames=frames,
+                          inputs_sha256=inputs)
     except (OSError, ValueError, KeyError) as exc:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 2

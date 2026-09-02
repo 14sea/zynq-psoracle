@@ -139,6 +139,30 @@ def calibration_findings_v05(rate_report: dict, pc: dict) -> list[str]:
     return out
 
 
+def calibration_inputs_findings(report_path, report: dict, required: bool) -> list[str]:
+    """v0.5 blocker 2: a calibration report binds the three files it was derived from
+    (`inputs`: run_log / audits / timeline sha256); the files beside the report must hash
+    to them. `required` (v0.5): a report without `inputs` is refused; under v0.4 a report
+    without them is accepted as before, one with them is still verified."""
+    import hashlib
+    from pathlib import Path
+    inputs = report.get("inputs")
+    if not isinstance(inputs, dict):
+        return ["the calibration report carries no `inputs` (run_log/audits/timeline sha256): made before v0.5"] if required else []
+    out = []
+    d = Path(report_path).parent
+    for k, fname in (("run_log", "run_log.json"), ("audits", "audits.json"), ("timeline", "timeline.json")):
+        f = d / fname
+        want = inputs.get(k)
+        if not f.is_file():
+            out.append(f"calibration input {fname} is missing beside the report")
+            continue
+        got = hashlib.sha256(f.read_bytes()).hexdigest()
+        if got != want:
+            out.append(f"calibration input {fname} hashes to {got[:16]}…, the report binds {str(want)[:16]}…")
+    return out
+
+
 def soak_findings(log: dict, frames: list[dict], crc_dropped: int, crc_budget: int,
                   span_s: float, duration_s: float, hb_gap_max_s: float,
                   settle_median_calib: float, settle_bound_factor: int, wall_fraction_min: float) -> list[str]:

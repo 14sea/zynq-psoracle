@@ -47,6 +47,8 @@ AUDITS = json.loads((C15 / "audits.json").read_text())
 FRAMES = json.loads((C15 / "timeline.json").read_text())["frames"]
 TOKEN = LOG["app_identity"]["token"]
 MANIFEST = json.loads((R / "manifests/l6_manifest.json").read_text())
+INPUTS = {k: __import__("hashlib").sha256((C15 / f).read_bytes()).hexdigest()
+          for k, f in (("run_log", "run_log.json"), ("audits", "audits.json"), ("timeline", "timeline.json"))}
 DRAFT_PC = {"nominal_cov_max": 0.10, "min_clean_periods": 60, "max_recovered_candidates": 3,
             "max_pull_timeouts": 3, "max_bad_frames": 3, "max_fragments": 3}
 
@@ -403,7 +405,7 @@ class SessionWiring(unittest.TestCase):
 class RateSplit(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.rep = lr.rate_report(LOG, "C1", "x", audits=AUDITS, frames=FRAMES)
+        cls.rep = lr.rate_report(LOG, "C1", None, audits=AUDITS, frames=FRAMES, inputs_sha256=INPUTS)
 
     def test_c1_5_inclusive_nominal_and_recovery(self):
         r = self.rep
@@ -416,14 +418,16 @@ class RateSplit(unittest.TestCase):
                          {"candidates_with_recovery": 1, "pull_timeouts": 1, "pull_malformed": 1, "pull_retries": 2,
                           "bad_frames": 1, "fragments": 0, "control_drops": 1, "rec_gets": 0, "rec_retries": 0, "crc_drops": 0})
         self.assertEqual(rec["rx_frames"], 1785)
+        self.assertEqual(r["inputs"], INPUTS); self.assertEqual(r["run_log_sha256"], INPUTS["run_log"])
+        self.assertLess(r["planning"]["evals_per_hour"], r["inclusive"]["evals_per_hour"], "planning is the conservative one")
         row = [x for x in r["per_candidate"] if x["seq"] == 39][0]
         self.assertFalse(row["clean"]); self.assertEqual(row["recovery"]["pull_timeouts"], 1)
 
     def test_the_top_level_numbers_are_the_inclusive_ones_v04_unchanged(self):
         r = self.rep
         self.assertEqual(r["cov"], r["inclusive"]["cov"]); self.assertEqual(r["evals_per_hour"], r["inclusive"]["evals_per_hour"])
-        self.assertEqual(r["schema_version"], "1.1.0")
-        for k in ("inclusive", "nominal", "recovery"):
+        self.assertEqual(r["schema_version"], "1.2.0")
+        for k in ("inclusive", "nominal", "recovery", "planning", "inputs", "ledgers"):
             self.assertIn(k, r["definitions"])
 
     def test_without_the_ledgers_nominal_is_absent_and_says_so(self):
@@ -450,8 +454,10 @@ class RateSplit(unittest.TestCase):
         rec = lr.recovery_by_seq(tim, sorted(tim), {"pulls": [], "recs": []}, frames)
         self.assertTrue(rec[10]["recovered"]); self.assertEqual(rec[10]["fragments"], 1)
         self.assertFalse(any(rec[s]["recovered"] for s in rec if s != 10))
-        r = lr.rate_report(LOG, "C1", "x", audits={"pulls": [], "recs": []}, frames=frames)
-        self.assertEqual(r["nominal"]["excluded_seqs"], [10]); self.assertEqual(r["recovery"]["fragments"], 1)
+        # through the report, on the real ledgers plus that one fragment: seq 10 joins seq 39
+        r = lr.rate_report(LOG, "C1", None, audits=AUDITS, frames=FRAMES + frames, inputs_sha256=INPUTS)
+        self.assertEqual(r["nominal"]["excluded_seqs"], [10, 39]); self.assertEqual(r["recovery"]["fragments"], 1)
+        self.assertEqual(r["recovery"]["candidates_with_recovery"], 2)
 
 
 # ------------------------------------------------------------------ the v0.5 draft findings
@@ -460,7 +466,7 @@ class RateSplit(unittest.TestCase):
 class V05Findings(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.rep = lr.rate_report(LOG, "C1", "x", audits=AUDITS, frames=FRAMES)
+        cls.rep = lr.rate_report(LOG, "C1", None, audits=AUDITS, frames=FRAMES, inputs_sha256=INPUTS)
 
     def test_the_draft_pass_conditions_in_the_manifest_are_these(self):
         self.assertEqual(MANIFEST["next_prereg"]["pass_conditions_draft"], DRAFT_PC)

@@ -1,6 +1,6 @@
 # L6 transport batch — delivery package for review (host-only, 2026-09-02, after C1 #5)
 
-> **Standing: host-only, delivered, NOT reviewed. No board, no ruling, no freeze.** The
+> **Standing: the host transport fix (§1–§4) REVIEWED PASS, scoped (owner 2026-09-02); the v0.5 freeze and the return to the board HOLD — three freeze blockers, closed in the correction batch of §8 (host-only, delivered, NOT yet reviewed). No board, no ruling, no freeze; the stop-loss stands.** The
 > owner's ruling of 2026-09-02 on C1 #5 (`docs/l6_c1_session5_findings.md`; decisions
 > log) authorised two host-only lines: (3) a v0.5 design batch that separates the
 > inclusive rate from a nominal CoV with a preregistered minimum clean sample and
@@ -122,3 +122,45 @@ runner, wire contract, rec, crash summary: 312) are unchanged and green.
    named items.
 4. Whether the §7 stop-loss is lifted for rec-v3 + this host batch, and under what
    condition the next C1 ruling pair may be requested.
+
+## 8. Owner's review (2026-09-02) and the correction batch
+
+**Ruled:** push `b58d0fd` (done); the transport fix PASS scoped; D-t3 **pinned at 2.0 s**
+(0.5 s not adopted: the simulation proves the mechanism, not the real CH340/usbipd path
+under a host scheduling stall); D-t1/D-t2 accepted in principle; **v0.5 NOT frozen**
+until three blockers and a self-contained text are done and re-reviewed; **stop-loss NOT
+lifted** (the soak proves the model, not the physical path; `SIGNREQ`/`HB`/`AUDIT_READY`/
+`CLOSE`/`TERM` are still not re-requestable); no C1 ruling; C2/S/Claim B paused; a
+host-only correction batch authorised; firmware/protocol/image changes to be ruled after
+the reliability design is reviewed.
+
+| # | blocker | closed by | proof |
+|---|---|---|---|
+| 1 | `l6_rate.py` produced nominal/recovery from HALF a ledger set (`audits is not None or frames is not None`): the missing half's faults counted as zero | `_check_ledgers`: both or neither; one alone `RateError("half the ledgers…")`; shape checked; a REC ledger for every record, a completed pull for every audited record, a `SIGNREQ` frame for every record — else refused by name; the CLI refuses a half set (rc 2) | `tests/test_l6_rate_v05.py::BothLedgersOrNeither` (5) |
+| 2 | the report bound only a canonical-JSON hash of the run log, not the files; `audits.json`/`timeline.json` unbound | `inputs` = sha256 of the three files AS WRITTEN (the runner hashes `out_dir/run_log.json`, `audits.json`, `timeline.json` after writing them; the CLI hashes what it reads); `run_log_sha256` = `inputs.run_log`; `l6_checks.calibration_inputs_findings` verifies the three files beside a pinned calibration; the runner's preflight refuses a mismatch and, under v0.5, a report without `inputs` | `InputBinding` (5): refused without/with malformed inputs, ONE run log, CLI hashes match `sha256sum`, tamper/missing named, runner wiring |
+| 3 | "inclusive" = interior→interior periods only: a recovery on the LAST candidate lands in the last→closing transition and moves nothing — "a recovering link gives a smaller N" was false | `planning` = candidates × 3600 / (`t_rec`(last) − `t_signreq`(first)); `plan_session` sizes S from it under v0.5 (`rate_source: planning`), from `evals_per_hour` under v0.4; refuses a v0.5 report without `planning`/`inputs` | `PlanningRate` (2): planning < inclusive < nominal on C1 #5 (3508.9 / 3607.8 / 3734.4); **the counterexample** — C1 #5's timing with the closing bracket shifted 2 s and a `FRAGMENT` in seq 65's window: inclusive/CoV identical, planning lower, `recovered_seqs [39, 65]`, nominal excludes `[39]` only; `SoakSizedByThePlanningRate` (2) |
+| 4 | the draft was a delta ("As v0.4") | `docs/l6_soak_prereg_v0.5_draft.md` rewritten as the complete self-contained text (every v0.4 rule carried verbatim, the v0.5 changes merged in place: §2.6g/6h, D-t1..D-t3, §4.13–19, §6 3/3a–3d, §7 the stop-loss ruling) | reading |
+
+Also delivered: `docs/l6_frame_reliability_design.md` — the complete reliability design
+for the frames that are still not re-requestable (`IDENT`, `SIGNREQ`, `AUDITREQ`, `HB`,
+`AUDIT_READY`, `CLOSE`, `TERM`): today's behaviour on loss per frame from the code, the S
+exposure (24.8 MB, 33 % on non-re-requestable frames; ≈ 7.5 fatal-class events per soak
+under the per-byte reading, P(none) ≈ 0.06 %), the design principle (re-requestable /
+reconstructible / budgeted), per-frame proposals (a `SIGNREQ` transaction with an
+idempotent reply cache, `AUDITREQ` folded into `SIGNOK`, `AUDIT_READY` resent on the
+board's bound, indexed `HB` with a budgeted loss, `CLOSE` reconstructible from `TERM`, a
+`TERM` transaction, `IDENT` repeated until acknowledged), the v0.6 PASS rules, and the
+order (host-only parts first behind a protocol switch; one firmware batch → new image →
+full P3 compatibility review → v0.6). Nothing of it is implemented in firmware.
+
+Tests: 911 (897 + 14) / 1 skip / rc 0 — see the report cited in the commit.
+
+## 9. Asked of the owner (correction batch)
+
+1. Review of §8 (blockers 1–3 closed; the self-contained v0.5 text).
+2. Confirmation of D-t1/D-t2 as written in the draft's §3; D-t3 is recorded as ruled.
+3. Review of `docs/l6_frame_reliability_design.md`; a ruling on whether its firmware batch
+   is authorised (it is a new image, a full P3 compatibility review and a v0.6), and on
+   whether the host-only parts (§5 item 1 of the design) may proceed now.
+4. Whether v0.5 is frozen as is (sha into the manifest) or held for v0.6 so that C1/C2
+   run once under the complete protocol.

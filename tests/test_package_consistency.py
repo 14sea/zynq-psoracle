@@ -328,6 +328,8 @@ class WithdrawnHashesStayInHistory(unittest.TestCase):
         "docs/l6_rec_transaction_design.md": "§8: the review of the first candidate, by hash",
         "docs/import_manifest.md": "lists the preserved build record of the withdrawn candidate by its file name",
         "docs/l6_soak_prereg.md": "§1: names the withdrawn candidate as one the frozen text forbids to run",
+        "docs/l6_soak_prereg_v0.5_draft.md": "§1: the self-contained v0.5 text carries the frozen text's forbidding "
+                                             "of the withdrawn candidate verbatim (owner: no delta drafts)",
     }
     # evidence/ is recorded observation: never edited, never scanned
     SKIP_PREFIXES = ("evidence/", "data/", "builds/", "imported/", "gate_runs/", "fixtures/")

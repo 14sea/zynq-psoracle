@@ -352,6 +352,9 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-02T181419Z.json` |
+| `evidence/tests/test_report_2026-09-02T181408Z.json` |
+| `evidence/tests/test_report_2026-09-02T181245Z.json` |
 | `evidence/tests/test_report_2026-09-02T175112Z.json` |
 | `evidence/tests/test_report_2026-09-02T175035Z.json` |
 | `evidence/tests/test_report_2026-09-02T172002Z.json` |
@@ -616,6 +619,8 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l6_17A6_2026-09-02-01-C1/ymodem.log` |
 | `evidence/l6_17A6_2026-09-02-01-C1/ymodem_app.log` |
 | `docs/l6_transport_batch_package.md` |
+| `docs/l6_frame_reliability_design.md` |
+| `tests/test_l6_rate_v05.py` |
 | `docs/l6_soak_prereg_v0.5_draft.md` |
 | `host/l6_transport_soak.py` |
 | `tests/test_l6_transport.py` |

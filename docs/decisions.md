@@ -1349,3 +1349,47 @@ only on retry exhaustion, no clean candidate marked; the C1 #5 reader on the sam
 truncations recovered first-resend 21/499, 1530 bad frames, 247 failed pulls. The
 timeout stays 2.0 s (D-t3 proposes ≈0.5 s for the owner). Nothing re-judges C1 #5; no
 board, no ruling, no freeze, stop-loss standing.
+
+## 2026-09-02 — owner's review of the transport batch: PASS (host transport fix, scoped) / HOLD (v0.5 freeze, return to the board); three freeze blockers; D-t3 pinned at 2.0 s; stop-loss NOT lifted — correction batch delivered host-only
+
+Rulings. (1) Push `b58d0fd` — done, `origin/main = b58d0fd`; the owner's own run 897 tests
+green. (2) Three blockers before any freeze: `host/l6_rate.py` produced nominal/recovery
+figures from half a ledger set (the other half's faults counted as zero) — v0.5 must
+require both present and valid; the rate report bound only the run log's hash, not
+`audits.json`/`timeline.json` — the three files' actual sha256 must be recorded and
+verified by the later calibration pin; the "inclusive" rate took only the 63
+interior→interior periods, so a recovery on the last candidate (falling in the
+last→closing transition) is excluded and "a recovering link gives a smaller N" does not
+hold — a truly conservative planning rate is needed, e.g. from the full bracketed session
+span, with a last-candidate counterexample test; and the draft's "As v0.4" deltas must
+become a self-contained text at the freeze. (3) D-t1 accepted in principle (S from a
+recovery-inclusive conservative planning rate once the last-period gap is closed); D-t2
+accepted (attribution; both ledgers; input hash binding); **D-t3: 2.0 s pinned** — 0.5 s
+not adopted, the simulation shows it works but nothing shows the real CH340/usbipd path
+is safe under a host scheduling stall. (4) v0.5 not frozen until the blockers and the
+self-contained text are done and re-reviewed; C1 #5 stays HOLD under v0.4, never
+re-judged. (5) The stop-loss is not lifted: the host soak proves the model and the
+mechanism, not the physical path, and `SIGNREQ`, `HB`, `AUDIT_READY`, `CLOSE`, `TERM` are
+still not re-requestable and can end a 2 h soak through the same byte-loss family.
+Therefore: no C1 ruling; C2, S, Claim B paused; a host-only correction batch may close
+the three blockers, produce the self-contained v0.5 text and propose a complete
+reliability design for the non-re-requestable frames; firmware/protocol/image changes
+are ruled separately after that design is reviewed.
+
+Delivered the same day, host-only (`docs/l6_transport_batch_package.md` §8): both
+ledgers or neither with shape and coverage checks (`_check_ledgers`; the CLI refuses a
+half set); `inputs` = sha256 of the three files as written, the runner hashing them after
+writing, `calibration_inputs_findings` at the S import, refusal under v0.5 of a report
+without inputs or planning; the planning rate (candidates over the bracketed span; C1 #5:
+3508.9 vs inclusive 3607.8 vs nominal 3734.4) and `plan_session` sizing S from it under
+v0.5 (`rate_source` recorded); the last-candidate counterexample as a test (closing
+bracket shifted 2 s + a FRAGMENT in seq 65's window: inclusive/CoV identical, planning
+lower, recovered_seqs [39, 65], nominal excludes [39] only); rate report 1.2.0;
+`docs/l6_soak_prereg_v0.5_draft.md` rewritten self-contained with D-t3 recorded as ruled
+and the stop-loss ruling in §7; `docs/l6_frame_reliability_design.md` (exposure: 24.8 MB
+per soak, 33 % in non-re-requestable frames, ≈7.5 fatal-class events expected under the
+per-byte reading; per-frame proposals SIGNREQ transaction + idempotent reply cache,
+AUDITREQ in SIGNOK, AUDIT_READY resend, indexed HB with a budget, CLOSE in TERM, TERM
+transaction, IDENT repeat; host-only parts first behind a protocol switch, one firmware
+batch → v0.6). `tests/test_l6_rate_v05.py` (14). No board, no ruling, no freeze; the
+stop-loss stands.

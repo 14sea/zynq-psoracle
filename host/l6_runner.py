@@ -150,15 +150,26 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
                                  f"(mutation_bits / map data changed: C1/C2 must be re-run)")
             if rep.get("session") != k or rep.get("schedule_mode") != l6m["sessions"][k]["mode"]:
                 raise ValueError(f"calibration report {k} is not a {k} report of mode {l6m['sessions'][k]['mode']!r}")
-            if not isinstance(rep.get("evals_per_hour"), (int, float)):
-                raise ValueError(f"calibration report {k} carries no evals_per_hour")
-            rates[k] = float(rep["evals_per_hour"])
+            if str(l6m["prereg"].get("version")) == "v0.5":
+                # D-t1 (review 2026-09-02): the PLANNING rate — candidates over the whole
+                # bracketed span, every recovery included wherever it fell — sizes S
+                pl_ = rep.get("planning")
+                if not isinstance(pl_, dict) or not isinstance(pl_.get("evals_per_hour"), (int, float)):
+                    raise ValueError(f"calibration report {k} carries no planning rate (v0.5 D-t1): re-derive it with the ledgers")
+                if not isinstance(rep.get("inputs"), dict):
+                    raise ValueError(f"calibration report {k} binds no inputs (run_log/audits/timeline sha256): refused under v0.5")
+                rates[k] = float(pl_["evals_per_hour"])
+            else:
+                if not isinstance(rep.get("evals_per_hour"), (int, float)):
+                    raise ValueError(f"calibration report {k} carries no evals_per_hour")
+                rates[k] = float(rep["evals_per_hour"])
         n = ls.soak_n(rates["C1"], rates["C2"], duration_s)
         timeout = ls.session_timeout_s(n, rates["C1"], rates["C2"])
         audit_policy = "sampled"
         audit_seqs = ls.sampled_audit_seqs(n, l6m["audit"]["every"])
         settle_med = [lc.median_settle_polls_from_report(calibration[k]) for k in ("C1", "C2")]
         inputs.update({"rate_C1_per_h": rates["C1"], "rate_C2_per_h": rates["C2"], "duration_s": duration_s,
+                       "rate_source": "planning (v0.5 D-t1)" if str(l6m["prereg"].get("version")) == "v0.5" else "evals_per_hour (v0.4)",
                        "soak_fraction": ls.SOAK_FRACTION, "n_formula": "floor(0.9 × min(rate) × T)",
                        "timeout_formula": "1.25 × (N+2) × 3600/min(rate) + 600",
                        "settle_polls_median_calibration": settle_med})
@@ -322,9 +333,13 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
             findings += lc.rec_closure_findings(log, console.rec_ledgers_json())      # v0.4 PASS condition 7
             findings += lc.rec_control_findings(console.rec_ledgers_json(), bool(plan["flags"] & ls.FLAG_REC_CONTROL))
             try:
-                rep = lr.rate_report(log, plan["session"], hashlib.sha256(
-                    json.dumps(log, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest(),
-                    audits={"pulls": console.pull_ledgers, "recs": console.rec_ledgers_json()}, frames=timeline.frames)
+                # the report binds the three files AS WRITTEN (v0.5 blocker 2): run_log,
+                # audits and timeline are on disk already; their bytes are what is hashed
+                inputs_sha = {"run_log": _sha(out_dir / "run_log.json"), "audits": _sha(out_dir / "audits.json"),
+                              "timeline": _sha(out_dir / "timeline.json")}
+                rep = lr.rate_report(log, plan["session"], inputs_sha["run_log"],
+                                     audits={"pulls": console.pull_ledgers, "recs": console.rec_ledgers_json()},
+                                     frames=timeline.frames, inputs_sha256=inputs_sha)
                 pr.write_record(out_dir, "rate_report", rep)
                 summary["rate"] = {k: rep[k] for k in ("candidates", "evals_per_hour", "cov", "cov_wall", "failure_rate")}
                 summary["rate"]["nominal_cov"] = (rep.get("nominal") or {}).get("cov")
@@ -441,6 +456,10 @@ def preflight(a) -> dict:
             if _sha(path) != pin:
                 raise bsn.SessionRefusal(f"D-s3: {path} does not hash to the pinned {k} calibration record")
             calibration[k] = json.loads(path.read_text())
+            # v0.5 blocker 2: the report's three input files must still hash to what it binds
+            bad = lc.calibration_inputs_findings(path, calibration[k], required=str(l6m["prereg"].get("version")) == "v0.5")
+            if bad:
+                raise bsn.SessionRefusal(f"D-s3: {k} calibration inputs: " + "; ".join(bad))
     if shutil.which("sb") is None:
         raise bsn.SessionRefusal("`sb` is not installed")
     manifest = json.loads(a.manifest.read_text()); records.validate(manifest)
