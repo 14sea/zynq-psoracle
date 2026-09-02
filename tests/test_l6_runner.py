@@ -315,8 +315,12 @@ class Refusals(unittest.TestCase):
         # the frozen v0.3 is a pull-v2 preregistration: this runner refuses it until v0.4 is frozen
         rc, err = self.run_main(self.args(manifest=self.manifest(prereg_protocol="pull-v2")))
         self.assertEqual(rc, 2); self.assertIn("freeze prereg v0.4 first", err)
+        # the committed manifest with this test's stand-in image: refused on the image pin
+        # (owner's note 2026-09-02: this says nothing about the committed manifest's own
+        # ability to run — the real pins are exercised by the preflight the owner ran
+        # by hand and by the protocol-sensitive cases above)
         rc, err = self.run_main(self.args(manifest=R / "manifests/l6_manifest.json"))
-        self.assertEqual(rc, 2, "the committed manifest cannot run a session under this runner")
+        self.assertEqual(rc, 2); self.assertIn("not the pinned one", err)
 
     def test_the_soak_needs_both_pinned_calibration_records(self):
         self._s_rulings()

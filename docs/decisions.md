@@ -1260,3 +1260,19 @@ promoted image (the e19e1b12… record preserved). Not ruled: any ruling or boar
 operation. Next: a frozen-artifact/hash short review of this batch; on its pass, the
 rec-v3 C1 and C2 ruling pairs are issued separately.
 
+## 2026-09-02 — frozen-artifact/hash short review of the promotion/freeze batch: PASS; cb072eb pushed; rec-v3 C1 eligible for its ruling pair
+
+The owner confirmed the four artefact hashes (prereg 12799ef9…, manifest f12b6958…, image
+403f4ab5…, ELF 8687ef8d…), 403f4ab5… as the sole board-ready rec-v3 authority with
+next_image/next_prereg removed, e19e1b12… superseded and not defective with the six
+sessions' evidence attributed without drift, cd8360dc… DEFECTIVE, calibration.C1/C2 null
+with the pull-v2 pins only in historical_pull_v2 and refused across protocols, the frozen
+v0.4 text self-contained, and — with the real manifest, prereg and image and a correctly
+bound but unclaimed ruling/boundary in /tmp — the runner's preflight producing a C1 /
+rec-v3 / N = 64 / control-armed plan. 864 tests green independently. One non-blocking
+cleanup: a redundant assertion message in tests/test_l6_runner.py claimed "the committed
+manifest cannot run" where the case only triggers the image-pin refusal with a stand-in —
+reworded in this commit to what it tests. Rulings: push cb072eb (done); promotion/freeze
+formally passed; not a C1 or L6 board PASS; no ruling issued yet. After the push the
+rec-v3 C1 is eligible to request its own ruling pair and power-cycle sequence.
+
