@@ -352,6 +352,9 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-02T190140Z.json` |
+| `evidence/tests/test_report_2026-09-02T190128Z.json` |
+| `evidence/tests/test_report_2026-09-02T190041Z.json` |
 | `evidence/tests/test_report_2026-09-02T184151Z.json` |
 | `evidence/tests/test_report_2026-09-02T184140Z.json` |
 | `evidence/tests/test_report_2026-09-02T184040Z.json` |
@@ -628,6 +631,7 @@ revisions and neither may be silently substituted for the other.
 | `docs/l6_soak_prereg_v0.6_draft.md` |
 | `host/l6_rel.py` |
 | `tests/test_l6_rel.py` |
+| `tests/test_l6_rel_correction.py` |
 | `tests/test_l6_rate_v05.py` |
 | `docs/l6_soak_prereg_v0.5_draft.md` |
 | `host/l6_transport_soak.py` |

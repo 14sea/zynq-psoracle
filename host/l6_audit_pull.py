@@ -172,7 +172,7 @@ class Ledger:
     duplicates: list[dict] = field(default_factory=list)   # stale byte-identical replies, ignored (never an attempt)
     waits_seen: int = 0            # rel-v4: AUDITWAIT announcements from the board (our DONE/ABORT did not arrive)
     done_replays: int = 0          # rel-v4: DONE/ABORT lines replayed in answer
-    unconfirmed: bool = False      # rel-v4: the board announced WAIT_MAX times — it will give the audit up
+    ready_dups: int = 0            # rel-v4: AUDIT_READY repeats seen while the pull was pending (the board resent it)
 
     def note(self, seq, chunk, attempt, outcome, line=None):
         self.attempts.append({"seq": seq, "chunk": chunk, "attempt": attempt, "outcome": outcome})
@@ -229,15 +229,14 @@ class PullHost:
 
     def on_wait(self) -> None:
         """rel-v4 AUDITWAIT: the board did not see our DONE/ABORT — replay the same line,
-        bounded; after WAIT_MAX announcements the board gives the audit up, and the host
-        knows it: the pull is `unconfirmed` (its record will say replayed-only)."""
+        bounded. No verdict is taken here (review 2026-09-02, item 2: the third replay may
+        still succeed): whether the board confirmed the audit is read afterwards from ITS
+        record (`verified`) by `l6_checks.rel_closure_findings`; the counts are the facts."""
         self.ledger.waits_seen += 1
         if self.final_line is not None and self.ledger.done_replays < DONE_REPLAY_MAX:
             self.ledger.done_replays += 1
             self.ledger.bytes_tx += self.wire_len(self.final_line)
             self.send(self.final_line)
-        if self.ledger.waits_seen >= DONE_REPLAY_MAX:
-            self.ledger.unconfirmed = True
 
     def _get(self) -> None:
         self.deadline = self.clock() + self.timeout_s
@@ -293,7 +292,8 @@ class PullHost:
             return
         # WAIT_CHUNK
         if f["type"] == T_READY:
-            return                                    # a duplicate READY is ignored
+            self.ledger.ready_dups += 1               # a duplicate READY is ignored (rel-v4: the board resent it)
+            return
         if f["type"] != n.T_AUDIT:
             return                                    # HB etc. are the collector's
         b = self.binding

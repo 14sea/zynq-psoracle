@@ -216,8 +216,11 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
    `IDENT` and waits bounded (`P3_IDENT_IDLE_POLLS`) for `IDENTACK {seq 0}`, resending the
    same bytes on the bound, ≤ 3 transmissions; exhaustion → `STOP_IDENT` (restore not
    needed, TERM) and **no `SIGNREQ` is ever sent**. The host acknowledges only an identity
-   it verified (§2.4's fields, the protocol, the control flags); a `SIGNREQ` with no
-   established identity ends the epoch `PROTOCOL_IDENT`.
+   it verified (§2.4's fields, the protocol, the control flags); an identity it refuses
+   draws no acknowledgement and no host-side end — the board exhausts to `STOP_IDENT` and
+   its TERM ends the epoch, the refusal being a closure finding; a broken IDENT-shaped
+   line is in the IDENT ledger, never the collector's crash; a `SIGNREQ` with no
+   established identity, or after a refusal, ends the epoch `PROTOCOL_IDENT`.
 6k. **The sign exchange is a transaction.** The application serialises `SIGNREQ` once and
    waits bounded (`P3_SIGN_IDLE_POLLS`) for `SIGNOK`/`SIGNREF`; on `SIGNGET {seq}` or the
    bound it resends the same bytes, ≤ 3 transmissions; exhaustion → **`STOP_SIGN`**, a
@@ -235,14 +238,19 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
 6m. **`AUDITDONE` is a completion handshake.** After the last chunk the application waits
    bounded for `AUDITDONE`/`AUDITABORT`; on the bound it sends `AUDITWAIT {seq, served}`,
    ≤ 3, and the host replays the same `AUDITDONE`/`AUDITABORT` line; exhaustion gives the
-   audit up exactly as §2.6a says (SCORED path: `STOP_AUDIT`, no ARM), and the host marks
-   that pull `unconfirmed` — a PASS condition (§6.10).
+   audit up exactly as §2.6a says (SCORED path: `STOP_AUDIT`, no ARM). The host takes no
+   verdict from the wait count: whether the board confirmed the audit is read from its
+   record (`verified`) by the closure check (§6.10); the pull ledger written to
+   `audits.json` carries `waits_seen`/`done_replays`/`waits_exhausted` as rendered at the
+   end of the session.
 6n. **Heartbeats carry their index** (`HB` payload `{i: 0..15}`); a missing heartbeat is
    identified and budgeted (§6.11), a duplicate harmless.
 6o. **`TERM` is a transaction** (`TERMACK`/`TERMGET`, the same bytes, ≤ 3, then halt) and
    **carries the closing control's fields** (`closing_control {fault, kind, status,
    nonce_before, nonce_after}`) so a lost `CLOSE` is reconstructed from it (marked
-   `source: TERM`).
+   `source: TERM`); a `CLOSE` that did arrive is compared with it and a disagreement is a
+   closure finding. The runner keeps reading for `TERM_LINGER_S` = 22 s after the first
+   TERM so a resent TERM (our ACK lost) is re-acknowledged.
 6p. **Every new bounded wait is the §2.6e receiver** (whole-line bound, stale lines ignored
    up to `P3_RECTX_STALE_LIMIT`), implemented as pure units in the pattern of
    `firmware/p3_rectx.c` (`p3_signtx.c`, `p3_termtx.c`, the pull's wait state) and driven
@@ -270,7 +278,7 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
 | **D-t1** the three rates (RULED 2026-09-02: accepted) | The calibration report carries `inclusive` (every steady-state period, recoveries included), `nominal` (the steady-state periods of candidates **without** a transport recovery; every excluded seq named) and `planning` = candidates × 3600 / (`t_rec`(last record) − `t_signreq`(first record)): every candidate the session scored over **everything** the session took — both brackets, both transitions and every recovery wherever it fell. A steady-state period is interior→interior only, so a recovery on the **last** candidate lands in the last→closing transition and moves neither the inclusive nor the nominal rate; it does move the planning rate (review 2026-09-02; `tests/test_l6_rate_v05.py` is the counterexample). **S's N = ⌊0.9 × min(planning_A, planning_B) × T⌋**, never from the inclusive or the nominal rate. |
 | **D-t2** recovery attribution and the ledgers (RULED 2026-09-02: accepted, with two fail-closed corrections — exactly one REC ledger per seq and at most one pull ledger per seq, extra seqs refused; the report derived from the three files as read back from disk, `host/l6_rate.rate_report_from_evidence_dir`, the only entry point) | A candidate is *recovered* iff its pull ledger has a non-ok attempt or a timeout, or its REC ledger a retry (`RECGET`), or a `CRC_DROP` / `BAD_FRAME` / `FRAGMENT` event falls inside its window [`t_signreq(seq)`, `t_signreq(seq+1)`). The forced REC-retry control of seq 1 (§2.6c) is attributed as *control*, not as a recovery. Stale duplicates are reported, never a recovery on their own. Attribution is `host/l6_rate.recovery_by_seq`, from the ledgers the runner writes (`audits.json` `pulls[]`/`recs[]`, `timeline.json` frames), never from a received frame count. **Both ledgers must be present and valid or the report carries no nominal/recovery figures** (one without the other is refused). **The report names the sha256 of the three files it was derived from (`inputs`)**; a calibration pin is verified against the report's bytes (D-r5) AND against those three files beside it; under v0.6 a report without `inputs` or without `planning` is refused. |
 | **D-t3** the chunk timeout (RULED 2026-09-02) | **`CHUNK_TIMEOUT_S = 2.0` s, pinned.** ≈0.5 s is NOT adopted: the host soak shows the mechanism works at 0.5 s over a modelled channel, but nothing shows the real CH340/usbipd path is safe at 0.5 s under a host scheduling stall. (C1 #5's 528 clean chunk round trips: median 42.9 ms, p99 83.1 ms, max 83.6 ms — recorded, not acted on.) |
-| **D-p1** the rel-v4 protocol (proposed; the design is the owner's to review, the firmware batch the owner's to start) | §2.6i–6p as written, with the bounds `MAX_ATTEMPTS` 3 (IDENT, SIGNREQ, AUDIT_READY, TERM), `WAIT_MAX` 3 (AUDITWAIT), host re-requests ≤ 2 per seq, host replays/re-acks ≤ 3 per seq (`host/l6_rel.py`); the STOP_SIGN evidence contract and rule (vii-b) (`validators/records.py`); the heartbeat budget ⌊R/1000⌋ over R = SCORED records, never two missing in one record. |
+| **D-p1** the rel-v4 bounds (RULED 2026-09-02: accepted with the exact semantics) | Board transmissions: 3 in all = the first + 2 resends (IDENT, SIGNREQ, AUDIT_READY, TERM); host re-requests (SIGNGET/TERMGET/RECGET): at most 2 per seq; AUDITWAIT: at most 3; host replays / re-acknowledgements: at most 3 per seq. **Seeing the third AUDITWAIT is not a final failure**: the third replay may still reach the board; the verdict is the board's closure evidence (its record's `verified`), never the wait count. The STOP_SIGN evidence contract and rule (vii-b) (`validators/records.py`); the heartbeat budget ⌊R/1000⌋ over R = SCORED records, never two missing in one record. The protocol itself (§2.6i–6p) is the design the owner reviews; the firmware batch is the owner's to start. |
 
 ### 3a. The audit timing requirement (D-s2's blocker, and its resolution)
 
@@ -406,12 +414,18 @@ type) and `STOP_AUDIT` are §2.6a's.
     acknowledgement, writes the transaction ledgers into `audits.json` (`ident`, `signs`,
     `term`) and selects the heartbeat rule by protocol; `l6_schedule.PROTOCOLS["rel-v4"]`.
 21. **The validator's rel-v4 rules** (`validators/records.py`): `STOP_SIGN` as a terminal
-    loop-record outcome with its exact evidence; rule (vii-b) — in an application-written
-    epoch every notary entry has a record of its seq.
+    loop-record outcome with its exact evidence, accepted only when the IDENT declares
+    `rel-v4`; rule (vii-b) — in an application-written epoch every notary entry has a
+    record of its seq. **The §6.10–13 gates as code** (`host/l6_checks.rel_closure_findings`,
+    `rel_control_findings`, `rel_recovery_findings`; `l6_rel.heartbeat_findings_rel`),
+    called by the runner under rel-v4; `l6_runner.session_loop_continues` (the TERM linger).
 22. **Per-frame tests** (`tests/test_l6_rel.py`): loss, duplication, truncation through the
     real reader, and exhaustion for IDENT, SIGNREQ, AUDIT_READY, AUDITDONE, TERM; the
     heartbeat budget; CLOSE from TERM; the session under rel-v4 end to end; rec-v3
-    unchanged; the validator contract.
+    unchanged; the validator contract. **Integration negatives on the real session and
+    the runner's loop condition** (`tests/test_l6_rel_correction.py`: the live pull
+    ledger, the verdict from the board's record, the TERM linger, the IDENT wiring, the
+    §6.10–13 gates, STOP_SIGN's protocol gate, the CLOSE/TERM comparison).
 23. **The firmware batch** (opened by the owner 2026-09-02; starts after items 19–22 are
     reviewed PASS): §2.6i–6p in the firmware, the C twins driven by the wire-contract test
     against `host/l6_rel.py`, two byte-identical builds, `next_image`, a full P3
@@ -480,20 +494,27 @@ are excluded from Claim B's schedule (recorded in the Claim B preregistration at
 8. the IDENT declaring `rec-v3` and echoing the control flag;
 9. for S, the rate report's `binding` equal to the pins, both calibrations bound to the
    same image/prereg/protocol, both calibrations' input files hashing to their `inputs`;
-10. **rel-v4 transactions closed** (`audits.json` `ident`/`signs`/`term` + `pulls`): the
-   identity acknowledged (one accepted IDENT ledger, no conflict); every sign ledger
-   accepted with no conflict and every notary entry's seq recorded (rule vii-b); no
-   `STOP_SIGN`, `STOP_IDENT` or `PROTOCOL_*` end; **no pull `unconfirmed`**; the TERM
-   ledger accepted; the IDENT declaring `rel-v4`;
+10. **rel-v4 transactions closed**, machine-enforced (`host/l6_checks.rel_closure_findings`
+   over `audits.json` `ident`/`signs`/`term`/`closing_conflict` + `pulls`): the identity
+   accepted, acknowledged, not refused, no conflict; the IDENT declaring `rel-v4`; every
+   record's sign transaction accepted with no conflict and no sign ledger without a
+   record (and every notary entry's seq recorded, rule vii-b); no `STOP_SIGN`,
+   `STOP_IDENT` or `PROTOCOL_*` end; **every pull the host completed confirmed by the
+   board's record** (`verified: audited` — a waited pull whose record says replayed-only
+   is named with its counts); the TERM transaction accepted and acknowledged; CLOSE and
+   TERM's `closing_control` in agreement;
 11. **heartbeats**: for every SCORED record the indices 0..15 seen, at most one missing per
    record, and the session total of missing heartbeats ≤ ⌊R/1000⌋ with R = the number of
    SCORED records (`host/l6_rel.hb_missing_budget`: 0 for C1/C2, 6 for a 2 h soak);
    heartbeat losses are a recovery indicator alongside 3b's;
-12. the forced SIGNREQ-retry control exercised on seq 1 exactly as §2.6k states, alongside
-   the REC control of item 6;
+12. the forced SIGNREQ-retry control exercised on seq 1 exactly as §2.6k states
+   (`host/l6_checks.rel_control_findings`), alongside the REC control of item 6;
 13. the recovery indicators of 3b extended with `sign_retries`, `ready_resends`,
-   `hb_missing`, `term_retries`, `ident_repeats`, `done_replays`, each ≤ 3 for C1/C2
-   (`hb_missing` by item 11) — pinned in the manifest's `pass_conditions` at the freeze.
+   `term_retries`, `ident_repeats`, `done_replays`, each ≤ 3 for C1/C2
+   (`host/l6_checks.rel_recovery_findings`; `hb_missing` by item 11) — computed by
+   `l6_rate.recovery_by_seq` / `rel_session_totals`, one per non-ok attempt, both
+   controls attributed as controls, pinned in the manifest's `pass_conditions` at the
+   freeze (today `next_prereg.rel_pass_conditions_draft`).
 
 Read against C1 #5's evidence, items 3a/3b would have raised no finding (nominal CoV 0.056
 over 62 clean periods, 1 recovered candidate, 1 timeout, 1 bad frame, 0 fragments) —

@@ -1441,3 +1441,38 @@ end to end; rec-v3 unchanged; the validator); the design revision 2 with the fou
 closed and no probability attached; `docs/l6_soak_prereg_v0.6_draft.md` self-contained
 (v0.5's content carried verbatim, §2.6i–6p, D-p1, §4.19–23, §6.10–13), the v0.5 draft
 marked superseded, never frozen. No firmware, no image, no board, no ruling, no freeze.
+
+## 2026-09-02 — owner's review of the rel-v4 host batch: HOLD (seven integration items); D-p1 bounds accepted with exact semantics; 866bc5b not pushed; firmware batch not yet authorised — correction batch delivered host-only
+
+The owner's HOLD, each reproduced on the real `ConsoleSession`: (1) the AUDITWAIT ledger
+written to audits.json was a stale settle-time copy; (2) `unconfirmed` was set on the
+third WAIT while the third replay could still succeed (board SCORED/audited vs host
+unconfirmed); (3) the TERM re-ack branch was unreachable in the real runner (the collector
+ends the epoch on the first TERM, the runner leaves its loop); (4) IDENT wiring off the
+design: a CRC-bad IDENT not ledgered, a malformed one CRASHED, a refused identity ended the
+epoch at once instead of the board exhausting to STOP_IDENT; (5) v0.6 §6.10–13 not
+machine-enforced (no rel closure, no SIGNREQ-control shape, no sign_retries /
+ready_resends / ident_repeats / term_retries / done_replays with bounds); (6) STOP_SIGN
+accepted by the validator under a rec-v3 identity; (7) CLOSE and TERM's closing_control
+not compared when both exist. D-p1 accepted: 3 board transmissions in all (first + 2
+resends), host GET ≤ 2, WAIT ≤ 3, replay/re-ack ≤ 3 — but the third WAIT is not a final
+failure; the board's closure evidence decides. Rulings: 866bc5b not pushed; rel-v4
+host/design HOLD; a host-only correction batch closing the seven items with real
+ConsoleSession / runner-lifecycle negative tests; firmware/image, v0.6 freeze, rulings and
+board work still not authorised.
+
+Delivered the same day, host-only (`docs/l6_rel_batch_package.md` §8): pull ledgers
+rendered live (`ConsoleSession.pull_ledgers` property, `waits_exhausted` a fact); no
+host verdict on waits — `rel_closure_findings` reads the board's record; the runner's loop
+condition `session_loop_continues` lingering 22 s after the first TERM under rel-v4 (a
+resent TERM re-acknowledged; rec-v3 unchanged); IDENT broken lines ledgered before the
+collector, a refusal = no ack + no host end + `refused` ledger (the board's STOP_IDENT TERM
+ends the epoch; the refusal a closure finding), a SIGNREQ after a refusal PROTOCOL_IDENT;
+`rel_closure_findings` / `rel_control_findings` / `rel_recovery_findings` +
+`recovery_by_seq` rel indicators (one per non-ok attempt) + `rel_session_totals` +
+`FLAG_SIGN_CONTROL`, all called by the runner under rel-v4, bounds in the manifest's
+`rel_pass_conditions_draft`; STOP_SIGN refused unless the IDENT declares rel-v4; CLOSE vs
+TERM compared, a disagreement recorded and named. `tests/test_l6_rel_correction.py` (14)
+on the real session and the loop condition; design revision 3; the v0.6 draft updated
+(§2.6j/6m/6o, D-p1 as ruled, §4.21–22, §6.10/12/13). No firmware, no image, no board, no
+ruling, no freeze.

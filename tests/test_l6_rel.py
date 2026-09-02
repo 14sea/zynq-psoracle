@@ -111,10 +111,12 @@ class IdentHandshake(unittest.TestCase):
         self.assertEqual(board.state, "EXHAUSTED"); self.assertIn(rel.STOP_IDENT, board.why)
         self.assertFalse(host.established); self.assertEqual(res["host_sent"], [])
 
-    def test_an_identity_the_host_refuses_is_never_acknowledged(self):
+    def test_an_identity_the_host_refuses_is_never_acknowledged_and_the_board_exhausts(self):
         board, host, sim, res = self.run_ident(verify=lambda ident: ["master_seed is not the page's"])
         self.assertFalse(host.established); self.assertEqual(res["host_sent"], [])
-        self.assertIn("PROTOCOL_IDENT", host.protocol_end); self.assertEqual(board.state, "EXHAUSTED")
+        self.assertTrue(host.refused); self.assertIsNone(host.protocol_end, "a refusal is not a channel fault: no host-side end")
+        self.assertEqual(board.state, "EXHAUSTED"); self.assertIn(rel.STOP_IDENT, board.why)
+        self.assertEqual([a["outcome"] for a in host.ledger.attempts], ["refused", "refused-repeat", "refused-repeat"])
 
     def test_a_second_different_ident_is_a_conflict(self):
         host = rel.IdentHost(TOKEN, verify_ok, send=lambda l: None)
@@ -244,14 +246,13 @@ class ReadyAndDone(unittest.TestCase):
         board, host, sim, res = self.run_pull([rel.Fault("h2b", ap.T_DONE, 0, "drop")])
         self.assertTrue(host.done); self.assertEqual(board.finish()["verified"], "audited")
         self.assertEqual(board.waits_sent, 1); self.assertEqual(host.ledger.waits_seen, 1); self.assertEqual(host.ledger.done_replays, 1)
-        self.assertFalse(host.ledger.unconfirmed)
         dones = [l for l in res["host_sent"] if n.parse_line(l)["type"] == ap.T_DONE]
         self.assertEqual(len(dones), 2); self.assertEqual(dones[0], dones[1])
 
     def test_done_lost_four_times_is_visible_on_both_sides(self):
         board, host, sim, res = self.run_pull([rel.Fault("h2b", ap.T_DONE, k, "drop") for k in range(4)])
         self.assertTrue(host.done, "the host verified every chunk")
-        self.assertTrue(host.ledger.unconfirmed, "…and knows the board never heard so")
+        self.assertEqual(host.ledger.waits_seen, rel.WAIT_MAX, "…and counted every announcement; the verdict is the board's record")
         self.assertEqual(board.finish()["outcome"], "STOP_AUDIT"); self.assertEqual(board.waits_sent, rel.WAIT_MAX)
 
 

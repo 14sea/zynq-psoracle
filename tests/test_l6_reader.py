@@ -164,7 +164,7 @@ class SilenceClockStartsAtGo(unittest.TestCase):
         src = inspect.getsource(l6.run_l6)
         i_go = src.index('f"go {l5.APP_LOAD_ADDR:#x}"')
         i_reset = src.index("collector.last_heard = collector.clock()")
-        i_loop = src.index("while collector.epoch_end is None")
+        i_loop = src.index("while session_loop_continues(collector, console, time.monotonic(), deadline)")   # rel-v4 lingers after TERM; the silence clock reset stays before it
         self.assertLess(i_go, i_reset); self.assertLess(i_reset, i_loop)
         self.assertLess(src.index("collector = n.Collector("), i_go, "the collector is built before the preamble")
 

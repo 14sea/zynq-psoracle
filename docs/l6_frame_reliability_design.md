@@ -1,7 +1,8 @@
-# Frame reliability design — rel-v4: every board→host frame re-requestable, reconstructible or budgeted (revision 2, 2026-09-02)
+# Frame reliability design — rel-v4: every board→host frame re-requestable, reconstructible or budgeted (revision 3, 2026-09-02)
 
-> **Standing: DESIGN, host-authored; revision 2 after the owner's HOLD of revision 1
-> (four items, closed below and marked ▲). The HOST SIDE and the BOARD TWINS of this
+> **Standing: DESIGN, host-authored; revision 3 after the owner's HOLD of revision 2 (seven
+> integration items on the host batch, closed below and marked ◆; revision 1's four items
+> stay marked ▲). The HOST SIDE and the BOARD TWINS of this
 > design are implemented in `host/l6_rel.py` behind the protocol switch `rel-v4`
 > (`host/l6_console.py`, `host/l6_runner.py`; rec-v3 unchanged by test); the validator
 > carries the STOP_SIGN contract and the orphan-entry rule; `tests/test_l6_rel.py` runs
@@ -104,7 +105,9 @@ restore and TERM as for `STOP_REC`. The **nonce is not consumed** (no ARM happen
 chain does not step; the next SIGNREQ never comes). The **notary log** may hold an entry
 for that seq — the host signed, the reply was lost three times — and that entry is
 **not an orphan** because a record of its seq exists; the entry's `replays` count says
-how often the cached reply went out. **Rule (vii-b)**: in an application-written epoch
+how often the cached reply went out. ◆ **`STOP_SIGN` exists only under rel-v4**: the
+validator refuses the outcome when the IDENT declares any other protocol (a board without
+a sign transaction has nothing to exhaust). **Rule (vii-b)**: in an application-written epoch
 every notary entry has a record of its seq (`SCORED`, a stop, `REFUSED_BY_GATE`, or
 `STOP_SIGN`); an entry without a record is a rejection (under rec-v3 that is a lost
 reply; under rel-v4 it cannot happen without a `STOP_SIGN` record). A collector-written
@@ -165,6 +168,9 @@ status, nonce_before, nonce_after}` (additive; `closing.unsigned_control` stays
 `done|not_reached`); `CLOSE` is still sent first. The host (`l6_rel.closing_from_term`,
 `ConsoleSession._deliver_term`) reconstructs `closing_negative` from the TERM when no
 `CLOSE` arrived, marked `source: TERM`; the validator's rule (viii) reads it as before.
+◆ When a `CLOSE` did arrive, the two are **compared** (fault, kind, status, nonce_before,
+nonce_after): the CLOSE that arrived stands, and a disagreement is recorded
+(`closing_conflict`) and named by `rel_closure_findings`.
 With 3.6, `TERM` is re-requestable, so `CLOSE` is **class (ii)**.
 
 ### 3.6 `TERM` → a transaction (host implemented; firmware small)
@@ -175,7 +181,13 @@ resends the same bytes, ≤ 3 transmissions; then halts as today (nothing follow
 delivers the first CRC-valid `TERM` to the collector ONCE, acknowledges it, re-acknowledges
 a byte-identical repeat (also after the epoch's end, without observing it as evidence),
 draws `TERMGET` on a broken `TERM`-shaped line (≤ 2), and ends `PROTOCOL_TERM` on a
-different second `TERM`. Tests (`TermTransaction`, 6). **Class (i).**
+different second `TERM`. ◆ **The runner lingers**: the collector ends the epoch on the
+first TERM, so the console loop's condition (`l6_runner.session_loop_continues`) keeps
+reading for `TERM_LINGER_S` = (MAX_ATTEMPTS − 1) × BOARD_BOUND_S + 2 s under rel-v4 — the
+window in which the board resends a TERM whose ACK was lost — and the resend is
+re-acknowledged without being observed as evidence; under rec-v3 the loop ends with the
+epoch exactly as before; the runner's own bound always wins. Tests (`TermTransaction`, 6;
+`test_l6_rel_correction::Session::test_3`). **Class (i).**
 
 ### 3.7 `IDENT` → a handshake completed BEFORE the first `SIGNREQ` (host implemented; firmware small)
 
@@ -186,11 +198,17 @@ resends the same bytes, ≤ 3; exhaustion → `STOP_IDENT` (TERM, **no `SIGNREQ`
 sent**). The host (`l6_rel.IdentHost`) **verifies the identity first** (`check_l6_identity`:
 master seed, schedule mode, operator data, protocol, the control flag — the runner's
 `identity_check`) and acknowledges **only** an identity with no finding; a
-byte-identical repeat is re-acknowledged (bounded); a finding or a different second
-`IDENT` is `PROTOCOL_IDENT` with no acknowledgement (the board exhausts). **A `SIGNREQ`
-that arrives while no identity is established ends the epoch `PROTOCOL_IDENT`**
-(`ConsoleSession`); the relay is never reached. Tests (`IdentHandshake`, 7; `Session`).
-**Class (i).**
+byte-identical repeat is re-acknowledged (bounded). ◆ **A finding is a refusal, not a
+host-side end**: no acknowledgement, the identity ledgered as `refused` (repeats as
+`refused-repeat`), the declared identity still recorded as evidence, and the epoch left
+open for the board to resend, exhaust and stop itself with `STOP_IDENT` — its TERM ends
+the epoch; the refusal is a closure finding (`rel_closure_findings`). A different second
+`IDENT` is channel misbehaviour and ends the epoch `PROTOCOL_IDENT`. ◆ A CRC-failed or
+malformed `IDENT`-shaped line is in the IDENT ledger (`crc`/`malformed`) and is never the
+collector's `CRASHED: unparseable frame` (under rec-v3 it still is). **A `SIGNREQ` that
+arrives while no identity is established — or after a refusal — ends the epoch
+`PROTOCOL_IDENT`**; the relay is never reached. Tests (`IdentHandshake`, 7; `Session`;
+`test_l6_rel_correction::Session::test_4a–4d` on the real session). **Class (i).**
 
 ### 3.8 `AUDITDONE` → a completion handshake (host implemented; twin; firmware) ▲ (item 1)
 
@@ -200,14 +218,18 @@ chunk — says `audited`; rule (ix) then refuses the log. Now: after serving the
 chunk the board waits bounded for `AUDITDONE`/`AUDITABORT`; when its bound runs out it
 sends **`AUDITWAIT {seq, served}`** (≤ `WAIT_MAX` = 3, one per bound), and the host
 **replays the same `AUDITDONE`/`AUDITABORT` line** it sent (`PullHost.on_wait`, ≤ 3; the
-pull ledger records `waits_seen`, `done_replays`); a duplicate `AUDITDONE` is idempotent
-on the board. Exhaustion: the board gives the audit up exactly as today (a SCORED-path
-pull without `DONE` is `STOP_AUDIT`, no ARM), **and the host, having counted `WAIT_MAX`
-announcements, marks the pull `unconfirmed`** — so when the record says `replayed-only`
-the host's ledger already says why, and the disagreement rule (ix) sees is by design and
-visible, never silent. Tests (`ReadyAndDone`): DONE lost once → `AUDITWAIT` → the same
-DONE replayed → the board audited; DONE lost four times → `STOP_AUDIT` on the board,
-`unconfirmed` on the host, `waits_seen` 3. **Class (i), host→board.**
+pull ledger records `waits_seen`, `done_replays`, `waits_exhausted`); a duplicate
+`AUDITDONE` is idempotent on the board. Exhaustion: the board gives the audit up exactly
+as today (a SCORED-path pull without `DONE` is `STOP_AUDIT`, no ARM). ◆ **The host takes
+no verdict from the wait count** (revision 2's `unconfirmed` at the third `AUDITWAIT` was
+premature: the third replay may still reach the board — the owner reproduced a board
+`SCORED/audited` against a host `unconfirmed`). The verdict is the board's closure
+evidence: `rel_closure_findings` names a pull the host completed whose record says
+`replayed-only` — "the audit was not confirmed on the board (waits_seen k, done_replays
+m)" — and says nothing for a waited pull whose record says `audited`. ◆ The pull ledger
+the runner writes is rendered from the live objects (`ConsoleSession.pull_ledgers`), so
+replays that follow the settle are in `audits.json`. Tests (`ReadyAndDone`;
+`test_l6_rel_correction::Session::test_1`, `test_2`). **Class (i), host→board.**
 
 ### 3.9 Already covered
 
@@ -216,7 +238,19 @@ class (i). The host-side torn-line handling (`docs/l6_transport_batch_package.md
 to every frame type through the reader — every simulation in `tests/test_l6_rel.py` runs
 the board→host bytes through the real reader, and the `truncate` cases show the resync.
 
-## 4. What the PASS rules become (v0.6, `docs/l6_soak_prereg_v0.6_draft.md`)
+## 4. What the PASS rules become (v0.6, `docs/l6_soak_prereg_v0.6_draft.md`) — ◆ machine-enforced
+
+`host/l6_checks.rel_closure_findings` (§6.10: identity accepted/acknowledged/not refused,
+the IDENT declaring rel-v4, every record's sign transaction accepted without conflict and
+no sign ledger without a record, no `STOP_SIGN`/`STOP_IDENT`, no `PROTOCOL` end, every
+host-completed pull confirmed by the board's record, the TERM transaction accepted and
+acknowledged, CLOSE/TERM agreement), `rel_control_findings` (§6.12: seq 1 exactly
+`["crc", "ok"]`, one `SIGNGET`, no replay), `rel_recovery_findings` (§6.13: `sign_retries`,
+`ready_resends`, `ident_repeats`, `term_retries`, `done_replays` each within the pinned
+bound — the manifest's `next_prereg.rel_pass_conditions_draft`) and
+`l6_rel.heartbeat_findings_rel` (§6.11) — all called by the runner under rel-v4; the
+indicators are computed by `l6_rate.recovery_by_seq` (per candidate, one per non-ok
+attempt) and `rel_session_totals` (IDENT/TERM), with both controls attributed as controls.
 
 - D-s4's structural rule keeps "any missing `AUDIT`, `REC`, `TERM`" and adds "any
   `STOP_SIGN`, `STOP_IDENT`, an unconfirmed pull, a `PROTOCOL_*` end"; a missing `HB`

@@ -518,6 +518,11 @@ def validate_standalone_run_log(log: dict, blank_commit: str, nonce_seed: int,
         if r["seq"] in by_seq:
             raise RecordError(f"two loop_records share seq {r['seq']}")
         by_seq[r["seq"]] = r
+    # STOP_SIGN exists only under rel-v4 (review 2026-09-02, item 6): under any other wire
+    # protocol the board has no sign transaction to exhaust, so the outcome is a lie
+    if any(r["outcome"] == "STOP_SIGN" for r in records) and log["app_identity"].get("protocol") != "rel-v4":
+        raise RecordError(f"STOP_SIGN under wire protocol {log['app_identity'].get('protocol')!r}: the outcome exists "
+                          f"only under rel-v4")
     # the audit gate: host-derived marks, and the application's marks must agree
     marks, audit_detail = au.verify(log, audits, manifest)
     for seq in sorted(by_seq):

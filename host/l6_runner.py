@@ -101,6 +101,18 @@ def bind_ruling(ruling: dict, text: str, session: str, prereg_sha: str, image_sh
             raise bsn.SessionRefusal(f"ruling {text!r} is bound to {k} = {got!r}, this session needs {v!r}")
 
 
+def session_loop_continues(collector, console, now: float, deadline: float) -> bool:
+    """The console loop's condition (review 2026-09-02, item 3): read while the epoch is
+    open — and, under rel-v4, for `TERM_LINGER_S` after the first TERM, so that a TERM the
+    board resends because our TERMACK was lost is re-acknowledged; under rec-v3 the loop
+    ends with the epoch exactly as before. The runner's own bound always wins."""
+    if now >= deadline:
+        return False
+    if collector.epoch_end is None:
+        return True
+    return bool(console.lingering(now))
+
+
 def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: float,
                  calibration: dict | None, session_timeout_s: float | None) -> dict:
     """Everything derived BEFORE the session, pure: mode, N, the schedule, the audit seqs,
@@ -191,7 +203,8 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
             "crc_budget": budget, "crc_formula": "ceil(4 × expected_total / 1000)",
             "session_timeout_s": timeout, "inputs": inputs,
             "protocol": l6m["pinned_at_build"].get("protocol", HOST_PROTOCOL), "rec_retry_control": True,
-            "flags": ls.flags_for(mode, watchdog=bool(l6m["pinned_at_build"]["watchdog_enabled"]), rec_control=True)}
+            "flags": ls.flags_for(mode, watchdog=bool(l6m["pinned_at_build"]["watchdog_enabled"]), rec_control=True,
+                                  sign_control=l6m["pinned_at_build"].get("protocol") == "rel-v4")}
 
 
 def _plan_json(plan: dict) -> dict:
@@ -284,7 +297,7 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         console = lcs.ConsoleSession(token, collector, relay, timeline, plan["audit_seqs"], plan["crc_budget"], send,
                                      reader=reader, clock=time.monotonic, protocol=plan["protocol"],
                                      identity_check=identity_check)
-        while collector.epoch_end is None and time.monotonic() < deadline:
+        while session_loop_continues(collector, console, time.monotonic(), deadline):
             for line, t_mono, t_wall in reader.poll():
                 console.on_line(line, t_mono, t_wall)
             console.tick()                           # fragments into the ledger; the pull's monotonic deadline
@@ -344,6 +357,10 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
             findings += lc.baseline_findings(log)
             findings += lc.rec_closure_findings(log, console.rec_ledgers_json())      # v0.4 PASS condition 7
             findings += lc.rec_control_findings(console.rec_ledgers_json(), bool(plan["flags"] & ls.FLAG_REC_CONTROL))
+            if plan["protocol"] == "rel-v4":                                     # v0.6 §6.10 / §6.12
+                rel_ledgers = console.rel_ledgers_json()
+                findings += lc.rel_closure_findings(log, rel_ledgers, console.pull_ledgers)
+                findings += lc.rel_control_findings(rel_ledgers.get("signs") or [], bool(plan["flags"] & ls.FLAG_SIGN_CONTROL))
             try:
                 # D-t2 (review 2026-09-02): the report is derived from the three files AS
                 # READ BACK from disk — run_log, audits and timeline were written above —
@@ -360,6 +377,8 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
                     # applies only once the manifest pins v0.5 (nothing here re-judges C1 #5)
                     if str(l6m["prereg"].get("version")) in V05_RULE_VERSIONS:
                         findings += lc.calibration_findings_v05(rep, pc)
+                        if plan["protocol"] == "rel-v4":                         # v0.6 §6.13
+                            findings += lc.rel_recovery_findings(rep.get("recovery") or {}, pc)
                     else:
                         findings += lc.calibration_findings(rep, pc["cov_max"])
                 else:

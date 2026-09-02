@@ -97,8 +97,24 @@ def _stats(values: list[float]) -> dict:
             "min": min(values), "max": max(values), "median": statistics.median(values)}
 
 
+REL_KEYS = ("sign_retries", "ready_resends", "done_replays", "hb_missing")
+HB_PER_RECORD = 16
+
+
+def rel_session_totals(audits: dict | None) -> dict:
+    """The rel-v4 session-level indicators (not attributable to a candidate): IDENT
+    repeats (every ledger entry after the accepted one, broken lines included) and TERM
+    retries (broken TERM lines, re-requests, re-acknowledgements beyond the first)."""
+    ident = (audits or {}).get("ident") or {}
+    term = (audits or {}).get("term") or {}
+    ident_att = ident.get("attempts") or []
+    term_att = term.get("attempts") or []
+    return {"ident_repeats": max(0, len(ident_att) - 1),
+            "term_retries": sum(1 for a in term_att if a.get("outcome") != "ok") + max(0, int(term.get("acks_sent", 0)) - 1)}
+
+
 def recovery_by_seq(tim: dict[int, dict], seqs: list[int], audits: dict | None, frames: list[dict] | None,
-                    control_seq: int | None = 1) -> dict[int, dict]:
+                    control_seq: int | None = 1, records: dict | None = None) -> dict[int, dict]:
     """Per record: the transport recoveries attributed to it (v0.5 draft §6.3). A pull
     ledger's non-ok attempts and timeouts, a REC ledger's non-ok attempts / RECGETs, and
     every CRC_DROP / BAD_FRAME / FRAGMENT event whose stamp lies in [t_signreq(seq),
@@ -108,11 +124,29 @@ def recovery_by_seq(tim: dict[int, dict], seqs: list[int], audits: dict | None, 
     themselves (they only follow a timeout)."""
     pulls = {int(p["seq"]): p for p in (audits or {}).get("pulls", [])}
     recs = {int(r["seq"]): r for r in (audits or {}).get("recs", [])}
+    signs = {int(x["seq"]): x for x in ((audits or {}).get("signs") or [])}
+    hb_seen: dict[int, set] = {}
+    for f in frames or []:
+        if f.get("dir") == "rx" and f.get("type") == "HB" and isinstance(f.get("hb_i"), int) and f.get("seq") is not None:
+            hb_seen.setdefault(f["seq"], set()).add(f["hb_i"])
     out: dict[int, dict] = {}
     ordered = sorted(seqs)
     for i, s in enumerate(ordered):
         r = {"pull_retries": 0, "pull_timeouts": 0, "pull_crc": 0, "pull_malformed": 0, "duplicates": 0,
-             "rec_retries": 0, "rec_gets": 0, "crc_drops": 0, "bad_frames": 0, "fragments": 0, "control": 0}
+             "rec_retries": 0, "rec_gets": 0, "crc_drops": 0, "bad_frames": 0, "fragments": 0, "control": 0,
+             "sign_retries": 0, "ready_resends": 0, "done_replays": 0, "hb_missing": 0}
+        sg = signs.get(s)
+        if sg:
+            bad_sign = [a for a in sg.get("attempts", []) if a.get("outcome") not in ("ok",)]
+            # the forced SIGNREQ-retry control on seq 1 (["crc", "ok"], one GET) is the control, not a recovery
+            # one extra wire event per non-ok attempt (a broken request = one SIGNGET, a
+            # duplicate request = one cached replay): counted once, never twice
+            if s == control_seq and [a.get("outcome") for a in sg.get("attempts", [])][:1] == ["crc"]:
+                r["control"] += 1
+                bad_sign = bad_sign[1:]
+            r["sign_retries"] = len(bad_sign)
+        if s in hb_seen and records is not None and (records.get(s) or {}).get("outcome") == "SCORED":
+            r["hb_missing"] = HB_PER_RECORD - len({i for i in hb_seen[s] if 0 <= i < HB_PER_RECORD})
         p = pulls.get(s)
         if p:
             bad = [a for a in p.get("attempts", []) if a.get("outcome") != "ok"]
@@ -121,15 +155,21 @@ def recovery_by_seq(tim: dict[int, dict], seqs: list[int], audits: dict | None, 
             r["pull_crc"] = sum(1 for a in bad if a.get("outcome") == "crc")
             r["pull_malformed"] = sum(1 for a in bad if a.get("outcome") == "malformed")
             r["duplicates"] = len(p.get("duplicates", []))
+            r["ready_resends"] = int(p.get("ready_dups", 0))
+            r["done_replays"] = int(p.get("done_replays", 0))
+        rec_control = sign_control = False
+        if sg and s == control_seq and [a.get("outcome") for a in sg.get("attempts", [])][:1] == ["crc"]:
+            sign_control = True
         rl = recs.get(s)
         if rl:
             att = [a.get("outcome") if isinstance(a, dict) else a for a in rl.get("attempts", [])]
             bad_att = [a for a in att if a != "ok"]
             if s == control_seq and att[:1] == ["crc"]:
-                r["control"] = 1
+                r["control"] += 1
+                rec_control = True
                 bad_att = bad_att[1:]
             r["rec_retries"] = len(bad_att)
-            r["rec_gets"] = max(0, int(rl.get("gets_sent", 0)) - r["control"])   # the control's own RECGET is the control's
+            r["rec_gets"] = max(0, int(rl.get("gets_sent", 0)) - int(rec_control))   # the control's own RECGET is the control's
         t0 = tim.get(s, {}).get("t_signreq")
         t1 = tim.get(ordered[i + 1], {}).get("t_signreq") if i + 1 < len(ordered) else None
         if frames and t0 is not None:
@@ -140,15 +180,20 @@ def recovery_by_seq(tim: dict[int, dict], seqs: list[int], audits: dict | None, 
                 if tm is None or tm < t0 or (t1 is not None and tm >= t1):
                     continue
                 if f["type"] == "CRC_DROP":
-                    if s == control_seq and f.get("frame_type") == "REC" and r["control"] and r["crc_drops"] == 0:
-                        continue          # the control's own drop, already attributed as control
+                    # each control's own deliberate drop (one REC, one SIGNREQ on seq 1) is the
+                    # control's, attributed once per frame type, never a recovery
+                    if s == control_seq and f.get("frame_type") == "REC" and rec_control:
+                        rec_control = False; continue
+                    if s == control_seq and f.get("frame_type") == "SIGNREQ" and sign_control:
+                        sign_control = False; continue
                     r["crc_drops"] += 1
                 elif f["type"] == "BAD_FRAME":
                     r["bad_frames"] += 1
                 else:
                     r["fragments"] += 1
         r["recovered"] = any(r[k] for k in ("pull_retries", "pull_timeouts", "pull_crc", "pull_malformed",
-                                             "rec_retries", "rec_gets", "crc_drops", "bad_frames", "fragments"))
+                                             "rec_retries", "rec_gets", "crc_drops", "bad_frames", "fragments",
+                                             "sign_retries", "ready_resends", "done_replays", "hb_missing"))
         out[s] = r
     return out
 
@@ -249,7 +294,7 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
         if run_log_sha256 is not None and run_log_sha256 != inputs["run_log"]:
             raise RateError("run_log_sha256 disagrees with inputs_sha256['run_log']: the report must name ONE run log file")
         run_log_sha256 = inputs["run_log"]
-    recov = recovery_by_seq(tim, seqs, audits, frames) if ledgers_supplied else {}
+    recov = recovery_by_seq(tim, seqs, audits, frames, records=records) if ledgers_supplied else {}
     rows = []
     for s in candidates:
         t = tim[s]
@@ -274,8 +319,9 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
                    "evals_per_hour": (3600.0 / nom_stats["mean"]) if nom_stats["mean"] else None,
                    "excluded_seqs": excluded, "excluded_periods": len(excluded)}
         keys = ("pull_retries", "pull_timeouts", "pull_crc", "pull_malformed", "duplicates", "rec_retries", "rec_gets",
-                "crc_drops", "bad_frames", "fragments")
+                "crc_drops", "bad_frames", "fragments") + REL_KEYS
         recovery = {k: sum(recov[s][k] for s in seqs) for k in keys}
+        recovery.update(rel_session_totals(audits))
         recovery["candidates_with_recovery"] = sum(1 for s in candidates if recov[s]["recovered"])
         recovery["recovered_seqs"] = [s for s in candidates if recov[s]["recovered"]]
         recovery["control_drops"] = sum(recov[s]["control"] for s in seqs)

@@ -34,6 +34,7 @@ MODES = (MODE_ABBA, MODE_A_FORCED, MODE_B_FORCED)
 # identity-page flags: bit0 holdout, bit1 watchdog (D-s1), bits 2..3 the schedule mode,
 # bit4 the forced REC-retry control (rec-v3, prereg v0.4 — host/l6_rec.py)
 FLAG_HOLDOUT, FLAG_WATCHDOG, FLAG_REC_CONTROL = 1 << 0, 1 << 1, 1 << 4
+FLAG_SIGN_CONTROL = 1 << 5                # rel-v4: the forced SIGNREQ-retry control (seq 1's first SIGNREQ CRC corrupted)
 MODE_FLAG_SHIFT, MODE_FLAG_MASK = 2, 0b11 << 2
 MODE_FLAG = {MODE_ABBA: 0, MODE_A_FORCED: 1, MODE_B_FORCED: 2}
 
@@ -65,11 +66,13 @@ PAIR_SEED_RULE = ("pair_seed(master_seed, pair) = upper 32 bits of the xorshift6
                   "step: x ^= x<<13; x ^= x>>7; x ^= x<<17 (mod 2^64)")
 
 
-def flags_for(mode: str, watchdog: bool, holdout: bool = False, rec_control: bool = False) -> int:
+def flags_for(mode: str, watchdog: bool, holdout: bool = False, rec_control: bool = False,
+              sign_control: bool = False) -> int:
     if mode not in MODES:
         raise ValueError(f"schedule mode {mode!r} is not one of {MODES}")
     return ((FLAG_HOLDOUT if holdout else 0) | (FLAG_WATCHDOG if watchdog else 0)
-            | (FLAG_REC_CONTROL if rec_control else 0) | MODE_FLAG[mode] << MODE_FLAG_SHIFT)
+            | (FLAG_REC_CONTROL if rec_control else 0) | (FLAG_SIGN_CONTROL if sign_control else 0)
+            | MODE_FLAG[mode] << MODE_FLAG_SHIFT)
 
 
 def mode_from_flags(flags: int) -> str:

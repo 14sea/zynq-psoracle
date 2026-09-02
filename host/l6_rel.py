@@ -62,6 +62,9 @@ WAIT_MAX = 3                      # board: AUDITWAIT announcements before giving
 HOST_MAX_GETS = 2                 # host: SIGNGET / TERMGET per seq
 HOST_MAX_REPLAYS = MAX_ATTEMPTS   # host: cached-reply replays, DONE replays, re-ACKs per seq
 BOARD_BOUND_S = 10.0              # board: the idle bound before a resend (a count of polls in C)
+# host: after the first TERM the runner keeps reading for the board's possible resends (our
+# TERMACK may have been lost): two more transmissions, one bound apart, plus a margin
+TERM_LINGER_S = (MAX_ATTEMPTS - 1) * BOARD_BOUND_S + 2.0
 HB_PER_RECORD = 16
 STOP_IDENT, STOP_SIGN = "STOP_IDENT", "STOP_SIGN"
 # a broken line whose head reads as one of these is asked for again by the host
@@ -268,11 +271,21 @@ class IdentHost:
         self.payload: str | None = None
         self.identity: dict | None = None
         self.findings: list[str] = []
-        self.protocol_end: str | None = None
+        self.refused = False               # verified and found wanting: no ack, the board exhausts → STOP_IDENT
+        self.protocol_end: str | None = None   # channel misbehaviour only (a different second IDENT)
 
     @property
     def established(self) -> bool:
-        return self.identity is not None and self.protocol_end is None
+        return self.identity is not None and self.protocol_end is None and not self.refused
+
+    def on_broken_line(self, line: str, outcome: str) -> bool:
+        """A CRC-failed or malformed line whose head reads IDENT: in the ledger, no ack —
+        the board resends on its bound (there is nothing to ask for). True if it was one."""
+        t, _ = head_fields(line)
+        if t != n.T_IDENT:
+            return False
+        self.ledger.note(outcome, line, self.clock())
+        return True
 
     def _ack(self) -> None:
         if self.ledger.acks_sent < HOST_MAX_REPLAYS:
@@ -284,12 +297,14 @@ class IdentHost:
             return
         try:
             f = n.parse_line(line)
-        except (n.CrcError, n.FrameError) as exc:
-            t, _ = head_fields(line)
-            if t == n.T_IDENT:
-                self.ledger.note("crc" if isinstance(exc, n.CrcError) else "malformed", line, self.clock())
-            return                                          # the board resends on its bound; nothing to ask
+        except n.CrcError:
+            self.on_broken_line(line, "crc"); return
+        except n.FrameError:
+            self.on_broken_line(line, "malformed"); return
         if f["token"] != self.token or f["type"] != n.T_IDENT:
+            return
+        if self.refused:
+            self.ledger.note("refused-repeat", None, self.clock())   # still no ack; the board will exhaust
             return
         if self.payload is not None:
             if f["payload"] == self.payload:
@@ -306,9 +321,11 @@ class IdentHost:
             return
         findings = list(self.verify(ident) or [])
         if findings:
-            self.findings = findings
+            # verified and found wanting: NO acknowledgement, and no epoch end from the host
+            # (review 2026-09-02, item 4): the board resends, exhausts, and stops itself
+            # with STOP_IDENT — its TERM ends the epoch; the findings are the HOLD
+            self.findings, self.refused, self.identity = findings, True, ident
             self.ledger.note("refused", line, self.clock())
-            self.protocol_end = "PROTOCOL_IDENT: " + "; ".join(findings)
             return
         self.payload, self.identity = f["payload"], ident
         self.ledger.accepted = True

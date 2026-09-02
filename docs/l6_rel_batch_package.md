@@ -1,7 +1,9 @@
 # L6 rel-v4 host batch — delivery package for review (host-only, 2026-09-02, after the correction-batch review)
 
-> **Standing: host-only, delivered, NOT reviewed. No firmware, no image, no board, no
-> ruling, no freeze; the stop-loss stands.** The owner's review of the correction batch
+> **Standing: host-only. Reviewed 2026-09-02: HOLD on seven integration items — closed in the
+> correction batch of §8 (host-only, delivered, NOT yet reviewed); D-p1 bounds accepted with
+> the exact semantics recorded in the v0.6 draft §3. No firmware, no image, no board, no
+> ruling, no freeze; the stop-loss stands; `866bc5b` not pushed.** The owner's review of the correction batch
 > (2026-09-02): PASS the correction line / HOLD the design on four items; D-t1 accepted;
 > D-t2 accepted with two fail-closed fixes; **v0.5 not frozen — straight to v0.6**; the
 > host-only batch below authorised; the firmware batch formally opened but started only
@@ -108,3 +110,27 @@ protocol refusals: not-implemented vs mismatch, rel-v4 accepted as a protocol).
    `host/l6_rel.py`; two byte-identical builds; `next_image`; full P3 compatibility
    review).
 4. Whether the v0.6 text is the right shape to freeze once the image exists.
+
+## 8. Owner's review (2026-09-02): HOLD, seven items — the correction batch
+
+| # | item (owner) | closed by | proof (`tests/test_l6_rel_correction.py` unless named) |
+|---|---|---|---|
+| 1 | the AUDITWAIT ledger written to `audits.json` was a stale copy taken at settle time (live `waits_seen 1, done_replays 1`, written `0, 0`) | `ConsoleSession.pull_ledgers` is a property rendered from the live `PullHost` objects (`_pulls`); the runner writes that property; `waits_exhausted` is a rendered fact | `Session::test_1_the_pull_ledger_written_after_an_auditwait_carries_the_replay` (real session: 1/1 after one wait, 3/3 + exhausted after three) |
+| 2 | `unconfirmed` set on the third WAIT while the third replay might still succeed (board SCORED/audited vs host unconfirmed) | no verdict on the host: `PullHost.on_wait` only counts; the verdict is the board's record through `rel_closure_findings` — a host-completed pull whose record says `replayed-only` is "not confirmed on the board (waits_seen k, done_replays m)", a waited pull whose record says `audited` raises nothing; the `unconfirmed` field is gone | `test_2_the_verdict_on_a_waited_pull_is_the_boards_record_not_the_wait_count`; `test_l6_rel::ReadyAndDone` (adjusted) |
+| 3 | the TERM transaction's re-ack branch unreachable: the collector ends the epoch on the first TERM and the runner leaves its loop | `l6_runner.session_loop_continues(collector, console, now, deadline)`: reads on while the epoch is open, and under rel-v4 for `TERM_LINGER_S` = (MAX_ATTEMPTS − 1) × BOARD_BOUND_S + 2 = 22 s after the first TERM (`ConsoleSession.lingering`); a resent TERM in that window is re-acknowledged (not observed); under rec-v3 the loop ends with the epoch as before; the deadline wins | `test_3_the_runner_lingers_after_the_term_under_rel_v4_and_re_acknowledges_a_resend` (real session + the loop condition; rec-v3 false immediately; the runner source uses the function) |
+| 4 | IDENT wiring: a CRC-bad IDENT not ledgered; a malformed IDENT → `CRASHED`; a refused identity ended the epoch at once instead of letting the board exhaust to `STOP_IDENT` | `IdentHost.on_broken_line` (ledger `crc`/`malformed`, no ack), routed before the collector in both broken-line branches; a refusal sets `refused` (ledger `refused`, repeats `refused-repeat`), NO ack, NO host-side end, the declared identity still recorded; only a different second IDENT is `PROTOCOL_IDENT`; a SIGNREQ after a refusal ends the epoch `PROTOCOL_IDENT` naming it; the refusal is a `rel_closure_findings` finding | `test_4a_…crc_broken_ident…`, `test_4b_…malformed_ident_is_not_the_collectors_crash` (and rec-v3 still crashes), `test_4c_…refused_identity…the_board_exhausts_to_stop_ident` (three resends unacked, the board's STOP_IDENT TERM ends the epoch, the finding named), `test_4d_…signreq_after_the_refusal_is_protocol_ident` |
+| 5 | v0.6 §6.10–13 not machine-enforced | `l6_checks.rel_closure_findings` (§6.10), `rel_control_findings` (§6.12, seq 1 exactly `["crc", "ok"]`, one SIGNGET, no replay), `rel_recovery_findings` (§6.13 bounds from `rel_pass_conditions_draft`), `l6_rel.heartbeat_findings_rel` (§6.11); `l6_rate.recovery_by_seq` computes `sign_retries` (one per non-ok attempt), `ready_resends`, `done_replays`, `hb_missing` per candidate and `rel_session_totals` `ident_repeats`/`term_retries`, both controls attributed as controls; `ls.FLAG_SIGN_CONTROL` armed by the plan under rel-v4; the runner calls all three under rel-v4 | `test_5a` (every closure defect named), `test_5b` (the control's exact shape, five wrong shapes), `test_5c` (indicators on C1 #5's ledgers + synthetic rel ledgers; each bound named), `test_5d` (hb_missing per SCORED record), `test_5e` (the runner's calls, the flag, the draft bounds) |
+| 6 | STOP_SIGN accepted under `app_identity.protocol = rec-v3` | `validate_standalone_run_log` refuses STOP_SIGN unless the IDENT declares `rel-v4` | `test_6_stop_sign_is_refused_under_any_protocol_but_rel_v4` (the same log accepted past that rule under rel-v4) |
+| 7 | CLOSE present, TERM's `closing_control` different, no comparison | `_deliver_term` compares the five fields when both exist: the CLOSE that arrived stands, the disagreement is `closing_conflict` in the rel ledgers and a `rel_closure_findings` finding | `test_7_a_close_that_disagrees_with_the_terms_closing_control_is_a_recorded_conflict` (agreeing pair: no conflict, no `source`; disagreeing: recorded and named) |
+
+D-p1 recorded as ruled in the v0.6 draft §3: 3 board transmissions in all, host GET ≤ 2,
+WAIT ≤ 3, replay/re-ack ≤ 3 — and the third WAIT is not a final failure. Design revision 3
+(`docs/l6_frame_reliability_design.md`, ◆ marks) and the v0.6 draft (§2.6j/6m/6o, D-p1,
+§4.21–22, §6.10/12/13) carry the seven closures.
+
+## 9. Asked of the owner (correction batch)
+
+1. Review of §8 and design revision 3.
+2. Push of the commit, if the review passes.
+3. The start of the firmware batch (unchanged scope; the C twins now also cover the
+   IDENT refusal path, the AUDITWAIT counts and the CLOSE/TERM redundancy).

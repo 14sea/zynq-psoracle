@@ -167,6 +167,109 @@ def calibration_inputs_findings(report_path, report: dict, required: bool) -> li
     return out
 
 
+REL_RECOVERY_KEYS = ("max_sign_retries", "max_ready_resends", "max_ident_repeats", "max_term_retries", "max_done_replays")
+REL_TERMINAL = ("STOP_SIGN", "STOP_IDENT")
+
+
+def rel_closure_findings(log: dict, ledgers: dict, pulls: list[dict]) -> list[str]:
+    """v0.6 §6.10, machine-enforced (review 2026-09-02, item 5): the rel-v4 transactions
+    closed. The identity acknowledged (accepted, no conflict, not refused, ≥ 1 ack); the
+    IDENT declaring rel-v4; every record's sign transaction accepted without conflict and
+    no sign ledger without a record; no terminal STOP_SIGN/STOP_IDENT record and no
+    PROTOCOL end; every pull the host completed CONFIRMED by the board's own record
+    (`verified: audited`) — a pull with AUDITWAIT announcements whose record says
+    replayed-only is the unconfirmed audit, named with its counts (item 2: the verdict is
+    the board's closure evidence, never the wait count); the TERM transaction accepted;
+    CLOSE and TERM's closing_control not in conflict (item 7)."""
+    out = []
+    ident = ledgers.get("ident") or {}
+    if not ident.get("accepted"):
+        out.append("identity not established: no accepted IDENT ledger")
+    if ident.get("refused"):
+        out.append("identity refused by the host: " + "; ".join(ident.get("findings") or ["(no finding text)"]))
+    if ident.get("conflict"):
+        out.append("identity conflict: a second, different IDENT")
+    if ident.get("accepted") and int(ident.get("acks_sent", 0)) < 1:
+        out.append("identity accepted but never acknowledged")
+    proto = (log.get("app_identity") or {}).get("protocol")
+    if proto != "rel-v4":
+        out.append(f"the IDENT declares wire protocol {proto!r}, not rel-v4")
+    records = {r["seq"]: r for r in log["loop_records"]}
+    signs = {int(s["seq"]): s for s in (ledgers.get("signs") or [])}
+    for seq in sorted(records):
+        s = signs.get(seq)
+        if s is None:
+            out.append(f"seq {seq}: record without a sign ledger")
+        elif not s.get("accepted") or s.get("conflict"):
+            out.append(f"seq {seq}: sign transaction not accepted or in conflict")
+    for seq in sorted(set(signs) - set(records)):
+        out.append(f"seq {seq}: sign ledger without a record")
+    for seq in sorted(records):
+        if records[seq]["outcome"] in REL_TERMINAL:
+            out.append(f"seq {seq}: terminal {records[seq]['outcome']}")
+    end = (log.get("session_summary") or {}).get("epoch_end") or {}
+    if end.get("kind") == "PROTOCOL":
+        out.append(f"epoch ended PROTOCOL: {end.get('reason')}")
+    for p in pulls:
+        seq = int(p["seq"])
+        r = records.get(seq)
+        if r is None:
+            continue
+        if p.get("done") and r.get("verified") != "audited":
+            out.append(f"seq {seq}: the host completed the pull but the board's record is {r.get('verified')!r} — "
+                       f"the audit was not confirmed on the board (waits_seen {p.get('waits_seen', 0)}, "
+                       f"done_replays {p.get('done_replays', 0)})")
+    summary = log.get("session_summary") or {}
+    if summary.get("written_by") == "app":
+        term = ledgers.get("term")
+        if not term or not term.get("accepted") or term.get("conflict"):
+            out.append("TERM transaction not accepted (or in conflict)")
+        elif int(term.get("acks_sent", 0)) < 1:
+            out.append("TERM accepted but never acknowledged")
+    if ledgers.get("closing_conflict"):
+        cc = ledgers["closing_conflict"]
+        out.append(f"CLOSE and TERM.closing_control disagree: CLOSE {cc.get('close')} vs TERM {cc.get('term')}")
+    return out
+
+
+def rel_control_findings(sign_ledgers: list[dict], armed: bool) -> list[str]:
+    """v0.6 §6.12 / §2.6k: the forced SIGNREQ-retry control on seq 1 — the exact shape:
+    attempts ["crc", "ok"], one SIGNGET, no replay, accepted, no conflict."""
+    if not armed:
+        return ["the SIGNREQ-retry control was not armed (flags.bit5)"]
+    led = next((s for s in sign_ledgers if int(s.get("seq", -1)) == 1), None)
+    if led is None:
+        return ["no sign ledger for seq 1: the SIGNREQ-retry control was not exercised"]
+    shape = [a.get("outcome") for a in led.get("attempts", [])]
+    out = []
+    if shape != ["crc", "ok"]:
+        out.append(f"SIGNREQ-retry control: seq 1 attempts {shape}, the preregistered shape is ['crc', 'ok']")
+    if led.get("gets_sent") != 1:
+        out.append(f"SIGNREQ-retry control: {led.get('gets_sent')} SIGNGET sent, exactly one is the shape")
+    if led.get("replays", 0) != 0:
+        out.append(f"SIGNREQ-retry control: {led.get('replays')} cached replays, none is the shape")
+    if not led.get("accepted") or led.get("conflict"):
+        out.append("SIGNREQ-retry control: seq 1 not accepted or in conflict")
+    return out
+
+
+def rel_recovery_findings(recovery: dict, pc: dict) -> list[str]:
+    """v0.6 §6.13: the rel-v4 recovery indicators within their bounds (heartbeats are
+    `l6_rel.heartbeat_findings_rel`'s)."""
+    out = [f"v0.6 pass condition {k!r} is not pinned in the manifest" for k in REL_RECOVERY_KEYS if k not in pc]
+    if out:
+        return out
+    for key, bound in (("sign_retries", "max_sign_retries"), ("ready_resends", "max_ready_resends"),
+                       ("ident_repeats", "max_ident_repeats"), ("term_retries", "max_term_retries"),
+                       ("done_replays", "max_done_replays")):
+        v = recovery.get(key)
+        if v is None:
+            out.append(f"recovery indicator {key!r} missing from the rate report")
+        elif v > pc[bound]:
+            out.append(f"{key} {v} > {pc[bound]} ({bound})")
+    return out
+
+
 def soak_findings(log: dict, frames: list[dict], crc_dropped: int, crc_budget: int,
                   span_s: float, duration_s: float, hb_gap_max_s: float,
                   settle_median_calib: float, settle_bound_factor: int, wall_fraction_min: float) -> list[str]:
