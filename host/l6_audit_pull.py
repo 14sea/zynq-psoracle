@@ -40,6 +40,7 @@ self-report emits READY unconditionally (§3a item 2).
 from __future__ import annotations
 
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -50,7 +51,12 @@ from validators import audit as au  # noqa: E402
 from validators.records import Falsified, RecordError  # noqa: E402
 
 MAX_RETRIES = 2                   # per chunk: at most three attempts
-CHUNK_TIMEOUT_S = 2.0             # host: wait for a chunk reply
+# host: wait for a chunk reply. A MONOTONIC DEADLINE armed when the GET goes out (owner's
+# ruling 2026-09-02 after C1 #5: not a fixed tick(0.02) accumulation, which only counted the
+# runner's own loop). 2.0 s is the value C1 #5 ran with and stays until the owner pins a
+# shorter one: C1 #5's 528 clean chunk round trips took median 42.9 ms, p99 83.1 ms, max
+# 83.6 ms, so ≈0.5 s is the candidate the v0.5 draft names for validation — not pinned here.
+CHUNK_TIMEOUT_S = 2.0
 BOARD_IDLE_LIMIT_S = 10.0         # board: wait for the host's next GET/DONE before aborting
 BAUD, BITS_PER_BYTE = 115200, 10
 T_READY, T_GET, T_DONE, T_ABORT = "AUDIT_READY", "AUDITGET", "AUDITDONE", "AUDITABORT"
@@ -162,6 +168,7 @@ class Ledger:
     bytes_rx: int = 0
     bytes_tx: int = 0
     lines_kept: list[str] = field(default_factory=list)
+    duplicates: list[dict] = field(default_factory=list)   # stale byte-identical replies, ignored (never an attempt)
 
     def note(self, seq, chunk, attempt, outcome, line=None):
         self.attempts.append({"seq": seq, "chunk": chunk, "attempt": attempt, "outcome": outcome})
@@ -179,15 +186,17 @@ class PullHost:
     the chunk timeout. Ends with `done` (AUDITDONE sent) or `failed` (AUDITABORT sent, the
     reason in `fail_reason`); never blocks, never waits without a bound."""
 
-    def __init__(self, token: str, seq: int, send, crc_budget: int = 10 ** 9, ledger: Ledger | None = None):
+    def __init__(self, token: str, seq: int, send, crc_budget: int = 10 ** 9, ledger: Ledger | None = None,
+                 clock=time.monotonic, timeout_s: float = CHUNK_TIMEOUT_S, on_timeout=None):
         self.token, self.seq, self.send = token, seq, send
         self.crc_budget = crc_budget
         self.ledger = ledger or Ledger()
+        self.clock, self.timeout_s, self.on_timeout = clock, timeout_s, on_timeout
         self.state = "WAIT_READY"
         self.binding: dict | None = None
         self.chunk = 0
         self.attempt = 0
-        self.wait_s = 0.0
+        self.deadline: float | None = None       # monotonic: armed by every GET, disarmed by its reply
         self.verified: dict[int, dict] = {}
         self.done = False
         self.failed = False
@@ -212,7 +221,7 @@ class PullHost:
         self.send(line)
 
     def _get(self) -> None:
-        self.wait_s = 0.0
+        self.deadline = self.clock() + self.timeout_s
         self._tx(T_GET, {"seq": self.seq, "chunk": self.chunk})
 
     def _fail(self, why: str) -> None:
@@ -269,6 +278,13 @@ class PullHost:
         if f["type"] != n.T_AUDIT:
             return                                    # HB etc. are the collector's
         b = self.binding
+        c = p.get("chunk")
+        if isinstance(c, int) and c < self.chunk and c in self.verified and p == self.verified[c]:
+            # a stale, byte-identical reply of a chunk already verified (the board answered a
+            # GET we had given up on, or a late tail completed): harmless, recorded, never an
+            # attempt — C1 #5's third copy of chunk 1 would otherwise burn a retry of chunk 2
+            self.ledger.duplicates.append({"seq": self.seq, "chunk": c, "while_waiting_for": self.chunk})
+            return
         try:
             if p.get("seq") != self.seq:
                 raise RecordError("payload seq is not this transaction's")
@@ -281,6 +297,7 @@ class PullHost:
             self._attempt_failed(f"mismatch: {exc}", line)
             return
         self.ledger.note(self.seq, self.chunk, self.attempt, "ok")
+        self.deadline = None
         self.verified[self.chunk] = p
         if self.chunk + 1 < b["chunks"]:
             self.chunk, self.attempt = self.chunk + 1, 0
@@ -289,11 +306,16 @@ class PullHost:
             self.done, self.state = True, "DONE"
             self._tx(T_DONE, {"seq": self.seq})
 
-    def tick(self, dt_s: float) -> None:
-        if self.state != "WAIT_CHUNK":
+    def tick(self, dt_s: float | None = None) -> None:
+        """Advance the chunk timeout against the clock. `dt_s` is accepted for the old call
+        shape and ignored: the deadline is monotonic time, armed by the GET."""
+        if self.state != "WAIT_CHUNK" or self.deadline is None:
             return
-        self.wait_s += dt_s
-        if self.wait_s > CHUNK_TIMEOUT_S:
+        if self.clock() >= self.deadline:
+            seq, chunk = self.seq, self.chunk
+            self.deadline = None
+            if self.on_timeout is not None:
+                self.on_timeout(seq, chunk)          # the session quarantines any torn residue first
             self._attempt_failed("timeout", None)
 
     def chunks(self) -> list[dict]:
@@ -332,8 +354,8 @@ class Simulation:
         def send(line: str) -> None:
             self.host_sent.append(line)
             self.to_board.append(line)
-        self.host = PullHost(board.token, board.seq, send=send, **(host_kw or {}))
         self.t = 0.0
+        self.host = PullHost(board.token, board.seq, send=send, clock=lambda: self.t, **(host_kw or {}))
         self.delivered_b2h: list[str] = []
 
     def _key(self, direction, line):
@@ -390,7 +412,7 @@ class Simulation:
                 # nothing on the wire: both ends wait — advance time by one host timeout step
                 dt = 0.5
                 self.t += dt
-                self.host.tick(dt)
+                self.host.tick()                       # against the simulation's clock
                 self.board.tick(dt)
                 if not self.host.pending and self.board.state == "PULL":
                     self.board.tick(BOARD_IDLE_LIMIT_S)      # the host is done/failed: the board waits out its bound

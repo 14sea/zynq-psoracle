@@ -260,11 +260,12 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         # 0.4 s after `go` on exactly that, with nothing heard. Silence is measured from `go`.
         collector.last_heard = collector.clock()
         deadline = t_go + plan["session_timeout_s"]
-        console = lcs.ConsoleSession(token, collector, relay, timeline, plan["audit_seqs"], plan["crc_budget"], send)
+        console = lcs.ConsoleSession(token, collector, relay, timeline, plan["audit_seqs"], plan["crc_budget"], send,
+                                     reader=reader, clock=time.monotonic)
         while collector.epoch_end is None and time.monotonic() < deadline:
             for line, t_mono, t_wall in reader.poll():
                 console.on_line(line, t_mono, t_wall)
-            console.tick(0.02)                       # the pull's chunk timeout advances with the loop
+            console.tick()                           # fragments into the ledger; the pull's monotonic deadline
             if reader.saw_uboot_banner():
                 collector.on_banner()
             collector.poll()
@@ -278,6 +279,7 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         pr.write_record(out_dir, "timeline", timeline.to_json())
         summary["epoch_end"] = collector.epoch_end
         summary["audits"] = len(collector.audits)
+        summary["fragments"] = len(timeline.fragments)   # torn lines quarantined by the reader (C1 #5)
         if collector.session_summary is None:
             # S #1 (2026-09-01-11): the crash-path summary said `audited 0` while the host
             # gate had verified 31, so the validator named rule (ix) instead of the seq gap.
@@ -321,12 +323,21 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
             findings += lc.rec_control_findings(console.rec_ledgers_json(), bool(plan["flags"] & ls.FLAG_REC_CONTROL))
             try:
                 rep = lr.rate_report(log, plan["session"], hashlib.sha256(
-                    json.dumps(log, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest())
+                    json.dumps(log, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest(),
+                    audits={"pulls": console.pull_ledgers, "recs": console.rec_ledgers_json()}, frames=timeline.frames)
                 pr.write_record(out_dir, "rate_report", rep)
                 summary["rate"] = {k: rep[k] for k in ("candidates", "evals_per_hour", "cov", "cov_wall", "failure_rate")}
+                summary["rate"]["nominal_cov"] = (rep.get("nominal") or {}).get("cov")
+                summary["rate"]["candidates_with_recovery"] = (rep.get("recovery") or {}).get("candidates_with_recovery")
                 pc = l6m["pass_conditions"]
                 if plan["session"] in ("C1", "C2"):
-                    findings += lc.calibration_findings(rep, pc["cov_max"])
+                    # the PASS rule follows the preregistration the session is bound to: v0.4
+                    # bounds the inclusive CoV (C1 #5 = HOLD stays HOLD); the v0.5 DRAFT's rule
+                    # applies only once the manifest pins v0.5 (nothing here re-judges C1 #5)
+                    if str(l6m["prereg"].get("version")) == "v0.5":
+                        findings += lc.calibration_findings_v05(rep, pc)
+                    else:
+                        findings += lc.calibration_findings(rep, pc["cov_max"])
                 else:
                     med = min(x for x in plan["inputs"]["settle_polls_median_calibration"] if x is not None)
                     findings += lc.soak_findings(

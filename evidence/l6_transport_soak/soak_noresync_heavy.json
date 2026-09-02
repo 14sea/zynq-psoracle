@@ -1,0 +1,92 @@
+{
+ "schema": "l6_transport_soak",
+ "schema_version": "1.0.0",
+ "total": {
+  "tool": "l6_transport_soak.py/0.1.0",
+  "seed": 1278624577,
+  "candidates": 2000,
+  "p_fault": 0.2,
+  "timeout_s": 2.0,
+  "resync": false,
+  "words": "evidence/l6_17A6_2026-09-02-01-C1/audits.json",
+  "faults_injected": 3697,
+  "single_faults": 2132,
+  "faults_on_the_last_permitted_transmission": 170,
+  "single_faults_with_possible_late_tail_interference": 255,
+  "of_which_recovered_on_first_resend": 206,
+  "single_faults_recovered_on_first_resend": 1466,
+  "by_kind": {
+   "late_tail": {
+    "injected": 594,
+    "single": 447,
+    "recovered_first_resend": 242,
+    "double": 55,
+    "no_resend_allowed": 29,
+    "late_tail_interference_possible": 63,
+    "recovered_first_resend_despite_interference": 42
+   },
+   "glued_dup": {
+    "injected": 609,
+    "single": 405,
+    "recovered_first_resend": 405,
+    "double": 119,
+    "no_resend_allowed": 33,
+    "late_tail_interference_possible": 52,
+    "recovered_first_resend_despite_interference": 52
+   },
+   "interior": {
+    "injected": 602,
+    "single": 408,
+    "recovered_first_resend": 408,
+    "double": 106,
+    "no_resend_allowed": 38,
+    "late_tail_interference_possible": 50,
+    "recovered_first_resend_despite_interference": 50
+   },
+   "truncate": {
+    "injected": 650,
+    "single": 457,
+    "recovered_first_resend": 7,
+    "double": 120,
+    "no_resend_allowed": 31,
+    "late_tail_interference_possible": 42,
+    "recovered_first_resend_despite_interference": 14
+   },
+   "dup": {
+    "injected": 628,
+    "single": 0,
+    "recovered_first_resend": 0,
+    "double": 0,
+    "no_resend_allowed": 0,
+    "late_tail_interference_possible": 0,
+    "recovered_first_resend_despite_interference": 0
+   },
+   "drop": {
+    "injected": 614,
+    "single": 415,
+    "recovered_first_resend": 404,
+    "double": 112,
+    "no_resend_allowed": 39,
+    "late_tail_interference_possible": 48,
+    "recovered_first_resend_despite_interference": 48
+   }
+  },
+  "pulls_done": 1753,
+  "pulls_failed": 247,
+  "failed_with_more_faults_than_retries_on_one_chunk": 54,
+  "timeouts": 1507,
+  "duplicates_ignored": 543,
+  "bad_frames": 1530,
+  "headless_lines": 43,
+  "fragments": 0,
+  "fragments_by_reason": {
+   "resync": 0,
+   "pull timeout": 0
+  },
+  "clean_candidates": 315,
+  "clean_candidates_with_any_recovery_artifact": 0,
+  "virtual_s_total": 4069.518315972222,
+  "max_faults_on_one_chunk": 3,
+  "host_seconds": 1.9
+ }
+}

@@ -37,6 +37,9 @@ CLOCKS = {"mono": "time.monotonic() on the host, seconds", "wall": "time.time() 
           "resolution_s": "one runner poll interval (~0.02 s): every line a poll returned shares its stamp"}
 
 
+NON_FRAME_EVENTS = ("CRC_DROP", "BAD_FRAME", "FRAGMENT")   # ledger events that are not frames
+
+
 class Timeline:
     def __init__(self):
         self.lines: list[tuple[float, float, str]] = []      # every console line, stamped
@@ -44,6 +47,7 @@ class Timeline:
         self.crc_dropped = 0
         self.bad_frames = 0
         self.crc_dropped_by_type: dict[str, int] = {}   # the type field as received, "?" if unreadable
+        self.fragments: list[dict] = []                  # torn lines quarantined by the reader (C1 #5)
 
     def observe(self, line: str, t_mono: float, t_wall: float) -> None:
         self.lines.append((t_mono, t_wall, line))
@@ -65,6 +69,14 @@ class Timeline:
             return
         self.frames.append({"dir": "rx", "type": f["type"], "seq": f["seq"], "t_mono": t_mono, "t_wall": t_wall})
 
+    def note_fragment(self, frag: dict) -> None:
+        """A torn line the reader quarantined (host/l6_reader.py): bytes that never became a
+        line. In the ledger as a `FRAGMENT` event — not a frame, not a CRC drop, not a bad
+        frame — and kept verbatim in `fragments`."""
+        self.fragments.append(dict(frag))
+        self.frames.append({"dir": "rx", "type": "FRAGMENT", "seq": None, "t_mono": frag["t_mono"],
+                            "t_wall": frag["t_wall"], "bytes": frag["bytes"], "reason": frag["reason"]})
+
     def note_sent(self, mtype: str, seq: int, t_mono: float, t_wall: float) -> None:
         self.frames.append({"dir": "tx", "type": mtype, "seq": seq, "t_mono": t_mono, "t_wall": t_wall})
 
@@ -72,9 +84,9 @@ class Timeline:
         return "".join(f"{m:.6f} {w:.6f} {ln}\n" for m, w, ln in self.lines).encode("utf-8", "replace")
 
     def to_json(self) -> dict:
-        return {"schema": "l6_timeline", "schema_version": "1.1.0", "clocks": CLOCKS,
+        return {"schema": "l6_timeline", "schema_version": "1.2.0", "clocks": CLOCKS,
                 "crc_dropped": self.crc_dropped, "crc_dropped_by_type": dict(self.crc_dropped_by_type),
-                "bad_frames": self.bad_frames, "frames": list(self.frames),
+                "bad_frames": self.bad_frames, "fragments": list(self.fragments), "frames": list(self.frames),
                 "note": "this timeline is the ONE inbound ledger and the CRC authority for the session"}
 
 
@@ -183,6 +195,6 @@ def heartbeat_count(frames: list[dict]) -> int:
 def liveness_gaps(frames: list[dict]) -> list[dict]:
     """Every gap between consecutive received frames of ANY type — what the collector's
     silence rule sees. Reported for the transport record; never the heartbeat invariant."""
-    rx = [f for f in frames if f["dir"] == "rx" and f["type"] not in ("CRC_DROP", "BAD_FRAME")]
+    rx = [f for f in frames if f["dir"] == "rx" and f["type"] not in NON_FRAME_EVENTS]
     return [{"after": rx[i - 1]["type"], "seq": rx[i - 1]["seq"], "gap_s": rx[i]["t_mono"] - rx[i - 1]["t_mono"]}
             for i in range(1, len(rx))]

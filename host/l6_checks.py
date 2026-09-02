@@ -101,6 +101,44 @@ def calibration_findings(rate_report: dict, cov_max: float) -> list[str]:
     return out
 
 
+V05_KEYS = ("nominal_cov_max", "min_clean_periods", "max_recovered_candidates", "max_pull_timeouts",
+            "max_bad_frames", "max_fragments")
+
+
+def calibration_findings_v05(rate_report: dict, pc: dict) -> list[str]:
+    """C1/C2 under the v0.5 DRAFT §6.3 (not frozen; the runner selects it only when the
+    manifest's prereg version is v0.5): the NOMINAL CoV (periods of candidates without a
+    transport recovery) ≤ nominal_cov_max, AND at least min_clean_periods of them, AND the
+    recovery indicators within their bounds — every bound named when crossed, so a clean
+    nominal spread can never hide an unstable link. The inclusive rate is not bounded here:
+    it is what S's N is derived from."""
+    out = []
+    for k in V05_KEYS:
+        if k not in pc:
+            out.append(f"v0.5 pass condition {k!r} is not pinned in the manifest")
+    if out:
+        return out
+    nom, rec = rate_report.get("nominal"), rate_report.get("recovery") or {}
+    if not isinstance(nom, dict):
+        return ["no nominal rate: the report was made without the ledgers (audits.json pulls/recs, timeline frames)"]
+    if nom.get("cov") is None:
+        out.append("no nominal coefficient of variation could be computed (fewer than two clean periods)")
+    elif nom["cov"] > pc["nominal_cov_max"]:
+        out.append(f"nominal coefficient of variation {nom['cov']:.3f} > {pc['nominal_cov_max']} "
+                   f"(distribution published in rate_report.json)")
+    if nom.get("n", 0) < pc["min_clean_periods"]:
+        out.append(f"clean steady-state periods {nom.get('n', 0)} < {pc['min_clean_periods']} "
+                   f"(excluded: {nom.get('excluded_seqs')})")
+    for k, bound in (("candidates_with_recovery", "max_recovered_candidates"), ("pull_timeouts", "max_pull_timeouts"),
+                     ("bad_frames", "max_bad_frames"), ("fragments", "max_fragments")):
+        v = rec.get(k)
+        if v is None:
+            out.append(f"recovery indicator {k!r} missing from the rate report")
+        elif v > pc[bound]:
+            out.append(f"{k} {v} > {pc[bound]} ({bound})")
+    return out
+
+
 def soak_findings(log: dict, frames: list[dict], crc_dropped: int, crc_budget: int,
                   span_s: float, duration_s: float, hb_gap_max_s: float,
                   settle_median_calib: float, settle_bound_factor: int, wall_fraction_min: float) -> list[str]:

@@ -38,7 +38,7 @@ R = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(R / "host"))
 import l6_timing as lt  # noqa: E402
 
-TOOL_VERSION = "l6_rate.py/0.1.0"
+TOOL_VERSION = "l6_rate.py/0.2.0"
 SESSIONS = ("C1", "C2", "S")
 NON_FAILURE = ("SCORED", "REFUSED_BY_GATE")
 
@@ -56,8 +56,19 @@ DEFINITIONS = {
                "(run_log.l6.binding, written by the runner from its own pins); the S runner refuses a calibration whose "
                "binding is not the current pins — a new image or protocol changes the nominal period and needs new C1/C2 "
                "(prereg v0.4)",
+    "inclusive": "ALL steady-state periods, recoveries included (a chunk timeout, a re-requested chunk or record, a torn "
+                 "line, a CRC drop inside the candidate's window all stay in): evals_per_hour and cov as above. The "
+                 "conservative rate: S's N is derived from it (v0.5 draft)",
+    "nominal": "the steady-state periods of candidates WITHOUT a transport recovery (no pull retry/timeout/CRC, no REC "
+               "retry, no CRC_DROP/BAD_FRAME/FRAGMENT event inside the window): the instrument's nominal spread; its CoV "
+               "is bounded only together with a preregistered minimum number of clean periods and the recovery bounds "
+               "(v0.5 draft §6.3) — never on its own. Every excluded seq is named",
+    "recovery": "the transport-recovery indicators of the session: candidates with a recovery, pull timeouts / retries / "
+                "CRC drops, REC retries, bad frames, fragments, stale duplicates, CRC drops in all (the seq-1 control's "
+                "deliberate drop counted apart). Bounded by v0.5 draft §6.3 so a nominal CoV cannot hide an unstable link",
 }
 BINDING_KEYS = ("image_sha256", "prereg_sha256", "protocol", "session", "schedule_mode", "master_seed")
+NON_FRAME_EVENTS = ("CRC_DROP", "BAD_FRAME", "FRAGMENT")
 
 
 class RateError(ValueError):
@@ -75,7 +86,64 @@ def _stats(values: list[float]) -> dict:
             "min": min(values), "max": max(values), "median": statistics.median(values)}
 
 
-def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str | None = None) -> dict:
+def recovery_by_seq(tim: dict[int, dict], seqs: list[int], audits: dict | None, frames: list[dict] | None,
+                    control_seq: int | None = 1) -> dict[int, dict]:
+    """Per record: the transport recoveries attributed to it (v0.5 draft §6.3). A pull
+    ledger's non-ok attempts and timeouts, a REC ledger's non-ok attempts / RECGETs, and
+    every CRC_DROP / BAD_FRAME / FRAGMENT event whose stamp lies in [t_signreq(seq),
+    t_signreq(seq+1)) — the window whose period the event can lengthen. The forced
+    REC-retry control (seq 1's first REC, deliberately corrupted) is attributed as
+    `control`, not as a recovery. Stale duplicates are reported, never a recovery by
+    themselves (they only follow a timeout)."""
+    pulls = {int(p["seq"]): p for p in (audits or {}).get("pulls", [])}
+    recs = {int(r["seq"]): r for r in (audits or {}).get("recs", [])}
+    out: dict[int, dict] = {}
+    ordered = sorted(seqs)
+    for i, s in enumerate(ordered):
+        r = {"pull_retries": 0, "pull_timeouts": 0, "pull_crc": 0, "pull_malformed": 0, "duplicates": 0,
+             "rec_retries": 0, "rec_gets": 0, "crc_drops": 0, "bad_frames": 0, "fragments": 0, "control": 0}
+        p = pulls.get(s)
+        if p:
+            bad = [a for a in p.get("attempts", []) if a.get("outcome") != "ok"]
+            r["pull_retries"] = len(bad)
+            r["pull_timeouts"] = sum(1 for a in bad if a.get("outcome") == "timeout")
+            r["pull_crc"] = sum(1 for a in bad if a.get("outcome") == "crc")
+            r["pull_malformed"] = sum(1 for a in bad if a.get("outcome") == "malformed")
+            r["duplicates"] = len(p.get("duplicates", []))
+        rl = recs.get(s)
+        if rl:
+            att = [a.get("outcome") if isinstance(a, dict) else a for a in rl.get("attempts", [])]
+            bad_att = [a for a in att if a != "ok"]
+            if s == control_seq and att[:1] == ["crc"]:
+                r["control"] = 1
+                bad_att = bad_att[1:]
+            r["rec_retries"] = len(bad_att)
+            r["rec_gets"] = max(0, int(rl.get("gets_sent", 0)) - r["control"])   # the control's own RECGET is the control's
+        t0 = tim.get(s, {}).get("t_signreq")
+        t1 = tim.get(ordered[i + 1], {}).get("t_signreq") if i + 1 < len(ordered) else None
+        if frames and t0 is not None:
+            for f in frames:
+                if f.get("dir") != "rx" or f.get("type") not in NON_FRAME_EVENTS:
+                    continue
+                tm = f.get("t_mono")
+                if tm is None or tm < t0 or (t1 is not None and tm >= t1):
+                    continue
+                if f["type"] == "CRC_DROP":
+                    if s == control_seq and f.get("frame_type") == "REC" and r["control"] and r["crc_drops"] == 0:
+                        continue          # the control's own drop, already attributed as control
+                    r["crc_drops"] += 1
+                elif f["type"] == "BAD_FRAME":
+                    r["bad_frames"] += 1
+                else:
+                    r["fragments"] += 1
+        r["recovered"] = any(r[k] for k in ("pull_retries", "pull_timeouts", "pull_crc", "pull_malformed",
+                                             "rec_retries", "rec_gets", "crc_drops", "bad_frames", "fragments"))
+        out[s] = r
+    return out
+
+
+def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str | None = None,
+                audits: dict | None = None, frames: list[dict] | None = None) -> dict:
     timing = run_log.get("timing")
     if not isinstance(timing, dict) or not isinstance(timing.get("records"), dict) or not timing["records"]:
         raise RateError("the run log carries no per-frame timing (`timing.records`); a rate cannot be derived "
@@ -103,6 +171,8 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
     steady = {s: per[s] for s in candidates if (s + 1) in interior and per.get(s) is not None}
     transitions = {"opening_to_first_s": per.get(first) if candidates and candidates[0] == first + 1 else None,
                    "last_to_closing_s": per.get(candidates[-1]) if candidates and kind == "COMPLETED" else None}
+    ledgers_supplied = audits is not None or frames is not None
+    recov = recovery_by_seq(tim, seqs, audits, frames) if ledgers_supplied else {}
     rows = []
     for s in candidates:
         t = tim[s]
@@ -110,10 +180,33 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
         settle = records[s].get("evidence", {}).get("arm", {}).get("settle", {}).get("polls")
         rows.append({"seq": s, "outcome": records[s]["outcome"], "arm": arm, "wall_s": t["wall"],
                      "period_s": steady.get(s), "breakdown_s": t.get("breakdown"),
-                     "hb_count": t.get("hb_count"), "audit_chunks": t.get("audit_chunks"), "settle_polls": settle})
+                     "hb_count": t.get("hb_count"), "audit_chunks": t.get("audit_chunks"), "settle_polls": settle,
+                     "recovery": recov.get(s), "clean": (not recov[s]["recovered"]) if s in recov else None})
     walls = [r["wall_s"] for r in rows]
     per_vals = [steady[s] for s in candidates if s in steady]
     wall_stats, period_stats = _stats(walls), _stats(per_vals)
+    # v0.5 draft: the inclusive rate (every steady-state period) and the nominal one (the
+    # periods of candidates without a transport recovery), plus the recovery indicators
+    inclusive = {"n": period_stats["n"], "mean_s": period_stats["mean"], "cov": period_stats["cov"],
+                 "evals_per_hour": (3600.0 / period_stats["mean"]) if period_stats["mean"] else None}
+    if ledgers_supplied:
+        excluded = [s for s in candidates if s in steady and recov[s]["recovered"]]
+        nom_vals = [steady[s] for s in candidates if s in steady and not recov[s]["recovered"]]
+        nom_stats = _stats(nom_vals)
+        nominal = {"n": nom_stats["n"], "mean_s": nom_stats["mean"], "cov": nom_stats["cov"],
+                   "evals_per_hour": (3600.0 / nom_stats["mean"]) if nom_stats["mean"] else None,
+                   "excluded_seqs": excluded, "excluded_periods": len(excluded)}
+        keys = ("pull_retries", "pull_timeouts", "pull_crc", "pull_malformed", "duplicates", "rec_retries", "rec_gets",
+                "crc_drops", "bad_frames", "fragments")
+        recovery = {k: sum(recov[s][k] for s in seqs) for k in keys}
+        recovery["candidates_with_recovery"] = sum(1 for s in candidates if recov[s]["recovered"])
+        recovery["recovered_seqs"] = [s for s in candidates if recov[s]["recovered"]]
+        recovery["control_drops"] = sum(recov[s]["control"] for s in seqs)
+        recovery["rx_frames"] = sum(1 for f in (frames or []) if f.get("dir") == "rx" and f.get("type") not in NON_FRAME_EVENTS)
+        recovery["ledgers"] = "audits.json pulls/recs + timeline frames"
+    else:
+        nominal = None
+        recovery = {"ledgers": "NOT SUPPLIED: nominal and recovery need audits.json and timeline.json (the runner supplies them; the CLI reads them from the evidence directory)"}
     failures = [r["seq"] for r in rows if r["outcome"] not in NON_FAILURE]
     counts = {}
     for r in rows:
@@ -124,12 +217,13 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
         stages[st] = _stats(vals)
     settle_vals = [r["settle_polls"] for r in rows if isinstance(r["settle_polls"], int)]
     evals_per_hour = (3600.0 / period_stats["mean"]) if period_stats["mean"] else None
-    return {"schema": "l6_rate_report", "schema_version": "1.0.0", "tool": TOOL_VERSION,
+    return {"schema": "l6_rate_report", "schema_version": "1.1.0", "tool": TOOL_VERSION,
             "session": session, "schedule_mode": run_log.get("app_identity", {}).get("schedule_mode"),
             "epoch_end": run_log["session_summary"]["epoch_end"], "run_log_sha256": run_log_sha256,
             "records": len(seqs), "brackets": sorted(brackets), "candidates": len(candidates),
             "evals_per_hour": evals_per_hour, "cov": period_stats["cov"], "cov_wall": wall_stats["cov"],
             "steady_state_periods": len(per_vals), "transitions_s": transitions,
+            "inclusive": inclusive, "nominal": nominal, "recovery": recovery,
             "operator_data_sha256": run_log.get("app_identity", {}).get("operator_data_sha256"),
             "failure_rate": (len(failures) / len(rows)) if rows else None, "failures": failures,
             "outcome_counts": counts, "period_s": period_stats, "wall_s": wall_stats, "stages_s": stages,
@@ -162,7 +256,12 @@ def main(argv=None) -> int:
     path = a.evidence_dir / "run_log.json"
     try:
         raw = path.read_bytes()
-        rep = rate_report(json.loads(raw), a.session, hashlib.sha256(raw).hexdigest())
+        audits = frames = None
+        if (a.evidence_dir / "audits.json").exists():
+            audits = json.loads((a.evidence_dir / "audits.json").read_text())
+        if (a.evidence_dir / "timeline.json").exists():
+            frames = json.loads((a.evidence_dir / "timeline.json").read_text()).get("frames")
+        rep = rate_report(json.loads(raw), a.session, hashlib.sha256(raw).hexdigest(), audits=audits, frames=frames)
     except (OSError, ValueError, KeyError) as exc:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 2

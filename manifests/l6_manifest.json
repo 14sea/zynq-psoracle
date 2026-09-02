@@ -1,7 +1,7 @@
 {
   "schema": "l6_manifest",
   "schema_version": "0.1.0",
-  "status": "FROZEN preregistration v0.4 (rec-v3) + board-ready rec-v3 image 403f4ab5… (promoted 2026-09-02; e19e1b12… superseded, NOT defective; cd8360dc… withdrawn DEFECTIVE). This manifest still authorises no ruling and no board contact: each session needs its own bound ruling pair (whole-of-probe P3-L6 + provisioning P3-K, binding THIS file's committed sha256), a power cycle and a fresh boundary record; calibration.C1/C2 are null until the rec-v3 C1 and C2 have run under v0.4 (the pull-v2 calibrations are historical and refused). Order: frozen-artifact/hash short review → C1 ruling pair → C2 ruling pair → owner pins the bound records → S ruling pair. The byte-loss stop-loss lifted for pull-v2 (owner 2026-09-01) stands; S #1 counts as S failure #1 under §7. C1 #5 (2026-09-02-01, rec-v3, v0.4) = HOLD (CoV 0.274 after one recovered audit byte loss; epoch otherwise PASS-shaped); calibration.C1 stays null; §7 classification of S #1 + C1 #5 is the owner's.",
+  "status": "FROZEN preregistration v0.4 (rec-v3) + board-ready rec-v3 image 403f4ab5… (promoted 2026-09-02; e19e1b12… superseded, NOT defective; cd8360dc… withdrawn DEFECTIVE). This manifest still authorises no ruling and no board contact: each session needs its own bound ruling pair (whole-of-probe P3-L6 + provisioning P3-K, binding THIS file's committed sha256), a power cycle and a fresh boundary record; calibration.C1/C2 are null until the rec-v3 C1 and C2 have run under v0.4 (the pull-v2 calibrations are historical and refused). Order: frozen-artifact/hash short review → C1 ruling pair → C2 ruling pair → owner pins the bound records → S ruling pair. The byte-loss stop-loss lifted for pull-v2 (owner 2026-09-01) stands; S #1 counts as S failure #1 under §7. C1 #5 (2026-09-02-01, rec-v3, v0.4) = HOLD (CoV 0.274 after one recovered audit byte loss; epoch otherwise PASS-shaped); calibration.C1 stays null. OWNER 2026-09-02: §7 STOP-LOSS TRIGGERED (S #1 + C1 #5, the same transport failure class) — no board ruling until the host-side fix is proven and the owner lifts it; the transport batch (docs/l6_transport_batch_package.md) and the v0.5 draft (next_prereg) are delivered host-only, unreviewed; C1 #5 is not re-judged.",
   "prereg": {
     "path": "docs/l6_soak_prereg.md",
     "version": "v0.4",
@@ -368,5 +368,22 @@
     "signer_user": "== --signer-user",
     "key": "== <boundary.key_store>/K.bin (== --key)",
     "note": "the D4 boundary record is bound to the invocation, not only to itself (board-phase preflight blocker 3)"
+  },
+  "next_prereg": {
+    "path": "docs/l6_soak_prereg_v0.5_draft.md",
+    "version": "v0.5-draft",
+    "protocol": "rec-v3",
+    "sha256": null,
+    "status": "DRAFT — v0.4 stays frozen and in force; v0.5 is frozen only by the owner after the transport batch package (docs/l6_transport_batch_package.md) passes review. C1 #5 (2026-09-02-01) is and stays HOLD under v0.4; nothing in this draft re-judges it. Under v0.5 C1 and C2 are re-run; no calibration pinned under v0.4 or earlier is reused.",
+    "pass_conditions_draft": {
+      "nominal_cov_max": 0.1,
+      "min_clean_periods": 60,
+      "max_recovered_candidates": 3,
+      "max_pull_timeouts": 3,
+      "max_bad_frames": 3,
+      "max_fragments": 3
+    },
+    "pass_conditions_note": "C1/C2 under the draft §6.3: nominal CoV (periods of candidates without a transport recovery) ≤ 0.10 AND ≥ 60 of the 63 steady-state periods clean AND the recovery indicators within bounds (candidates with a recovery ≤ 3, pull timeouts ≤ 3, bad frames ≤ 3, fragments ≤ 3; CRC drops by D-s4's budget as before). S's N is derived from the INCLUSIVE rates (recoveries in). host/l6_checks.calibration_findings_v05 implements it; host/l6_runner.py selects it only when prereg.version is v0.5.",
+    "transport_note": "host-only changes shipped with the draft, effective for any session under any prereg because they change no PASS rule: reader resync on a frame head + fragment quarantine on a pull timeout (host/l6_reader.py), the pull's monotonic chunk deadline and stale-duplicate handling (host/l6_audit_pull.py), FRAGMENT events in the timeline ledger (host/l6_timing.py). The chunk timeout stays 2.0 s (CHUNK_TIMEOUT_S) until the owner pins a value; ≈0.5 s is the candidate the draft names for validation."
   }
 }

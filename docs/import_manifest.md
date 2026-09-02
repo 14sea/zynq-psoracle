@@ -352,6 +352,8 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-02T175112Z.json` |
+| `evidence/tests/test_report_2026-09-02T175035Z.json` |
 | `evidence/tests/test_report_2026-09-02T172002Z.json` |
 | `evidence/tests/test_report_2026-09-02T171913Z.json` |
 | `evidence/tests/test_report_2026-09-02T085755Z.json` |
@@ -613,6 +615,15 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l6_17A6_2026-09-02-01-C1/timeline.json` |
 | `evidence/l6_17A6_2026-09-02-01-C1/ymodem.log` |
 | `evidence/l6_17A6_2026-09-02-01-C1/ymodem_app.log` |
+| `docs/l6_transport_batch_package.md` |
+| `docs/l6_soak_prereg_v0.5_draft.md` |
+| `host/l6_transport_soak.py` |
+| `tests/test_l6_transport.py` |
+| `evidence/l6_transport_soak/soak_noresync_heavy.json` |
+| `evidence/l6_transport_soak/soak_resync_base.json` |
+| `evidence/l6_transport_soak/soak_resync_heavy.json` |
+| `evidence/l6_transport_soak/soak_resync_t05.json` |
+| `evidence/l6_transport_soak/soak_resync_t05_heavy.json` |
 | `host/l6_rec.py` |
 | `tests/test_l6_rec.py` |
 | `tests/test_l6_crash_summary.py` |

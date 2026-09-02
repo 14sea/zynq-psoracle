@@ -1298,3 +1298,54 @@ this note; loss statistics regenerated over seven sessions. Open for the owner (
 item 3 should be revised host-only for recovered retries (a v0.5, reviewed and re-frozen
 before any ruling), and the ≈2 s chunk timeout. No board contact and no ruling until the
 owner rules.
+
+## 2026-09-02 — owner's rulings on C1 #5: push approved; stop-loss TRIGGERED (S #1 + C1 #5); v0.5 host-only design batch authorised (C1 #5 not re-judged); reader-residue fix authorised — delivered host-only
+
+The owner's review: C1 #5's HOLD (instrument) is correct, the evidence credible, not
+pinnable. Four rulings. (1) Push `3e32f7a` — done, `origin/main = 3e32f7a`; the owner's
+own run: 864 tests, no failure. (2) Stop-loss: S #1 and C1 #5 are two consecutive
+sessions lost to the same instrument/transport failure class — contiguous byte deletion
+on the same console path; S #1 on a REC ended the session, C1 #5 on an AUDIT was
+recovered by rec-v3 but the recovery itself put the CoV over the bound; the different
+frame types and consequences do not change the observable failure class. A classification
+under frozen §7 (`docs/l6_soak_prereg.md` line 316), not a claim of a proven common
+physical root cause: no next board ruling; C2, S and Claim B stay paused. (3) A host-only
+v0.5 design batch is authorised, but NOT one that merely excludes the retried period to
+turn C1 #5 into a PASS: C1 #5 stays HOLD under v0.4 permanently and `calibration.C1`
+stays null. v0.5 separates an inclusive rate (all steady-state periods, recoveries in —
+the value S's N is derived from) from a nominal CoV (periods without a transport
+recovery) that is bounded only with a preregistered minimum clean sample; independent
+recovery/loss indicators with bounds (timeouts, BAD_FRAME, CRC drops, retries, exposure)
+so a nominal CoV cannot hide an unstable link; every raw period and retry kept; C1/C2
+re-run under v0.5, no old pin reused. (4) The timeout may be studied but not merely
+re-pinned: the real host defect is `host/l6_reader.py` keeping an unterminated residue
+for ever so the resend glued to it; shortening `l6_audit_pull.CHUNK_TIMEOUT_S` alone
+would only resend earlier into the same BAD_FRAME. Authorised host-only scope: quarantine
+(never silent drop) of the residue on timeout/retry, resync on a new `P3L5` frame head,
+a monotonic deadline instead of `tick(0.02)` accumulation, a replay of C1 #5's raw bytes
+proving the first resend recovers, discrimination tests (truncation, late tail, glue,
+duplicate, an ordinary half line across polls), a pure host replay/fault-injection soak,
+then review. The owner's round-trip figures over 520 clean chunks (median 42.9 ms, p99
+83.1 ms, max 83.6 ms) match ours (528: 42.9 / 83.1 / 83.6): 2 s is long, ≈0.5 s a
+candidate for validation, not pinned now. rec-v3 proved that an audit re-request keeps a
+whole epoch — valid engineering evidence — but other board→host frames are still not
+re-requestable, so no new board session or ruling before a complete transport/protocol
+review.
+
+Delivered the same day, host-only (`docs/l6_transport_batch_package.md`): reader resync
+on a frame head + fragment quarantine with FRAGMENT events in the timeline ledger; the
+pull's monotonic chunk deadline, timeout callback before the retry, stale byte-identical
+replies ignored; the runner hands the reader and clock to the session and selects the
+PASS rule by the manifest's prereg version; rate report 1.1.0 with inclusive / nominal /
+recovery (C1 #5: 0.274 / 0.056 over 62 with seq 39 excluded; 1 recovered candidate, 1
+timeout, 1 bad frame, 0 fragments); `calibration_findings_v05` naming every crossed
+bound; prereg v0.5 DRAFT (`docs/l6_soak_prereg_v0.5_draft.md`, D-t1..D-t3, §6 items
+3/3a/3b/3c, §7 records the stop-loss) with the draft bounds in the manifest's
+`next_prereg`; C1 #5's recorded bytes replayed — new reader + pull: chunk 1 `[timeout,
+ok]` (glued in one read: `[ok]`, no timeout), the C1 #5 reader: the recorded `[timeout,
+malformed, ok]`; the seeded soak over 2000 candidates × 5 configurations — every single
+fault of every kind recovered on the first resend at 2.0 s and at 0.5 s, pulls failing
+only on retry exhaustion, no clean candidate marked; the C1 #5 reader on the same seed:
+truncations recovered first-resend 21/499, 1530 bad frames, 247 failed pulls. The
+timeout stays 2.0 s (D-t3 proposes ≈0.5 s for the owner). Nothing re-judges C1 #5; no
+board, no ruling, no freeze, stop-loss standing.

@@ -51,9 +51,16 @@ import l6_timing as lt  # noqa: E402
 
 class ConsoleSession:
     def __init__(self, token: str, collector: n.Collector, relay: n.NotaryRelay, timeline: lt.Timeline,
-                 audit_seqs: set[int], crc_budget: int, send):
+                 audit_seqs: set[int], crc_budget: int, send, reader=None, clock=None,
+                 chunk_timeout_s: float = ap.CHUNK_TIMEOUT_S):
         self.token, self.collector, self.relay, self.timeline = token, collector, relay, timeline
         self.audit_seqs, self.crc_budget, self.send = audit_seqs, crc_budget, send
+        # C1 #5 (owner's ruling 2026-09-02): the reader is the session's so a pull timeout can
+        # quarantine a torn residue before the resend, and the reader's own resync fragments
+        # reach the timeline; the clock arms the pull's monotonic deadline
+        self.reader = reader
+        self.clock = clock or (reader.mono if reader is not None else None) or __import__("time").monotonic
+        self.chunk_timeout_s = chunk_timeout_s
         self.audit_sent_for: set[int] = set()
         # the host-paced pull (docs/l6_audit_pull_design.md): created on AUDIT_READY, fed
         # every line while pending, torn down on AUDITDONE/AUDITABORT; verified chunks go
@@ -164,6 +171,21 @@ class ConsoleSession:
         f = n.parse_line(line)
         self.send(line, f["type"], f["seq"])
 
+    def _on_pull_timeout(self, seq: int, chunk: int) -> None:
+        """The chunk deadline passed: whatever unterminated bytes the reader holds are a torn
+        reply (C1 #5's 576 bytes) — quarantined now, never glued to the resend."""
+        if self.reader is None:
+            return
+        self.reader.quarantine(f"pull timeout: seq {seq} chunk {chunk}")
+        self.absorb_fragments()
+
+    def absorb_fragments(self) -> None:
+        """Every fragment the reader quarantined since the last call goes to the timeline."""
+        if self.reader is None:
+            return
+        for frag in self.reader.take_fragments():
+            self.timeline.note_fragment(frag)
+
     def _pull_settle(self) -> None:
         """After feeding the puller a line: harvest verified chunks, tear down when over."""
         pl = self.puller
@@ -175,12 +197,16 @@ class ConsoleSession:
         if not pl.pending:
             self.pull_ledgers.append({"seq": pl.seq, "done": pl.done, "failed": pl.failed, "why": pl.fail_reason,
                                       "attempts": pl.ledger.attempts, "crc_dropped": pl.ledger.crc_dropped,
-                                      "timeouts": pl.ledger.timeouts, "lines_kept": pl.ledger.lines_kept})
+                                      "timeouts": pl.ledger.timeouts, "lines_kept": pl.ledger.lines_kept,
+                                      "duplicates": pl.ledger.duplicates})
             self.puller = None
 
-    def tick(self, dt_s: float) -> None:
+    def tick(self, dt_s: float | None = None) -> None:
+        """Once per runner loop: the reader's resync fragments into the ledger, the pull's
+        monotonic deadline checked (`dt_s` is the old call shape, ignored)."""
+        self.absorb_fragments()
         if self.puller is not None:
-            self.puller.tick(dt_s)
+            self.puller.tick()
             self._pull_settle()
 
     def on_line(self, line: str, t_mono: float, t_wall: float) -> None:
@@ -243,7 +269,8 @@ class ConsoleSession:
                                                       f"the current candidate is {expected}"}
                 return
             self.collector.last_heard = self.collector.clock()   # valid pull traffic is liveness
-            self.puller = ap.PullHost(self.token, f["seq"], send=self._pull_send)
+            self.puller = ap.PullHost(self.token, f["seq"], send=self._pull_send, clock=self.clock,
+                                      timeout_s=self.chunk_timeout_s, on_timeout=self._on_pull_timeout)
             self.puller.on_line(line)
             self._pull_settle()
             return
