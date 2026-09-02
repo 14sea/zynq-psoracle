@@ -106,8 +106,10 @@ class ConsoleSession:
     def _on_broken_line(self, line: str, outcome: str, t_mono: float) -> None:
         """CRC-failed or malformed: if it reads as the pending candidate's REC, a retry; if it
         reads as a corrupted RESEND of the record already accepted (the board resent because
-        our RECACK was lost), say RECACK again — the board needs the acknowledgement, not
-        the bytes. Anything else is not the transaction's."""
+        our RECACK was lost), it is ALSO asked for again — a broken line cannot be known to be
+        the byte-identical duplicate that alone earns a RECACK (review 2026-09-02, blocker 2);
+        the next CRC-valid resend is then compared with the accepted payload in `_on_rec`:
+        equal → RECACK, different → PROTOCOL_REC. Anything else is not the transaction's."""
         t, s = rx.head_fields(line)
         if t != n.T_REC:
             return
@@ -117,9 +119,9 @@ class ConsoleSession:
         elif s is not None and s == self.collector.last_rec_seq and s in self.rec_payloads:
             led = self._rec_ledger(s)
             led.note(outcome, line, t_mono)
-            if led.acks_sent < rx.REC_MAX_ATTEMPTS:
-                led.acks_sent += 1
-                self._rec_tx(rx.T_RECACK, s)
+            if led.gets_sent < rx.REC_HOST_MAX_GETS:
+                led.gets_sent += 1
+                self._rec_tx(rx.T_RECGET, s)
 
     def _on_rec(self, f: dict, line: str, t_mono: float) -> None:
         seq, pending = f["seq"], self.pending_rec_seq

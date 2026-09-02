@@ -149,6 +149,40 @@ def crash_audit_count(log: dict, chunks: list[dict], manifest: dict | None) -> t
     return n, "host audit gate marks (validators.audit.verify)"
 
 
+def rec_closure_findings(log: dict, rec_ledgers: list[dict]) -> list[str]:
+    """Prereg v0.4 PASS condition 7, machine-enforced (review 2026-09-02, blocker 3): every
+    record's transaction was closed by the host's own RECACK. The set of loop-record seqs and
+    the set of REC-ledger seqs must be exactly equal; every ledger accepted and without
+    conflict, with at least one RECACK actually sent; no ledger without a record (a
+    transaction the host never accepted — an exhausted or advanced-without-ACK one) and no
+    record without a ledger (a record that reached the log by any path but the transaction).
+    Every violation is named by seq."""
+    out = []
+    rec_seqs = {r["seq"] for r in log["loop_records"]}
+    by_seq: dict[int, dict] = {}
+    for l in rec_ledgers:
+        if l["seq"] in by_seq:
+            out.append(f"REC closure: two ledgers for seq {l['seq']}")
+        by_seq[l["seq"]] = l
+    missing = sorted(rec_seqs - set(by_seq))
+    if missing:
+        out.append(f"REC closure: records without a transaction ledger: {missing}")
+    extra = sorted(set(by_seq) - rec_seqs)
+    if extra:
+        out.append(f"REC closure: transaction ledgers without a record: {extra}")
+    for seq in sorted(rec_seqs & set(by_seq)):
+        l = by_seq[seq]
+        if not l.get("accepted"):
+            out.append(f"REC closure: seq {seq} has a record but its transaction was never accepted")
+        if l.get("conflict"):
+            out.append(f"REC closure: seq {seq} saw a conflicting duplicate")
+        if l.get("acks_sent", 0) < 1:
+            out.append(f"REC closure: seq {seq} was never acknowledged by the host (no RECACK sent)")
+        if not any(a.get("outcome") == "ok" for a in l.get("attempts", [])):
+            out.append(f"REC closure: seq {seq} has no accepted attempt in its ledger")
+    return out
+
+
 def rec_control_findings(rec_ledgers: list[dict], armed: bool) -> list[str]:
     """The forced REC-retry control (rec-v3, prereg v0.4): when the identity page armed it,
     the opening baseline's record (seq 1) must show exactly the retry on the wire — the
@@ -164,11 +198,17 @@ def rec_control_findings(rec_ledgers: list[dict], armed: bool) -> list[str]:
     if l is None:
         return ["forced REC-retry control: no REC transaction ledger for seq 1"]
     outcomes = [a["outcome"] for a in l["attempts"]]
-    if outcomes[:2] != ["crc", "ok"] or not l["accepted"]:
-        return [f"forced REC-retry control not exercised: seq 1 attempts {outcomes}, accepted {l['accepted']} "
-                f"(expected a CRC-failed first transmission, then the accepted resend)"]
-    if l["gets_sent"] < 1:
-        return ["forced REC-retry control: the host never asked for the resend (RECGET), the retry was not the host's"]
+    # EXACTLY the preregistered shape (review 2026-09-02, blocker 4): the corrupted first
+    # transmission, then the accepted resend, nothing else — and exactly one RECGET, the
+    # host's. A lost RECACK on seq 1 (a `duplicate` third attempt) or a second RECGET is a
+    # different transport event and makes the control's evidence ambiguous: a HOLD, named.
+    if outcomes != ["crc", "ok"] or not l["accepted"] or l.get("conflict"):
+        return [f"forced REC-retry control not exercised exactly: seq 1 attempts {outcomes}, accepted {l['accepted']}, "
+                f"conflict {l.get('conflict', False)} (the preregistered shape is exactly ['crc', 'ok'], accepted)"]
+    if l["gets_sent"] != 1:
+        return [f"forced REC-retry control: {l['gets_sent']} RECGETs sent for seq 1, the preregistered shape is exactly one"]
+    if l.get("acks_sent", 0) < 1:
+        return ["forced REC-retry control: seq 1's resend was accepted but never acknowledged (no RECACK sent)"]
     return []
 
 

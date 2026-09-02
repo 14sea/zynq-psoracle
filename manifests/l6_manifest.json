@@ -154,6 +154,12 @@
       {
         "sha256": "47b8fa09b4e3d82c20bdbd4d2d592d65ed1bf86695d11f97f67143edad2e7135",
         "why": "DEFECTIVE — must not run. Deterministic pre-init watchdog defect: with flags.bit1 = 1 the IDENT frame's kick called XScuWdt_RestartWdt on an instance not yet CfgInitialize'd (BaseAddr 0, IsReady unset), and the driver's assert waits forever — the image hangs after IDENT, before the opening baseline. Found in the owner's compatibility review 2026-09-01 (blocker 1); never run on hardware. Fixed by gating the kick on S.wdt_started, set only after CfgInitialize → SetControlReg → LoadWdt → Start, with init failure fail-closed."
+      },
+      {
+        "sha256": "cd8360dc2944dd5df018c27f16d3f0671b4f4ba2e3d998cced0e1b37a90a41b2",
+        "elf_sha256": "266ccf8a9c83618888142b50018e0d5875d52ac241c04477d78495faca65cd86",
+        "why": "DEFECTIVE — must not run. The rec-v3 batch's first candidate (2026-09-01): its bounded receive bounded only the FIRST byte of a host line and then blocked for the newline, so a RECACK/RECGET cut mid-line (tail and newline lost) would have held the application until the watchdog reset instead of resending and STOP_REC as designed (owner's review 2026-09-02, blocker 1 of four: also a broken resend of an accepted record was re-acknowledged on its header alone, PASS condition 7 was not machine-enforced, and two text/implementation gaps). Never run on hardware; never board-ready. Corrected by p3_rectx_recv_line (whole-line bound, pure, host-driven with truncated input) and the three host-side fixes; rebuilt as the next candidate.",
+        "build_evidence": "evidence/l6_next_build/build_evidence_cd8360dc.json"
       }
     ],
     "promoted_note": "next_image was promoted here 2026-09-01 and the key removed: one image, one authority. evidence/l6_next_build/ is that candidate phase's historical record."
@@ -320,14 +326,14 @@
     "note": "the D4 boundary record is bound to the invocation, not only to itself (board-phase preflight blocker 3)"
   },
   "next_image": {
-    "app_image_sha256": "cd8360dc2944dd5df018c27f16d3f0671b4f4ba2e3d998cced0e1b37a90a41b2",
-    "elf_sha256": "266ccf8a9c83618888142b50018e0d5875d52ac241c04477d78495faca65cd86",
+    "app_image_sha256": "403f4ab5e8073e13cde74168636e35b8721505f4b73d2da579d2e36788ee28cd",
+    "elf_sha256": "8687ef8dfb80da3b53d4bc82130e9e9b52eb8e8b520848868038cfa85bed6ae1",
     "app_image_bytes": 98324,
     "board_ready": false,
     "protocol": "rec-v3",
     "app_image": "firmware/bsp/out/p3_app_l6.bin (raw binary, loaded at 0x02000000, `go`) — IMAGE=p3_app_l6 firmware/bsp/build.sh",
-    "standing": "CANDIDATE, host-only, NOT board-ready, NEVER run on hardware: the rec-v3 image (REC transaction + forced REC-retry control + app_identity 1.2.0) built in the pre-board protocol correction batch after S #1 (owner 2026-09-01). Two from-scratch builds byte-identical. Promotion to pinned_at_build needs the full P3 compatibility review (docs/l6_rec_batch_package.md), the v0.4 preregistration frozen, then NEW C1/C2 under it before any S: the v0.3 calibrations may not be reused (the nominal candidate period changed).",
-    "build_evidence": "evidence/l6_next_build/build_evidence.json (the pull-v2 candidate phase's record preserved as build_evidence_e19e1b12.json)",
+    "standing": "CANDIDATE, host-only, NOT board-ready, NEVER run on hardware: the rec-v3 image after the owner's review of the first candidate (2026-09-02; cd8360dc… withdrawn DEFECTIVE — see withdrawn_images): whole-line bounded receive (p3_rectx_recv_line), stale acknowledgements in the sign-reply wait bound to the previous transaction, the stale limit exact; host side: broken resend of an accepted record → RECGET, REC closure gate, exact control shape. Two from-scratch builds byte-identical. Promotion to pinned_at_build needs the owner's short re-review of the correction batch and then the full P3 compatibility review; then v0.4 frozen; then NEW C1/C2 under it before any S.",
+    "build_evidence": "evidence/l6_next_build/build_evidence.json (records of the two earlier candidate phases preserved as build_evidence_e19e1b12.json and build_evidence_cd8360dc.json)",
     "wire": "app_identity 1.2.0 (+ protocol, rec_retry_control); loop_record 1.1.0 unchanged; REC is a transaction: REC → RECACK | RECGET → REC (same bytes) ×≤3; STOP_REC when unacknowledged; host/l6_rec.py, firmware/p3_rectx.c"
   },
   "next_prereg": {

@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "purpose": "Post-build provenance for the pinned P3 L6NEXT application image, regenerated after a clean rebuild (reviewer 2026-08-31).",
   "git": {
-    "head": "6fe2d51f51545df09e3dd9af43e91e3f4d6b0f5d",
+    "head": "b9a31d59df58b7aff027250de23b834b86392c9a",
     "worktree_dirty": true
   },
   "toolchain": {
@@ -22,22 +22,22 @@
   "image": {
     "bin": "firmware/bsp/out/p3_app_l6.bin",
     "bin_bytes": 98324,
-    "bin_sha256": "403f4ab5e8073e13cde74168636e35b8721505f4b73d2da579d2e36788ee28cd",
-    "elf_sha256": "8687ef8dfb80da3b53d4bc82130e9e9b52eb8e8b520848868038cfa85bed6ae1",
+    "bin_sha256": "cd8360dc2944dd5df018c27f16d3f0671b4f4ba2e3d998cced0e1b37a90a41b2",
+    "elf_sha256": "266ccf8a9c83618888142b50018e0d5875d52ac241c04477d78495faca65cd86",
     "reproduced_byte_identical": true,
-    "expected_bin_sha256": "403f4ab5e8073e13cde74168636e35b8721505f4b73d2da579d2e36788ee28cd"
+    "expected_bin_sha256": "cd8360dc2944dd5df018c27f16d3f0671b4f4ba2e3d998cced0e1b37a90a41b2"
   },
   "linker_map": {
     "path": "evidence/l6_next_build/p3_app_l6.map",
-    "sha256": "963dcd0fb3f5b6bcb4c0ea347bb1672a2dd9194bd23b6c4cfb87c60e7f6ed16d"
+    "sha256": "08b5cbd30f01740d0ff758d5de697b2622f68c1d77fb82f2023a2368c9b239d8"
   },
   "tests": {
-    "report": "evidence/tests/test_report_2026-09-02T053951Z.json",
-    "report_sha256": "21dc555f0a30df71e83c3811f933ebbf762b31a95431974c2142b2059da93993",
+    "report": "evidence/tests/test_report_2026-09-02T052115Z.json",
+    "report_sha256": "450a40d2c50db46e4dd4f0f16cb788da3ccaede08de87c16efc9039b297f2382",
     "status": "cited and verified green by the generator",
-    "ran": 863,
+    "ran": 855,
     "skipped": 1,
-    "head_at_run": "6fe2d51f51545df09e3dd9af43e91e3f4d6b0f5d",
+    "head_at_run": "b9a31d59df58b7aff027250de23b834b86392c9a",
     "result_line": "OK (skipped=1)",
     "note": "the fail-closed test evidence (count / skipped / boundary / head_at_run) is this report, cited explicitly and verified green by the generator; run host/run_tests.sh in a staged state so it covers the new files."
   }

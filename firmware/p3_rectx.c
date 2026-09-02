@@ -4,6 +4,48 @@
 
 #include <string.h>
 
+int p3_rectx_recv_line(const p3_rectx_rx *rx, char *out, size_t max, uint32_t idle_polls)
+{
+    size_t n = 0;
+    uint32_t idle = 0u, total = 0u;
+    const uint32_t line_polls = idle_polls * P3_RECTX_LINE_POLL_FACTOR;
+
+    if (max == 0u)
+        return -1;
+    out[0] = 0;
+    for (;;) {
+        int c;
+        if (!rx->rx_ready(rx->ctx)) {
+            if (++idle > idle_polls) {
+                out[n] = 0;
+                return n == 0u ? -2 : -3; /* silence: nothing at all, or a line cut short */
+            }
+            if (++total > line_polls) {
+                out[n] = 0;
+                return n == 0u ? -2 : -3;
+            }
+            continue;
+        }
+        idle = 0u;
+        if (++total > line_polls) {
+            out[n] = 0;
+            return -3; /* a line that never ends within the overall bound */
+        }
+        c = rx->rx_byte(rx->ctx);
+        if (c == '\n')
+            break;
+        if (c == '\r')
+            continue;
+        if (n + 1u >= max) {
+            out[n] = 0;
+            return -1; /* over-long: the caller discards it and keeps waiting */
+        }
+        out[n++] = (char)c;
+    }
+    out[n] = 0;
+    return (int)n;
+}
+
 void p3_rectx_corrupt_crc(char *line, size_t n)
 {
     size_t i;
@@ -56,7 +98,9 @@ int p3_rectx_run(const char *line, size_t n, uint32_t seq, int corrupt_first,
                 break; /* the bound ran out: resend, or exhaust */
             }
             if (got < 0) {
-                r->stale++;
+                r->stale++; /* over-long (-1) or partial (-3): not a line of ours */
+                if (got == -3)
+                    r->partial++;
             } else {
                 payload = io->parse(io->rx, type, sizeof(type), &fseq, io->ctx);
                 if (payload == NULL || fseq != seq || payload[0] == 0 ||
@@ -72,9 +116,9 @@ int p3_rectx_run(const char *line, size_t n, uint32_t seq, int corrupt_first,
                     r->stale++;
                 }
             }
-            if (stale++ >= P3_RECTX_STALE_LIMIT) {
+            if (++stale >= P3_RECTX_STALE_LIMIT) {
                 r->idle_expiries++;
-                break; /* a flood of foreign lines is treated as the bound running out */
+                break; /* the P3_RECTX_STALE_LIMIT-th ignored line ends the wait like the bound */
             }
         }
     }

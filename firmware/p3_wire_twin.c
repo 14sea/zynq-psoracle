@@ -20,9 +20,12 @@
  *   sparse file=<hex words, one line> seq= chunk= span=  -> a sparse-v1 AUDIT chunk from the C encoder
  *   rectx  k=v ... [corrupt=1]                       -> the REC transaction (rec-v3): builds the REC
  *          frame as `rec` would and runs firmware/p3_rectx.c's state machine INTERACTIVELY —
- *          every transmission goes to stdout (flushed), every host line is read from stdin
- *          (a line `!idle` stands for the bounded wait running out; EOF too) — then prints
- *          `!rectx rc=… attempts=… gets=… idle=… stale=… corrupted_first=… acked=… why=…`
+ *          every transmission goes to stdout (flushed); every host line is read from stdin
+ *          and fed BYTE BY BYTE through p3_rectx_recv_line (the board's own bounded
+ *          whole-line receiver, idle bound TWIN_IDLE_POLLS): a plain line arrives whole with
+ *          its newline; `!raw <text>` arrives WITHOUT a newline (a truncated host line);
+ *          `!idle` (and EOF) deliver nothing, so the receiver's bound runs out — then prints
+ *          `!rectx rc=… attempts=… gets=… idle=… stale=… partial=… corrupted_first=… acked=… why=…`
  *
  * Every frame command prints the complete framed line exactly as the board would emit it
  * (payload base64url-encoded by p3_derive's own encoder). `!` prefixes an error.
@@ -296,22 +299,46 @@ static int rectx_send(const char *line, size_t n, void *ctx)
     return 0;
 }
 
+/* The scripted byte source: one stdin line per wait, delivered through the board's own
+ * receiver so truncation and silence exercise ITS bound, not the twin's. */
+#define TWIN_IDLE_POLLS 200u
+static char g_rx_buf[16384];
+static size_t g_rx_len, g_rx_pos;
+
+static int twin_rx_ready(void *ctx)
+{
+    (void)ctx;
+    return g_rx_pos < g_rx_len;
+}
+
+static int twin_rx_byte(void *ctx)
+{
+    (void)ctx;
+    return (int)(unsigned char)g_rx_buf[g_rx_pos++];
+}
+
 static int rectx_recv(char *out, size_t max, void *ctx)
 {
+    p3_rectx_rx rx;
     size_t n;
     (void)ctx;
-    if (fgets(out, (int)max, stdin) == NULL)
-        return -2; /* EOF: the host went quiet for good */
-    n = strlen(out);
-    if (n > 0 && out[n - 1] == '\n')
-        out[--n] = 0;
-    else if (n + 1 >= max)
-        return -1; /* over-long: discarded, keep waiting */
-    if (n > 0 && out[n - 1] == '\r')
-        out[--n] = 0;
-    if (strcmp(out, "!idle") == 0)
-        return -2; /* the scripted bound expiry */
-    return (int)n;
+    rx.rx_ready = twin_rx_ready;
+    rx.rx_byte = twin_rx_byte;
+    rx.ctx = NULL;
+    g_rx_len = g_rx_pos = 0;
+    if (fgets(g_rx_buf, (int)sizeof(g_rx_buf), stdin) != NULL) {
+        n = strlen(g_rx_buf);
+        if (strncmp(g_rx_buf, "!idle", 5) == 0) {
+            n = 0; /* nothing arrives: the receiver's idle bound runs out */
+        } else if (strncmp(g_rx_buf, "!raw ", 5) == 0) {
+            memmove(g_rx_buf, g_rx_buf + 5, n - 5);
+            n -= 5;
+            while (n > 0 && (g_rx_buf[n - 1] == '\n' || g_rx_buf[n - 1] == '\r'))
+                n--; /* the truncated line: no newline ever comes */
+        }
+        g_rx_len = n;
+    }
+    return p3_rectx_recv_line(&rx, out, max, TWIN_IDLE_POLLS);
 }
 
 /* the same checks p3_app.c's parse_frame makes: magic, CRC over the body, the full token */
@@ -389,9 +416,9 @@ static void cmd_rectx(void)
     io.rx_max = sizeof(g_rectx_rx);
     rc = p3_rectx_run(g_line, n, (uint32_t)kv_u("seq", 1), (int)kv_u("corrupt", 0), &io,
                       g_rectx_scratch, sizeof(g_rectx_scratch), &r);
-    printf("!rectx rc=%d attempts=%lu gets=%lu idle=%lu stale=%lu corrupted_first=%d acked=%d why=%s\n",
+    printf("!rectx rc=%d attempts=%lu gets=%lu idle=%lu stale=%lu partial=%lu corrupted_first=%d acked=%d why=%s\n",
            rc, (unsigned long)r.attempts, (unsigned long)r.gets, (unsigned long)r.idle_expiries,
-           (unsigned long)r.stale, r.corrupted_first, r.acked, r.why ? r.why : "");
+           (unsigned long)r.stale, (unsigned long)r.partial, r.corrupted_first, r.acked, r.why ? r.why : "");
     fflush(stdout);
 }
 

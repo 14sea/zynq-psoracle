@@ -298,6 +298,10 @@ class WithdrawnHashesStayInHistory(unittest.TestCase):
         "manifests/l6_manifest.json": "withdrawn_images IS the history",
         "docs/l6_compat_review_package.md": "names the withdrawn image and why (§1, §4.7)",
         "docs/l6_c1_session1_findings.md": "records that the session refutes the withdrawn image's defect on hardware",
+        # the rec-v3 batch's first candidate, withdrawn DEFECTIVE in the owner's review 2026-09-02
+        "docs/l6_rec_batch_package.md": "names the withdrawn first candidate and the four blockers that withdrew it",
+        "docs/l6_rec_transaction_design.md": "§8: the review of the first candidate, by hash",
+        "docs/import_manifest.md": "lists the preserved build record of the withdrawn candidate by its file name",
     }
     # evidence/ is recorded observation: never edited, never scanned
     SKIP_PREFIXES = ("evidence/", "data/", "builds/", "imported/", "gate_runs/", "fixtures/")

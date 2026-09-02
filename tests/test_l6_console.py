@@ -277,9 +277,22 @@ class RecTransaction(unittest.TestCase):
         self.assertEqual(self._types()[-2:], [(self.rx.T_RECACK, 1), (self.rx.T_RECACK, 1)])
         self.assertEqual([a["outcome"] for a in self.cs.rec_ledgers_json()[0]["attempts"]], ["ok", "duplicate"])
         self.assertFalse(self.cs.ended)
-        # a corrupted resend of the accepted record: say RECACK again, not RECGET
+        # a corrupted resend of the accepted record cannot be known byte-identical: RECGET,
+        # and only a CRC-valid resend equal to the accepted payload earns the RECACK
+        # (review 2026-09-02, blocker 2)
         self.cs.on_line(broken(self._rec(1)), 3.0, 3.0)
-        self.assertEqual(self._types()[-1], (self.rx.T_RECACK, 1))
+        self.assertEqual(self._types()[-1], (self.rx.T_RECGET, 1))
+        self.cs.on_line(self._rec(1), 4.0, 4.0)
+        self.assertEqual(self._types()[-1], (self.rx.T_RECACK, 1)); self.assertFalse(self.cs.ended)
+        self.assertEqual(len(self.collector.loop_records), 1)
+        self.cs.on_line(broken(self._rec(1)), 5.0, 5.0)
+        self.assertEqual(self._types()[-1], (self.rx.T_RECGET, 1))
+        self.cs.on_line(self._rec(1, {"genome": "1" * 80}), 6.0, 6.0)     # a valid resend with OTHER content
+        self.assertEqual(self.collector.epoch_end["kind"], "PROTOCOL")
+        self.assertIn("different content", self.collector.epoch_end["reason"])
+        self.assertEqual(len(self.collector.loop_records), 1)
+        led = self.cs.rec_ledgers_json()[0]
+        self.assertEqual([a["outcome"] for a in led["attempts"]], ["ok", "duplicate", "crc", "duplicate", "crc", "conflict"])
 
     def test_a_conflicting_duplicate_is_a_protocol_end_and_the_first_record_stands(self):
         self._signreq(1)

@@ -601,6 +601,59 @@ class Checks(unittest.TestCase):
             found = lc.soak_findings(**{**base, "frames": fr})
             self.assertTrue(any("not checkable" in f for f in found), found)
 
+    @staticmethod
+    def _ledger(seq, attempts=("ok",), accepted=True, gets=0, acks=1, conflict=False):
+        return {"seq": seq, "attempts": [{"attempt": i + 1, "outcome": o, "t_mono": None} for i, o in enumerate(attempts)],
+                "lines_kept": [], "gets_sent": gets, "acks_sent": acks, "accepted": accepted, "conflict": conflict}
+
+    def test_rec_closure_gate_accepts_a_closed_session_and_names_every_defect(self):
+        """v0.4 PASS condition 7 (review 2026-09-02, blocker 3): record seqs == accepted
+        ledger seqs, every ledger accepted/no conflict/acknowledged; each defect by seq."""
+        seqs = [r["seq"] for r in self.log["loop_records"]]
+        good = [self._ledger(s) for s in seqs]
+        self.assertEqual(lc.rec_closure_findings(self.log, good), [])
+        # discrimination: an arbitrary MIDDLE ledger removed
+        gone = [l for l in good if l["seq"] != 3]
+        f = lc.rec_closure_findings(self.log, gone)
+        self.assertEqual(len(f), 1); self.assertIn("records without a transaction ledger: [3]", f[0])
+        # only seq 1's ledger (what the control check alone would have accepted)
+        f = lc.rec_closure_findings(self.log, [self._ledger(1, ("crc", "ok"), gets=1)])
+        self.assertTrue(any("records without a transaction ledger: [2, 3, 4]" in x for x in f), f)
+        # a ledger without a record (an exhausted or advanced-without-ACK transaction)
+        f = lc.rec_closure_findings(self.log, good + [self._ledger(9, ("crc", "crc", "crc"), accepted=False, gets=2, acks=0)])
+        self.assertTrue(any("ledgers without a record: [9]" in x for x in f), f)
+        # unaccepted, conflicting, unacknowledged, no accepted attempt — each named
+        for bad, needle in ((self._ledger(2, ("crc",), accepted=False, acks=0), "never accepted"),
+                            (self._ledger(2, ("ok", "conflict"), conflict=True), "conflicting duplicate"),
+                            (self._ledger(2, ("ok",), acks=0), "never acknowledged"),
+                            (self._ledger(2, ("crc",), accepted=True), "no accepted attempt")):
+            leds = [bad if l["seq"] == 2 else l for l in good]
+            f = lc.rec_closure_findings(self.log, leds)
+            self.assertTrue(any(needle in x and "seq 2" in x for x in f), (needle, f))
+        # duplicated ledger for one seq
+        f = lc.rec_closure_findings(self.log, good + [self._ledger(2)])
+        self.assertTrue(any("two ledgers for seq 2" in x for x in f), f)
+        # the runner calls it
+        import inspect
+        self.assertIn("lc.rec_closure_findings(log, console.rec_ledgers_json())", inspect.getsource(l6.run_l6))
+
+    def test_rec_control_check_requires_exactly_the_preregistered_shape(self):
+        """Review 2026-09-02, blocker 4: exactly ['crc', 'ok'], accepted, one RECGET, an ACK."""
+        ok = [self._ledger(1, ("crc", "ok"), gets=1)]
+        self.assertEqual(lc.rec_control_findings(ok, armed=True), [])
+        self.assertEqual(lc.rec_control_findings([], armed=False), [])
+        for leds, needle in (([self._ledger(1, ("ok",))], "not exercised exactly"),
+                             ([self._ledger(1, ("crc", "ok", "duplicate"), gets=1, acks=2)], "not exercised exactly"),
+                             ([self._ledger(1, ("crc", "crc", "ok"), gets=2)], "not exercised exactly"),
+                             ([self._ledger(1, ("crc", "ok"), gets=2)], "2 RECGETs sent"),
+                             ([self._ledger(1, ("crc", "ok"), gets=0)], "0 RECGETs sent"),
+                             ([self._ledger(1, ("crc", "ok"), gets=1, acks=0)], "never acknowledged"),
+                             ([self._ledger(1, ("crc", "ok"), gets=1, conflict=True)], "not exercised exactly"),
+                             ([], "no REC transaction ledger for seq 1"),
+                             ([self._ledger(2, ("crc", "ok"), gets=1)], "no REC transaction ledger for seq 1")):
+            f = lc.rec_control_findings(leds, armed=True)
+            self.assertEqual(len(f), 1, (needle, f)); self.assertIn(needle, f[0])
+
     def test_median_from_a_calibration_report(self):
         self.assertEqual(lc.median_settle_polls_from_report({"settle_polls": {"median": 16.0}}), 16.0)
         self.assertIsNone(lc.median_settle_polls_from_report({}))

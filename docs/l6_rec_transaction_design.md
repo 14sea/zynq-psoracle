@@ -1,8 +1,10 @@
 # L6 — the REC transaction (rec-v3): design and what the host-only batch proves
 
 > **Standing: host-only, delivered 2026-09-01 in the owner's pre-board protocol
-> correction batch after S #1.** No ruling, no board, no prereg freeze, no S. The
-> candidate image `cd8360dc…` is `next_image`, `board_ready: false`, never run.
+> correction batch after S #1; corrected 2026-09-02 after the owner's review (§8).** No
+> ruling, no board, no prereg freeze, no S. The candidate image `403f4ab5…` is
+> `next_image`, `board_ready: false`, never run; the first candidate `cd8360dc…` is
+> withdrawn DEFECTIVE (§8).
 
 ## 1. What it has to fix
 
@@ -134,6 +136,37 @@ reason. `tests/test_l6_crash_summary.py` on S #1's real evidence: the shipped su
 0 and the validator names (ix); the gate says 31; with 31 the validator accepts the 464
 records and the structural gate names `missing REC [465, 466]` and `missing TERM` — HOLD,
 never PASS (owner's counterfactual, batch item 5).
+
+## 8. The owner's review of the first candidate (2026-09-02): four blockers, closed
+
+1. **The bounded receive bounded only the first byte.** `recv_line_bounded` waited for the
+   first byte with a bound and then blocked for the newline: a RECACK/RECGET cut mid-line
+   would have held the application until the watchdog, not resent. The whole-line receiver
+   is now `p3_rectx_recv_line` in the pure unit (idle bound between bytes, an overall line
+   bound of four idle bounds; `-3` partial, `-2` nothing), `p3_app.c` supplies only the RX
+   primitives, and the wire twin feeds every host line **byte by byte through that
+   receiver**: `RecWireContract` proves a half ACK without a newline, a whole GET without
+   its newline and a four-byte fragment are each abandoned and the record resent, and
+   three truncated ACKs exhaust to `STOP_REC` — never a block.
+2. **A broken resend of an accepted record was re-acknowledged on its header alone.** A
+   broken line cannot be known to be the byte-identical duplicate that alone earns a
+   RECACK: it now draws a RECGET, and the next CRC-valid resend is compared with the
+   accepted payload — equal → RECACK, different → PROTOCOL_REC (the first record stands).
+   The session object and the `RecHost` twin now behave the same way.
+3. **v0.4 PASS condition 7 was not machine-enforced.** `rec_closure_findings` (§7 of the
+   draft): record seqs == ledger seqs, every ledger accepted/no conflict/acknowledged/with
+   an accepted attempt, no ledger without a record and no record without a ledger; the
+   runner calls it; the discrimination test removes an arbitrary middle ledger and feeds
+   "only seq 1's ledger" — both named.
+4. **Two text/implementation gaps.** The control check now requires exactly `["crc", "ok"]`,
+   accepted, no conflict, exactly one RECGET and an ACK (the draft says so, §2.6c); the
+   sign-reply wait skips a RECACK/RECGET only when frame seq AND payload seq name the
+   previous transaction, else PROTOCOL; the stale limit ends the wait on the 64th ignored
+   line, as the header says.
+
+The first candidate image `cd8360dc…` is withdrawn as DEFECTIVE (blocker 1 is a firmware
+defect that would have blocked until the watchdog); the corrected image is rebuilt twice and pinned as
+the new `next_image`, still not board-ready.
 
 ## 7. Not done, by the boundary
 

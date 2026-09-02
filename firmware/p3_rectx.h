@@ -30,13 +30,40 @@
 
 #define P3_RECTX_ATTEMPTS 3u        /* the first transmission + two retries */
 #define P3_RECTX_CONTROL_FLAG 16u   /* identity page flags.bit4: forced REC-retry control */
-#define P3_RECTX_STALE_LIMIT 64u    /* lines of the wrong type/seq ignored per wait, then the bound */
+/* Per wait: this many lines that are not this transaction's RECACK/RECGET (foreign, stale,
+ * broken, partial) are ignored; the one that makes the count reach the limit ends the wait
+ * as if the bound had run out (the record is resent, or the attempts are exhausted). */
+#define P3_RECTX_STALE_LIMIT 64u
+/* p3_rectx_recv_line: a line is abandoned as PARTIAL when no byte arrives for `idle_polls`
+ * polls after at least one did (a truncated host line, its tail and newline lost), and in
+ * any case after P3_RECTX_LINE_POLL_FACTOR × idle_polls polls in all — so no host line, however
+ * it is cut, can hold the application past a bound. */
+#define P3_RECTX_LINE_POLL_FACTOR 4u
+
+/* ------------------------------------------------------------ bounded line receive ----- */
+
+/* Review 2026-09-02, blocker 1: the first recv_line_bounded waited with a bound for the
+ * FIRST byte only and then blocked for the newline — a RECACK cut mid-line would have held
+ * the application until the watchdog. The whole-line receiver is here, pure, with the
+ * byte source injected, so the SAME code is driven on the host with truncated input. */
+typedef struct {
+    int (*rx_ready)(void *ctx);   /* a byte is waiting */
+    int (*rx_byte)(void *ctx);    /* the waiting byte (0..255); only called after rx_ready */
+    void *ctx;
+} p3_rectx_rx;
+
+/* One line into `out` (NUL-terminated, no CR/LF): >= 0 its length; -1 over-long (the rest
+ * of the line is NOT consumed — the caller treats it as a discarded line); -2 nothing at
+ * all arrived within `idle_polls` polls; -3 a partial line: bytes arrived and then the
+ * newline did not, within the idle bound or the overall line bound — discarded. */
+int p3_rectx_recv_line(const p3_rectx_rx *rx, char *out, size_t max, uint32_t idle_polls);
 
 typedef struct {
     /* put the whole line on the wire (framing already done); 0 ok, -1 channel failure */
     int (*send)(const char *line, size_t n, void *ctx);
     /* one host line into `out` (no newline): >= 0 length, -1 over-long (discard, keep
-     * waiting), -2 the bounded wait ran out with nothing received */
+     * waiting), -2 the bounded wait ran out with nothing received, -3 a partial line was
+     * abandoned (discard, keep waiting) — p3_rectx_recv_line's contract */
     int (*recv_bounded)(char *out, size_t max, void *ctx);
     /* magic + CRC + token; on success fills type (NUL-terminated), the frame seq and
      * returns the payload field, else NULL. May mutate `line`. */
@@ -51,8 +78,9 @@ typedef struct {
 typedef struct {
     uint32_t attempts;        /* transmissions made, including the corrupted control one */
     uint32_t gets;            /* RECGETs answered */
-    uint32_t idle_expiries;   /* bounded waits that ran out */
-    uint32_t stale;           /* lines ignored (wrong type/seq/token/broken) */
+    uint32_t idle_expiries;   /* bounded waits that ran out (nothing, or a flood of stale lines) */
+    uint32_t stale;           /* lines ignored (wrong type/seq/token/broken/partial/over-long) */
+    uint32_t partial;         /* of those, partial lines abandoned by the receiver (-3) */
     int corrupted_first;      /* the control was applied to attempt 1 */
     int acked;
     const char *why;          /* set when not acked */

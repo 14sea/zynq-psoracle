@@ -838,7 +838,7 @@ class RecWireContract(WireContract):
     def _result(line: str) -> dict:
         assert line.startswith("!rectx "), line
         out = {}
-        for kv in line[len("!rectx "):].rstrip("\n").split(" ", 7):
+        for kv in line[len("!rectx "):].rstrip("\n").split(" ", 8):
             k, v = kv.split("=", 1)
             out[k] = v
         return out
@@ -927,6 +927,69 @@ class RecWireContract(WireContract):
         n.parse_line(read())
         write(n.build_line(rx.T_RECACK, 2, TOKEN, n.encode_payload({"seq": 2})))
         self.assertEqual(self._finish(proc, read)["corrupted_first"], "0")
+
+    def test_a_truncated_ack_without_a_newline_is_abandoned_and_the_record_resent(self):
+        """Review 2026-09-02, blocker 1: the host's RECACK arrives cut mid-line (tail and
+        newline lost). The board's own receiver abandons the partial line at the idle
+        bound, the wait then runs out, the SAME bytes are resent — never a block."""
+        import l6_rec as rx
+        proc, read, write = self._rectx()
+        first = read()
+        ack = n.build_line(rx.T_RECACK, 1, TOKEN, n.encode_payload({"seq": 1}))
+        write("!raw " + ack[:len(ack) // 2])          # half an ACK, no newline
+        write("!idle")                                # then silence: the bound runs out
+        second = read()
+        self.assertEqual(first, second)
+        write(ack)
+        res = self._finish(proc, read)
+        self.assertEqual((res["rc"], res["attempts"], res["partial"], res["idle"], res["acked"]), ("0", "2", "1", "1", "1"))
+
+    def test_a_truncated_recget_and_a_line_with_no_newline_at_all_are_bounded_too(self):
+        import l6_rec as rx
+        proc, read, write = self._rectx()
+        read()
+        get = n.build_line(rx.T_RECGET, 1, TOKEN, n.encode_payload({"seq": 1}))
+        write("!raw " + get[:-1])                     # the whole GET but the newline never comes
+        write("!idle")
+        read()                                        # resent after the bound
+        write("!raw P3L5")                            # four bytes, nothing more
+        write("!idle")
+        read()                                        # resent again: attempt 3
+        write(n.build_line(rx.T_RECACK, 1, TOKEN, n.encode_payload({"seq": 1})))
+        res = self._finish(proc, read)
+        self.assertEqual((res["rc"], res["attempts"], res["partial"], res["acked"]), ("0", "3", "2", "1"))
+
+    def test_three_truncated_acks_exhaust_to_stop_rec_not_a_block(self):
+        import l6_rec as rx
+        proc, read, write = self._rectx()
+        ack = n.build_line(rx.T_RECACK, 1, TOKEN, n.encode_payload({"seq": 1}))
+        for _ in range(3):
+            read(); write("!raw " + ack[:30]); write("!idle")
+        res = self._finish(proc, read)
+        self.assertEqual((res["rc"], res["attempts"], res["partial"], res["acked"]), ("-1", "3", "3", "0"))
+        self.assertIn("STOP_REC", res["why"])
+
+    def test_the_stale_limit_is_exactly_sixty_four_ignored_lines(self):
+        """63 foreign lines then the ACK: taken; 64 foreign lines: the wait ends like the
+        bound and the record is resent (P3_RECTX_STALE_LIMIT)."""
+        import l6_rec as rx
+        hb = n.build_line(n.T_HB, 1, TOKEN)
+        ack = n.build_line(rx.T_RECACK, 1, TOKEN, n.encode_payload({"seq": 1}))
+        proc, read, write = self._rectx()
+        read()
+        for _ in range(63):
+            write(hb)
+        write(ack)
+        res = self._finish(proc, read)
+        self.assertEqual((res["rc"], res["attempts"], res["stale"], res["idle"]), ("0", "1", "63", "0"))
+        proc, read, write = self._rectx()
+        read()
+        for _ in range(64):
+            write(hb)
+        second = read()                               # the 64th ignored line ended the wait: resent
+        write(ack)
+        res = self._finish(proc, read)
+        self.assertEqual((res["rc"], res["attempts"], res["stale"], res["idle"]), ("0", "2", "64", "1"))
 
     def test_the_real_host_side_drives_the_c_board_through_the_control(self):
         """The C transaction against host/l6_rec.RecHost: the control's broken first line

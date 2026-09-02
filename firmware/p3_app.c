@@ -837,16 +837,30 @@ static uint32_t audit_word(uint32_t i)
     return S.readback[i / P3_FRAME_WORDS][i % P3_FRAME_WORDS];
 }
 
-/* A line from the host, waited for with a BOUND: -2 when the host stayed quiet for
- * P3_PULL_IDLE_POLLS polls of the RX FIFO, otherwise recv_line()'s result. */
+/* A line from the host, waited for with a BOUND on the WHOLE line (review 2026-09-02,
+ * blocker 1: the first version bounded the first byte only and then blocked for the
+ * newline). The receiver is p3_rectx_recv_line — the same code the host contract test
+ * drives with truncated input; this file supplies only the RX FIFO primitives. -2 when the
+ * host stayed quiet for `idle_polls` polls, -3 when a line was cut short, -1 over-long. */
+static int app_rx_ready(void *ctx)
+{
+    (void)ctx;
+    return console_rx_ready();
+}
+
+static int app_rx_byte(void *ctx)
+{
+    (void)ctx;
+    return (int)(unsigned char)inbyte();
+}
+
 static int recv_line_bounded(char *out, size_t max, uint32_t idle_polls)
 {
-    uint32_t idle = 0;
-    while (!console_rx_ready()) {
-        if (++idle > idle_polls)
-            return -2;
-    }
-    return recv_line(out, max);
+    p3_rectx_rx rx;
+    rx.rx_ready = app_rx_ready;
+    rx.rx_byte = app_rx_byte;
+    rx.ctx = NULL;
+    return p3_rectx_recv_line(&rx, out, max, idle_polls);
 }
 
 static void serve_sparse_chunk(uint32_t chunk, uint32_t chunks, uint32_t total, const char *span)
@@ -1062,8 +1076,17 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
             payload = parse_frame_any(g_line, type, sizeof(type), &fseq);
             /* rec-v3: a RECACK/RECGET the host sent for the PREVIOUS record after this
              * application had already been acknowledged and moved on is stale, not a
-             * protocol failure; it is skipped, a bounded number of times. */
+             * protocol failure; it is skipped, a bounded number of times — but ONLY when
+             * its frame seq and its payload seq both name the transaction just completed
+             * (review 2026-09-02, blocker 4): any other acknowledgement here is channel
+             * misbehaviour and ends the epoch. */
             if (payload != NULL && (strcmp(type, "RECACK") == 0 || strcmp(type, "RECGET") == 0)) {
+                uint32_t pseq = 0u;
+                if (S.seq < 2u || fseq != S.seq - 1u ||
+                    rectx_payload_seq_cb(payload, &pseq, NULL) != 0 || pseq != S.seq - 1u) {
+                    p3_stop(P3_PROTOCOL, "PROTOCOL: an acknowledgement that is not the previous transaction's");
+                    return -1;
+                }
                 if (++stale > P3_REPLY_STALE_LIMIT) {
                     p3_stop(P3_PROTOCOL, "PROTOCOL: too many stale acknowledgements before the reply");
                     return -1;

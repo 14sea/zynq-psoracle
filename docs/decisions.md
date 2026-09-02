@@ -1176,3 +1176,36 @@ frame parser and the real host side (`RecWireContract`); the `p3_app.c` wiring i
 Package: `docs/l6_rec_batch_package.md`; design: `docs/l6_rec_transaction_design.md`.
 Suite 855 tests / 1 skip. Awaiting the owner's full P3 compatibility review.
 
+## 2026-09-02 — owner's review of the rec-v3 batch: HOLD on four blockers; correction batch (host + firmware), first candidate withdrawn DEFECTIVE
+
+The owner held the batch: (1) the "bounded receive" bounded only the first byte of a host
+line and then blocked for the newline — a RECACK/RECGET cut mid-line would have held the
+application until the watchdog, not resent and not STOP_REC; (2) a CRC-broken resend of an
+accepted record was re-acknowledged on its readable header, which cannot prove the
+byte-identical duplicate v0.4 requires, and the RecHost twin did otherwise; (3) v0.4 PASS
+condition 7 (every record closed by a host RECACK) was not machine-enforced — only seq 1
+was checked; (4) the control check accepted a prefix and ≥ 1 GET, the sign-reply wait
+skipped any token-valid acknowledgement without checking the seqs, and the stale limit
+tolerated a 65th line. Confirmed correct: v0.3 and e19e1b12… untouched, the runner refuses
+the committed v0.3/pull-v2 pair, the old calibrations refused, the S #1 counterfactual,
+the loss statistics, the C transaction under whole-line input. Authorised: a host+firmware
+correction batch, cd8360dc… marked DEFECTIVE, a new candidate rebuilt twice, then a short
+re-review; no push, no freeze, no ruling, no board.
+
+Closed: `p3_rectx_recv_line` — the whole-line receiver in the pure unit (idle bound
+between bytes, overall line bound 4 × idle, -3 partial), `p3_app.c` supplying only the RX
+primitives; the wire twin feeds every host line byte by byte through it, and the contract
+test proves a truncated ACK, a GET without its newline and a four-byte fragment are
+abandoned and the record resent, and three truncated ACKs exhaust to STOP_REC. A broken
+resend of an accepted record now draws RECGET and only an equal CRC-valid resend earns the
+RECACK (other content → PROTOCOL_REC; the twin and the session agree). `rec_closure_findings`
+enforces PASS condition 7 over the whole session (record seqs == ledger seqs, accepted, no
+conflict, ≥ 1 RECACK, an accepted attempt, no extra or missing ledgers), the runner calls
+it, and the discrimination test removes an arbitrary middle ledger. The control check
+requires exactly ["crc", "ok"], accepted, one RECGET, an ACK (the draft says so); the
+sign-reply wait skips an acknowledgement only when frame seq and payload seq both name
+the previous transaction, else PROTOCOL; the 64th ignored line ends the wait. cd8360dc…
+is withdrawn DEFECTIVE (build record preserved); 403f4ab5… (ELF 8687ef8d…) built twice
+byte-identical is next_image, not board-ready. Draft v0.4 §2.6c/6e/6f, D-r3 and PASS
+condition 7 updated. 863 tests, 1 skip. Not pushed; awaiting the owner's short re-review.
+

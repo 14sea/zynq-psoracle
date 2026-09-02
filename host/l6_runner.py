@@ -317,6 +317,7 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
                 protocol=plan["protocol"], rec_retry_control=bool(plan["flags"] & ls.FLAG_REC_CONTROL))
             findings += lc.structural_findings(log, collector.audits, plan["audit_seqs"], timeline.frames)
             findings += lc.baseline_findings(log)
+            findings += lc.rec_closure_findings(log, console.rec_ledgers_json())      # v0.4 PASS condition 7
             findings += lc.rec_control_findings(console.rec_ledgers_json(), bool(plan["flags"] & ls.FLAG_REC_CONTROL))
             try:
                 rep = lr.rate_report(log, plan["session"], hashlib.sha256(

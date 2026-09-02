@@ -407,8 +407,9 @@ class WireWiring(unittest.TestCase):
         self.assertIn("#define P3_PULL_IDLE_POLLS", APP)
         bounded = APP[APP.index("static int recv_line_bounded"):]
         bounded = bounded[:bounded.index("\n}")]
-        self.assertIn("if (++idle > idle_polls)", bounded); self.assertIn("return -2;", bounded)
-        self.assertIn("console_rx_ready()", bounded)
+        # the bound is the pure receiver's (p3_rectx_recv_line, whole line — review 2026-09-02)
+        self.assertIn("return p3_rectx_recv_line(&rx, out, max, idle_polls);", bounded)
+        self.assertIn("console_rx_ready()", APP[APP.index("static int app_rx_ready"):APP.index("static int app_rx_byte")])
         # AUDITGET is answered as often as asked; DONE and ABORT are the only exits besides the bound
         self.assertIn('strcmp(type, "AUDITGET") == 0', pull)
         self.assertIn('strcmp(type, "AUDITDONE") == 0', pull)
@@ -712,6 +713,35 @@ class RecTransaction(unittest.TestCase):
         flush = console[console.index("int console_rx_flush(void)\n{"):]
         flush = flush[:flush.index("\n}")]
         self.assertNotIn("Xil_Out32", flush); self.assertIn("UART_FIFO", flush); self.assertIn("n < 4096", flush)
+
+    def test_the_whole_line_receive_is_bounded_and_is_the_pure_units(self):
+        """Review 2026-09-02, blocker 1: recv_line_bounded must be p3_rectx_recv_line over
+        the RX primitives — never a first-byte bound followed by the blocking recv_line."""
+        rb = APP_CODE[APP_CODE.index("static int recv_line_bounded"):]
+        rb = rb[:rb.index("\n}")]
+        self.assertIn("return p3_rectx_recv_line(&rx, out, max, idle_polls);", rb)
+        self.assertNotIn("recv_line(out, max)", rb); self.assertNotIn("inbyte()", rb)
+        self.assertIn("rx.rx_ready = app_rx_ready;", rb); self.assertIn("rx.rx_byte = app_rx_byte;", rb)
+        # the blocking recv_line is used only for the sign reply (the L5 exchange, unchanged)
+        uses = [m.start() for m in re.finditer(r"recv_line\(g_line", APP_CODE)]
+        run = APP_CODE.index("static int run_candidate")
+        self.assertEqual(len(uses), 1); self.assertGreater(uses[0], run)
+        recv = SOURCES["p3_rectx.c"]
+        unit = recv[recv.index("int p3_rectx_recv_line"):recv.index("void p3_rectx_corrupt_crc")]
+        self.assertIn("++idle > idle_polls", unit); self.assertIn("++total > line_polls", unit)
+        self.assertIn("return n == 0u ? -2 : -3;", unit)
+        self.assertIn("#define P3_RECTX_LINE_POLL_FACTOR 4u", SOURCES["p3_rectx.h"])
+
+    def test_a_stale_ack_in_the_reply_wait_must_name_the_previous_transaction(self):
+        """Review 2026-09-02, blocker 4: frame seq AND payload seq == S.seq − 1, else PROTOCOL."""
+        run = APP_CODE[APP_CODE.index("static int run_candidate"):]
+        loop = run[run.index("S.audit_requested = 0;"):run.index('if (!strcmp(type, "SIGNREF"))')]
+        self.assertIn("fseq != S.seq - 1u", loop)
+        self.assertIn("rectx_payload_seq_cb(payload, &pseq, NULL) != 0 || pseq != S.seq - 1u", loop)
+        self.assertIn('"PROTOCOL: an acknowledgement that is not the previous transaction\'s"', loop)
+        self.assertLess(loop.index("fseq != S.seq - 1u"), loop.index("++stale > P3_REPLY_STALE_LIMIT"))
+        rectx = CODE["p3_rectx.c"]
+        self.assertIn("if (++stale >= P3_RECTX_STALE_LIMIT)", rectx)
 
     def test_the_transaction_unit_is_pure(self):
         rectx = CODE["p3_rectx.c"]

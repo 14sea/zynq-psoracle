@@ -26,7 +26,7 @@ their reports, bound to it, may size S.
 ## 1. Pins
 
 As v0.3 §1, except: **application image** = the rec-v3 two-operator image (§2), pinned in
-`manifests/l6_manifest.json` at promotion (today `next_image` `cd8360dc…`, `board_ready:
+`manifests/l6_manifest.json` at promotion (today `next_image` `403f4ab5…`, `board_ready:
 false`). The carrier, board, genome universe and instrument repositories are unchanged.
 
 ## 2. The two-operator image — requirements (v0.3 §2, items 1–6a unchanged) plus:
@@ -48,13 +48,29 @@ false`). The carrier, board, genome universe and instrument repositories are unc
 6c. **The forced REC-retry control.** Identity page `flags.bit4`. When set — **and the
    runner sets it in every session** — the application corrupts the CRC of the first
    transmission of the opening baseline's record (seq 1, one hex digit of the CRC field)
-   so that every session proves the real wire retry within its first seconds: the host
-   must `RECGET`, the application must resend byte-identical, and the host's per-seq
-   ledger must read exactly `crc` then `ok` with the record accepted. The deliberate
-   drop counts against the D-s4 budget like any other. The IDENT echoes the flag.
+   so that every session proves the real wire retry within its first seconds. **The
+   preregistered shape is exact**: the host's per-seq ledger for seq 1 reads attempts
+   `["crc", "ok"]` and nothing more, accepted, no conflict, exactly one `RECGET` sent by
+   the host and at least one `RECACK`. Any other shape — a third attempt because the
+   RECACK was lost, a second RECGET, a resend accepted without a RECGET — is a different
+   transport event that makes the control's evidence ambiguous and is a HOLD naming the
+   shape (`host/l6_checks.rec_control_findings`). The deliberate drop counts against the
+   D-s4 budget like any other. The IDENT echoes the flag.
 6d. **`app_identity` 1.2.0** adds `protocol` (`"rec-v3"`) and `rec_retry_control` (bool).
    The runner refuses an image whose IDENT does not declare `rec-v3`, and a session whose
    IDENT does not echo the page's control flag.
+6e. **Every wait for a host line is bounded on the whole line.** The application's receiver
+   (`p3_rectx_recv_line`, the pure unit) abandons a line as partial when no byte arrives for
+   the idle bound after at least one did, and in any case after four idle bounds in all,
+   so a `RECACK`/`RECGET` (or an `AUDITGET`) cut mid-line, with its newline lost, is
+   discarded and the transaction's own bound then runs out — a resend, or `STOP_REC` —
+   never a block until the watchdog. (The L5 sign-reply wait is unchanged and remains
+   watchdog-covered.) Per wait, at most `P3_RECTX_STALE_LIMIT` (64) lines that are not
+   this transaction's are ignored; the 64th ends the wait like the bound.
+6f. **A stale acknowledgement in the sign-reply wait is skipped only when it names the
+   transaction just completed** — frame seq and payload seq both equal to the previous
+   record's seq, at most `P3_REPLY_STALE_LIMIT` (8) of them; any other `RECACK`/`RECGET`
+   there ends the epoch PROTOCOL.
 7. Review by the owner against this list, item by item (the rec-v3 review package),
    before promotion, freeze and any ruling.
 
@@ -65,7 +81,7 @@ false`). The carrier, board, genome universe and instrument repositories are unc
 | **D-s4** CRC budget | v0.3's closed formula, with the brackets of protocol `rec-v3` = pull-v2's inbound brackets (`RECACK`/`RECGET` are outbound; a retransmitted `REC` arrives on top; the control's corrupted first `REC` of seq 1 is a CRC drop, not a frame). **A missing `REC` remains fatal regardless of budget** — under rec-v3 it can only mean the transaction was exhausted or the board advanced without acknowledgement, both of which are ends in their own right. |
 | **D-r1** one ledger | Every inbound line that fails CRC or is malformed, of any type, is counted once in the session's inbound ledger (`timeline.json`) and, when it is a REC attempt, also in the per-seq REC ledger (`audits.json` `recs[]`, raw lines verbatim). Retries never remove the original broken line from either. |
 | **D-r2** content is the validator's | A CRC-valid record is accepted once and judged by `validate_standalone_run_log`; a retry never replaces an accepted record; a same-seq record with other content is a PROTOCOL end; a falsifier cannot be washed out by retransmission. |
-| **D-r3** current-candidate authority | The host acknowledges only the record of the candidate whose sign exchange the relay answered and whose record is outstanding; a `REC` for another seq, and a `SIGNREQ` while a record is outstanding, end the epoch PROTOCOL ("the board advanced without an acknowledgement"). |
+| **D-r3** current-candidate authority | The host acknowledges only the record of the candidate whose sign exchange the relay answered and whose record is outstanding; a `REC` for another seq, and a `SIGNREQ` while a record is outstanding, end the epoch PROTOCOL ("the board advanced without an acknowledgement"). **A byte-identical duplicate of the accepted record is the only thing re-acknowledged**: a broken resend of an accepted record draws a `RECGET`, and the next CRC-valid resend earns the `RECACK` only if it equals the accepted payload — otherwise PROTOCOL. |
 | **D-r4** the crash-path summary | A collector-written (`CRASHED`) `session_summary` carries `audit.audited` = the number of records whose served words the **host audit gate** verified (`validators.audit.verify`), never a pull count and never the firmware's mark; if the gate refuses the chunks the count is 0 with the refusal named. |
 | **D-r5** calibration binding | Every rate report carries `binding` = {image_sha256, prereg_sha256, protocol, session, schedule_mode, master_seed} written by the runner from the pins it verified; the S runner imports rate_A/rate_B only from reports whose bytes hash to the pins **and** whose binding equals the current pins; a report without a binding is refused. A new image, preregistration or protocol therefore needs new C1/C2. |
 
@@ -103,11 +119,14 @@ off` → identity page (seed, N, flags incl. bit4) → `go`; the L5 brackets unc
 ## 6. PASS / HOLD / KILL — v0.3 §6 with these additions
 
 PASS additionally requires, for C1, C2 and S each: (6) the forced REC-retry control
-exercised on seq 1 exactly (`crc` → `ok`, accepted, one `RECGET`); (7) every record's
-transaction closed by the host's own `RECACK` — a record in the log without one in the
-ledger is an instrument defect; (8) the IDENT declaring `rec-v3` and echoing the control
-flag; (9) for S, the rate report's `binding` equal to the pins and both calibrations bound
-to the same image/prereg/protocol.
+exercised on seq 1 exactly as §2.6c states; (7) **REC closure, machine-enforced**
+(`host/l6_checks.rec_closure_findings`, called by the runner): the set of loop-record seqs
+equals the set of REC-ledger seqs; every ledger accepted, without conflict, with at least
+one `RECACK` sent and an accepted attempt; no ledger without a record (an exhausted or
+advanced-without-ACK transaction) and no record without a ledger; every violation named
+by seq; (8) the IDENT declaring `rec-v3` and echoing the control flag; (9) for S, the rate
+report's `binding` equal to the pins and both calibrations bound to the same
+image/prereg/protocol.
 
 HOLD additionally: `STOP_REC` (the transaction exhausted — a transport HOLD with the
 attempts in the ledger), `PROTOCOL_REC` (a conflicting duplicate, a REC for another seq, a
