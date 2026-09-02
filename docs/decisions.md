@@ -1209,3 +1209,25 @@ is withdrawn DEFECTIVE (build record preserved); 403f4ab5… (ELF 8687ef8d…) b
 byte-identical is next_image, not board-ready. Draft v0.4 §2.6c/6e/6f, D-r3 and PASS
 condition 7 updated. 863 tests, 1 skip. Not pushed; awaiting the owner's short re-review.
 
+## 2026-09-02 — owner's targeted re-review of the rec-v3 correction batch: PASS; push, promotion and freeze deferred to the full review
+
+The owner re-reviewed the four blockers and found each substantively closed and no new
+blocker: (1) `p3_rectx_recv_line` bounds both inter-byte silence and the whole line, a
+truncated line returns -3 and the transaction counts it stale, and the tests drive the
+same C receiver, not a Python stand-in; (2) a CRC-broken duplicate now draws RECGET and
+only a CRC-valid, payload-equal resend is acknowledged, other content PROTOCOL_REC, the
+old pinning test reversed; (3) `rec_closure_findings` closes the record/ledger sets,
+accepted, conflict, ACK and accepted attempt, is called by the runner, and the
+"seq 1 only" counter-example names [2, 3, 4]; (4) the control requires exactly
+["crc", "ok"], one GET, an ACK, no conflict; the sign-reply wait checks the previous
+transaction's frame and payload seq; the 64th stale line ends the wait. Artifact
+boundary confirmed: v0.3 `8daa81f2…` unchanged; board-ready `e19e1b12…` unchanged;
+`cd8360dc…` DEFECTIVE with its build record kept; `403f4ab5…` hashes as the manifest and
+build evidence say and stays `board_ready: false`; v0.4 a draft with a null hash; the
+committed manifest cannot start a rec-v3 session. Independent re-run 863 OK (the review
+environment's extra skip is its signer-boundary limit; the committed report is 1 skip).
+Ruled this round: the correction batch PASSES. NOT yet approved: push of 6fe2d51 +
+eab69c5, image promotion, v0.4 freeze. Next: the owner's full P3 compatibility review of
+`docs/l6_rec_batch_package.md`; on its pass, push, promotion and freeze are ruled again.
+Board and rulings stay forbidden.
+
