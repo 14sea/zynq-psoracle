@@ -52,7 +52,12 @@ DEFINITIONS = {
     "operator_data_sha256": "the operator contract (map data + mutation_bits) the session ran under, from the IDENT; a calibration is valid only for the same contract",
     "failure": "a candidate whose outcome is neither SCORED nor REFUSED_BY_GATE; failure_rate = failures / candidates",
     "resolution": "every boundary is known to one runner poll interval (~0.02 s); see timing.clocks",
+    "binding": "the image, preregistration, wire protocol, session, schedule mode and master seed the session ran under "
+               "(run_log.l6.binding, written by the runner from its own pins); the S runner refuses a calibration whose "
+               "binding is not the current pins — a new image or protocol changes the nominal period and needs new C1/C2 "
+               "(prereg v0.4)",
 }
+BINDING_KEYS = ("image_sha256", "prereg_sha256", "protocol", "session", "schedule_mode", "master_seed")
 
 
 class RateError(ValueError):
@@ -131,7 +136,17 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
             "settle_polls": _stats([float(v) for v in settle_vals]) | {"values_are_reads": True},
             "session_span_s": tim[last]["t_rec"] - tim[first]["t_signreq"],
             "clocks": timing.get("clocks"), "per_candidate": rows,
+            "binding": binding_of(run_log),
             "definitions": dict(DEFINITIONS)}
+
+
+def binding_of(run_log: dict) -> dict | None:
+    """The run log's own binding (`l6.binding`, written by the runner from the pins it
+    verified), copied whole — never reconstructed from the identity frame alone."""
+    b = (run_log.get("l6") or {}).get("binding")
+    if not isinstance(b, dict):
+        return None
+    return {k: b.get(k) for k in BINDING_KEYS}
 
 
 def report_sha256(report: dict) -> str:

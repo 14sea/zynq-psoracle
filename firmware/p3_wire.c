@@ -104,13 +104,16 @@ size_t p3_wire_identity(const p3_wire_identity_in *in, char *out, size_t max)
         w_str(&w, in->findings[i]);
     }
     /* sorted keys, as every payload: master_seed < nonce_at_start < operator_data_sha256
-     * < pss_idcode < schedule_mode < schema */
+     * < protocol < pss_idcode < rec_retry_control < schedule_mode < schema */
     w_fmt(&w, "],\"master_seed\":%lu,\"nonce_at_start\":\"%016llx\",\"operator_data_sha256\":",
           (unsigned long)in->master_seed, (unsigned long long)in->nonce_at_start);
     w_str(&w, in->operator_data_sha256);
-    w_fmt(&w, ",\"pss_idcode\":\"0x%08lx\",\"schedule_mode\":", (unsigned long)in->pss_idcode);
+    w_fmt(&w, ",\"protocol\":");
+    w_str(&w, in->protocol ? in->protocol : "");
+    w_fmt(&w, ",\"pss_idcode\":\"0x%08lx\",\"rec_retry_control\":%s,\"schedule_mode\":",
+          (unsigned long)in->pss_idcode, in->rec_retry_control ? "true" : "false");
     w_str(&w, in->schedule_mode);
-    w_fmt(&w, ",\"schema\":\"app_identity\",\"schema_version\":\"1.1.0\",\"status_at_start\":"
+    w_fmt(&w, ",\"schema\":\"app_identity\",\"schema_version\":\"1.2.0\",\"status_at_start\":"
               "\"0x%08lx\",\"token\":",
           (unsigned long)in->status_at_start);
     w_str(&w, in->token);

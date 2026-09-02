@@ -1143,3 +1143,36 @@ crash-path summary fix, extending the loss statistics), the manifest's hardware_
 and standing, this table. No Claim B data, no extra diagnostics. The manifest changed.
 Awaiting the owner.
 
+## 2026-09-01 — pre-board protocol correction batch after S #1 (host-only; firmware, image and prereg draft change): the REC transaction (rec-v3)
+
+Owner-authorised after S #1's HOLD, explicitly NOT host-only in scope (firmware, image and
+prereg draft) and explicitly bounded: no board, no ruling, no v0.4 freeze, no S re-run,
+continuous to a complete review package. Delivered: (1) the loop record is a transaction —
+`REC` → `RECACK` | `RECGET` → the SAME bytes again, at most three transmissions, the board's
+wait bounded, an unacknowledged record `STOP_REC` with no next candidate; token, seq and
+current-candidate authority closed (a REC for another seq or a SIGNREQ over an
+outstanding record is PROTOCOL), duplicates idempotent (re-acknowledged, never appended;
+other content for the same seq is PROTOCOL, never a second accepted record); (2) exhaustion
+stops; (3) every attempt and the original broken line in the one inbound ledger and a
+per-seq REC ledger (`audits.json` `recs[]`), content left to the validator (a valid-but-wrong
+record accepted once, never retried); (4) the crash-path summary's `audited` from the host
+audit gate's marks (`host/l6_checks.crash_audit_count`); (5) the S #1 counterfactual as a
+test: with 31 the validator accepts the 464 records and the structural gate names the
+missing REC/TERM — HOLD, never PASS; (6) loss statistics over all six sessions and every
+frame type (four events, exposure only); (7) the preregistered forced REC-retry control
+(identity page flags.bit4: seq 1's first transmission CRC-corrupted on purpose, the retry
+proven within seconds, `rec_control_findings` a HOLD if not exercised), armed by the
+runner in every session; (8) prereg v0.4 DRAFT (`docs/l6_soak_prereg_v0.4_draft.md`; v0.3
+frozen and untouched, `prereg.protocol: pull-v2` recorded in the manifest); (9) the rec-v3
+image built twice byte-identical — `cd8360dc…` as `next_image`, `board_ready: false`,
+never run. The owner's condition on calibrations: every rate report now carries a
+`binding` (image, prereg, protocol, session, mode, seed) written by the runner, and the S
+runner refuses a calibration without one or with another binding — the v0.3 C1/C2 pins
+stay recorded and are refused by construction; C1 and C2 are re-run under the rec-v3 image
+before any S. The runner refuses to run against v0.3 or a pull-v2 image at all
+(`HOST_PROTOCOL = rec-v3`). Evidence of the C state machine is dynamic: `firmware/p3_rectx.c`
+(pure, the same source the image links) runs on the host over a pipe against the real
+frame parser and the real host side (`RecWireContract`); the `p3_app.c` wiring is static.
+Package: `docs/l6_rec_batch_package.md`; design: `docs/l6_rec_transaction_design.md`.
+Suite 855 tests / 1 skip. Awaiting the owner's full P3 compatibility review.
+

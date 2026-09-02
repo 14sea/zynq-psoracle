@@ -720,13 +720,28 @@ def check_arm_schedule(log: dict, schedule_rows: list[dict], n: int,
 
 
 def check_l6_identity(app_identity: dict, master_seed: int, schedule_mode: str,
-                      operator_data_sha256: str) -> dict:
+                      operator_data_sha256: str, protocol: str | None = None,
+                      rec_retry_control: bool | None = None) -> dict:
     """L6 prereg §2.4: the IDENT names the master seed and the operator-image identity (the
     hash of the map data compiled in), and the schedule mode the page asked for. Read from
-    the raw record (additive 1.1.0 fields); each must equal what the host wrote."""
+    the raw record (additive 1.1.0 fields); each must equal what the host wrote.
+
+    rec-v3 (prereg v0.4 draft): with `protocol` given, the IDENT (1.2.0) must declare that
+    wire protocol — an image that does not say `rec-v3` cannot be running the REC
+    transaction, whatever the manifest claims; with `rec_retry_control` given, the IDENT
+    must echo the identity page's control flag as the application decoded it."""
     missing = [k for k in L6_IDENTITY_FIELDS if k not in app_identity]
     if missing:
         raise RecordError(f"app_identity lacks the L6 fields {missing} (prereg §2.4)")
+    if protocol is not None:
+        got = app_identity.get("protocol")
+        if got != protocol:
+            raise RecordError(f"app_identity declares wire protocol {got!r}, this session requires {protocol!r} "
+                              f"(an image without the REC transaction cannot run under it)")
+    if rec_retry_control is not None:
+        got = app_identity.get("rec_retry_control")
+        if not isinstance(got, bool) or got != rec_retry_control:
+            raise RecordError(f"app_identity rec_retry_control is {got!r}, the identity page armed {rec_retry_control}")
     if app_identity["master_seed"] != master_seed:
         raise RecordError(f"app_identity master_seed {app_identity['master_seed']!r} != the page's {master_seed}")
     if app_identity["schedule_mode"] != schedule_mode:
@@ -735,4 +750,8 @@ def check_l6_identity(app_identity: dict, master_seed: int, schedule_mode: str,
     if app_identity["operator_data_sha256"] != operator_data_sha256:
         raise RecordError("app_identity operator_data_sha256 is not the pinned map derivation: the image's "
                           "compiled-in map data is not the one regenerated from local_map.json")
-    return {k: app_identity[k] for k in L6_IDENTITY_FIELDS}
+    out = {k: app_identity[k] for k in L6_IDENTITY_FIELDS}
+    for k in ("protocol", "rec_retry_control"):
+        if k in app_identity:
+            out[k] = app_identity[k]
+    return out

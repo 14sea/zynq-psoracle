@@ -57,7 +57,12 @@ import p3_genome as gn  # noqa: E402
 import p3_oracle as po  # noqa: E402
 from validators import records  # noqa: E402
 
-TOOL_VERSION = "l6_runner.py/0.1.0"
+TOOL_VERSION = "l6_runner.py/0.2.0"
+# rec-v3 (prereg v0.4): the wire protocol THIS runner implements on the host side. An image
+# or a frozen preregistration of another protocol is refused: a pull-v2 image would receive
+# RECACK/RECGET lines it never reads, and a rec-v3 host would wait for records a pull-v2
+# image never transacts.
+HOST_PROTOCOL = "rec-v3"
 RULING_TEXT = "whole-of-probe P3-L6"
 PROVISION_RULING_TEXT = "provisioning P3-K"       # host/sign_arm.py's text; the signer re-checks it
 SESSIONS = ("C1", "C2", "S")
@@ -119,7 +124,26 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
             raise ValueError("the soak needs both calibration reports (C1, C2)")
         rates = {}
         contract = l6m["operator"]["operator_data_sha256"]
+        pins = {"image_sha256": l6m["pinned_at_build"]["app_image_sha256"], "prereg_sha256": l6m["prereg"]["sha256"],
+                "protocol": l6m["pinned_at_build"].get("protocol")}
         for k, rep in calibration.items():
+            # prereg v0.4: a calibration is valid only for the image, preregistration and
+            # protocol it ran under — a new image or protocol changes the nominal period.
+            # The report carries its binding (l6_rate.binding_of); a report without one
+            # (C1 #4, C2 #1 under v0.3/pull-v2) cannot be reused: C1 and C2 are re-run.
+            b = rep.get("binding")
+            if not isinstance(b, dict):
+                raise ValueError(f"calibration report {k} carries no binding (made before prereg v0.4): "
+                                 f"it cannot budget this soak — re-run {k} under the current image and protocol")
+            for key, want in pins.items():
+                if b.get(key) != want:
+                    raise ValueError(f"calibration report {k} is bound to {key} {str(b.get(key))[:16]}…, this soak's pin is "
+                                     f"{str(want)[:16]}… (a new image/prereg/protocol needs new C1/C2)")
+            if b.get("session") != k or b.get("schedule_mode") != l6m["sessions"][k]["mode"] \
+                    or b.get("master_seed") != l6m["sessions"][k]["master_seed"]:
+                raise ValueError(f"calibration report {k}'s binding names session/mode/seed "
+                                 f"{(b.get('session'), b.get('schedule_mode'), b.get('master_seed'))}, not "
+                                 f"{(k, l6m['sessions'][k]['mode'], l6m['sessions'][k]['master_seed'])}")
             if rep.get("operator_data_sha256") != contract:
                 raise ValueError(f"calibration report {k} ran under operator contract "
                                  f"{str(rep.get('operator_data_sha256'))[:16]}…, not the pinned {contract[:16]}… "
@@ -147,11 +171,13 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
     sched = ls.schedule(master_seed, n, mode)
     expected = ls.expected_frames(n, audit_seqs, l6m["pinned_at_build"].get("protocol", "push-v1"))
     budget = ls.crc_budget(expected["total"])
+    # rec-v3 (prereg v0.4): the forced REC-retry control is armed in EVERY session — the
+    # opening baseline's record proves the real wire retry within seconds, preregistered
     return {"session": session, "mode": mode, "master_seed": master_seed, "n": n, "schedule": sched,
             "audit_policy": audit_policy, "audit_seqs": audit_seqs, "expected_frames": expected,
             "crc_budget": budget, "crc_formula": "ceil(4 × expected_total / 1000)",
-            "session_timeout_s": timeout, "inputs": inputs,
-            "flags": ls.flags_for(mode, watchdog=bool(l6m["pinned_at_build"]["watchdog_enabled"]))}
+            "session_timeout_s": timeout, "inputs": inputs, "protocol": HOST_PROTOCOL, "rec_retry_control": True,
+            "flags": ls.flags_for(mode, watchdog=bool(l6m["pinned_at_build"]["watchdog_enabled"]), rec_control=True)}
 
 
 def _plan_json(plan: dict) -> dict:
@@ -253,7 +279,15 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         summary["epoch_end"] = collector.epoch_end
         summary["audits"] = len(collector.audits)
         if collector.session_summary is None:
+            # S #1 (2026-09-01-11): the crash-path summary said `audited 0` while the host
+            # gate had verified 31, so the validator named rule (ix) instead of the seq gap.
+            # The count is the HOST AUDIT GATE's marks (validators.audit.verify) — the same
+            # derivation the validator uses — never a pull count, never the firmware's mark.
+            gate_log = {"loop_records": collector.loop_records}
+            audited_n, audited_src = lc.crash_audit_count(gate_log, collector.audits, phen)
+            summary["crash_summary_audit"] = {"audited": audited_n, "total": len(collector.loop_records), "source": audited_src}
             collector.session_summary = collector.crashed_summary(
+                audit={"audited": audited_n, "total": len(collector.loop_records)},
                 crc_dropped=console.crc_dropped, drop_budget=plan["crc_budget"])   # the ledger, not the relay
         seqs = [r["seq"] for r in collector.loop_records]
         timing = lt.record_timing(timeline.frames, seqs)
@@ -265,7 +299,8 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
         if collector.closing_negative is not None:
             log["closing_negative"] = collector.closing_negative
         pr.write_record(out_dir, "run_log", log)
-        pr.write_record(out_dir, "audits", {"chunks": collector.audits, "pulls": console.pull_ledgers})
+        pr.write_record(out_dir, "audits", {"chunks": collector.audits, "pulls": console.pull_ledgers,
+                                            "recs": console.rec_ledgers_json()})
         blank_commit = g.gate(g.build_streams(gn.frames_from_genome(gn.blank_genome(phen), phen), phen),
                               phen)["candidate_sha256"]
         findings = []
@@ -278,9 +313,11 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
                 plan["audit_seqs"] if plan["audit_policy"] == "sampled" else None)
             summary["arm_check"] = records.check_arm_schedule(log, plan["schedule"], plan["n"], cfg["expected_genomes"])
             summary["l6_identity"] = records.check_l6_identity(
-                log["app_identity"] or {}, plan["master_seed"], plan["mode"], l6m["operator"]["operator_data_sha256"])
+                log["app_identity"] or {}, plan["master_seed"], plan["mode"], l6m["operator"]["operator_data_sha256"],
+                protocol=plan["protocol"], rec_retry_control=bool(plan["flags"] & ls.FLAG_REC_CONTROL))
             findings += lc.structural_findings(log, collector.audits, plan["audit_seqs"], timeline.frames)
             findings += lc.baseline_findings(log)
+            findings += lc.rec_control_findings(console.rec_ledgers_json(), bool(plan["flags"] & ls.FLAG_REC_CONTROL))
             try:
                 rep = lr.rate_report(log, plan["session"], hashlib.sha256(
                     json.dumps(log, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest())
@@ -364,8 +401,12 @@ def preflight(a) -> dict:
         raise bsn.SessionRefusal("D-s1: the watchdog must be pinned ON with prescaler 7 and load 1250000035")
     if not wd.get("board_ready"):
         raise bsn.SessionRefusal("the pinned image is not marked board-ready (freeze batch 2026-09-01: one image, one authority)")
-    if wd.get("protocol") != "pull-v2":
-        raise bsn.SessionRefusal(f"the pinned image's protocol {wd.get('protocol')!r} is not the frozen prereg's pull-v2")
+    if wd.get("protocol") != HOST_PROTOCOL:
+        raise bsn.SessionRefusal(f"the pinned image's protocol {wd.get('protocol')!r} is not this runner's {HOST_PROTOCOL} "
+                                 f"(prereg v0.4): an image without the REC transaction cannot run under it")
+    if l6m["prereg"].get("protocol") != HOST_PROTOCOL:
+        raise bsn.SessionRefusal(f"the frozen preregistration is a {l6m['prereg'].get('protocol')!r} one; this runner "
+                                 f"implements {HOST_PROTOCOL} — freeze prereg v0.4 first")
     # blocker 2: both rulings are bound to THIS session and to the frozen prereg + pinned image
     pinned_seed = l6m["sessions"][a.session].get("master_seed")
     bind_ruling(ruling, "whole-of-probe P3-L6", a.session, pinned_prereg, pinned, l6m_sha, pinned_seed)
@@ -406,6 +447,10 @@ def preflight(a) -> dict:
     if a.out.exists():
         raise bsn.SessionRefusal(f"{a.out} exists; evidence is never replaced")
     plan = plan_session(l6m, a.session, a.master_seed, a.duration_s, calibration, a.session_timeout_s)
+    # prereg v0.4: the run log and its rate report carry the pins the session ran under, so
+    # a calibration can never be reused for another image, preregistration or protocol
+    plan["binding"] = {"image_sha256": image_sha, "prereg_sha256": pinned_prereg, "protocol": HOST_PROTOCOL,
+                       "session": a.session, "schedule_mode": plan["mode"], "master_seed": plan["master_seed"]}
     data = lo.operator_data(g.load_manifest(), lo.load_local_map())
     if lo.operator_data_sha256(data) != l6m["operator"]["operator_data_sha256"]:
         raise bsn.SessionRefusal("the operator data regenerated from local_map.json is not the pinned derivation")

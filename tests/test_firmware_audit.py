@@ -253,10 +253,13 @@ class StateMachine(unittest.TestCase):
 
     def test_a_gate_refusal_continues_the_session(self):
         block = APP[APP.index('if (!strcmp(type, "SIGNREF"))'):]
-        block = block[:block.index("\n    }")]
+        block = block[:block.index("\n    }\n")]
         self.assertIn("S.refused++", block)
         self.assertIn("return 0;", block)              # continues …
-        self.assertNotIn("p3_stop", block)             # … and never ends the epoch
+        # … and the only stop is the rec-v3 one: the record's transaction not acknowledged
+        stops = re.findall(r"p3_stop\(([^;]*)\);", block)
+        self.assertEqual(stops, ["P3_STOPPED, S.rec_stop_why"])
+        self.assertIn('if (emit_record(&rec, "REFUSED_BY_GATE") != 0)', block)
 
     def test_the_first_cause_is_the_one_recorded(self):
         self.assertIn("if (S.kind == P3_RUNNING) { /* the first cause is the one recorded */", APP)
@@ -626,3 +629,97 @@ class AuditTally(unittest.TestCase):
         self.assertIn("if (n != 0u)", body)
         self.assertIn("g_tally_records++;", body)
         self.assertLess(body.index("if (n != 0u)"), body.index("g_tally_records++;"))
+
+
+class RecTransaction(unittest.TestCase):
+    """rec-v3 wiring in p3_app.c (static; the state machine itself is p3_rectx.c, host-run
+    by tests/test_firmware_wire_contract.py::RecWireContract). What is pinned here: the
+    record is built ONCE into its own buffer and handed to p3_rectx_run (the resend is the
+    same bytes, the tally counts it once); an unacknowledged record stops the epoch on both
+    continuing paths and proposes no next candidate; the control corrupts seq 1 only; the
+    RX FIFO is flushed before every SIGNREQ; the reply loop tolerates only stale
+    RECACK/RECGET lines, bounded; the IDENT declares the protocol and the control."""
+
+    def _emit(self) -> str:
+        e = APP_CODE[APP_CODE.index("static int emit_record"):]
+        return e[:e.index("\n}\n")]
+
+    def test_the_record_is_built_once_and_transacted_from_its_own_buffer(self):
+        e = self._emit()
+        self.assertEqual(e.count("p3_wire_loop_record("), 1, "the serialiser (and its tally) runs once per record")
+        self.assertIn("g_rec_line, sizeof(g_rec_line)", e)
+        self.assertIn("p3_rectx_run(g_rec_line, n, rec->seq,", e)
+        self.assertNotIn("put_str", e, "emit_record never sends by itself: the transaction does")
+        self.assertIn("static char g_rec_line[", APP_CODE); self.assertIn("static char g_rec_scratch[", APP_CODE)
+        self.assertEqual(APP_CODE.count("p3_rectx_run("), 1)
+
+    def test_the_io_given_to_the_transaction_is_the_bounded_poll_and_this_files_parser(self):
+        self.assertIn("recv_line_bounded(out, max, P3_REC_IDLE_POLLS)", APP_CODE)
+        self.assertIn("#define P3_REC_IDLE_POLLS", APP)
+        self.assertIn("return parse_frame_any(line, type_out, type_max, seq_out);", APP_CODE)
+        e = self._emit()
+        for cb in ("io.send = rectx_send_cb", "io.recv_bounded = rectx_recv_cb", "io.parse = rectx_parse_cb",
+                   "io.payload_seq = rectx_payload_seq_cb"):
+            self.assertIn(cb, e)
+        send = APP_CODE[APP_CODE.index("static int rectx_send_cb"):]
+        send = send[:send.index("\n}")]
+        self.assertIn("put_str(line);", send); self.assertIn("kick_watchdog();", send)
+
+    def test_an_unacknowledged_record_stops_the_epoch_and_no_next_candidate_is_proposed(self):
+        e = self._emit()
+        self.assertIn("S.rec_stop_why = r.why;", e); self.assertIn("return -1;", e)
+        run = APP_CODE[APP_CODE.index("static int run_candidate"):]
+        for outcome in ("REFUSED_BY_GATE", "SCORED"):
+            i = run.index(f'if (emit_record(&rec, "{outcome}") != 0)')
+            block = run[i:run.index("\n        }", i)]
+            self.assertIn("p3_stop(P3_STOPPED, S.rec_stop_why);", block, outcome)
+            self.assertIn("return -1;", block, outcome)
+        # mutation: dropping the return would let the loop propose the next candidate
+        i = run.index('if (emit_record(&rec, "SCORED") != 0)')
+        block = run[i:run.index("\n        }", i)]
+        self.assertNotIn("return -1;", block.replace("return -1;", ""))
+        # the main loop stops on S.kind, which the stop above sets
+        main_ = APP_CODE[APP_CODE.index("int main(void)"):]
+        self.assertIn("S.kind == P3_RUNNING && (S.page.budget == 0u || i < S.page.budget)", main_)
+        # the stop paths keep their own first cause: their emit is void-cast, the stop after
+        for outcome in ("STOP_LINK2", "STOP_LINK3", "STOP_AUDIT", "STOP_AXI", "STOP_SETTLE", "STOP_ARM", "REFUSED_BY_PL"):
+            self.assertIn(f'(void)emit_record(&rec, "{outcome}");', run, outcome)
+
+    def test_the_control_corrupts_only_the_opening_baselines_first_transmission(self):
+        e = self._emit()
+        self.assertIn("(S.rec_control && rec->seq == 1u) ? 1 : 0", e)
+        ident = APP_CODE[APP_CODE.index("static int establish_identity"):]
+        ident = ident[:ident.index('send_payload("IDENT"')]
+        self.assertIn("S.rec_control = (S.page.flags & P3_RECTX_CONTROL_FLAG) ? 1 : 0;", ident)
+        self.assertIn('in.protocol = "rec-v3";', ident); self.assertIn("in.rec_retry_control = S.rec_control;", ident)
+        self.assertEqual(APP_CODE.count("S.rec_control ="), 1)
+        rectx = SOURCES["p3_rectx.c"]
+        self.assertIn("if (attempt == 1u && corrupt_first)", rectx)
+        self.assertIn("#define P3_RECTX_CONTROL_FLAG 16u", SOURCES["p3_rectx.h"])
+
+    def test_the_rx_fifo_is_flushed_before_every_signreq_and_the_reply_loop_skips_only_stale_acks(self):
+        run = APP_CODE[APP_CODE.index("static int run_candidate"):]
+        self.assertLess(run.index("console_rx_flush();"), run.index('send_payload("SIGNREQ"'))
+        self.assertEqual(APP_CODE.count("console_rx_flush();"), 1)
+        loop = run[run.index("S.audit_requested = 0;"):run.index('if (!strcmp(type, "SIGNREF"))')]
+        self.assertIn('strcmp(type, "RECACK") == 0 || strcmp(type, "RECGET") == 0', loop)
+        self.assertIn("++stale > P3_REPLY_STALE_LIMIT", loop)
+        self.assertIn("if (!payload || fseq != S.seq)", loop)
+        self.assertIn('"PROTOCOL: the notary reply did not verify"', loop)
+        self.assertIn("#define P3_REPLY_STALE_LIMIT 8u", APP)
+        # the flush is BSP glue: register reads only, no control write
+        console = (R / "firmware/bsp/src/console.c").read_text()
+        flush = console[console.index("int console_rx_flush(void)\n{"):]
+        flush = flush[:flush.index("\n}")]
+        self.assertNotIn("Xil_Out32", flush); self.assertIn("UART_FIFO", flush); self.assertIn("n < 4096", flush)
+
+    def test_the_transaction_unit_is_pure(self):
+        rectx = CODE["p3_rectx.c"]
+        for bad in ("Xil_", "axi_", "0x43C", "0xF8", "outbyte", "inbyte", "printf", "static char g_"):
+            self.assertNotIn(bad, rectx, f"p3_rectx.c must not contain {bad}")
+        self.assertIn("#define P3_RECTX_ATTEMPTS 3u", SOURCES["p3_rectx.h"])
+        self.assertIn('strcmp(type, "RECACK") == 0', rectx); self.assertIn('strcmp(type, "RECGET") == 0', rectx)
+        # the same bytes every time: the line pointer is passed through, only the control copies
+        self.assertIn("return io->send(line, n, io->ctx);", rectx)
+        self.assertEqual(rectx.count("memcpy(scratch, line, n);"), 1)
+

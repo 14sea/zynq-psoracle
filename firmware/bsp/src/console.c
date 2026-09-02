@@ -22,6 +22,7 @@
 void outbyte(char c);
 char inbyte(void);
 int console_rx_ready(void);
+int console_rx_flush(void);
 
 /* Non-blocking: is a byte waiting in the RX FIFO? The L6 audit pull waits for the host's
  * next AUDITGET/AUDITDONE with a BOUNDED number of these polls (p3_app.c P3_PULL_IDLE_POLLS)
@@ -30,6 +31,22 @@ int console_rx_ready(void);
 int console_rx_ready(void)
 {
     return (Xil_In32(UART_SR) & UART_SR_RXEMPTY) ? 0 : 1;
+}
+
+/* Discard whatever is waiting in the RX FIFO (at most one FIFO's worth plus what arrives
+ * while draining, bounded). rec-v3: the application reads the console only inside a
+ * transaction (the sign reply, the audit pull, the REC acknowledgement); a host line that
+ * lands outside one — a second RECACK after the board had already moved on — would sit in
+ * the 64-byte FIFO, overflow, and merge with the NEXT reply. So the application drains the
+ * FIFO before it sends a SIGNREQ: anything there is stale by construction. Reads only. */
+int console_rx_flush(void)
+{
+    int n = 0;
+    while (n < 4096 && !(Xil_In32(UART_SR) & UART_SR_RXEMPTY)) {
+        (void)Xil_In32(UART_FIFO);
+        n++;
+    }
+    return n;
 }
 
 void outbyte(char c)

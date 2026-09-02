@@ -58,6 +58,11 @@ typedef struct {
     uint32_t master_seed;
     const char *schedule_mode;        /* abba | random_safe_forced | map_guided_forced */
     const char *operator_data_sha256; /* 64 hex, P3_OPERATOR_DATA_SHA256 */
+    /* app_identity 1.2.0 (rec-v3, L6 prereg v0.4): the wire protocol this image speaks —
+     * the host refuses an image that does not declare the one its runner implements —
+     * and the identity page's forced REC-retry control flag as the application decoded it */
+    const char *protocol;             /* "rec-v3" */
+    int rec_retry_control;
 } p3_wire_identity_in;
 
 size_t p3_wire_identity(const p3_wire_identity_in *in, char *out, size_t max);

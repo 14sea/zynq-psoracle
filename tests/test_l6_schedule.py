@@ -72,6 +72,13 @@ class ArmSchedule(unittest.TestCase):
         self.assertEqual(ls.flags_for(ls.MODE_ABBA, watchdog=False), 0)   # exactly L5's session-4 word
         with self.assertRaises(ValueError):
             ls.mode_from_flags(0b11 << 2)
+        # rec-v3: bit4 is the forced REC-retry control and leaves the other bits alone
+        f = ls.flags_for(ls.MODE_B_FORCED, watchdog=True, rec_control=True)
+        self.assertEqual(f, ls.FLAG_WATCHDOG | ls.FLAG_REC_CONTROL | 2 << ls.MODE_FLAG_SHIFT)
+        self.assertEqual(ls.FLAG_REC_CONTROL, 16); self.assertEqual(ls.mode_from_flags(f), ls.MODE_B_FORCED)
+        self.assertIn("rec-v3", ls.PROTOCOLS)
+        self.assertEqual(ls.expected_frames(64, ls.all_seqs(64), "rec-v3")["total"],
+                         ls.expected_frames(64, ls.all_seqs(64), "pull-v2")["total"])
 
 
 class SampledAudit(unittest.TestCase):

@@ -28,6 +28,9 @@
  * it and feed the bytes this application emits to the real validator
  * (tests/test_firmware_wire_contract.py). Nothing below builds a payload by hand. */
 #include "p3_wire.h"
+/* The REC transaction (rec-v3) is a pure unit too: the same source is compiled on the host
+ * and driven over a pipe by tests/test_firmware_wire_contract.py::RecWireContract. */
+#include "p3_rectx.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,6 +46,7 @@
 extern void outbyte(char c);
 extern char inbyte(void);
 extern int console_rx_ready(void); /* BSP glue (firmware/bsp/src/console.c): RX FIFO non-empty? */
+extern int console_rx_flush(void); /* BSP glue: discard stale RX bytes before a SIGNREQ (rec-v3) */
 
 /* ───────────────────────────────── memory map (docs/l5_design.md §2) ───────────────── */
 
@@ -110,6 +114,14 @@ extern int console_rx_ready(void); /* BSP glue (firmware/bsp/src/console.c): RX 
  * remain the last resort for a stall inside a line). A lost host frame therefore never
  * leaves the application waiting forever: the pull aborts and no ARM is attempted. */
 #define P3_PULL_IDLE_POLLS 50000000u
+/* The bound on waiting for the host's RECACK/RECGET after a record (rec-v3): the same count
+ * as the pull's. When it runs out the SAME bytes are sent again, at most P3_RECTX_ATTEMPTS
+ * times in all; without an acknowledgement the epoch stops (STOP_REC) — the next candidate
+ * is never proposed on an unconfirmed record. */
+#define P3_REC_IDLE_POLLS 50000000u
+/* Stale host lines tolerated while waiting for a sign reply (a RECACK/RECGET the host sent
+ * for the previous record after this application had already moved on), then PROTOCOL. */
+#define P3_REPLY_STALE_LIMIT 8u
 
 #define SLCR_PSS_IDCODE 0xF8000530u /* READ ONLY — this application writes no SLCR word */
 #define P3_IDCODE_MASK 0x0FFFFFFFu
@@ -167,6 +179,9 @@ static struct {
     uint32_t audit_served_seq; /* … this candidate (rule ix: the mark means served AND done) */
     uint32_t audit_chunks_served; /* chunk replies sent in this candidate's pull (retries included) */
     const char *audit_stop_why;   /* why the pull ended without AUDITDONE, for the STOP_AUDIT record */
+    int rec_control;              /* identity page flags.bit4: the forced REC-retry control (rec-v3) */
+    const char *rec_stop_why;     /* set when a record's transaction was not acknowledged */
+    uint32_t rec_attempts, rec_gets; /* transmissions and RECGETs answered, whole session */
     uint32_t crc_dropped;
     uint32_t envelope_int_sts[P3_ENVELOPE_COUNT];
     int closing_restore, closing_baseline, closing_unsigned;
@@ -258,6 +273,8 @@ static char g_json[4096];   /* one decoded payload         */
 static char g_payload[4096];/* one outbound payload, plain */
 static char g_encoded[6144];/* one outbound payload, b64   */
 static char g_body[7168];   /* one outbound line body      */
+static char g_rec_line[7168];    /* the record's framed line: built ONCE, resent verbatim (rec-v3) */
+static char g_rec_scratch[7168]; /* the control's corrupted copy of attempt 1 */
 
 static void put_str(const char *s)
 {
@@ -273,28 +290,42 @@ static void kick_watchdog(void)
 
 /* `P3L5 <type> <seq> <token(32 hex)> <payload> <crc32>` — the FULL token in every line.
  * The framing itself is p3_wire's, so the host contract test judges these exact bytes. */
+static size_t build_frame(const char *type, uint32_t seq, const char *payload, char *out, size_t max)
+{
+    size_t n = p3_wire_line(type, seq, S.page.token, payload, out, max);
+
+    if (n == 0u)
+        p3_stop(P3_PROTOCOL, "PROTOCOL_FRAME: outbound line too long");
+    return n;
+}
+
 static void send_frame(const char *type, uint32_t seq, const char *payload)
 {
-    size_t n = p3_wire_line(type, seq, S.page.token, payload, g_body, sizeof(g_body));
-
-    if (n == 0u) {
-        p3_stop(P3_PROTOCOL, "PROTOCOL_FRAME: outbound line too long");
+    if (build_frame(type, seq, payload, g_body, sizeof(g_body)) == 0u)
         return;
-    }
     put_str(g_body);
     kick_watchdog();
 }
 
-/* Encodes `plain_len` bytes of g_payload and sends them as one frame. A builder that
+/* Encodes `plain_len` bytes of g_payload into a framed line in `out`. A builder that
  * overflowed returns 0 and we refuse to emit a truncated line rather than call it evidence. */
-static void send_payload(const char *type, uint32_t seq, size_t plain_len)
+static size_t build_payload_frame(const char *type, uint32_t seq, size_t plain_len, char *out, size_t max)
 {
     if (plain_len == 0u) {
         p3_stop(P3_PROTOCOL, "PROTOCOL_FRAME: payload builder overflowed");
-        return;
+        return 0u;
     }
     p3_base64url((const uint8_t *)g_payload, plain_len, g_encoded);
-    send_frame(type, seq, g_encoded);
+    return build_frame(type, seq, g_encoded, out, max);
+}
+
+/* Encodes `plain_len` bytes of g_payload and sends them as one frame. */
+static void send_payload(const char *type, uint32_t seq, size_t plain_len)
+{
+    if (build_payload_frame(type, seq, plain_len, g_body, sizeof(g_body)) == 0u)
+        return;
+    put_str(g_body);
+    kick_watchdog();
 }
 
 /* A liveness beat at every progress point of a candidate. The collector calls three
@@ -325,9 +356,9 @@ static int recv_line(char *out, size_t max)
     return (int)n;
 }
 
-/* Verifies magic, CRC, token and seq; writes the frame's type into `type_out` and returns
- * the payload field (still base64url). Mutates `line`. */
-static const char *parse_frame(char *line, uint32_t want_seq, char *type_out, size_t type_max)
+/* Verifies magic, CRC and token; writes the frame's type into `type_out` and its seq into
+ * `seq_out`, and returns the payload field (still base64url). Mutates `line`. */
+static const char *parse_frame_any(char *line, char *type_out, size_t type_max, uint32_t *seq_out)
 {
     char *last = strrchr(line, ' ');
     char expect[16];
@@ -348,12 +379,19 @@ static const char *parse_frame(char *line, uint32_t want_seq, char *type_out, si
         }
     if (k != 5 || strcmp(f[0], "P3L5") != 0)
         return NULL;
-    if (strtoul(f[2], NULL, 10) != (unsigned long)want_seq)
-        return NULL;
     if (strcmp(f[3], S.page.token) != 0)
         return NULL;
+    *seq_out = (uint32_t)strtoul(f[2], NULL, 10);
     snprintf(type_out, type_max, "%s", f[1]);
     return f[4];
+}
+
+/* As above, and the frame's seq must be `want_seq`. */
+static const char *parse_frame(char *line, uint32_t want_seq, char *type_out, size_t type_max)
+{
+    uint32_t seq = 0u;
+    const char *payload = parse_frame_any(line, type_out, type_max, &seq);
+    return (payload != NULL && seq == want_seq) ? payload : NULL;
 }
 
 /* ─────────────────────────── minimal JSON field extraction ────────────────────────── */
@@ -491,6 +529,7 @@ static int establish_identity(void)
         p3_stop(P3_STOPPED, "identity page magic/layout/checksum refused");
         return -1;
     }
+    S.rec_control = (S.page.flags & P3_RECTX_CONTROL_FLAG) ? 1 : 0; /* rec-v3: the forced REC-retry control */
     /* Every check is evaluated and reported, then the epoch stops if any of them fired.
      * The refused identity is still evidence, so IDENT is emitted either way — and it is
      * emitted at all, which the first L5 attempt could not do: validate_standalone_run_log
@@ -534,6 +573,9 @@ static int establish_identity(void)
         in.master_seed = S.page.seed;
         in.schedule_mode = mode == P3_MODE_UNASSIGNED ? "unassigned" : P3_MODE_NAME[mode];
         in.operator_data_sha256 = P3_OPERATOR_DATA_SHA256;
+        /* app_identity 1.2.0 (rec-v3): the wire protocol this image speaks, and the control */
+        in.protocol = "rec-v3";
+        in.rec_retry_control = S.rec_control;
         send_payload("IDENT", 0, p3_wire_identity(&in, g_payload, sizeof(g_payload)));
 
         if (nf)
@@ -881,18 +923,91 @@ static int audit_pull(int with_readback)
     }
 }
 
+/* ───────────────────────────── the REC transaction (rec-v3) ───────────────────────── */
+
+/* The I/O p3_rectx.c is given: the console's line send with the watchdog kick, the bounded
+ * RX poll, this file's frame parser and JSON scan. The state machine itself is p3_rectx.c's
+ * — the same source the host test drives (RecWireContract) — so nothing about resending,
+ * bounds or acknowledgement is decided here. */
+static int rectx_send_cb(const char *line, size_t n, void *ctx)
+{
+    (void)ctx;
+    (void)n; /* the line is NUL-terminated by construction (p3_wire_line) */
+    put_str(line);
+    kick_watchdog();
+    return 0;
+}
+
+static int rectx_recv_cb(char *out, size_t max, void *ctx)
+{
+    (void)ctx;
+    return recv_line_bounded(out, max, P3_REC_IDLE_POLLS);
+}
+
+static const char *rectx_parse_cb(char *line, char *type_out, size_t type_max, uint32_t *seq_out, void *ctx)
+{
+    (void)ctx;
+    return parse_frame_any(line, type_out, type_max, seq_out);
+}
+
+static int rectx_payload_seq_cb(const char *payload, uint32_t *seq_out, void *ctx)
+{
+    size_t jn = p3_base64url_decode(payload, (uint8_t *)g_json, sizeof(g_json) - 1u);
+    (void)ctx;
+    if (jn == 0u)
+        return -1;
+    g_json[jn] = 0;
+    return json_uint(g_json, "\"seq\":", seq_out);
+}
+
 /* One candidate's record, built by p3_wire so it carries `seq`, `verified` and the nested
  * `evidence` the validator requires — the shape the flat payload this replaced never had.
  * `rec` is populated as the transaction proceeds; `outcome` selects which members the
- * validator will then insist on. */
-static void emit_record(p3_wire_record_in *rec, const char *outcome)
+ * validator will then insist on.
+ *
+ * rec-v3: the record is built ONCE (the serialiser's tally counts it once) into its own
+ * buffer and handed to the REC transaction, which sends it, waits — bounded — for the
+ * host's RECACK, resends the SAME bytes on a RECGET or when the wait runs out, and gives up
+ * after P3_RECTX_ATTEMPTS. Returns 0 when the host acknowledged, -1 otherwise: the caller
+ * must then NOT propose another candidate (S.rec_stop_why names the cause; the stop paths
+ * keep their own first cause). The forced REC-retry control (flags.bit4) corrupts the CRC
+ * of the FIRST transmission of the opening baseline's record (seq 1) only. */
+static int emit_record(p3_wire_record_in *rec, const char *outcome)
 {
+    p3_rectx_io io;
+    p3_rectx_result r;
+    size_t n;
+    int rc;
+
     rec->outcome = outcome;
     /* `audited` means the host ASKED and this application SERVED the raw words for this
      * candidate — never merely that auditing was configured. A record that claimed the
      * mark without the words would be exactly the self-report rule (ix) exists to bound. */
     rec->audited = (S.audit_served && S.audit_served_seq == rec->seq);
-    send_payload("REC", rec->seq, p3_wire_loop_record(rec, g_payload, sizeof(g_payload)));
+    n = build_payload_frame("REC", rec->seq, p3_wire_loop_record(rec, g_payload, sizeof(g_payload)),
+                            g_rec_line, sizeof(g_rec_line));
+    if (n == 0u)
+        return -1; /* PROTOCOL already recorded by the builder */
+    memset(&io, 0, sizeof(io));
+    io.send = rectx_send_cb;
+    io.recv_bounded = rectx_recv_cb;
+    io.parse = rectx_parse_cb;
+    io.payload_seq = rectx_payload_seq_cb;
+    io.rx = g_line;
+    io.rx_max = sizeof(g_line);
+    rc = p3_rectx_run(g_rec_line, n, rec->seq, (S.rec_control && rec->seq == 1u) ? 1 : 0, &io,
+                      g_rec_scratch, sizeof(g_rec_scratch), &r);
+    S.rec_attempts += r.attempts;
+    S.rec_gets += r.gets;
+    if (rc == -2) {
+        p3_stop(P3_PROTOCOL, r.why);
+        return -1;
+    }
+    if (rc != 0) {
+        S.rec_stop_why = r.why; /* the caller stops the epoch; no next candidate */
+        return -1;
+    }
+    return 0;
 }
 
 /* returns 0 to continue the session, -1 when the epoch has ended */
@@ -917,6 +1032,10 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     rec.seq = S.seq;
     rec.genome = genome_hex;
     rec.arm = arm_name; /* NULL on a baseline: the brackets carry no arm (§2.4) */
+    /* rec-v3: the console is read only inside a transaction, so anything waiting in the RX
+     * FIFO now (a RECACK the host repeated after this application had already moved on)
+     * is stale by construction and would otherwise merge with the sign reply. */
+    (void)console_rx_flush();
     send_payload("SIGNREQ", S.seq,
                  p3_wire_sign_request(S.page.token, 0, S.seq, genome_hex, pl_nonce(),
                                       g_payload, sizeof(g_payload)));
@@ -931,20 +1050,34 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
      * surprise post-hoc audit at rates below 100%. Session 1 audits every candidate, so
      * every record it emits is backed by served words. */
     S.audit_requested = 0;
-    for (;;) {
-        n = recv_line(g_line, sizeof(g_line));
-        if (n < 0) {
-            p3_stop(P3_PROTOCOL, "PROTOCOL_FRAME: the reply line is too long");
-            return -1;
+    {
+        uint32_t stale = 0u;
+        for (;;) {
+            uint32_t fseq = 0u;
+            n = recv_line(g_line, sizeof(g_line));
+            if (n < 0) {
+                p3_stop(P3_PROTOCOL, "PROTOCOL_FRAME: the reply line is too long");
+                return -1;
+            }
+            payload = parse_frame_any(g_line, type, sizeof(type), &fseq);
+            /* rec-v3: a RECACK/RECGET the host sent for the PREVIOUS record after this
+             * application had already been acknowledged and moved on is stale, not a
+             * protocol failure; it is skipped, a bounded number of times. */
+            if (payload != NULL && (strcmp(type, "RECACK") == 0 || strcmp(type, "RECGET") == 0)) {
+                if (++stale > P3_REPLY_STALE_LIMIT) {
+                    p3_stop(P3_PROTOCOL, "PROTOCOL: too many stale acknowledgements before the reply");
+                    return -1;
+                }
+                continue;
+            }
+            if (!payload || fseq != S.seq) {
+                p3_stop(P3_PROTOCOL, "PROTOCOL: the notary reply did not verify");
+                return -1;
+            }
+            if (strcmp(type, "AUDITREQ") != 0)
+                break;
+            S.audit_requested = 1;
         }
-        payload = parse_frame(g_line, S.seq, type, sizeof(type));
-        if (!payload) {
-            p3_stop(P3_PROTOCOL, "PROTOCOL: the notary reply did not verify");
-            return -1;
-        }
-        if (strcmp(type, "AUDITREQ") != 0)
-            break;
-        S.audit_requested = 1;
     }
     if (!strcmp(type, "SIGNREF")) {
         /* a gate refusal is DATA, not a channel failure (§3c): the session continues.
@@ -957,7 +1090,10 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
         rec.have_sign_refusal = 1;
         rec.finding_kinds = refused_kind;
         rec.finding_kinds_n = 1;
-        emit_record(&rec, "REFUSED_BY_GATE");
+        if (emit_record(&rec, "REFUSED_BY_GATE") != 0) {
+            p3_stop(P3_STOPPED, S.rec_stop_why); /* unacknowledged: no next candidate */
+            return -1;
+        }
         return 0;
     }
     if (strcmp(type, "SIGNOK") != 0) {
@@ -995,7 +1131,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
          * not exist, hence a "streams" span. Words first, then the stop, then the record. */
         (void)audit_pull(0); /* §3a item 2: pulled unconditionally; the mark follows the pull */
         p3_stop(P3_STOPPED, "STOP_LINK2: staged frames are not the signed commit");
-        emit_record(&rec, "STOP_LINK2");
+        (void)emit_record(&rec, "STOP_LINK2");
         return -1;
     }
     /* link 2 held: the oracle self-report can now be filled in. `readback` is still empty
@@ -1019,7 +1155,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     if (strcmp(readback, commit) != 0) {
         (void)audit_pull(1); /* §3a item 2: a link-3 stop is audited whether or not it was asked */
         p3_stop(P3_STOPPED, "STOP_LINK3: the fabric did not read back as the candidate");
-        emit_record(&rec, "STOP_LINK3");
+        (void)emit_record(&rec, "STOP_LINK3");
         return -1;
     }
     /* The SCORED path's audit, iff the host asked at sign time (all-self-reporting, or the
@@ -1029,7 +1165,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
         rec.have_audit_stop = 1;
         rec.audit_stop_why = S.audit_stop_why ? S.audit_stop_why : "the audit pull did not complete";
         rec.audit_chunks_served = S.audit_chunks_served;
-        emit_record(&rec, "STOP_AUDIT");
+        (void)emit_record(&rec, "STOP_AUDIT");
         p3_stop(P3_STOPPED, "the audit pull did not complete: no ARM was attempted");
         return -1;
     }
@@ -1041,7 +1177,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
          * staged and read back, so this is a post-staging STOP_AXI — a raw self-report,
          * auto-audited and recorded (§3a; validators.records.self_report_class). */
         (void)audit_pull(1); /* §3a item 2: the words persist; the mark follows the pull */
-        emit_record(&rec, "STOP_AXI");
+        (void)emit_record(&rec, "STOP_AXI");
         return -1;
     }
     rec.have_arm = 1;
@@ -1059,7 +1195,7 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
         /* The gate never settled within the bound. Neutral: the record carries the whole
          * poll and the epoch stops. Nothing is re-issued and nothing is claimed about why. */
         (void)audit_pull(1); /* §3a item 2: the words persist; the mark follows the pull */
-        emit_record(&rec, "STOP_SETTLE");
+        (void)emit_record(&rec, "STOP_SETTLE");
         p3_stop(P3_STOPPED, "the ARM did not settle within the poll bound");
         return -1;
     }
@@ -1069,13 +1205,13 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
          * carrying every observation, and only then does the epoch stop. This records THAT
          * it happened and asserts nothing about why. */
         (void)audit_pull(1); /* §3a item 2: the words persist; the mark follows the pull */
-        emit_record(&rec, "STOP_ARM");
+        (void)emit_record(&rec, "STOP_ARM");
         p3_stop(P3_STOPPED, "the gate settled and the nonce did not step: the PL did not consume this ARM");
         return -1;
     }
     if (!((status >> P3_ST_CFG_VALID_HW) & 1u)) {
         (void)audit_pull(1); /* §3a item 2: the words persist; the mark follows the pull */
-        emit_record(&rec, "REFUSED_BY_PL");
+        (void)emit_record(&rec, "REFUSED_BY_PL");
         /* the fault code names the check that fired, not its cause (spec §4.6) */
         p3_stop(P3_STOPPED, "the PL refused the ARM");
         return -1;
@@ -1101,7 +1237,11 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
         }
         rec.hb_before = hb_before;
         rec.hb_after = axi_read(P3_HEARTBEAT);
-        emit_record(&rec, "SCORED");
+        if (emit_record(&rec, "SCORED") != 0) {
+            S.scored++; /* it was scored; it is its record that the host never confirmed */
+            p3_stop(P3_STOPPED, S.rec_stop_why); /* unacknowledged: no next candidate */
+            return -1;
+        }
     }
     S.scored++;
     memcpy(S.last_commit, commit, sizeof(commit));

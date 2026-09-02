@@ -1,6 +1,6 @@
 {
   "schema": "l6_console_loss_stats",
-  "schema_version": "1.0.0",
+  "schema_version": "2.0.0",
   "sessions": [
     {
       "session": "l6_17A6_2026-09-01-06-C1",
@@ -13,46 +13,65 @@
         "AUDIT": 191,
         "REC": 24
       },
+      "valid_by_type": {
+        "IDENT": 1,
+        "SIGNREQ": 25,
+        "HB": 384,
+        "AUDIT": 190,
+        "REC": 24
+      },
       "audit_lines_full_valid": 166,
       "audit_lines_valid": 190,
+      "audit_encoding": "dense",
       "audit_words": 66768,
       "audit_zero_words": 64348,
       "loss_events": [
         {
           "line_index": 622,
+          "type": "AUDIT",
           "seq": "24",
-          "chunk_claimed": 4,
           "line_len": 6002,
           "kind": "malformed line (7 fields)",
+          "chunk_claimed": 4,
           "note": "two lines merged: a loss spanning a line boundary (C1 #1: chunk 4's tail and chunk 5's head)",
           "bytes_missing_approx": 39
         }
       ],
+      "trailing_partial_line": null,
       "timeline": {
         "crc_dropped": 0,
-        "bad_frames": 1
+        "bad_frames": 1,
+        "crc_dropped_by_type": {}
       },
       "full_size_chunks_on_wire": 168,
       "records_with_audit": 23,
-      "audit_zero_fraction": 0.9637550922597652
+      "records": 23,
+      "audit_zero_fraction": 0.9637550922597652,
+      "epoch_end": "CRASHED"
     },
     {
       "session": "l6_17A6_2026-09-01-07-C1",
       "bytes_received": 0,
       "lines": 1,
       "frames_by_type": {},
+      "valid_by_type": {},
       "audit_lines_full_valid": 0,
       "audit_lines_valid": 0,
+      "audit_encoding": null,
       "audit_words": 0,
       "audit_zero_words": 0,
       "loss_events": [],
+      "trailing_partial_line": null,
       "timeline": {
         "crc_dropped": 0,
-        "bad_frames": 0
+        "bad_frames": 0,
+        "crc_dropped_by_type": {}
       },
       "full_size_chunks_on_wire": 0,
       "records_with_audit": 0,
-      "audit_zero_fraction": null
+      "records": 0,
+      "audit_zero_fraction": null,
+      "epoch_end": "CRASHED"
     },
     {
       "session": "l6_17A6_2026-09-01-08-C1",
@@ -67,49 +86,223 @@
         "CLOSE": 1,
         "TERM": 1
       },
+      "valid_by_type": {
+        "IDENT": 1,
+        "SIGNREQ": 66,
+        "HB": 1056,
+        "AUDIT": 526,
+        "REC": 66,
+        "CLOSE": 1,
+        "TERM": 1
+      },
       "audit_lines_full_valid": 460,
       "audit_lines_valid": 526,
+      "audit_encoding": "dense",
       "audit_words": 184956,
       "audit_zero_words": 178280,
       "loss_events": [
         {
           "line_index": 517,
+          "type": "AUDIT",
           "seq": "20",
-          "chunk_claimed": 3,
           "line_len": 2711,
           "kind": "crc-failed line",
+          "chunk_claimed": 3,
           "bytes_missing": 309
         },
         {
           "line_index": 1609,
+          "type": "AUDIT",
           "seq": "62",
-          "chunk_claimed": 3,
           "line_len": 2791,
           "kind": "crc-failed line",
+          "chunk_claimed": 3,
           "bytes_missing": 229
         }
       ],
+      "trailing_partial_line": null,
       "timeline": {
         "crc_dropped": 2,
-        "bad_frames": 0
+        "bad_frames": 0,
+        "crc_dropped_by_type": {}
       },
       "full_size_chunks_on_wire": 462,
       "records_with_audit": 66,
-      "audit_zero_fraction": 0.9639049287398084
+      "records": 66,
+      "audit_zero_fraction": 0.9639049287398084,
+      "epoch_end": "COMPLETED"
+    },
+    {
+      "session": "l6_17A6_2026-09-01-09-C1",
+      "bytes_received": 483005,
+      "lines": 1788,
+      "frames_by_type": {
+        "IDENT": 1,
+        "SIGNREQ": 66,
+        "HB": 1056,
+        "AUDIT_READY": 66,
+        "AUDIT": 528,
+        "REC": 66,
+        "CLOSE": 1,
+        "TERM": 1
+      },
+      "valid_by_type": {
+        "IDENT": 1,
+        "SIGNREQ": 66,
+        "HB": 1056,
+        "AUDIT_READY": 66,
+        "AUDIT": 528,
+        "REC": 66,
+        "CLOSE": 1,
+        "TERM": 1
+      },
+      "audit_lines_full_valid": 528,
+      "audit_lines_valid": 528,
+      "audit_encoding": "sparse-v1",
+      "audit_words": 185724,
+      "audit_zero_words": 179046,
+      "loss_events": [],
+      "trailing_partial_line": null,
+      "timeline": {
+        "crc_dropped": 0,
+        "bad_frames": 0,
+        "crc_dropped_by_type": {}
+      },
+      "full_size_chunks_on_wire": 528,
+      "records_with_audit": 66,
+      "records": 66,
+      "audit_zero_fraction": 0.9640434192672999,
+      "epoch_end": "COMPLETED"
+    },
+    {
+      "session": "l6_17A6_2026-09-01-10-C2",
+      "bytes_received": 481237,
+      "lines": 1788,
+      "frames_by_type": {
+        "IDENT": 1,
+        "SIGNREQ": 66,
+        "HB": 1056,
+        "AUDIT_READY": 66,
+        "AUDIT": 528,
+        "REC": 66,
+        "CLOSE": 1,
+        "TERM": 1
+      },
+      "valid_by_type": {
+        "IDENT": 1,
+        "SIGNREQ": 66,
+        "HB": 1056,
+        "AUDIT_READY": 66,
+        "AUDIT": 528,
+        "REC": 66,
+        "CLOSE": 1,
+        "TERM": 1
+      },
+      "audit_lines_full_valid": 528,
+      "audit_lines_valid": 528,
+      "audit_encoding": "sparse-v1",
+      "audit_words": 185724,
+      "audit_zero_words": 179222,
+      "loss_events": [],
+      "trailing_partial_line": null,
+      "timeline": {
+        "crc_dropped": 0,
+        "bad_frames": 0,
+        "crc_dropped_by_type": {}
+      },
+      "full_size_chunks_on_wire": 528,
+      "records_with_audit": 66,
+      "records": 66,
+      "audit_zero_fraction": 0.9649910620059874,
+      "epoch_end": "COMPLETED"
+    },
+    {
+      "session": "l6_17A6_2026-09-01-11-S",
+      "bytes_received": 1784599,
+      "lines": 8671,
+      "frames_by_type": {
+        "IDENT": 1,
+        "SIGNREQ": 467,
+        "HB": 7456,
+        "AUDIT_READY": 31,
+        "AUDIT": 248,
+        "REC": 466
+      },
+      "valid_by_type": {
+        "IDENT": 1,
+        "SIGNREQ": 466,
+        "HB": 7456,
+        "AUDIT_READY": 31,
+        "AUDIT": 248,
+        "REC": 465
+      },
+      "audit_lines_full_valid": 248,
+      "audit_lines_valid": 248,
+      "audit_encoding": "sparse-v1",
+      "audit_words": 87234,
+      "audit_zero_words": 84217,
+      "loss_events": [
+        {
+          "line_index": 8651,
+          "type": "REC",
+          "seq": "465",
+          "line_len": 1775,
+          "kind": "crc-failed line",
+          "bytes_missing_approx": 540,
+          "note": "against the median valid REC line of this session (2315 bytes); REC lines vary a little with content"
+        }
+      ],
+      "trailing_partial_line": {
+        "line_index": 8670,
+        "type": "SIGNREQ",
+        "line_len": 212,
+        "note": "cut at session end by the runner, not a wire loss"
+      },
+      "timeline": {
+        "crc_dropped": 1,
+        "bad_frames": 0,
+        "crc_dropped_by_type": {
+          "REC": 1
+        }
+      },
+      "full_size_chunks_on_wire": 248,
+      "records_with_audit": 464,
+      "records": 464,
+      "audit_zero_fraction": 0.965414861177981,
+      "epoch_end": "CRASHED"
     }
   ],
   "total": {
-    "bytes_received": 2331461,
-    "audit_frames": 719,
-    "audit_lines_valid": 716,
-    "audit_lines_full_valid": 626,
-    "full_size_chunks_on_wire": 630,
-    "loss_events": 3,
-    "audit_words": 251724,
-    "audit_zero_words": 242628,
-    "audit_zero_fraction": 0.9638651856795538,
-    "loss_events_per_full_size_chunk_on_wire": 0.004761904761904762,
-    "loss_events_per_MB": 1.2867468081173135
+    "sessions": 6,
+    "bytes_received": 5080302,
+    "frames": 14583,
+    "audit_frames": 2023,
+    "rec_frames": 688,
+    "audit_lines_valid": 2020,
+    "audit_lines_full_valid": 1930,
+    "full_size_chunks_on_wire": 1934,
+    "loss_events": 4,
+    "loss_events_by_type": {
+      "AUDIT": 3,
+      "REC": 1
+    },
+    "audit_words": 710406,
+    "audit_zero_words": 685113,
+    "audit_zero_fraction": 0.9643964155708145,
+    "loss_events_per_MB": 0.7873547674921688,
+    "loss_events_per_frame": 0.00027429198381677297,
+    "by_era": {
+      "push (C1 #1\u2013#3, v0.2)": {
+        "bytes": 2331461,
+        "events": 3,
+        "full_size_audit_chunks_on_wire": 630
+      },
+      "pull-v2 (C1 #4, C2 #1, S #1, v0.3)": {
+        "bytes": 2748841,
+        "events": 1,
+        "audit_lines_on_wire": 1304
+      }
+    }
   },
-  "caveat": "three loss events across C1 #1 and C1 #3; C1 #2 read nothing and contributes no bytes. No position-specific inference (two on chunk 3 is not a chunk-3 fault); all three fell inside full-size (384-word) audit chunk lines. 'audit_lines_full_valid' counts CRC-valid, well-shaped, 384-word lines only; 'full_size_chunks_on_wire' counts every full-size chunk line the board sent (valid or not) \u2014 the transmission opportunities the loss rate is over"
+  "caveat": "exposure and events only. Six sessions: three push-era C1 sessions (one read nothing) and three pull-v2 sessions. Four loss events in all: three inside full-size (384-word) push-era audit lines (C1 #1 one boundary merge, C1 #3 two interior deletions), one inside a pull-era REC line (S #1, interior deletion). No position-specific inference; no cause is named \u2014 the path is CH340 \u2192 usbipd \u2192 WSL vhci_hcd without flow control, and nothing here measures it. 'full_size_chunks_on_wire' counts push-era full-size dense audit lines (a merged line = two) and, for pull-v2 sessions, every AUDIT line on the wire; bytes_missing_approx for non-audit lines is against the session's median valid line of that type"
 }

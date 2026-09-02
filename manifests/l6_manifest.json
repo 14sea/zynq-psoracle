@@ -12,7 +12,9 @@
       "sha256": "90f5fa699e8de8f969802b95719b3827285d65af8216e48887e026fb1fe89bcf",
       "note": "frozen 2026-09-01, ran C1 #1–#3; text in git history"
     },
-    "frozen_when": "sha256 recorded here and every later artifact pins it; host/l6_runner.py refuses a prereg that does not hash to it"
+    "frozen_when": "sha256 recorded here and every later artifact pins it; host/l6_runner.py refuses a prereg that does not hash to it",
+    "protocol": "pull-v2",
+    "protocol_note": "the wire protocol the frozen text preregisters; host/l6_runner.py implements rec-v3 (prereg v0.4 draft) and refuses to run a session against a preregistration or image of another protocol — no session runs until v0.4 is frozen and a rec-v3 image is board-ready"
   },
   "instrument": {
     "psmap_commit": "191ab0585332e75ac6f15179dc80eeec2d29f9f9",
@@ -276,7 +278,7 @@
       "pinned_at": "2026-09-01",
       "note": "owner adjudication 2026-09-01 after independent re-check (66 scored / 66 audited / nonce chain 67; 66×3 hashes equal; 64 map-guided genomes match twin/schedule; 1785 inbound frames, CRC 0/8, no retry/timeout/abort; rate report regenerated field-identical: 3632.996 eval/h, CoV 0.01501, failure rate 0; C1/C2 baselines identical, all 64 candidates differ). The S runner imports rate_B only from bytes hashing to this pin. Owner-verified S derivation from the two pins: abba, seed 1278628687, N 6539, sampled audits 412, expected inbound frames 121449, CRC budget 486, duration 7200 s, runner timeout 8702 s — the runner derives these itself and refuses a mismatch."
     },
-    "note": "D-s3: filled by the owner after C1 and C2; the S runner imports rate_A/rate_B ONLY from rate reports whose bytes hash to these pins"
+    "note": "D-s3: filled by the owner after C1 and C2; the S runner imports rate_A/rate_B ONLY from rate reports whose bytes hash to these pins. prereg v0.4 (rec-v3): a report must also carry a `binding` equal to the current image/prereg/protocol/session/mode/seed pins; the C1 #4 and C2 #1 reports pinned here were made under v0.3/pull-v2 and carry none — they are refused by the rec-v3 runner and C1/C2 are re-run under the new image before any S"
   },
   "rulings_required": [
     "whole-of-probe P3-L6",
@@ -292,7 +294,8 @@
     "app_identity": "1.1.0 adds `master_seed` (int, = identity page seed), `schedule_mode`, `operator_data_sha256`",
     "run_log": "adds `timing` (host-written: clocks + per-record stage times) and `l6` (schedule, expected frames, budget inputs)",
     "implemented": "firmware/p3_wire.c emits app_identity 1.1.0 and loop_record 1.1.0 (tests/test_firmware_wire_contract.py::L6WireContract feeds the C bytes to the real validator)",
-    "audit_transport": "pull-v2: AUDIT_READY/AUDITGET/AUDIT(sparse-v1 2.0.0)/AUDITDONE/AUDITABORT; STOP_AUDIT outcome; docs/l6_audit_pull_design.md"
+    "audit_transport": "pull-v2: AUDIT_READY/AUDITGET/AUDIT(sparse-v1 2.0.0)/AUDITDONE/AUDITABORT; STOP_AUDIT outcome; docs/l6_audit_pull_design.md",
+    "rec_transaction": "rec-v3 (prereg v0.4 draft): every loop record is a transaction — the board sends REC and waits (bounded) for the host's RECACK (accepted or byte-identical duplicate) or RECGET (arrived broken: resend the same bytes), at most 3 transmissions; unacknowledged → STOP_REC, no next candidate; the host acknowledges only the current candidate (the answered sign exchange whose record is outstanding), refuses a SIGNREQ over an outstanding record and a conflicting duplicate as PROTOCOL; identity page flags.bit4 arms the forced REC-retry control (seq 1's first transmission CRC-corrupted on purpose); app_identity 1.2.0 declares protocol + rec_retry_control; host/l6_rec.py, host/l6_console.py, firmware/p3_rectx.c"
   },
   "rulings_binding": {
     "whole-of-probe P3-L6": [
@@ -315,5 +318,23 @@
     "signer_user": "== --signer-user",
     "key": "== <boundary.key_store>/K.bin (== --key)",
     "note": "the D4 boundary record is bound to the invocation, not only to itself (board-phase preflight blocker 3)"
+  },
+  "next_image": {
+    "app_image_sha256": "cd8360dc2944dd5df018c27f16d3f0671b4f4ba2e3d998cced0e1b37a90a41b2",
+    "elf_sha256": "266ccf8a9c83618888142b50018e0d5875d52ac241c04477d78495faca65cd86",
+    "app_image_bytes": 98324,
+    "board_ready": false,
+    "protocol": "rec-v3",
+    "app_image": "firmware/bsp/out/p3_app_l6.bin (raw binary, loaded at 0x02000000, `go`) — IMAGE=p3_app_l6 firmware/bsp/build.sh",
+    "standing": "CANDIDATE, host-only, NOT board-ready, NEVER run on hardware: the rec-v3 image (REC transaction + forced REC-retry control + app_identity 1.2.0) built in the pre-board protocol correction batch after S #1 (owner 2026-09-01). Two from-scratch builds byte-identical. Promotion to pinned_at_build needs the full P3 compatibility review (docs/l6_rec_batch_package.md), the v0.4 preregistration frozen, then NEW C1/C2 under it before any S: the v0.3 calibrations may not be reused (the nominal candidate period changed).",
+    "build_evidence": "evidence/l6_next_build/build_evidence.json (the pull-v2 candidate phase's record preserved as build_evidence_e19e1b12.json)",
+    "wire": "app_identity 1.2.0 (+ protocol, rec_retry_control); loop_record 1.1.0 unchanged; REC is a transaction: REC → RECACK | RECGET → REC (same bytes) ×≤3; STOP_REC when unacknowledged; host/l6_rec.py, firmware/p3_rectx.c"
+  },
+  "next_prereg": {
+    "path": "docs/l6_soak_prereg_v0.4_draft.md",
+    "version": "v0.4-draft",
+    "protocol": "rec-v3",
+    "sha256": null,
+    "status": "DRAFT — v0.3 stays frozen and historical; v0.4 is frozen only by the owner after the review package passes; host/l6_runner.py already implements rec-v3 and refuses to run against v0.3"
   }
 }

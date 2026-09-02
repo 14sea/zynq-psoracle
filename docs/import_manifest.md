@@ -352,6 +352,8 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-02T052126Z.json` |
+| `evidence/tests/test_report_2026-09-02T052115Z.json` |
 | `evidence/tests/test_report_2026-09-01T202516Z.json` |
 | `evidence/tests/test_report_2026-09-01T201128Z.json` |
 | `evidence/tests/test_report_2026-09-01T200750Z.json` |
@@ -588,6 +590,16 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l6_17A6_2026-09-01-11-S/timeline.json` |
 | `evidence/l6_17A6_2026-09-01-11-S/ymodem.log` |
 | `evidence/l6_17A6_2026-09-01-11-S/ymodem_app.log` |
+| `host/l6_rec.py` |
+| `tests/test_l6_rec.py` |
+| `tests/test_l6_crash_summary.py` |
+| `firmware/p3_rectx.c` |
+| `firmware/p3_rectx.h` |
+| `docs/l6_rec_transaction_design.md` |
+| `docs/l6_soak_prereg_v0.4_draft.md` |
+| `docs/l6_rec_batch_package.md` |
+| `evidence/l6_next_build/build_evidence_e19e1b12.json` |
+| `evidence/l6_next_build/p3_app_l6_e19e1b12.map` |
 | `evidence/boundary/principal_boundary_2026-09-01-07.json` |
 | `evidence/l6_17A6_2026-09-01-07-C1/L6_0_preflight.json` |
 | `evidence/l6_17A6_2026-09-01-07-C1/L6_1_identity_page.json` |

@@ -677,10 +677,26 @@ class L6WireContract(WireContract):
 
     def test_identity_1_1_carries_the_three_l6_fields(self):
         ident = n.decode_payload(n.parse_line(self._ident())["payload"])
-        self.assertEqual(ident["schema_version"], "1.1.0")
+        self.assertEqual(ident["schema_version"], "1.2.0")       # 1.1.0's fields + rec-v3's two
         records.validate(ident)                                   # 1.0.0 consumers still accept it
         out = records.check_l6_identity(ident, self.MASTER, "abba", self.OP_SHA)
         self.assertEqual(out["master_seed"], self.MASTER)
+        # rec-v3: the protocol and the control are declared and checked
+        self.assertEqual((ident["protocol"], ident["rec_retry_control"]), ("rec-v3", False))
+        records.check_l6_identity(ident, self.MASTER, "abba", self.OP_SHA, protocol="rec-v3", rec_retry_control=False)
+        with self.assertRaises(records.RecordError) as cm:
+            records.check_l6_identity(ident, self.MASTER, "abba", self.OP_SHA, protocol="rec-v3", rec_retry_control=True)
+        self.assertIn("rec_retry_control", str(cm.exception))
+        with self.assertRaises(records.RecordError) as cm:
+            records.check_l6_identity(ident, self.MASTER, "abba", self.OP_SHA, protocol="pull-v2")
+        self.assertIn("declares wire protocol", str(cm.exception))
+        armed = self.twin(f"ident token={TOKEN} carrier_sha256={CARRIER_SHA} nonce={SEED:016x} master_seed={self.MASTER} "
+                          f"operator_sha={self.OP_SHA} rec_control=1")[0]
+        a = n.decode_payload(n.parse_line(armed)["payload"])
+        self.assertTrue(a["rec_retry_control"])
+        old = dict(ident); del old["protocol"]; del old["rec_retry_control"]     # a 1.1.0 image
+        with self.assertRaises(records.RecordError):
+            records.check_l6_identity(old, self.MASTER, "abba", self.OP_SHA, protocol="rec-v3")
         for wrong in ((self.MASTER + 1, "abba", self.OP_SHA), (self.MASTER, "random_safe_forced", self.OP_SHA),
                       (self.MASTER, "abba", "0d" * 32)):
             with self.assertRaises(records.RecordError):
@@ -793,6 +809,138 @@ class L6WireContract(WireContract):
             records.check_audit_policy(log, marks, "sampled", sampled)
         self.assertNotIsInstance(cm.exception, records.Falsified)
         self.assertIn("[3]", str(cm.exception)); self.assertIn("§3a item 2", str(cm.exception))
+
+
+class RecWireContract(WireContract):
+    """rec-v3 on the C source: firmware/p3_rectx.c — the state machine the board image
+    links — run on the host over a pipe, with THIS test playing the runner. The lines it
+    sends are judged by the real frame parser; the host side is the real RecHost
+    (host/l6_rec.py) where the test says so. A green run is evidence about the bytes and
+    the attempt counts the board will actually produce."""
+
+    def _rectx(self, cmd_extra: str = "", seq: int = 1):
+        """Starts the twin on a pipe with one `rectx` command; returns (proc, read, write)."""
+        import subprocess as sp
+        genome_hex = gn.to_hex(self.blank)
+        cmd = (f"rectx token={TOKEN} seq={seq} genome={genome_hex} outcome=REFUSED_BY_GATE "
+               f"finding_kinds=gate_refusal {cmd_extra}\n")
+        proc = sp.Popen([str(self.twin.exe)], stdin=sp.PIPE, stdout=sp.PIPE, text=True, bufsize=1)
+        proc.stdin.write(cmd); proc.stdin.flush()
+
+        def write(line: str) -> None:
+            proc.stdin.write(line if line.endswith("\n") else line + "\n"); proc.stdin.flush()
+
+        def read() -> str:
+            return proc.stdout.readline()
+        return proc, read, write
+
+    @staticmethod
+    def _result(line: str) -> dict:
+        assert line.startswith("!rectx "), line
+        out = {}
+        for kv in line[len("!rectx "):].rstrip("\n").split(" ", 7):
+            k, v = kv.split("=", 1)
+            out[k] = v
+        return out
+
+    def _finish(self, proc, read) -> dict:
+        res = self._result(read())
+        proc.stdin.close(); proc.wait(timeout=10)
+        return res
+
+    def test_a_clean_transaction_is_one_transmission_and_an_ack(self):
+        import l6_rec as rx
+        proc, read, write = self._rectx()
+        rec = read()
+        f = n.parse_line(rec)
+        self.assertEqual((f["type"], f["seq"], f["token"]), (n.T_REC, 1, TOKEN))
+        records.validate(n.decode_payload(f["payload"]))
+        write(n.build_line(rx.T_RECACK, 1, TOKEN, n.encode_payload({"seq": 1})))
+        res = self._finish(proc, read)
+        self.assertEqual((res["rc"], res["attempts"], res["gets"], res["acked"]), ("0", "1", "0", "1"))
+
+    def test_a_recget_makes_the_board_resend_the_same_bytes(self):
+        import l6_rec as rx
+        proc, read, write = self._rectx()
+        first = read()
+        write(n.build_line(rx.T_RECGET, 1, TOKEN, n.encode_payload({"seq": 1})))
+        second = read()
+        self.assertEqual(first, second, "the resend is byte-identical")
+        write(n.build_line(rx.T_RECGET, 1, TOKEN, n.encode_payload({"seq": 1})))
+        third = read()
+        self.assertEqual(first, third)
+        write(n.build_line(rx.T_RECACK, 1, TOKEN, n.encode_payload({"seq": 1})))
+        res = self._finish(proc, read)
+        self.assertEqual((res["rc"], res["attempts"], res["gets"]), ("0", "3", "2"))
+
+    def test_the_bound_running_out_resends_and_exhaustion_stops_without_an_ack(self):
+        proc, read, write = self._rectx()
+        lines = []
+        for _ in range(3):
+            lines.append(read()); write("!idle")
+        self.assertEqual(len(set(lines)), 1, "three identical transmissions")
+        res = self._finish(proc, read)
+        self.assertEqual((res["rc"], res["attempts"], res["idle"], res["acked"]), ("-1", "3", "3", "0"))
+        self.assertIn("STOP_REC", res["why"])
+
+    def test_a_fourth_recget_is_not_answered_the_bound_is_three(self):
+        import l6_rec as rx
+        proc, read, write = self._rectx()
+        read()
+        for _ in range(2):
+            write(n.build_line(rx.T_RECGET, 1, TOKEN, n.encode_payload({"seq": 1}))); read()
+        write(n.build_line(rx.T_RECGET, 1, TOKEN, n.encode_payload({"seq": 1})))    # the third GET: no fourth send
+        res = self._finish(proc, read)
+        self.assertEqual((res["rc"], res["attempts"], res["gets"]), ("-1", "3", "3"))
+
+    def test_stale_and_foreign_lines_are_ignored_and_the_right_ack_is_taken(self):
+        import l6_rec as rx
+        proc, read, write = self._rectx()
+        read()
+        write(n.build_line(n.T_HB, 1, TOKEN))                                              # not an ack
+        write(n.build_line(rx.T_RECACK, 2, TOKEN, n.encode_payload({"seq": 2})))           # another seq
+        write(n.build_line(rx.T_RECACK, 1, "cd" * 16, n.encode_payload({"seq": 1})))       # foreign token
+        write(n.build_line(rx.T_RECACK, 1, TOKEN, n.encode_payload({"seq": 2})))           # payload seq differs
+        write("P3L5 RECACK 1 " + TOKEN + " abc def 00000000")                              # malformed
+        write(n.build_line(rx.T_RECACK, 1, TOKEN, n.encode_payload({"seq": 1}))[:-3] + "0") # CRC-broken
+        write(n.build_line(rx.T_RECACK, 1, TOKEN, n.encode_payload({"seq": 1})))
+        res = self._finish(proc, read)
+        self.assertEqual((res["rc"], res["attempts"], res["stale"]), ("0", "1", "6"))
+
+    def test_the_control_corrupts_exactly_the_first_transmission(self):
+        import l6_rec as rx
+        proc, read, write = self._rectx("corrupt=1")
+        first = read()
+        with self.assertRaises(n.CrcError):
+            n.parse_line(first)
+        self.assertEqual(rx.head_fields(first), (n.T_REC, 1))
+        write(n.build_line(rx.T_RECGET, 1, TOKEN, n.encode_payload({"seq": 1})))
+        second = read()
+        n.parse_line(second)
+        self.assertEqual(rx.corrupt_crc(second), first, "the corruption is exactly l6_rec.corrupt_crc's")
+        self.assertEqual(first[:-2], second[:-2])
+        write(n.build_line(rx.T_RECACK, 1, TOKEN, n.encode_payload({"seq": 1})))
+        res = self._finish(proc, read)
+        self.assertEqual((res["rc"], res["attempts"], res["corrupted_first"]), ("0", "2", "1"))
+        # not on seq 2, even when asked
+        proc, read, write = self._rectx("corrupt=0", seq=2)
+        n.parse_line(read())
+        write(n.build_line(rx.T_RECACK, 2, TOKEN, n.encode_payload({"seq": 2})))
+        self.assertEqual(self._finish(proc, read)["corrupted_first"], "0")
+
+    def test_the_real_host_side_drives_the_c_board_through_the_control(self):
+        """The C transaction against host/l6_rec.RecHost: the control's broken first line
+        makes the real host ask, the real host accepts the resend once and acknowledges."""
+        import l6_rec as rx
+        proc, read, write = self._rectx("corrupt=1")
+        delivered = []
+        host = rx.RecHost(TOKEN, 1, send=write, deliver=delivered.append)
+        host.on_line(read())                     # broken → RECGET written to the board
+        host.on_line(read())                     # the resend → accepted → RECACK
+        res = self._finish(proc, read)
+        self.assertEqual((res["rc"], res["attempts"], res["gets"]), ("0", "2", "1"))
+        self.assertEqual(len(delivered), 1)
+        self.assertEqual([a["outcome"] for a in host.ledger.attempts], ["crc", "ok"])
 
 
 class PullWireContract(WireContract):

@@ -18,6 +18,11 @@
  *   hb     token=<32hex> seq=<n>                     -> HB frame
  *   ready  k=v ...                                   -> AUDIT_READY frame (L6 pull)
  *   sparse file=<hex words, one line> seq= chunk= span=  -> a sparse-v1 AUDIT chunk from the C encoder
+ *   rectx  k=v ... [corrupt=1]                       -> the REC transaction (rec-v3): builds the REC
+ *          frame as `rec` would and runs firmware/p3_rectx.c's state machine INTERACTIVELY —
+ *          every transmission goes to stdout (flushed), every host line is read from stdin
+ *          (a line `!idle` stands for the bounded wait running out; EOF too) — then prints
+ *          `!rectx rc=… attempts=… gets=… idle=… stale=… corrupted_first=… acked=… why=…`
  *
  * Every frame command prints the complete framed line exactly as the board would emit it
  * (payload base64url-encoded by p3_derive's own encoder). `!` prefixes an error.
@@ -25,6 +30,7 @@
 
 #include "p3_wire.h"
 #include "p3_derive.h"
+#include "p3_rectx.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -162,6 +168,8 @@ static void cmd_ident(void)
     in.master_seed = (uint32_t)kv_u("master_seed", 0);
     in.schedule_mode = kv_or("schedule_mode", "abba");
     in.operator_data_sha256 = kv_or("operator_sha", "");
+    in.protocol = kv_or("protocol", "rec-v3");
+    in.rec_retry_control = (int)kv_u("rec_control", 0);
     emit("IDENT", (uint32_t)kv_u("seq", 0), in.token,
          p3_wire_identity(&in, g_plain, sizeof(g_plain)));
 }
@@ -177,7 +185,9 @@ static void cmd_signreq(void)
                               g_plain, sizeof(g_plain)));
 }
 
-static void cmd_rec(void)
+/* Builds the REC frame from the k=v fields into `out` (the framed line, newline included);
+ * returns its length or 0. Shared by `rec` (print it) and `rectx` (transact it). */
+static size_t build_rec(char *out, size_t max)
 {
     p3_wire_record_in in;
     const char *kinds[8];
@@ -252,8 +262,137 @@ static void cmd_rec(void)
         in.hb_before = (uint32_t)kv_u("hb_before", 0);
         in.hb_after = (uint32_t)kv_u("hb_after", 0);
     }
-    emit("REC", in.seq, kv_or("token", ""),
-         p3_wire_loop_record(&in, g_plain, sizeof(g_plain)));
+    {
+        size_t plain_len = p3_wire_loop_record(&in, g_plain, sizeof(g_plain));
+        if (plain_len == 0)
+            return 0;
+        p3_base64url((const uint8_t *)g_plain, plain_len, g_b64);
+        return p3_wire_line("REC", in.seq, kv_or("token", ""), g_b64, out, max);
+    }
+}
+
+static void cmd_rec(void)
+{
+    size_t n = build_rec(g_line, sizeof(g_line));
+    if (n == 0) {
+        printf("!payload-overflow\n");
+        return;
+    }
+    fwrite(g_line, 1, n, stdout);
+}
+
+/* ---------------------------------------------------------------- rectx (rec-v3) ------- */
+
+static char g_rectx_token[64];
+static char g_rectx_rx[16384];
+static char g_rectx_scratch[16384];
+static char g_rectx_json[8192];
+
+static int rectx_send(const char *line, size_t n, void *ctx)
+{
+    (void)ctx;
+    fwrite(line, 1, n, stdout);
+    fflush(stdout);
+    return 0;
+}
+
+static int rectx_recv(char *out, size_t max, void *ctx)
+{
+    size_t n;
+    (void)ctx;
+    if (fgets(out, (int)max, stdin) == NULL)
+        return -2; /* EOF: the host went quiet for good */
+    n = strlen(out);
+    if (n > 0 && out[n - 1] == '\n')
+        out[--n] = 0;
+    else if (n + 1 >= max)
+        return -1; /* over-long: discarded, keep waiting */
+    if (n > 0 && out[n - 1] == '\r')
+        out[--n] = 0;
+    if (strcmp(out, "!idle") == 0)
+        return -2; /* the scripted bound expiry */
+    return (int)n;
+}
+
+/* the same checks p3_app.c's parse_frame makes: magic, CRC over the body, the full token */
+static const char *rectx_parse(char *line, char *type_out, size_t type_max, uint32_t *seq_out, void *ctx)
+{
+    char *last = strrchr(line, ' ');
+    char expect[16];
+    char *f[5];
+    size_t i, k = 0;
+    (void)ctx;
+    if (!last)
+        return NULL;
+    *last = 0;
+    snprintf(expect, sizeof(expect), "%08lx", (unsigned long)p3_crc32((const uint8_t *)line, strlen(line)));
+    if (strcmp(expect, last + 1) != 0)
+        return NULL;
+    f[k++] = line;
+    for (i = 0; line[i] && k < 5; i++)
+        if (line[i] == ' ') {
+            line[i] = 0;
+            f[k++] = line + i + 1;
+        }
+    if (k != 5 || strcmp(f[0], "P3L5") != 0)
+        return NULL;
+    if (strcmp(f[3], g_rectx_token) != 0)
+        return NULL;
+    *seq_out = (uint32_t)strtoul(f[2], NULL, 10);
+    snprintf(type_out, type_max, "%s", f[1]);
+    return f[4];
+}
+
+static int rectx_payload_seq(const char *payload_b64, uint32_t *seq_out, void *ctx)
+{
+    size_t jn = p3_base64url_decode(payload_b64, (uint8_t *)g_rectx_json, sizeof(g_rectx_json) - 1u);
+    const char *p;
+    uint32_t v = 0;
+    int n = 0;
+    (void)ctx;
+    if (jn == 0u)
+        return -1;
+    g_rectx_json[jn] = 0;
+    p = strstr(g_rectx_json, "\"seq\":");
+    if (!p)
+        return -1;
+    p += 6;
+    while (*p >= '0' && *p <= '9' && n < 10) {
+        v = v * 10u + (uint32_t)(*p - '0');
+        p++;
+        n++;
+    }
+    if (n == 0 || (*p != ',' && *p != '}'))
+        return -1;
+    *seq_out = v;
+    return 0;
+}
+
+static void cmd_rectx(void)
+{
+    p3_rectx_io io;
+    p3_rectx_result r;
+    size_t n = build_rec(g_line, sizeof(g_line));
+    int rc;
+
+    if (n == 0) {
+        printf("!payload-overflow\n");
+        return;
+    }
+    snprintf(g_rectx_token, sizeof(g_rectx_token), "%s", kv_or("token", ""));
+    memset(&io, 0, sizeof(io));
+    io.send = rectx_send;
+    io.recv_bounded = rectx_recv;
+    io.parse = rectx_parse;
+    io.payload_seq = rectx_payload_seq;
+    io.rx = g_rectx_rx;
+    io.rx_max = sizeof(g_rectx_rx);
+    rc = p3_rectx_run(g_line, n, (uint32_t)kv_u("seq", 1), (int)kv_u("corrupt", 0), &io,
+                      g_rectx_scratch, sizeof(g_rectx_scratch), &r);
+    printf("!rectx rc=%d attempts=%lu gets=%lu idle=%lu stale=%lu corrupted_first=%d acked=%d why=%s\n",
+           rc, (unsigned long)r.attempts, (unsigned long)r.gets, (unsigned long)r.idle_expiries,
+           (unsigned long)r.stale, r.corrupted_first, r.acked, r.why ? r.why : "");
+    fflush(stdout);
 }
 
 static uint32_t g_words[2814];
@@ -415,6 +554,8 @@ int main(void)
             cmd_signreq();
         else if (strcmp(cmd, "rec") == 0)
             cmd_rec();
+        else if (strcmp(cmd, "rectx") == 0)
+            cmd_rectx();
         else if (strcmp(cmd, "audit") == 0)
             cmd_audit();
         else if (strcmp(cmd, "term") == 0)

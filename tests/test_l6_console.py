@@ -203,6 +203,169 @@ class PullIntegration(unittest.TestCase):
         self.assertEqual(len(aborts), 1, "never a second ABORT")
 
 
+class RecTransaction(unittest.TestCase):
+    """rec-v3 on the real session object: RECACK on an accepted record; RECGET on a broken
+    REC-shaped line for the pending candidate; duplicates re-acknowledged, never appended;
+    a conflicting duplicate, a REC for another seq, or a SIGNREQ over an outstanding record
+    → PROTOCOL; a malformed REC-shaped line in the window is a retry, not CRASHED."""
+
+    def setUp(self):
+        import l6_rec as rx
+        self.rx = rx
+        self.sent = []
+        self.collector = n.Collector(TOKEN, heartbeat_s=10, clock=lambda: 0.0)
+        self.relay = n.NotaryRelay(TOKEN, lambda req: {"refused": {"finding_kinds": ["x"]}}, drop_budget=8, clock=lambda: 0.0)
+        self.tl = lt.Timeline()
+        self.cs = lcs.ConsoleSession(TOKEN, self.collector, self.relay, self.tl, audit_seqs=set(), crc_budget=8,
+                                     send=lambda line, mtype, seq: self.sent.append((mtype, seq, line)))
+
+    def _signreq(self, seq, t=0.0):
+        line = n.build_line(n.T_SIGNREQ, seq, TOKEN, n.encode_payload(
+            {"seq": seq, "token": TOKEN, "genome": "0" * 80, "nonce": "0" * 16, "app_epoch": 0,
+             "schema": "sign_request", "schema_version": "1.0.0"}))
+        self.cs.on_line(line, t, t)
+
+    def _rec(self, seq, extra=None):
+        rec = {"schema": "loop_record", "schema_version": "1.1.0", "seq": seq, "genome": "0" * 80,
+               "outcome": "REFUSED_BY_GATE", "verified": "replayed-only",
+               "evidence": {"sign_refusal": {"schema": "sign_refusal", "schema_version": "1.0.0", "seq": seq, "finding_kinds": ["x"]}}}
+        rec.update(extra or {})
+        return n.build_line(n.T_REC, seq, TOKEN, n.encode_payload(rec))
+
+    def _types(self):
+        return [(m, s) for m, s, _ in self.sent]
+
+    def test_an_accepted_record_is_acknowledged_once(self):
+        self._signreq(1)
+        self.assertEqual(self.cs.pending_rec_seq, 1)
+        self.cs.on_line(self._rec(1), 1.0, 1.0)
+        self.assertEqual(self.collector.last_rec_seq, 1); self.assertIsNone(self.cs.pending_rec_seq)
+        self.assertEqual(self._types()[-1], (self.rx.T_RECACK, 1))
+        led = self.cs.rec_ledgers_json()[0]
+        self.assertEqual((led["seq"], led["accepted"], [a["outcome"] for a in led["attempts"]]), (1, True, ["ok"]))
+        self.assertEqual(self.sent[-1][2], n.build_line(self.rx.T_RECACK, 1, TOKEN, n.encode_payload({"seq": 1})))
+
+    def test_a_broken_rec_for_the_pending_candidate_is_asked_for_again_and_the_resend_accepted(self):
+        self._signreq(1)
+        self.cs.on_line(broken(self._rec(1)), 1.0, 1.0)
+        self.assertEqual(self.cs.crc_dropped, 1, "the one ledger counts it")
+        self.assertEqual(self._types()[-1], (self.rx.T_RECGET, 1))
+        self.assertEqual(self.collector.loop_records, [])
+        self.cs.on_line(self._rec(1), 2.0, 2.0)
+        self.assertEqual(len(self.collector.loop_records), 1)
+        led = self.cs.rec_ledgers_json()[0]
+        self.assertEqual([a["outcome"] for a in led["attempts"]], ["crc", "ok"])
+        self.assertEqual(len(led["lines_kept"]), 1); self.assertEqual(led["gets_sent"], 1)
+        self.assertFalse(self.cs.ended)
+
+    def test_the_hosts_asks_are_bounded_and_the_budget_still_ends_the_epoch(self):
+        self._signreq(1)
+        for i in range(4):
+            self.cs.on_line(broken(self._rec(1)), float(i), float(i))
+        self.assertEqual(self.cs.rec_ledgers_json()[0]["gets_sent"], self.rx.REC_HOST_MAX_GETS)
+        self.assertFalse(self.cs.ended)
+        self.cs.crc_budget = 5
+        self.cs.on_line(broken(self._rec(1)), 9.0, 9.0); self.cs.on_line(broken(self._rec(1)), 10.0, 10.0)
+        self.assertEqual(self.collector.epoch_end["kind"], "PROTOCOL")
+        self.assertIn("PROTOCOL_CRC_BUDGET: 6 > 5", self.collector.epoch_end["reason"])
+
+    def test_a_duplicate_is_re_acknowledged_and_never_appended(self):
+        self._signreq(1)
+        self.cs.on_line(self._rec(1), 1.0, 1.0)
+        self.cs.on_line(self._rec(1), 2.0, 2.0)                  # our RECACK was lost: the board resent
+        self.assertEqual(len(self.collector.loop_records), 1)
+        self.assertEqual(self._types()[-2:], [(self.rx.T_RECACK, 1), (self.rx.T_RECACK, 1)])
+        self.assertEqual([a["outcome"] for a in self.cs.rec_ledgers_json()[0]["attempts"]], ["ok", "duplicate"])
+        self.assertFalse(self.cs.ended)
+        # a corrupted resend of the accepted record: say RECACK again, not RECGET
+        self.cs.on_line(broken(self._rec(1)), 3.0, 3.0)
+        self.assertEqual(self._types()[-1], (self.rx.T_RECACK, 1))
+
+    def test_a_conflicting_duplicate_is_a_protocol_end_and_the_first_record_stands(self):
+        self._signreq(1)
+        self.cs.on_line(self._rec(1), 1.0, 1.0)
+        self.cs.on_line(self._rec(1, {"genome": "1" * 80}), 2.0, 2.0)
+        self.assertEqual(self.collector.epoch_end["kind"], "PROTOCOL")
+        self.assertIn("different content", self.collector.epoch_end["reason"])
+        self.assertEqual(len(self.collector.loop_records), 1)
+        self.assertEqual(self.collector.loop_records[0]["genome"], "0" * 80)
+        self.assertTrue(self.cs.rec_ledgers_json()[0]["conflict"])
+
+    def test_a_record_for_another_seq_or_a_signreq_over_an_outstanding_record_is_protocol(self):
+        self._signreq(1)
+        self.cs.on_line(self._rec(2), 1.0, 1.0)
+        self.assertEqual(self.collector.epoch_end["kind"], "PROTOCOL")
+        self.assertIn("advanced without an acknowledgement", self.collector.epoch_end["reason"])
+        self.assertEqual(self.collector.loop_records, [])
+        self.setUp()
+        self._signreq(1)
+        self._signreq(2)                                          # REC 1 still outstanding
+        self.assertEqual(self.collector.epoch_end["kind"], "PROTOCOL")
+        self.assertIn("SIGNREQ seq 2 while the record of seq 1 is unacknowledged", self.collector.epoch_end["reason"])
+        self.assertEqual(self.relay.last_seq, 1, "the relay never answered seq 2")
+        self.assertEqual([m for m, _, _ in self.sent].count(n.T_SIGNREF), 1)
+
+    def test_a_malformed_rec_shaped_line_in_the_window_is_a_retry_not_crashed(self):
+        self._signreq(1)
+        self.cs.on_line(self._rec(1).rstrip("\n") + " extra", 1.0, 1.0)     # seven fields
+        self.assertFalse(self.cs.ended); self.assertEqual(self.tl.bad_frames, 1)
+        self.assertEqual(self._types()[-1], (self.rx.T_RECGET, 1))
+        self.assertEqual([a["outcome"] for a in self.cs.rec_ledgers_json()[0]["attempts"]], ["malformed"])
+        # outside the window the collector's rule stands
+        self.cs.on_line(self._rec(1), 2.0, 2.0)
+        self.cs.on_line("P3L5 AUDIT 24 " + TOKEN + " abc def 00000000", 3.0, 3.0)
+        self.assertEqual(self.collector.epoch_end["kind"], "CRASHED")
+
+    def test_a_broken_line_of_another_type_does_not_trigger_a_recget(self):
+        self._signreq(1)
+        self.cs.on_line(broken(n.build_line(n.T_HB, 1, TOKEN)), 1.0, 1.0)
+        self.assertEqual(self.cs.crc_dropped, 1)
+        self.assertEqual([m for m, _, _ in self.sent if m == self.rx.T_RECGET], [])
+        self.assertEqual(self.cs.rec_ledgers_json(), [])
+
+
+class S1Replay(unittest.TestCase):
+    """S #1's recorded console bytes through the rec-v3 session with the recorded notary
+    answers: the broken REC 465 now draws a RECGET; the old image (which never listened for
+    it) sent SIGNREQ 466 with the record outstanding, which the closure names as the
+    PROTOCOL end. Nothing after the loss is accepted; 464 records stand."""
+
+    @classmethod
+    def setUpClass(cls):
+        import l6_rec as rx
+        S1 = R / "evidence/l6_17A6_2026-09-01-11-S"
+        log = json.loads((S1 / "run_log.json").read_text())
+        answers = {e["seq"]: e["answer"] for e in log["notary_log"]["entries"]}
+        token = log["app_identity"]["token"]
+
+        def signer(req):
+            a = answers[req["seq"]]
+            return {"commit": a["commit"], "expected_tables": a["expected_tables"], "tag": a["tag"]}
+        cls.rx = rx
+        cls.collector = n.Collector(token, heartbeat_s=10, clock=lambda: 0.0)
+        cls.relay = n.NotaryRelay(token, signer, drop_budget=486, clock=lambda: 0.0)
+        cls.tl = lt.Timeline()
+        cls.sent = []
+        cls.cs = lcs.ConsoleSession(token, cls.collector, cls.relay, cls.tl, audit_seqs=set(log["l6"]["audit_seqs"]),
+                                    crc_budget=486, send=lambda line, mtype, seq: cls.sent.append((mtype, seq)))
+        t = 0.0
+        for raw in (S1 / "console.log").read_bytes().split(b"\n"):
+            t += 0.001
+            cls.cs.on_line(raw.decode("ascii", "replace").rstrip("\r"), t, t)
+
+    def test_the_broken_rec_465_draws_a_recget_and_the_advance_is_the_protocol_end(self):
+        self.assertIn((self.rx.T_RECGET, 465), self.sent)
+        self.assertEqual([s for m, s in self.sent if m == self.rx.T_RECACK][-1], 464)
+        self.assertEqual(self.collector.epoch_end["kind"], "PROTOCOL")
+        self.assertIn("SIGNREQ seq 466 while the record of seq 465 is unacknowledged", self.collector.epoch_end["reason"])
+        self.assertEqual(len(self.collector.loop_records), 464)
+        self.assertEqual(self.tl.crc_dropped_by_type, {"REC": 1})
+        led = {l["seq"]: l for l in self.cs.rec_ledgers_json()}
+        self.assertEqual([a["outcome"] for a in led[465]["attempts"]], ["crc"])
+        self.assertEqual(len(led[465]["lines_kept"][0]), 1775)
+        self.assertTrue(all(led[s]["accepted"] for s in range(1, 465)))
+
+
 class C13Counterfactual(unittest.TestCase):
     """C1 #3's recorded console bytes through the real session object, with the recorded
     notary answers: the ledger says 2 drops (both AUDIT), inside the budget of 7; the log

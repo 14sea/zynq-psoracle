@@ -129,6 +129,49 @@ def soak_findings(log: dict, frames: list[dict], crc_dropped: int, crc_budget: i
     return out
 
 
+def crash_audit_count(log: dict, chunks: list[dict], manifest: dict | None) -> tuple[int, str]:
+    """The `audited` count a collector-written (CRASHED) summary must carry: the number of
+    records whose served words the HOST audit gate verified — `validators.audit.verify`'s
+    marks, the same function `validate_standalone_run_log` derives every mark from. Never
+    the number of pulls that reached DONE, never the firmware's own mark.
+
+    S #1 (2026-09-01-11): the crash-path summary said `audited 0` while the gate had
+    verified 31, so the validator's stated reason was rule (ix) instead of the seq gap.
+    If the gate itself refuses the served chunks (they do not reassemble, or a record is
+    Falsified), the count is 0 and the note says why — the validator will state that
+    refusal, which is then the true first reason."""
+    from validators import audit as au
+    try:
+        marks, _ = au.verify(log, chunks, manifest)
+    except records.RecordError as exc:
+        return 0, f"the host audit gate refused the served words: {exc}"
+    n = sum(1 for m in marks.values() if m == "audited")
+    return n, "host audit gate marks (validators.audit.verify)"
+
+
+def rec_control_findings(rec_ledgers: list[dict], armed: bool) -> list[str]:
+    """The forced REC-retry control (rec-v3, prereg v0.4): when the identity page armed it,
+    the opening baseline's record (seq 1) must show exactly the retry on the wire — the
+    first transmission CRC-failed, then the byte-identical resend accepted — so that every
+    session proves the real retry within its first seconds. A session armed with the
+    control whose ledger does not show that is a HOLD: the control was not exercised, and
+    nothing else in the session says the retry path works. Unarmed sessions are not judged
+    here (an unarmed session under v0.4 is itself refused by the runner)."""
+    if not armed:
+        return []
+    by_seq = {l["seq"]: l for l in rec_ledgers}
+    l = by_seq.get(1)
+    if l is None:
+        return ["forced REC-retry control: no REC transaction ledger for seq 1"]
+    outcomes = [a["outcome"] for a in l["attempts"]]
+    if outcomes[:2] != ["crc", "ok"] or not l["accepted"]:
+        return [f"forced REC-retry control not exercised: seq 1 attempts {outcomes}, accepted {l['accepted']} "
+                f"(expected a CRC-failed first transmission, then the accepted resend)"]
+    if l["gets_sent"] < 1:
+        return ["forced REC-retry control: the host never asked for the resend (RECGET), the retry was not the host's"]
+    return []
+
+
 def median_settle_polls(log: dict) -> float | None:
     polls = [r["evidence"]["arm"]["settle"]["polls"] for r in log["loop_records"]
              if "arm" in r.get("evidence", {}) and "settle" in r["evidence"]["arm"]]

@@ -31,8 +31,9 @@ ARM_A, ARM_B = "random_safe", "map_guided"
 ARMS = (ARM_A, ARM_B)
 MODE_ABBA, MODE_A_FORCED, MODE_B_FORCED = "abba", "random_safe_forced", "map_guided_forced"
 MODES = (MODE_ABBA, MODE_A_FORCED, MODE_B_FORCED)
-# identity-page flags: bit0 holdout, bit1 watchdog (D-s1), bits 2..3 the schedule mode
-FLAG_HOLDOUT, FLAG_WATCHDOG = 1 << 0, 1 << 1
+# identity-page flags: bit0 holdout, bit1 watchdog (D-s1), bits 2..3 the schedule mode,
+# bit4 the forced REC-retry control (rec-v3, prereg v0.4 — host/l6_rec.py)
+FLAG_HOLDOUT, FLAG_WATCHDOG, FLAG_REC_CONTROL = 1 << 0, 1 << 1, 1 << 4
 MODE_FLAG_SHIFT, MODE_FLAG_MASK = 2, 0b11 << 2
 MODE_FLAG = {MODE_ABBA: 0, MODE_A_FORCED: 1, MODE_B_FORCED: 2}
 
@@ -43,8 +44,12 @@ FRAMES_PER_RECORD = {"SIGNREQ": 1, "HB": 16, "REC": 1}
 FRAMES_PER_AUDITED = {"AUDIT": 8}
 # the pull protocol (docs/l6_audit_pull_design.md): inbound frames per audited record are
 # one AUDIT_READY plus the chunks; the host's AUDITGET/AUDITDONE are outbound and not budgeted
+# rec-v3 keeps pull-v2's inbound brackets: the REC transaction's RECACK/RECGET are outbound,
+# a retransmitted REC arrives on top (what the budget is for), and the control's deliberately
+# corrupted first REC of seq 1 is a CRC drop, not a frame
 PROTOCOLS = {"push-v1": {"per_audited": {"AUDIT": 8}},
-             "pull-v2": {"per_audited": {"AUDIT_READY": 1, "AUDIT": 8}}}
+             "pull-v2": {"per_audited": {"AUDIT_READY": 1, "AUDIT": 8}},
+             "rec-v3": {"per_audited": {"AUDIT_READY": 1, "AUDIT": 8}}}
 CRC_PER_MILLE = 4                      # budget = ceil(4 × expected / 1000)
 SOAK_FRACTION = 0.9                    # D-s3: N = ⌊0.9 × min(rate) × T⌋
 TIMEOUT_MARGIN, TIMEOUT_FIXED_S = 1.25, 600.0
@@ -58,11 +63,11 @@ PAIR_SEED_RULE = ("pair_seed(master_seed, pair) = upper 32 bits of the xorshift6
                   "step: x ^= x<<13; x ^= x>>7; x ^= x<<17 (mod 2^64)")
 
 
-def flags_for(mode: str, watchdog: bool, holdout: bool = False) -> int:
+def flags_for(mode: str, watchdog: bool, holdout: bool = False, rec_control: bool = False) -> int:
     if mode not in MODES:
         raise ValueError(f"schedule mode {mode!r} is not one of {MODES}")
     return ((FLAG_HOLDOUT if holdout else 0) | (FLAG_WATCHDOG if watchdog else 0)
-            | MODE_FLAG[mode] << MODE_FLAG_SHIFT)
+            | (FLAG_REC_CONTROL if rec_control else 0) | MODE_FLAG[mode] << MODE_FLAG_SHIFT)
 
 
 def mode_from_flags(flags: int) -> str:

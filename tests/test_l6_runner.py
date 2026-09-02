@@ -36,56 +36,103 @@ LOAD = 1250000035
 CONTRACT = L6M["operator"]["operator_data_sha256"]
 
 
-def report(session: str, rate: float, median_polls: float = 16.0, contract: str = CONTRACT) -> dict:
-    return {"schema": "l6_rate_report", "session": session, "schedule_mode": L6M["sessions"][session]["mode"],
-            "evals_per_hour": rate, "settle_polls": {"median": median_polls}, "operator_data_sha256": contract}
+def binding(session: str, m: dict = L6M, **over) -> dict:
+    """The binding a v0.4 rate report carries (host/l6_rate.binding_of): the pins the
+    session ran under. Tests that bind to a fixture manifest pass it in."""
+    b = {"image_sha256": m["pinned_at_build"]["app_image_sha256"], "prereg_sha256": m["prereg"]["sha256"],
+         "protocol": m["pinned_at_build"]["protocol"], "session": session,
+         "schedule_mode": m["sessions"][session]["mode"], "master_seed": m["sessions"][session]["master_seed"]}
+    b.update(over)
+    return b
+
+
+def report(session: str, rate: float, median_polls: float = 16.0, contract: str = CONTRACT,
+           bound: dict | None = None, m: dict = L6M) -> dict:
+    return {"schema": "l6_rate_report", "session": session, "schedule_mode": m["sessions"][session]["mode"],
+            "evals_per_hour": rate, "settle_polls": {"median": median_polls}, "operator_data_sha256": contract,
+            "binding": binding(session, m) if bound is None else bound}
+
+
+# the committed manifest still pins the pull-v2 image and the v0.3 (pull-v2) prereg; the
+# plan tests need a rec-v3 manifest, which is what the fixture manifest below is
+L6M_V4 = copy.deepcopy(L6M)
+L6M_V4["pinned_at_build"]["protocol"] = "rec-v3"
+L6M_V4["prereg"]["protocol"] = "rec-v3"
 
 
 class Plan(unittest.TestCase):
     def test_c1_is_64_random_safe_all_self_reporting_watchdog_on(self):
-        p = l6.plan_session(L6M, "C1", None, 7200.0, None, None)
+        p = l6.plan_session(L6M_V4, "C1", None, 7200.0, None, None)
         self.assertEqual(p["master_seed"], 0x4c364341)
         self.assertEqual((p["n"], p["mode"], p["audit_policy"]), (64, ls.MODE_A_FORCED, "all-self-reporting"))
         self.assertEqual(p["audit_seqs"], ls.all_seqs(64))
-        self.assertEqual(p["flags"], ls.FLAG_WATCHDOG | 1 << ls.MODE_FLAG_SHIFT)
+        # rec-v3 (v0.4): the forced REC-retry control is armed in every session (bit4)
+        self.assertEqual(p["flags"], ls.FLAG_WATCHDOG | ls.FLAG_REC_CONTROL | 1 << ls.MODE_FLAG_SHIFT)
+        self.assertTrue(p["rec_retry_control"]); self.assertEqual(p["protocol"], "rec-v3")
         self.assertTrue(all(r["arm"] == ls.ARM_A for r in p["schedule"]))
-        # pull-v2 brackets (v0.3): AUDIT_READY×1 + AUDIT×8 per audited record
-        self.assertEqual(p["expected_frames"]["protocol"], "pull-v2")
+        # rec-v3 keeps pull-v2's inbound brackets: AUDIT_READY×1 + AUDIT×8 per audited record
+        self.assertEqual(p["expected_frames"]["protocol"], "rec-v3")
         self.assertEqual(p["expected_frames"]["total"], 1 + 66 + 66 * 16 + 66 * 9 + 66 + 1 + 1)
         self.assertEqual(p["crc_budget"], 8)                            # ceil(4 × 1785 / 1000)
 
     def test_c2_forces_map_guided(self):
-        p = l6.plan_session(L6M, "C2", 0x4c364341, 7200.0, None, None)
+        p = l6.plan_session(L6M_V4, "C2", 0x4c364341, 7200.0, None, None)
         self.assertTrue(all(r["arm"] == ls.ARM_B for r in p["schedule"]))
-        self.assertEqual(p["flags"], ls.FLAG_WATCHDOG | 2 << ls.MODE_FLAG_SHIFT)
+        self.assertEqual(p["flags"], ls.FLAG_WATCHDOG | ls.FLAG_REC_CONTROL | 2 << ls.MODE_FLAG_SHIFT)
 
     def test_soak_derives_n_budget_and_timeout_from_the_calibration_rates(self):
-        p = l6.plan_session(L6M, "S", None, 7200.0, {"C1": report("C1", 120.0), "C2": report("C2", 100.0)}, None)
+        p = l6.plan_session(L6M_V4, "S", None, 7200.0, {"C1": report("C1", 120.0, m=L6M_V4), "C2": report("C2", 100.0, m=L6M_V4)}, None)
         self.assertEqual(p["master_seed"], 0x4c36534f)
         self.assertEqual(p["n"], 180); self.assertEqual(p["audit_policy"], "sampled")
         self.assertEqual(p["audit_seqs"], ls.sampled_audit_seqs(180))
         self.assertEqual(p["session_timeout_s"], ls.session_timeout_s(180, 120.0, 100.0))
         self.assertEqual(p["crc_budget"], ls.crc_budget(p["expected_frames"]["total"]))
         self.assertEqual(p["inputs"]["rate_C2_per_h"], 100.0)
-        self.assertEqual(p["flags"], ls.FLAG_WATCHDOG)                 # abba = mode 0
+        self.assertEqual(p["flags"], ls.FLAG_WATCHDOG | ls.FLAG_REC_CONTROL)   # abba = mode 0
         self.assertEqual([r["arm"] for r in p["schedule"][:4]], [ls.ARM_A, ls.ARM_B, ls.ARM_B, ls.ARM_A])
 
     def test_soak_refuses_a_report_of_the_wrong_session_or_without_a_rate(self):
+        M = L6M_V4
         with self.assertRaises(ValueError):
-            l6.plan_session(L6M, "S", None, 7200.0, {"C1": report("C2", 120.0), "C2": report("C2", 100.0)}, None)
-        bad = report("C1", 120.0); del bad["evals_per_hour"]
+            l6.plan_session(M, "S", None, 7200.0, {"C1": report("C2", 120.0, m=M), "C2": report("C2", 100.0, m=M)}, None)
+        bad = report("C1", 120.0, m=M); del bad["evals_per_hour"]
         with self.assertRaises(ValueError):
-            l6.plan_session(L6M, "S", None, 7200.0, {"C1": bad, "C2": report("C2", 100.0)}, None)
+            l6.plan_session(M, "S", None, 7200.0, {"C1": bad, "C2": report("C2", 100.0, m=M)}, None)
         with self.assertRaises(ValueError):
-            l6.plan_session(L6M, "S", None, 7200.0, None, None)
+            l6.plan_session(M, "S", None, 7200.0, None, None)
 
     def test_soak_refuses_a_calibration_under_another_operator_contract(self):
         """mutation_bits (and the map data) are the operator contract: a calibration run
         under a different operator_data_sha256 cannot budget this soak (owner 2026-09-01)."""
+        M = L6M_V4
         with self.assertRaises(ValueError) as cm:
-            l6.plan_session(L6M, "S", None, 7200.0, {"C1": report("C1", 120.0, contract="00" * 32),
-                                                   "C2": report("C2", 100.0)}, None)
+            l6.plan_session(M, "S", None, 7200.0, {"C1": report("C1", 120.0, contract="00" * 32, m=M),
+                                                 "C2": report("C2", 100.0, m=M)}, None)
         self.assertIn("operator contract", str(cm.exception)); self.assertIn("re-run", str(cm.exception))
+
+    def test_soak_refuses_a_calibration_not_bound_to_the_current_image_prereg_and_protocol(self):
+        """prereg v0.4: the REC protocol changes the nominal candidate period, so the v0.3
+        calibrations (no binding) may not be reused; a report bound to another image,
+        preregistration, protocol, session, mode or seed is refused by name."""
+        M = L6M_V4
+        good = {"C1": report("C1", 120.0, m=M), "C2": report("C2", 100.0, m=M)}
+        self.assertEqual(l6.plan_session(M, "S", None, 7200.0, good, None)["n"], 180)
+        # the pinned v0.3 reports on disk carry no binding: refused, C1/C2 to be re-run
+        for k, path in (("C1", "evidence/l6_17A6_2026-09-01-09-C1/rate_report.json"),
+                        ("C2", "evidence/l6_17A6_2026-09-01-10-C2/rate_report.json")):
+            old = json.loads((R / path).read_text())
+            self.assertNotIn("binding", old)
+            cal = dict(good); cal[k] = old
+            with self.assertRaises(ValueError) as cm:
+                l6.plan_session(M, "S", None, 7200.0, cal, None)
+            self.assertIn("carries no binding", str(cm.exception)); self.assertIn(f"re-run {k}", str(cm.exception))
+        for field, wrong in (("image_sha256", "11" * 32), ("prereg_sha256", "22" * 32), ("protocol", "pull-v2"),
+                             ("session", "C2"), ("schedule_mode", "abba"), ("master_seed", 1)):
+            b = binding("C1", M); b[field] = wrong
+            cal = dict(good); cal["C1"] = report("C1", 120.0, m=M, bound=b)
+            with self.assertRaises(ValueError) as cm:
+                l6.plan_session(M, "S", None, 7200.0, cal, None)
+            self.assertIn("C1", str(cm.exception), field)
 
     def test_the_seeds_are_the_owners_pins_and_c1_c2_share_one(self):
         """Owner 2026-09-01: C1 = C2 = 0x4c364341 (same seed pairs, only the operator
@@ -93,20 +140,21 @@ class Plan(unittest.TestCase):
         self.assertEqual(L6M["sessions"]["C1"]["master_seed"], L6M["sessions"]["C2"]["master_seed"])
         self.assertEqual(L6M["sessions"]["C1"]["master_seed"], 1278624577)
         self.assertEqual(L6M["sessions"]["S"]["master_seed"], 1278628687)
-        self.assertEqual([r["seed"] for r in l6.plan_session(L6M, "C1", None, 7200.0, None, None)["schedule"]],
-                         [r["seed"] for r in l6.plan_session(L6M, "C2", None, 7200.0, None, None)["schedule"]])
+        M = L6M_V4
+        self.assertEqual([r["seed"] for r in l6.plan_session(M, "C1", None, 7200.0, None, None)["schedule"]],
+                         [r["seed"] for r in l6.plan_session(M, "C2", None, 7200.0, None, None)["schedule"]])
         with self.assertRaises(ValueError) as cm:
-            l6.plan_session(L6M, "C1", 0x1234, 7200.0, None, None)
+            l6.plan_session(M, "C1", 0x1234, 7200.0, None, None)
         self.assertIn("not the pinned", str(cm.exception))
-        cal = {"C1": report("C1", 120.0), "C2": report("C2", 100.0)}
+        cal = {"C1": report("C1", 120.0, m=M), "C2": report("C2", 100.0, m=M)}
         for t in (3600.0, 7199.0, 7201.0):
             with self.assertRaises(ValueError) as cm:
-                l6.plan_session(L6M, "S", None, t, cal, None)
+                l6.plan_session(M, "S", None, t, cal, None)
             self.assertIn("exactly the pinned 7200", str(cm.exception))
-        self.assertEqual(l6.plan_session(L6M, "S", None, 7200.0, cal, None)["inputs"]["duration_s"], 7200.0)
+        self.assertEqual(l6.plan_session(M, "S", None, 7200.0, cal, None)["inputs"]["duration_s"], 7200.0)
 
     def test_master_seed_is_32_bit_and_n_is_never_typed(self):
-        bad = copy.deepcopy(L6M); bad["sessions"]["C1"]["master_seed"] = 1 << 32
+        bad = copy.deepcopy(L6M_V4); bad["sessions"]["C1"]["master_seed"] = 1 << 32
         with self.assertRaises(ValueError):
             l6.plan_session(bad, "C1", None, 7200.0, None, None)
         import inspect
@@ -129,6 +177,14 @@ class Refusals(unittest.TestCase):
         self.write_ruling("l5ruling.json", "whole-of-probe P3-L5", "C1")
         self.write_ruling("pk.json", l6.PROVISION_RULING_TEXT, "C1")
         self.boundary(True)
+
+    def report(self, session: str, rate: float) -> dict:
+        """A calibration report bound to THIS fixture's pins (image stand-in, prereg, rec-v3)."""
+        m = copy.deepcopy(L6M)
+        m["pinned_at_build"]["app_image_sha256"] = self.image_sha
+        m["pinned_at_build"]["protocol"] = "rec-v3"
+        m["prereg"]["sha256"] = self.PREREG_SHA
+        return report(session, rate, m=m)
 
     def manifest_sha(self, path: Path | None = None) -> str:
         return hashlib.sha256((path or self.tmp / "l6_manifest.json").read_bytes()).hexdigest()
@@ -154,7 +210,7 @@ class Refusals(unittest.TestCase):
                                            "R5_signer_in_pod_group")], "at": time.time()}))
 
     def manifest(self, *, frozen=True, image=True, watchdog=True, calib=None, carrier=None,
-                 duration=None, rebind=True, board_ready=True, protocol="pull-v2") -> Path:
+                 duration=None, rebind=True, board_ready=True, protocol="rec-v3", prereg_protocol="rec-v3") -> Path:
         """Writes the fixture manifest and, by default, re-binds both rulings to its hash
         (as the owner would issue them against the committed manifest of the time); a
         tamper test passes rebind=False to keep the rulings bound to the earlier file."""
@@ -166,6 +222,8 @@ class Refusals(unittest.TestCase):
             m["pinned_at_build"]["watchdog_enabled"] = False
         m["pinned_at_build"]["board_ready"] = board_ready
         m["pinned_at_build"]["protocol"] = protocol
+        m["prereg"]["protocol"] = prereg_protocol
+        self.fixture_manifest = m
         if calib:
             for k, sha in calib.items():
                 m["calibration"][k]["rate_report_sha256"] = sha
@@ -248,11 +306,17 @@ class Refusals(unittest.TestCase):
         self.write_ruling("ruling.json", l6.RULING_TEXT, "S", master_seed=L6M["sessions"]["S"]["master_seed"])
         self.write_ruling("pk.json", l6.PROVISION_RULING_TEXT, "S")
 
-    def test_an_image_not_marked_board_ready_or_not_pull_v2_is_refused(self):
+    def test_an_image_not_marked_board_ready_or_not_rec_v3_is_refused(self):
         rc, err = self.run_main(self.args(manifest=self.manifest(board_ready=False)))
         self.assertEqual(rc, 2); self.assertIn("not marked board-ready", err)
-        rc, err = self.run_main(self.args(manifest=self.manifest(protocol="push-v1")))
-        self.assertEqual(rc, 2); self.assertIn("not the frozen prereg's pull-v2", err)
+        for proto in ("push-v1", "pull-v2"):
+            rc, err = self.run_main(self.args(manifest=self.manifest(protocol=proto)))
+            self.assertEqual(rc, 2, proto); self.assertIn("is not this runner's rec-v3", err)
+        # the frozen v0.3 is a pull-v2 preregistration: this runner refuses it until v0.4 is frozen
+        rc, err = self.run_main(self.args(manifest=self.manifest(prereg_protocol="pull-v2")))
+        self.assertEqual(rc, 2); self.assertIn("freeze prereg v0.4 first", err)
+        rc, err = self.run_main(self.args(manifest=R / "manifests/l6_manifest.json"))
+        self.assertEqual(rc, 2, "the committed manifest cannot run a session under this runner")
 
     def test_the_soak_needs_both_pinned_calibration_records(self):
         self._s_rulings()
@@ -261,7 +325,7 @@ class Refusals(unittest.TestCase):
 
     def test_a_calibration_record_that_does_not_hash_to_its_pin_is_refused(self):
         c1, c2 = self.tmp / "c1.json", self.tmp / "c2.json"
-        c1.write_text(json.dumps(report("C1", 120.0))); c2.write_text(json.dumps(report("C2", 100.0)))
+        c1.write_text(json.dumps(self.report("C1", 120.0))); c2.write_text(json.dumps(self.report("C2", 100.0)))
         sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
         m = self.manifest(calib={"C1": sha(c1), "C2": "00" * 32})
         self._s_rulings()
@@ -277,7 +341,7 @@ class Refusals(unittest.TestCase):
 
     def test_soak_with_hashing_calibration_reaches_the_boundary_too(self):
         c1, c2 = self.tmp / "c1.json", self.tmp / "c2.json"
-        c1.write_text(json.dumps(report("C1", 120.0))); c2.write_text(json.dumps(report("C2", 100.0)))
+        c1.write_text(json.dumps(self.report("C1", 120.0))); c2.write_text(json.dumps(self.report("C2", 100.0)))
         sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
         self.boundary(False); self._s_rulings()
         rc, err = self.run_main(self.args(session="S", manifest=self.manifest(calib={"C1": sha(c1), "C2": sha(c2)}),
@@ -379,7 +443,7 @@ class BoardPhasePreflight(Refusals):
         rc, err = self.run_main(self.args(extra=("--master-seed", "0x1234")))
         self.assertEqual(rc, 2); self.assertIn("not the pinned", err)
         c1, c2 = self.tmp / "c1.json", self.tmp / "c2.json"
-        c1.write_text(json.dumps(report("C1", 120.0))); c2.write_text(json.dumps(report("C2", 100.0)))
+        c1.write_text(json.dumps(self.report("C1", 120.0))); c2.write_text(json.dumps(self.report("C2", 100.0)))
         sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
         self._s_rulings()
         m = self.manifest(calib={"C1": sha(c1), "C2": sha(c2)})
@@ -407,7 +471,7 @@ class ManifestBinding(Refusals):
 
     def test_a_shortened_soak_duration_is_refused_by_the_manifest_binding(self):
         c1, c2 = self.tmp / "c1.json", self.tmp / "c2.json"
-        c1.write_text(json.dumps(report("C1", 120.0))); c2.write_text(json.dumps(report("C2", 100.0)))
+        c1.write_text(json.dumps(self.report("C1", 120.0))); c2.write_text(json.dumps(self.report("C2", 100.0)))
         sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
         self.manifest(calib={"C1": sha(c1), "C2": sha(c2)})         # the manifest the S rulings were issued against
         self._s_rulings()
@@ -417,11 +481,11 @@ class ManifestBinding(Refusals):
 
     def test_swapped_calibration_pins_are_refused_by_the_manifest_binding(self):
         c1, c2 = self.tmp / "c1.json", self.tmp / "c2.json"
-        c1.write_text(json.dumps(report("C1", 120.0))); c2.write_text(json.dumps(report("C2", 100.0)))
+        c1.write_text(json.dumps(self.report("C1", 120.0))); c2.write_text(json.dumps(self.report("C2", 100.0)))
         sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
         self.manifest(calib={"C1": sha(c1), "C2": sha(c2)})
         self._s_rulings()
-        fast = self.tmp / "c1_fast.json"; fast.write_text(json.dumps(report("C1", 9000.0)))
+        fast = self.tmp / "c1_fast.json"; fast.write_text(json.dumps(self.report("C1", 9000.0)))
         m = self.manifest(calib={"C1": sha(fast), "C2": sha(c2)}, rebind=False)
         self._refused_on_manifest_hash(self.args(session="S", manifest=m, extra=(
             "--calibration-c1", str(fast), "--calibration-c2", str(c2))))
@@ -429,7 +493,7 @@ class ManifestBinding(Refusals):
     def test_the_bound_manifest_passes_to_the_boundary(self):
         """The same S run with rulings bound to the manifest in force reaches the last gate."""
         c1, c2 = self.tmp / "c1.json", self.tmp / "c2.json"
-        c1.write_text(json.dumps(report("C1", 120.0))); c2.write_text(json.dumps(report("C2", 100.0)))
+        c1.write_text(json.dumps(self.report("C1", 120.0))); c2.write_text(json.dumps(self.report("C2", 100.0)))
         sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
         m = self.manifest(calib={"C1": sha(c1), "C2": sha(c2)})
         self._s_rulings(); self.boundary(False)
