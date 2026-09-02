@@ -1276,3 +1276,25 @@ reworded in this commit to what it tests. Rulings: push cb072eb (done); promotio
 formally passed; not a C1 or L6 board PASS; no ruling issued yet. After the push the
 rec-v3 C1 is eligible to request its own ruling pair and power-cycle sequence.
 
+
+## 2026-09-02 — rec-v3 C1 #5 on 17A6 under ruling pair `2026-09-02-01`: HOLD (instrument, §6 item 3 — CoV 0.274 after one recovered audit byte loss); archived, not re-run
+
+The owner issued the P3-L6 (session C1, master_seed 1278624577) and P3-K rulings bound to
+prereg `12799ef9…`, image `403f4ab5…`, manifest `f12b6958…`, and authorised one power
+cycle and one C1 epoch, any non-PASS to be archived without a re-run; the authorisation
+did not cover C2, S or Claim B. Executed in order: rulings written verbatim; UART
+re-enumeration confirmed (18:04:26); boundary as the runner principal PASS (R1–R5,
+`principal_boundary_2026-09-02-01.json`); runner in the background without a shell
+timeout, waited on by pid. Outcome: the epoch COMPLETED with every §6 condition but item 3
+met — 66/66 audited, the forced REC-retry control exactly `[crc, ok]`, REC closure clean,
+1785 frames exact, one CRC drop (the control) of budget 8 — and one console byte loss
+inside `AUDIT 39` chunk 1, which the pull recovered (timeout → merged resend rejected as
+`BAD_FRAME` → clean third reply) at a cost of ≈2.1 s in one period, giving CoV 0.274
+(0.056 without that period, informational only). Both rulings consumed with outcome HOLD.
+Nothing pinned; `calibration.C1` stays null. Archived: `docs/l6_c1_session5_findings.md`,
+`hardware_history` (66/1/64/1), the manifest standing (the image has now RAN ON 17A6),
+this note; loss statistics regenerated over seven sessions. Open for the owner (findings
+§5): the §7 count (S #1 + C1 #5 as consecutive byte-loss sessions or not), whether §6
+item 3 should be revised host-only for recovered retries (a v0.5, reviewed and re-frozen
+before any ruling), and the ≈2 s chunk timeout. No board contact and no ruling until the
+owner rules.

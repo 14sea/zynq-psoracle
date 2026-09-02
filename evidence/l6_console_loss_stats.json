@@ -1,6 +1,6 @@
 {
   "schema": "l6_console_loss_stats",
-  "schema_version": "2.0.0",
+  "schema_version": "2.1.0",
   "sessions": [
     {
       "session": "l6_17A6_2026-09-01-06-C1",
@@ -33,10 +33,11 @@
           "line_len": 6002,
           "kind": "malformed line (7 fields)",
           "chunk_claimed": 4,
-          "note": "two lines merged: a loss spanning a line boundary (C1 #1: chunk 4's tail and chunk 5's head)",
+          "note": "two lines merged: a loss spanning a line boundary (C1 #1: chunk 4's tail and chunk 5's head; C1 #5: chunk 1's first reply, short and unterminated, and its resend)",
           "bytes_missing_approx": 39
         }
       ],
+      "protocol": null,
       "trailing_partial_line": null,
       "timeline": {
         "crc_dropped": 0,
@@ -61,6 +62,7 @@
       "audit_words": 0,
       "audit_zero_words": 0,
       "loss_events": [],
+      "protocol": null,
       "trailing_partial_line": null,
       "timeline": {
         "crc_dropped": 0,
@@ -120,6 +122,7 @@
           "bytes_missing": 229
         }
       ],
+      "protocol": null,
       "trailing_partial_line": null,
       "timeline": {
         "crc_dropped": 2,
@@ -162,6 +165,7 @@
       "audit_words": 185724,
       "audit_zero_words": 179046,
       "loss_events": [],
+      "protocol": null,
       "trailing_partial_line": null,
       "timeline": {
         "crc_dropped": 0,
@@ -204,6 +208,7 @@
       "audit_words": 185724,
       "audit_zero_words": 179222,
       "loss_events": [],
+      "protocol": null,
       "trailing_partial_line": null,
       "timeline": {
         "crc_dropped": 0,
@@ -252,6 +257,7 @@
           "note": "against the median valid REC line of this session (2315 bytes); REC lines vary a little with content"
         }
       ],
+      "protocol": null,
       "trailing_partial_line": {
         "line_index": 8670,
         "type": "SIGNREQ",
@@ -270,27 +276,92 @@
       "records": 464,
       "audit_zero_fraction": 0.965414861177981,
       "epoch_end": "CRASHED"
+    },
+    {
+      "session": "l6_17A6_2026-09-02-01-C1",
+      "bytes_received": 486548,
+      "lines": 1790,
+      "frames_by_type": {
+        "IDENT": 1,
+        "SIGNREQ": 66,
+        "HB": 1056,
+        "AUDIT_READY": 66,
+        "AUDIT": 529,
+        "REC": 67,
+        "CLOSE": 1,
+        "TERM": 1
+      },
+      "valid_by_type": {
+        "IDENT": 1,
+        "SIGNREQ": 66,
+        "HB": 1056,
+        "AUDIT_READY": 66,
+        "AUDIT": 528,
+        "REC": 66,
+        "CLOSE": 1,
+        "TERM": 1
+      },
+      "audit_lines_full_valid": 528,
+      "audit_lines_valid": 528,
+      "audit_encoding": "sparse-v1",
+      "audit_words": 185724,
+      "audit_zero_words": 179046,
+      "loss_events": [
+        {
+          "line_index": 1049,
+          "type": "AUDIT",
+          "seq": "39",
+          "line_len": 1228,
+          "kind": "malformed line (10 fields)",
+          "chunk_claimed": 1,
+          "note": "two lines merged: a loss spanning a line boundary (C1 #1: chunk 4's tail and chunk 5's head; C1 #5: chunk 1's first reply, short and unterminated, and its resend)",
+          "bytes_missing_approx": 77
+        }
+      ],
+      "protocol": "rec-v3",
+      "trailing_partial_line": null,
+      "rec_retry_control_drop": {
+        "line_index": 29,
+        "type": "REC",
+        "seq": "1",
+        "line_len": 2269,
+        "kind": "crc-failed line",
+        "note": "the forced REC-retry control's deliberate CRC corruption, complete line (same length as the accepted resend); not a loss event"
+      },
+      "timeline": {
+        "crc_dropped": 1,
+        "bad_frames": 1,
+        "crc_dropped_by_type": {
+          "REC": 1
+        }
+      },
+      "full_size_chunks_on_wire": 529,
+      "records_with_audit": 66,
+      "records": 66,
+      "audit_zero_fraction": 0.9640434192672999,
+      "epoch_end": "COMPLETED"
     }
   ],
   "total": {
-    "sessions": 6,
-    "bytes_received": 5080302,
-    "frames": 14583,
-    "audit_frames": 2023,
-    "rec_frames": 688,
-    "audit_lines_valid": 2020,
-    "audit_lines_full_valid": 1930,
-    "full_size_chunks_on_wire": 1934,
-    "loss_events": 4,
+    "sessions": 7,
+    "bytes_received": 5566850,
+    "frames": 16370,
+    "audit_frames": 2552,
+    "rec_frames": 755,
+    "audit_lines_valid": 2548,
+    "audit_lines_full_valid": 2458,
+    "full_size_chunks_on_wire": 2463,
+    "loss_events": 5,
     "loss_events_by_type": {
-      "AUDIT": 3,
+      "AUDIT": 4,
       "REC": 1
     },
-    "audit_words": 710406,
-    "audit_zero_words": 685113,
-    "audit_zero_fraction": 0.9643964155708145,
-    "loss_events_per_MB": 0.7873547674921688,
-    "loss_events_per_frame": 0.00027429198381677297,
+    "audit_words": 896130,
+    "audit_zero_words": 864159,
+    "audit_zero_fraction": 0.9643232566703491,
+    "loss_events_per_MB": 0.8981740122331301,
+    "loss_events_per_frame": 0.00030543677458766036,
+    "rec_retry_control_drops": 1,
     "by_era": {
       "push (C1 #1\u2013#3, v0.2)": {
         "bytes": 2331461,
@@ -301,8 +372,13 @@
         "bytes": 2748841,
         "events": 1,
         "audit_lines_on_wire": 1304
+      },
+      "rec-v3 (C1 #5, v0.4)": {
+        "bytes": 486548,
+        "events": 1,
+        "audit_lines_on_wire": 529
       }
     }
   },
-  "caveat": "exposure and events only. Six sessions: three push-era C1 sessions (one read nothing) and three pull-v2 sessions. Four loss events in all: three inside full-size (384-word) push-era audit lines (C1 #1 one boundary merge, C1 #3 two interior deletions), one inside a pull-era REC line (S #1, interior deletion). No position-specific inference; no cause is named \u2014 the path is CH340 \u2192 usbipd \u2192 WSL vhci_hcd without flow control, and nothing here measures it. 'full_size_chunks_on_wire' counts push-era full-size dense audit lines (a merged line = two) and, for pull-v2 sessions, every AUDIT line on the wire; bytes_missing_approx for non-audit lines is against the session's median valid line of that type"
+  "caveat": "exposure and events only. Seven sessions: three push-era C1 sessions (one read nothing), three pull-v2 sessions and one rec-v3 session. Five loss events in all: three inside full-size (384-word) push-era audit lines (C1 #1 one boundary merge, C1 #3 two interior deletions), one inside a pull-era REC line (S #1, interior deletion), one inside a rec-v3 sparse AUDIT line (C1 #5, chunk 1 of seq 39: interior + tail deletion, merged with the resend, recovered by the pull). The rec-v3 forced REC-retry control's deliberate CRC drop is recorded apart (rec_retry_control_drop) and is not a loss event. No position-specific inference; no cause is named \u2014 the path is CH340 \u2192 usbipd \u2192 WSL vhci_hcd without flow control, and nothing here measures it. 'full_size_chunks_on_wire' counts push-era full-size dense audit lines (a merged line = two) and, for pull-v2 sessions, every AUDIT line on the wire; bytes_missing_approx for non-audit lines is against the session's median valid line of that type"
 }

@@ -21,7 +21,8 @@ from pathlib import Path
 
 R = Path(__file__).resolve().parent.parent
 SESSIONS = ["evidence/l6_17A6_2026-09-01-06-C1", "evidence/l6_17A6_2026-09-01-07-C1", "evidence/l6_17A6_2026-09-01-08-C1",
-            "evidence/l6_17A6_2026-09-01-09-C1", "evidence/l6_17A6_2026-09-01-10-C2", "evidence/l6_17A6_2026-09-01-11-S"]
+            "evidence/l6_17A6_2026-09-01-09-C1", "evidence/l6_17A6_2026-09-01-10-C2", "evidence/l6_17A6_2026-09-01-11-S",
+            "evidence/l6_17A6_2026-09-02-01-C1"]
 FULL_WORDS = 384              # a full-size dense chunk carries 384 words; the 8th chunk of a span carries the remainder
 
 
@@ -80,6 +81,10 @@ def analyse(d: Path) -> dict:
            "audit_encoding": None, "audit_words": 0, "audit_zero_words": 0, "loss_events": []}
     normal_len_chunk: dict[int, int] = {}
     valid_len_by_type: dict[str, list[int]] = {}
+    ident = json.loads((d / "run_log.json").read_text()).get("app_identity", {}) or {}
+    out["protocol"] = ident.get("protocol")          # declared by IDENT 1.2.0+ (rec-v3); None = not declared
+    control_armed = bool(ident.get("rec_retry_control"))
+    valid_rec1_len = None
     for ln in lines:
         if not ln.startswith(b"P3L5 "):
             continue
@@ -90,6 +95,8 @@ def analyse(d: Path) -> dict:
             continue
         out["valid_by_type"][ty] = out["valid_by_type"].get(ty, 0) + 1
         valid_len_by_type.setdefault(ty, []).append(len(ln))
+        if ty == "REC" and len(parts) > 2 and parts[2] == b"1" and valid_rec1_len is None:
+            valid_rec1_len = len(ln)
         if ty != "AUDIT":
             continue
         p = payload(ln)
@@ -129,13 +136,27 @@ def analyse(d: Path) -> dict:
         seq = parts[2].decode() if len(parts) > 2 and parts[2].isdigit() else "?"
         ev = {"line_index": i, "type": ty, "seq": seq, "line_len": len(ln),
               "kind": "crc-failed line" if len(parts) == 6 else "malformed line (%d fields)" % len(parts)}
+        # rec-v3's preregistered control (prereg v0.4 §2.6c): the board corrupts the CRC of the
+        # FIRST `REC 1` on purpose — the line is complete (same length as the accepted resend,
+        # only the CRC differs), so it is a control, not a wire loss; recorded apart. A REC 1
+        # that is short is still a loss even with the control armed.
+        if (control_armed and ty == "REC" and seq == "1" and len(parts) == 6
+                and valid_rec1_len is not None and len(ln) == valid_rec1_len
+                and "rec_retry_control_drop" not in out):
+            out["rec_retry_control_drop"] = dict(ev, note="the forced REC-retry control's deliberate CRC corruption, "
+                                                       "complete line (same length as the accepted resend); not a loss event")
+            continue
         if ty == "AUDIT":
             p = payload(ln)
             chunk = p["chunk"] if p else chunk_from_prefix(ln)
             ev["chunk_claimed"] = chunk
             if len(parts) != 6:
-                ev["note"] = "two lines merged: a loss spanning a line boundary (C1 #1: chunk 4's tail and chunk 5's head)"
-                ev["bytes_missing_approx"] = 2 * max(normal_len_chunk.values(), default=0) + 1 - len(ln)
+                ev["note"] = ("two lines merged: a loss spanning a line boundary (C1 #1: chunk 4's tail and chunk 5's head; "
+                              "C1 #5: chunk 1's first reply, short and unterminated, and its resend)")
+                # against two normal lines of the claimed chunk when known (a resend merges the same
+                # chunk twice), else the longest valid line of any chunk (dense chunks are all full size)
+                ref = normal_len_chunk[chunk] if chunk in normal_len_chunk else max(normal_len_chunk.values(), default=0)
+                ev["bytes_missing_approx"] = 2 * ref + 1 - len(ln)
             elif chunk is not None and chunk in normal_len_chunk:
                 ev["bytes_missing"] = normal_len_chunk[chunk] - len(ln)
         elif ty in valid_len_by_type:
@@ -181,16 +202,23 @@ def main() -> int:
     total["loss_events_per_MB"] = total["loss_events"] / (total["bytes_received"] / 1e6) if total["bytes_received"] else None
     total["loss_events_per_frame"] = total["loss_events"] / total["frames"] if total["frames"] else None
     push = [p for p in per if p["audit_encoding"] == "dense" or p["audit_encoding"] is None]
-    pull = [p for p in per if p["audit_encoding"] == "sparse-v1"]
+    pull = [p for p in per if p["audit_encoding"] == "sparse-v1" and p.get("protocol") != "rec-v3"]
+    rec = [p for p in per if p.get("protocol") == "rec-v3"]
+    total["rec_retry_control_drops"] = sum(1 for p in per if "rec_retry_control_drop" in p)
     total["by_era"] = {
         "push (C1 #1–#3, v0.2)": {"bytes": sum(p["bytes_received"] for p in push), "events": sum(len(p["loss_events"]) for p in push),
                                   "full_size_audit_chunks_on_wire": sum(p["full_size_chunks_on_wire"] for p in push)},
         "pull-v2 (C1 #4, C2 #1, S #1, v0.3)": {"bytes": sum(p["bytes_received"] for p in pull), "events": sum(len(p["loss_events"]) for p in pull),
-                                                "audit_lines_on_wire": sum(p["full_size_chunks_on_wire"] for p in pull)}}
-    rep = {"schema": "l6_console_loss_stats", "schema_version": "2.0.0", "sessions": per, "total": total,
-           "caveat": "exposure and events only. Six sessions: three push-era C1 sessions (one read nothing) and three pull-v2 "
-                     "sessions. Four loss events in all: three inside full-size (384-word) push-era audit lines (C1 #1 one "
-                     "boundary merge, C1 #3 two interior deletions), one inside a pull-era REC line (S #1, interior deletion). "
+                                                "audit_lines_on_wire": sum(p["full_size_chunks_on_wire"] for p in pull)},
+        "rec-v3 (C1 #5, v0.4)": {"bytes": sum(p["bytes_received"] for p in rec), "events": sum(len(p["loss_events"]) for p in rec),
+                                 "audit_lines_on_wire": sum(p["full_size_chunks_on_wire"] for p in rec)}}
+    rep = {"schema": "l6_console_loss_stats", "schema_version": "2.1.0", "sessions": per, "total": total,
+           "caveat": "exposure and events only. Seven sessions: three push-era C1 sessions (one read nothing), three pull-v2 "
+                     "sessions and one rec-v3 session. Five loss events in all: three inside full-size (384-word) push-era audit lines (C1 #1 one "
+                     "boundary merge, C1 #3 two interior deletions), one inside a pull-era REC line (S #1, interior deletion), "
+                     "one inside a rec-v3 sparse AUDIT line (C1 #5, chunk 1 of seq 39: interior + tail deletion, merged with the "
+                     "resend, recovered by the pull). The rec-v3 forced REC-retry control's deliberate CRC drop is recorded "
+                     "apart (rec_retry_control_drop) and is not a loss event. "
                      "No position-specific inference; no cause is named — the path is CH340 → usbipd → WSL vhci_hcd without "
                      "flow control, and nothing here measures it. 'full_size_chunks_on_wire' counts push-era full-size dense "
                      "audit lines (a merged line = two) and, for pull-v2 sessions, every AUDIT line on the wire; "
