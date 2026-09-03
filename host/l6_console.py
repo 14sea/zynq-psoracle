@@ -14,7 +14,13 @@ counted two. This module owns the per-line handling so that:
     ends the epoch `PROTOCOL` (`PROTOCOL_CRC_BUDGET: n > budget`) and nothing after it is
     evidence;
   * a `FrameError` (a malformed `P3L5` line) is NOT a CRC drop: it is counted apart
-    (`bad_frames`) and the collector's rule for it — `CRASHED` — is unchanged;
+    (`bad_frames`); under `bad_frame_policy="crash"` (v0.6 and earlier) the collector's
+    rule for it — `CRASHED` — is unchanged; under `bad_frame_policy="ledger"` (v0.7
+    candidate, after S #2 2026-09-03-03) the line is in the ledger ONCE and goes no
+    further: not acknowledged, not signed, no seq advanced, not the collector's — the
+    transactions' own bounds recover (the board resends its REC / SIGNREQ / TERM on the
+    bound), and `bad_frame_budget` is the terminal bound: the first bad frame past it
+    ends the epoch `PROTOCOL_BAD_FRAME_BUDGET`, exactly as the D-s4 CRC budget does;
   * the relay never sees a CRC-failed line, so it can neither count nor end on one; its
     own budget is set to the same number for the record but is not the authority.
 
@@ -49,12 +55,24 @@ import l6_rec as rx  # noqa: E402
 import l6_timing as lt  # noqa: E402
 
 
+BAD_FRAME_CRASH = "crash"      # v0.6 and earlier: a malformed non-transaction line is the collector's CRASHED
+BAD_FRAME_LEDGER = "ledger"    # v0.7 candidate: ledgered once, bounded by bad_frame_budget, never the collector's
+BAD_FRAME_POLICIES = (BAD_FRAME_CRASH, BAD_FRAME_LEDGER)
+
+
 class ConsoleSession:
     def __init__(self, token: str, collector: n.Collector, relay: n.NotaryRelay, timeline: lt.Timeline,
                  audit_seqs: set[int], crc_budget: int, send, reader=None, clock=None,
-                 chunk_timeout_s: float = ap.CHUNK_TIMEOUT_S, protocol: str = "rec-v3", identity_check=None):
+                 chunk_timeout_s: float = ap.CHUNK_TIMEOUT_S, protocol: str = "rec-v3", identity_check=None,
+                 bad_frame_policy: str = BAD_FRAME_CRASH, bad_frame_budget: int | None = None):
         self.token, self.collector, self.relay, self.timeline = token, collector, relay, timeline
         self.audit_seqs, self.crc_budget, self.send = audit_seqs, crc_budget, send
+        if bad_frame_policy not in BAD_FRAME_POLICIES:
+            raise ValueError(f"bad_frame_policy {bad_frame_policy!r} is not one of {BAD_FRAME_POLICIES}")
+        if bad_frame_policy == BAD_FRAME_LEDGER and not isinstance(bad_frame_budget, int):
+            raise ValueError("bad_frame_policy 'ledger' needs an integer bad_frame_budget (the terminal bound); "
+                             "unbounded tolerance of malformed lines is refused")
+        self.bad_frame_policy, self.bad_frame_budget = bad_frame_policy, bad_frame_budget
         # the protocol switch (owner 2026-09-02): rec-v3 is exactly what ran C1 #5; rel-v4
         # (host/l6_rel.py) adds the IDENT handshake, the SIGNREQ transaction with the
         # cached reply, AUDITWAIT replays, the TERM transaction and CLOSE-from-TERM. Every
@@ -341,7 +359,17 @@ class ConsoleSession:
             if self.rel and (self.ident.on_broken_line(line, "malformed") or self.signer.on_broken_line(line, "malformed")
                              or self.termhost.on_broken_line(line, "malformed")):
                 return                              # rel-v4: a torn/merged IDENT/SIGNREQ/TERM is not the collector's CRASHED
-            self.collector.on_line(line)            # its rule: a malformed frame is CRASHED
+            if self.bad_frame_policy == BAD_FRAME_LEDGER:
+                # v0.7 candidate (S #2, 2026-09-03-03: an HB-shaped line glued to the tail of
+                # REC 145 ended the epoch here, 0.2 s before the port closed, and the board's
+                # own REC resend was never seen). The line is already in the ledger, once
+                # (`timeline.bad_frames`); it is not acknowledged, not signed, advances no
+                # seq and does not refresh the collector's liveness. The transactions' bounds
+                # recover — and the budget is the terminal bound, as the CRC budget is.
+                if self.timeline.bad_frames > self.bad_frame_budget:
+                    self._protocol_end(f"PROTOCOL_BAD_FRAME_BUDGET: {self.timeline.bad_frames} > {self.bad_frame_budget}")
+                return
+            self.collector.on_line(line)            # v0.6 and earlier: a malformed frame is CRASHED
             return
         if f["token"] != self.token:
             self.collector.on_line(line)            # a foreign token is the collector's refusal, never swallowed
