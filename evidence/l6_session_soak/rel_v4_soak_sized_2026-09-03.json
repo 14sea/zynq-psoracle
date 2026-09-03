@@ -1,0 +1,216 @@
+{
+ "tool": "l6_session_soak.py/0.1.0",
+ "note": "soak-sized sessions (N = 12511, the policy_matched_wall candidate) at a ~6x-stress line fault rate",
+ "runs": [
+  {
+   "tool": "l6_session_soak.py/0.1.0",
+   "seed": 101,
+   "candidates": 12511,
+   "records": 12513,
+   "p_fault": 2e-05,
+   "p_h2b": 1e-05,
+   "policy": "ledger",
+   "crc_budget": 930,
+   "epoch_end": {
+    "kind": "COMPLETED",
+    "last_seq": 12513,
+    "reason": "budget"
+   },
+   "board_done": true,
+   "board_stopped": null,
+   "records_accepted": 12513,
+   "virtual_s": 2965.3898437591256,
+   "bad_frames": 1,
+   "crc_dropped": 3,
+   "crc_dropped_by_type": {
+    "SIGNREQ": 1,
+    "REC": 1,
+    "HB": 1
+   },
+   "fragments": 0,
+   "faults": 2,
+   "faults_by_kind": {
+    "delete_run": 1,
+    "truncate": 0,
+    "crc": 1,
+    "dup": 0,
+    "drop": 0
+   },
+   "faults_crossing_lines": 1,
+   "faults_into_rec": 0,
+   "faults_unrecovered": [],
+   "h2b_dropped": 0,
+   "board_stats": {
+    "sign_attempts": 12514,
+    "rec_attempts": 12514,
+    "ready_sent": 785,
+    "waits_sent": 0,
+    "term_attempts": 1
+   },
+   "rec_gets_sent": 1,
+   "rec_attempt_histogram": {
+    "1": 12512,
+    "2": 1
+   },
+   "records_missing_heartbeats": [
+    286,
+    10711
+   ],
+   "gates": {
+    "structural_v07": [],
+    "structural_v06": [
+     "seq 10711 (SCORED): 8 heartbeats missing (indices [1, 2, 3, 4, 5, 6, 7, 8]); the bound is one per record"
+    ],
+    "rec_closure": [],
+    "rec_control": [],
+    "rel_closure": [],
+    "rel_control": [],
+    "baseline": []
+   }
+  },
+  {
+   "tool": "l6_session_soak.py/0.1.0",
+   "seed": 102,
+   "candidates": 12511,
+   "records": 12513,
+   "p_fault": 2e-05,
+   "p_h2b": 1e-05,
+   "policy": "ledger",
+   "crc_budget": 930,
+   "epoch_end": {
+    "kind": "COMPLETED",
+    "last_seq": 12513,
+    "reason": "budget"
+   },
+   "board_done": true,
+   "board_stopped": null,
+   "records_accepted": 12513,
+   "virtual_s": 3005.33611112057,
+   "bad_frames": 2,
+   "crc_dropped": 4,
+   "crc_dropped_by_type": {
+    "SIGNREQ": 1,
+    "REC": 1,
+    "HB": 2
+   },
+   "fragments": 2,
+   "faults": 8,
+   "faults_by_kind": {
+    "delete_run": 6,
+    "truncate": 1,
+    "crc": 0,
+    "dup": 1,
+    "drop": 0
+   },
+   "faults_crossing_lines": 5,
+   "faults_into_rec": 4,
+   "faults_unrecovered": [],
+   "h2b_dropped": 0,
+   "board_stats": {
+    "sign_attempts": 12514,
+    "rec_attempts": 12518,
+    "ready_sent": 785,
+    "waits_sent": 0,
+    "term_attempts": 1
+   },
+   "rec_gets_sent": 1,
+   "rec_attempt_histogram": {
+    "1": 12512,
+    "2": 1
+   },
+   "records_missing_heartbeats": [
+    897,
+    1285,
+    5275,
+    7589,
+    9390,
+    11710
+   ],
+   "gates": {
+    "structural_v07": [],
+    "structural_v06": [
+     "seq 5275 (SCORED): 2 heartbeats missing (indices [8, 9]); the bound is one per record",
+     "seq 7589 (SCORED): 11 heartbeats missing (indices [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]); the bound is one per record",
+     "seq 9390 (SCORED): 9 heartbeats missing (indices [7, 8, 9, 10, 11, 12, 13, 14, 15]); the bound is one per record",
+     "seq 11710 (SCORED): 13 heartbeats missing (indices [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]); the bound is one per record",
+     "37 heartbeats missing over 12513 SCORED records > the budget floor(R/1000) = 12"
+    ],
+    "rec_closure": [],
+    "rec_control": [],
+    "rel_closure": [],
+    "rel_control": [],
+    "baseline": []
+   }
+  },
+  {
+   "tool": "l6_session_soak.py/0.1.0",
+   "seed": 103,
+   "candidates": 12511,
+   "records": 12513,
+   "p_fault": 2e-05,
+   "p_h2b": 1e-05,
+   "policy": "ledger",
+   "crc_budget": 930,
+   "epoch_end": {
+    "kind": "COMPLETED",
+    "last_seq": 12513,
+    "reason": "budget"
+   },
+   "board_done": true,
+   "board_stopped": null,
+   "records_accepted": 12513,
+   "virtual_s": 2975.3629340370667,
+   "bad_frames": 1,
+   "crc_dropped": 4,
+   "crc_dropped_by_type": {
+    "SIGNREQ": 1,
+    "REC": 1,
+    "HB": 2
+   },
+   "fragments": 1,
+   "faults": 4,
+   "faults_by_kind": {
+    "delete_run": 2,
+    "truncate": 1,
+    "crc": 1,
+    "dup": 0,
+    "drop": 0
+   },
+   "faults_crossing_lines": 2,
+   "faults_into_rec": 0,
+   "faults_unrecovered": [],
+   "h2b_dropped": 1,
+   "board_stats": {
+    "sign_attempts": 12515,
+    "rec_attempts": 12514,
+    "ready_sent": 785,
+    "waits_sent": 0,
+    "term_attempts": 1
+   },
+   "rec_gets_sent": 1,
+   "rec_attempt_histogram": {
+    "1": 12512,
+    "2": 1
+   },
+   "records_missing_heartbeats": [
+    518,
+    829,
+    4767,
+    9646
+   ],
+   "gates": {
+    "structural_v07": [],
+    "structural_v06": [
+     "seq 829 (SCORED): 14 heartbeats missing (indices [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]); the bound is one per record",
+     "seq 4767 (SCORED): 5 heartbeats missing (indices [4, 5, 6, 7, 8]); the bound is one per record",
+     "21 heartbeats missing over 12513 SCORED records > the budget floor(R/1000) = 12"
+    ],
+    "rec_closure": [],
+    "rec_control": [],
+    "rel_closure": [],
+    "rel_control": [],
+    "baseline": []
+   }
+  }
+ ]
+}
