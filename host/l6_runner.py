@@ -178,6 +178,24 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
                 b_ = rep.get("binding") or {}
                 if not isinstance(imported, dict) or not imported.get("from_prereg_sha256"):
                     raise ValueError(f"calibration {k}: `imported` must name from_prereg_sha256")
+                # the import is a v0.7 device and nothing else's: a later version must decide
+                # for itself, in its own text, whether these records still apply (owner's
+                # review 2026-09-03, blocker 2 — a v0.8 manifest silently inherited it)
+                version = str(l6m["prereg"].get("version"))
+                if version not in V07_RULE_VERSIONS:
+                    raise ValueError(f"calibration {k}: an import is honoured only under {V07_RULE_VERSIONS}; this "
+                                     f"manifest pins preregistration {version!r} — it must rule the import in its own text")
+                # version and hash are verified as a PAIR, against the supersedes chain the
+                # manifest itself records: naming a version without its hash, or a hash the
+                # chain does not carry under that version, is refused
+                from_version = imported.get("from_prereg_version")
+                if not from_version:
+                    raise ValueError(f"calibration {k}: `imported` must name from_prereg_version")
+                chain = {(str(s.get("version")), s.get("sha256")) for s in (l6m["prereg"].get("supersedes") or [])}
+                if (str(from_version), imported["from_prereg_sha256"]) not in chain:
+                    raise ValueError(f"calibration {k}: the import names {from_version} "
+                                     f"{str(imported['from_prereg_sha256'])[:16]}…, which is not a (version, sha256) pair "
+                                     f"in prereg.supersedes {sorted((v, str(h)[:8]) for v, h in chain)}")
                 if b_.get("prereg_sha256") != imported["from_prereg_sha256"]:
                     raise ValueError(f"calibration {k}: the import names prereg {str(imported['from_prereg_sha256'])[:16]}… "
                                      f"but the report is bound to {str(b_.get('prereg_sha256'))[:16]}…")
@@ -225,7 +243,7 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
                     raise ValueError(f"calibration report {k} carries no evals_per_hour")
                 rates[k] = float(rep["evals_per_hour"])
         rules = rules_for(l6m)
-        n_rule = "planning"
+        n_rule, n_override = "planning", None
         if rules["v07"]:
             # v0.7 candidate: the manifest must NAME the rule (owner 2026-09-03: no formula is
             # pre-approved; S #2's pace validates a candidate N and never feeds it)
@@ -238,17 +256,24 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
                     raise ValueError(f"v0.7 n_rule {n_rule!r} needs both calibration run logs (the report's inputs.run_log)")
                 pm = lsp.soak_n_for_rule(n_rule, calibration_logs, duration_s)
                 rates = {"C1": pm["rate_C1"], "C2": pm["rate_C2"]}
+                # D-n1 as ruled 2026-09-03: the FASTER arm sizes N (a wall-time floor needs
+                # the arm the soak may actually run at), the slower one still sizes the
+                # timeout. `l6_soak_plan` is the one place that computes it.
+                n_override = pm["n"]
                 inputs["n_rule_trace"] = {"unrounded": pm["unrounded"], "audit_fraction": pm["audit_fraction"],
-                                          "fixed_point_rounds": pm["fixed_point_rounds"]}
+                                          "fixed_point_rounds": pm["fixed_point_rounds"],
+                                          "sizing_arm": pm["sizing_arm"], "sizing_rate": pm["sizing_rate"]}
         inputs["n_rule"] = n_rule
-        n = ls.soak_n(rates["C1"], rates["C2"], duration_s)
-        timeout = ls.session_timeout_s(n, rates["C1"], rates["C2"])
+        n = n_override if n_override is not None else ls.soak_n(rates["C1"], rates["C2"], duration_s)
+        timeout = ls.session_timeout_s(n, rates["C1"], rates["C2"])   # the SLOW arm, always
         audit_policy = "sampled"
         audit_seqs = ls.sampled_audit_seqs(n, l6m["audit"]["every"])
         settle_med = [lc.median_settle_polls_from_report(calibration[k]) for k in ("C1", "C2")]
         imports = {k: bool((l6m["calibration"].get(k) or {}).get("imported")) for k in ("C1", "C2")}
         if any(imports.values()):
-            inputs["calibrations_imported"] = {k: (l6m["calibration"][k]["imported"] | {"inputs": "(the report's)"})
+            # the evidence keeps the declaration VERBATIM — the three input hashes included
+            # (owner's review 2026-09-03: a placeholder made the plan unauditable)
+            inputs["calibrations_imported"] = {k: dict(l6m["calibration"][k]["imported"])
                                                for k, v in imports.items() if v}
         inputs.update({"rate_C1_per_h": rates["C1"], "rate_C2_per_h": rates["C2"], "duration_s": duration_s,
                        "rate_source": (f"{n_rule} (v0.7 candidate, host/l6_soak_plan.py)" if n_rule != "planning"

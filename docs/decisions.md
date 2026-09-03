@@ -1989,5 +1989,75 @@ a single review, host-only, local commits, no push and no board. Delivered
   (740 lines, sha `96ca3acb…`), NOT marked frozen. `manifests/l6_manifest.json` is
   deliberately untouched (`54583314…`, the pushed bytes): the freeze is the owner's action.
 
-1074 tests / 1 skip / rc 0 (`evidence/tests/test_report_2026-09-03T181348Z.json`). No board,
-no ruling, no push, nothing pinned or frozen; C1 #5 and S #2 stay HOLD; Claim B closed.
+1074 tests / 1 skip / rc 0 (`evidence/tests/test_report_2026-09-03T181348Z.json`). The
+report tracked immediately before it, `…181245Z`, is RED (failures=1) and is kept as
+recorded: `test_package_consistency.WithdrawnHashesStayInHistory` refused the new v0.7
+draft because it names the withdrawn `734d6c04…` in the §1 line that forbids running it —
+the same allowance the frozen v0.6 text already carries. The fix was the allowance for the
+draft; a first attempt also exempted `docs/l6_s2_host_batch_package.md`, and the guard's
+own staleness check refused that, correctly, because the package names no withdrawn hash.
+No board, no ruling, no push, nothing pinned or frozen; C1 #5 and S #2 stay HOLD; Claim B
+closed.
+
+
+## 2026-09-03 — the owner's HOLD on the host batch, and the correction batch that closes it (host-only, still not pushed)
+
+Owner's review of `d905c15`: boundary and provenance PASS (HEAD `d905c15`, ahead 4, clean;
+`origin/main` still `f159787`; manifest still `54583314…`; v0.6 text, firmware, rulings and
+the C1/C2/S evidence untouched; the draft hash as reported). Positive function largely PASS
+(the S #2 replay reproduces the v0.6 crash exactly and the ledger policy survives the merged
+line; the REC resend, re-acknowledgement, wrong seq, conflicting content and silence
+negatives hold; the closing-baseline gate is right; the heartbeat record budget separates
+the two rules on the model). **Overall HOLD** on three reproduced fail-closed gaps, the
+draft's remaining drift, and an over-stated proof narrative. Decisions: **D-h1 PASS**
+(record budget ⌊R/1000⌋, 0 for a calibration; index completeness, the 20 s liveness, the
+REC and bad-frame bounds all kept); **D-b1** policy accepted, implementation HOLD;
+**D-n1** `policy_matched_wall` chosen but the sizing arm corrected; **D-i1** the import of
+C1 #6 / C2 #2 accepted with no re-calibration, enforcement HOLD.
+
+Corrected in this batch (`docs/l6_s2_host_batch_package.md` §8 maps each one to its test):
+
+- **B1 — the bad-frame bound was not global.** It sat after the transaction routing, so a
+  REC/IDENT/SIGNREQ/TERM-shaped or in-pull malformed line returned before it; with
+  `bad_frame_budget=0` the epoch stayed open and a `RECGET` still went out. The check now
+  runs first, for every `FrameError`: past the bound the epoch ends
+  `PROTOCOL_BAD_FRAME_BUDGET`, no transaction advances, nothing is sent, and a pull in
+  flight is failed with the global reason and told to abort exactly once — its attempt
+  still ledgered, its retry suppressed. The constructor also refuses a bool or a negative
+  budget. `BadFrameBudgetIsGlobal` (6) covers the six shapes.
+- **B2 — the import was under-constrained.** Now: honoured only when the manifest pins
+  v0.7 (a later preregistration must rule the reuse in its own text); `from_prereg_version`
+  mandatory and verified as a PAIR with the source hash against the manifest's own
+  `prereg.supersedes` chain; the plan's evidence keeps the declaration verbatim, the three
+  input hashes included, with the placeholder gone.
+- **B3 — N used `min(rate)`.** `min` is right for a timeout and wrong for a wall-time
+  floor: a soak running near the faster arm finishes a min-sized N too early. Every
+  policy-matched rule now sizes N from `max(rate_A, rate_B)`; `planning` keeps `min` as the
+  v0.6 control; the timeout always uses the slower arm. The post-hoc gate excludes seq 1
+  (its two forced controls are not the loop's pace) and normalises the pace to the
+  candidate's own sampled-audit fraction, both fractions the PLANNED ones — a prefix of a
+  soak over-samples audits because seq 1 and seq 2 are both on the sampled schedule. The
+  owner's regression targets reproduce exactly: N 12568, 789 sampled audits, 233 364
+  expected inbound frames, CRC and bad-frame budget 934, timeout 8739 s. The normalised
+  interval is 0.536946 s here against the owner's ≈ 0.539812 s (predicted wall 6787 s
+  against ≈ 6784 s): a 0.05 % difference inside the normalisation's own arithmetic, stated
+  rather than fitted, with the verdict and margin unchanged.
+- **B4 — the draft's drift.** Regenerated from the frozen v0.6 text with the calibrations
+  no longer called null, the image recorded as having run C1 #6 / C2 #2 / S #2, D-p1's
+  per-record heartbeat cap marked as v0.6's wording that D-h1 replaces, the three-rate rule
+  listing v0.7, §9 replaced by the v0.7 order of work (one soak under v0.7, C1/C2 re-run
+  only if the import is refused), and §6 item 14 moved after item 13. `V07DraftDrift` (5)
+  refuses the stale phrasings and checks the order. New draft hash
+  `a4ca8e03d30efccc817884402d987d29a71f094616f3361fd807ddf5374960bb`.
+- **B5 — the proof narrative.** The continuation no longer re-delivers the merged line the
+  replay already consumed: `RecBoard.start()` establishes "attempt 1 sent and mangled" and
+  only the bound's resend is delivered; the two tests that do repeat a malformed line say
+  why. `RecBoard` is named as the Python twin cross-verified against the image's C unit,
+  never the firmware. The session soak names exactly which gates it runs (the protocol
+  gates; `soak_findings` needs a rate report and a real duration and is not run there),
+  with a test asserting the set. The red `…181245Z` report is explained above.
+
+The soak-sized evidence was re-run at the ruled N (12568): COMPLETED 12570/12570 in all
+three seeds, zero unrecovered, the v0.7 heartbeat rule clean and the v0.6 rule HOLDing.
+Still host-only: no board, no ruling, no push, nothing pinned or frozen; the manifest stays
+`54583314…`; C1 #5 and S #2 stay HOLD; Claim B stays closed.

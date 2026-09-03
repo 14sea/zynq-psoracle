@@ -14,8 +14,15 @@ What the tests lock:
     artefact that made three AUDIT_READY resends vanish 50 s apart);
   * the committed evidence: 12 seeds × 300 candidates (ledger COMPLETED 302/302 with zero
     unrecovered faults every time; crash CRASHED at the first malformed line every time)
-    and 3 soak-sized sessions (N = 12511) at a ~6× stress line rate, where the v0.7
-    heartbeat rule is clean and the v0.6 rule is not.
+    and 3 soak-sized sessions (N = 12568, the `policy_matched_wall` candidate under D-n1
+    as ruled) at a ~6× stress line rate, where the v0.7 heartbeat rule is clean and the
+    v0.6 rule is not.
+
+Only the PROTOCOL gates run over the model's artefacts, and the report names exactly which
+(`structural_v06`/`structural_v07`, REC closure and control, rel-v4 closure and control,
+baseline). `soak_findings` — the heartbeat GAP, the CRC and bad-frame budgets, the wall
+fraction and the settle bound — needs a rate report and a real duration and is NOT run
+here; the bad-frame bound is exercised directly in `tests/test_l6_s2_host_batch.py`.
 """
 from __future__ import annotations
 
@@ -40,14 +47,23 @@ S2_SHAPE = [{"type": "HB", "seq": 10, "hb_i": 12, "kind": "delete_run", "offset"
 
 
 class CleanSession(unittest.TestCase):
-    def test_a_session_without_faults_completes_and_every_gate_is_empty(self):
+    def test_the_report_names_exactly_which_gates_it_ran(self):
+        """Owner's review 2026-09-03: "every gate empty" overstated it — the model runs the
+        PROTOCOL gates, not soak_findings (which needs a rate report and a real duration)."""
+        r = ss.SessionSoak(11, 64, 0.0, 0.0, lcs.BAD_FRAME_LEDGER).run()
+        self.assertEqual(sorted(r["gates"]), ["baseline", "rec_closure", "rec_control", "rel_closure",
+                                              "rel_control", "structural_v06", "structural_v07"])
+        src = __import__("inspect").getsource(ss.SessionSoak.report)
+        self.assertNotIn("soak_findings", src, "the soak check is not run here and is not claimed")
+
+    def test_a_session_without_faults_completes_and_every_protocol_gate_is_empty(self):
         r = ss.SessionSoak(11, 64, 0.0, 0.0, lcs.BAD_FRAME_LEDGER).run()
         self.assertEqual(r["epoch_end"], {"kind": "COMPLETED", "last_seq": 66, "reason": "budget"})
         self.assertEqual((r["records_accepted"], r["records"]), (66, 66))
         self.assertEqual((r["bad_frames"], r["fragments"]), (0, 0))
         self.assertEqual(r["crc_dropped"], 2, "the two forced controls are the only CRC drops")
         self.assertEqual(r["crc_dropped_by_type"], {"SIGNREQ": 1, "REC": 1})
-        self.assertEqual({k: v for k, v in r["gates"].items() if v}, {}, "no finding on a clean session")
+        self.assertEqual({k: v for k, v in r["gates"].items() if v}, {}, "no protocol-gate finding on a clean session")
         self.assertEqual(r["board_stats"]["waits_sent"], 0)
 
     def test_the_controls_are_what_the_gates_expect(self):
@@ -147,9 +163,9 @@ class CommittedEvidence(unittest.TestCase):
     def test_the_soak_sized_runs_separate_the_two_heartbeat_rules(self):
         self.assertEqual(len(SIZED["runs"]), 3)
         for r in SIZED["runs"]:
-            self.assertEqual(r["candidates"], 12511, "the policy_matched_wall candidate N")
-            self.assertEqual(r["epoch_end"], {"kind": "COMPLETED", "last_seq": 12513, "reason": "budget"}, r["seed"])
-            self.assertEqual(r["records_accepted"], 12513, r["seed"])
+            self.assertEqual(r["candidates"], 12568, "the policy_matched_wall candidate N (D-n1, max arm)")
+            self.assertEqual(r["epoch_end"], {"kind": "COMPLETED", "last_seq": 12570, "reason": "budget"}, r["seed"])
+            self.assertEqual(r["records_accepted"], 12570, r["seed"])
             self.assertEqual(r["faults_unrecovered"], [], r["seed"])
             self.assertEqual(r["gates"]["structural_v07"], [], f"seed {r['seed']}: the v0.7 rule is clean")
             self.assertTrue(r["gates"]["structural_v06"], f"seed {r['seed']}: v0.6 HOLDs the whole soak")

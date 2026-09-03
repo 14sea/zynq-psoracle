@@ -140,7 +140,18 @@ class S2RecordedBytes(unittest.TestCase):
 
 
 class ModelledRecResend(unittest.TestCase):
-    """After the replay: the firmware's REC twin resends the SAME bytes on its bound."""
+    """After the replay: the REC transaction twin resends the SAME bytes on its bound.
+
+    `l6_rec.RecBoard` is the PYTHON twin of the board's transaction, cross-verified against
+    the image's C unit (`firmware/p3_rectx.c`) by the wire-contract tests; it is a model of
+    the board, never the firmware itself and never a measurement of it.
+
+    The replay has already consumed S #2's merged line from `console.log`, so the merged
+    line is NOT delivered again here: `board.start()` establishes the state the recording
+    ends in — attempt 1 sent, and mangled on the way — and only the bound's resend is
+    delivered (owner's review 2026-09-03)."""
+
+    MERGED_ALREADY_DELIVERED = "the replay consumed it; feeding it again would double-count the ledger"
 
     def survived(self) -> Replay:
         rp = Replay(lcs.BAD_FRAME_LEDGER)
@@ -152,10 +163,10 @@ class ModelledRecResend(unittest.TestCase):
         rp = self.survived()
         line = rec_line(145)
         board = rx.RecBoard(TOKEN, 145, line)
-        first = board.start()                                      # attempt 1 is what the console mangled
+        first = board.start()                    # attempt 1: the transmission the console mangled
         self.assertEqual(first, [line])
-        rp.feed(MERGED)                                            # …delivered as S #2 recorded it
-        self.assertEqual(rp.timeline.bad_frames, 2); self.assertIsNone(rp.collector.epoch_end)
+        self.assertEqual(rp.timeline.bad_frames, 1, self.MERGED_ALREADY_DELIVERED)
+        self.assertIsNone(rp.collector.epoch_end)
         self.assertEqual(board.state, "WAIT_ACK")
         resend = board.tick(rx.BOARD_ACK_LIMIT_S + 0.5)            # the bound: the same bytes again
         self.assertEqual(resend, [line]); self.assertEqual(board.attempts, 2)
@@ -180,8 +191,8 @@ class ModelledRecResend(unittest.TestCase):
     def test_a_second_identical_resend_is_re_acknowledged_never_appended(self):
         rp = self.survived()
         line = rec_line(145)
-        rp.feed(MERGED); rp.feed(line, dt=rx.BOARD_ACK_LIMIT_S + 0.5)
-        rp.feed(line, dt=rx.BOARD_ACK_LIMIT_S + 0.5)               # our RECACK was lost: the board sends the same bytes
+        rp.feed(line, dt=rx.BOARD_ACK_LIMIT_S + 0.5)               # the bound's resend
+        rp.feed(line, dt=rx.BOARD_ACK_LIMIT_S + 0.5)               # our RECACK was lost: the same bytes again
         self.assertEqual(len(rp.collector.loop_records), 145)
         led = rp.cs.rec_ledgers[145].to_json()
         self.assertEqual([a["outcome"] for a in led["attempts"]], ["ok", "duplicate"]); self.assertEqual(led["acks_sent"], 2)
@@ -189,7 +200,6 @@ class ModelledRecResend(unittest.TestCase):
 
     def test_no_resend_is_the_collectors_silence_end_not_a_silent_continuation(self):
         rp = self.survived()
-        rp.feed(MERGED)
         rp.now["t"] += 3 * 10 + 1                                  # 3 heartbeat intervals with nothing from the board
         rp.collector.poll()
         self.assertEqual(rp.collector.epoch_end["kind"], "CRASHED"); self.assertIn("silence", rp.collector.epoch_end["reason"])
@@ -197,7 +207,6 @@ class ModelledRecResend(unittest.TestCase):
 
     def test_a_wrong_resend_another_seq_is_protocol_rec(self):
         rp = self.survived()
-        rp.feed(MERGED)
         rp.feed(rec_line(146), dt=rx.BOARD_ACK_LIMIT_S + 0.5)     # the board advanced without an acknowledgement
         self.assertEqual(rp.collector.epoch_end["kind"], "PROTOCOL"); self.assertIn("PROTOCOL_REC", rp.collector.epoch_end["reason"])
         self.assertEqual(len(rp.collector.loop_records), 144)
@@ -205,13 +214,15 @@ class ModelledRecResend(unittest.TestCase):
     def test_a_conflicting_resend_same_seq_other_bytes_is_protocol_rec(self):
         rp = self.survived()
         line = rec_line(145)
-        rp.feed(MERGED); rp.feed(line, dt=rx.BOARD_ACK_LIMIT_S + 0.5)
+        rp.feed(line, dt=rx.BOARD_ACK_LIMIT_S + 0.5)
         other = copy.deepcopy(RUN_LOG["loop_records"][143]); other["seq"] = 145; other["arm"] = "random_safe"
         rp.feed(n.build_line(n.T_REC, 145, TOKEN, n.encode_payload(other)), dt=0.5)
         self.assertEqual(rp.collector.epoch_end["kind"], "PROTOCOL"); self.assertIn("different content", rp.collector.epoch_end["reason"])
         self.assertTrue(rp.cs.rec_ledgers[145].to_json()["conflict"]); self.assertEqual(len(rp.collector.loop_records), 145)
 
     def test_the_malformed_line_again_and_again_is_bounded_by_the_budget(self):
+        """Here the line IS delivered again, deliberately: the question is what a repeated
+        malformed line costs, not what S #2's single one did."""
         rp = Replay(lcs.BAD_FRAME_LEDGER, bad_frame_budget=3)
         rp.run()                                                   # bad_frames 1 (the recorded one)
         rp.feed(MERGED); rp.feed(MERGED)                           # 3 = the budget: still open
@@ -230,6 +241,7 @@ class ModelledRecResend(unittest.TestCase):
                                set(), 8, send=lambda *a: None, protocol="rel-v4", bad_frame_policy="lenient")
 
     def test_a_malformed_line_does_not_refresh_liveness_or_sign_or_advance(self):
+        """A unit check of the policy itself: the line is delivered again on purpose."""
         rp = self.survived()
         heard, seq, signed = rp.collector.last_heard, rp.relay.last_seq, len(rp.relay.entries)
         rp.feed(MERGED)
@@ -240,3 +252,117 @@ class ModelledRecResend(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BadFrameBudgetIsGlobal(unittest.TestCase):
+    """Owner's review 2026-09-03, blocker 1: the bound sat AFTER the transaction routing, so
+    a malformed line whose head still read `REC`/`IDENT`/`SIGNREQ`/`TERM`, or that arrived
+    inside an open pull, returned before it — with `bad_frame_budget=0` the epoch stayed
+    open and a `RECGET` still went out. The bound is now global and immediate: past it the
+    epoch ends `PROTOCOL_BAD_FRAME_BUDGET`, no transaction advances and nothing is sent."""
+
+    def session(self, budget: int, pending: bool = True, pull: bool = False):
+        import l6_rel as rel
+        import l6_timing as lt2
+        now = {"t": 500.0}
+        clock = lambda: now["t"]  # noqa: E731
+        collector = n.Collector(TOKEN, heartbeat_s=10, clock=clock)
+        relay = n.NotaryRelay(TOKEN, lambda req: dict(SIGN_ANSWER), drop_budget=99, clock=clock)
+        tl = lt2.Timeline(); sent: list[str] = []
+        cs = lcs.ConsoleSession(TOKEN, collector, relay, tl, {1}, 99,
+                                send=lambda line, mtype, seq: sent.append(line), clock=clock,
+                                protocol="rel-v4", identity_check=lambda ident: [],
+                                bad_frame_policy=lcs.BAD_FRAME_LEDGER, bad_frame_budget=budget)
+
+        def feed(line: str) -> None:
+            now["t"] += 0.01
+            cs.on_line(line.rstrip("\n"), now["t"], now["t"])
+
+        ident = n.build_line(n.T_IDENT, 0, TOKEN, n.encode_payload(
+            {"schema": "app_identity", "schema_version": "1.3.0", "control_plane": "standalone", "token": TOKEN,
+             "protocol": "rel-v4", "master_seed": 7, "schedule_mode": "abba", "operator_data_sha256": "0" * 64,
+             "rec_retry_control": True, "sign_retry_control": True, "pss_idcode": "0x13722093", "uboot_epoch": 0,
+             "carrier_sha256": "1" * 64, "nonce_at_start": "2" * 16, "findings": [], "app_epoch": 0,
+             "status_at_start": "0x0"}))
+        feed(ident)
+        if pending:
+            feed(n.build_line(n.T_SIGNREQ, 1, TOKEN, n.encode_payload(
+                {"seq": 1, "token": TOKEN, "genome": "0" * 80, "nonce": "0" * 16, "app_epoch": 0,
+                 "schema": "sign_request", "schema_version": "1.0.0"})))
+        if pull:
+            board = __import__("l6_rel").ReadyBoard(TOKEN, 1, "streams+readback", [0] * 2814, requested=True)
+            feed(board.start()[0])
+        del rel
+        return cs, collector, sent, feed
+
+    @staticmethod
+    def malformed(mtype: str, seq: int) -> str:
+        """A line whose head still reads <mtype> <seq> but that is not a frame (5 fields)."""
+        return f"{n.MAGIC} {mtype} {seq} {TOKEN} eyJhIjoxfQ=="
+
+    def test_every_shape_is_bounded_by_the_same_global_budget(self):
+        shapes = {"REC": self.malformed(n.T_REC, 1),
+                  "IDENT": self.malformed(n.T_IDENT, 0),
+                  "SIGNREQ": self.malformed(n.T_SIGNREQ, 1),
+                  "TERM": self.malformed(n.T_TERM, 2),
+                  "non-transaction": MERGED.rstrip("\n")}
+        for name, line in shapes.items():
+            with self.subTest(shape=name):
+                cs, collector, sent, feed = self.session(budget=0)
+                before = len(sent)
+                feed(line)
+                self.assertEqual(cs.timeline.bad_frames, 1, name)
+                self.assertEqual(collector.epoch_end,
+                                 {"kind": "PROTOCOL", "last_seq": 0, "reason": "PROTOCOL_BAD_FRAME_BUDGET: 1 > 0"}, name)
+                self.assertEqual(len(sent), before, f"{name}: nothing may be sent past the bound")
+
+    def test_a_malformed_line_inside_an_open_pull_is_bounded_too(self):
+        cs, collector, sent, feed = self.session(budget=0, pull=True)
+        gets_before = sum(1 for l in sent if n.parse_line(l)["type"] == "AUDITGET")
+        feed(self.malformed(n.T_AUDIT, 1))
+        self.assertEqual(cs.timeline.bad_frames, 1)
+        self.assertEqual(collector.epoch_end["reason"], "PROTOCOL_BAD_FRAME_BUDGET: 1 > 0")
+        after = [n.parse_line(l)["type"] for l in sent]
+        self.assertEqual(sum(1 for tp in after if tp == "AUDITGET"), gets_before, "no AUDITGET retry past the bound")
+        self.assertEqual(after[-1], "AUDITABORT", "the board is told the pull is over, exactly once")
+        self.assertEqual(sum(1 for tp in after if tp == "AUDITABORT"), 1)
+        led = cs.pull_ledgers[-1]
+        self.assertTrue(led["failed"]); self.assertEqual(led["why"], "PROTOCOL_BAD_FRAME_BUDGET: 1 > 0",
+                                                         "the pull's reason is the global one, not its own retry exhaustion")
+        self.assertTrue(any(a["outcome"] != "ok" for a in led["attempts"]), "the attempt is kept in the pull ledger")
+
+    def test_within_the_budget_each_shape_still_recovers_as_before(self):
+        cs, collector, sent, feed = self.session(budget=8)
+        feed(self.malformed(n.T_REC, 1))
+        self.assertIsNone(collector.epoch_end)
+        self.assertEqual([n.parse_line(l)["type"] for l in sent][-1:], [rx.T_RECGET], "the REC transaction still asks again")
+        self.assertEqual(cs.timeline.bad_frames, 1)
+
+    def test_the_ledger_keeps_the_line_that_crossed_the_bound(self):
+        cs, collector, sent, feed = self.session(budget=1)
+        feed(self.malformed(n.T_REC, 1))           # 1 = the budget: still open, still a retry
+        self.assertIsNone(collector.epoch_end)
+        feed(MERGED.rstrip("\n"))                  # 2 > 1: over
+        self.assertEqual(collector.epoch_end["reason"], "PROTOCOL_BAD_FRAME_BUDGET: 2 > 1")
+        self.assertEqual(cs.timeline.bad_frames, 2)
+        self.assertEqual(sum(1 for f in cs.timeline.frames if f["type"] == "BAD_FRAME"), 2,
+                         "both lines are in the one inbound ledger, once each")
+
+    def test_a_budget_that_is_not_a_whole_non_negative_number_is_refused(self):
+        for bad in (None, "8", 3.0, True, False, -1):
+            with self.subTest(budget=bad), self.assertRaises(ValueError):
+                lcs.ConsoleSession(TOKEN, n.Collector(TOKEN, 10), n.NotaryRelay(TOKEN, lambda r: SIGN_ANSWER, 8),
+                                   __import__("l6_timing").Timeline(), set(), 8, send=lambda *a: None,
+                                   protocol="rel-v4", bad_frame_policy=lcs.BAD_FRAME_LEDGER, bad_frame_budget=bad)
+        lcs.ConsoleSession(TOKEN, n.Collector(TOKEN, 10), n.NotaryRelay(TOKEN, lambda r: SIGN_ANSWER, 8),
+                           __import__("l6_timing").Timeline(), set(), 8, send=lambda *a: None,
+                           protocol="rel-v4", bad_frame_policy=lcs.BAD_FRAME_LEDGER, bad_frame_budget=0)
+
+    def test_under_v06_the_crash_rule_is_untouched_by_all_of_this(self):
+        cs, collector, sent, feed = self.session(budget=0)
+        self.assertEqual(cs.bad_frame_policy, lcs.BAD_FRAME_LEDGER)
+        cs.bad_frame_policy, cs.bad_frame_budget = lcs.BAD_FRAME_CRASH, None
+        feed(self.malformed(n.T_REC, 1))
+        self.assertIsNone(collector.epoch_end, "v0.6: a REC-shaped malformed line is the transaction's, unbounded")
+        feed(MERGED.rstrip("\n"))
+        self.assertEqual(collector.epoch_end["kind"], "CRASHED")

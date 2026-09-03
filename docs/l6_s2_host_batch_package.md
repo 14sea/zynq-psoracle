@@ -1,4 +1,4 @@
-# The host batch after S #2 — delivery package for the owner's review (host-only, 2026-09-03)
+# The host batch after S #2 — delivery package for the owner's review (host-only, 2026-09-03; revision 2 after the owner's HOLD of the same day)
 
 > **Standing: HOST-ONLY, local commits, NOT pushed. No board contact, no ruling created or
 > consumed, no firmware change (the pinned image stays `5deee74c…`), no evidence of C1 #6 /
@@ -21,7 +21,8 @@ v0.7 re-freeze).
 | `96ffcee` | (1/n) the malformed non-transaction line: ledgered once, bounded, never the collector's `CRASHED`; S #2's recorded bytes replayed both ways; the modelled byte-identical `REC 145` resend and its negatives |
 | `505e178` | (2/n) the v0.7 candidate rules — crash-path baseline gate, the record-budget heartbeat rule, the soak's bad-frame bound, rule selection by prereg version — and the N-versus-T comparison with its post-hoc gate |
 | `52989e1` | (3/n) the modelled-channel SESSION soak: 12 seeds × 300 candidates both policies, and 3 soak-sized sessions; a model defect found and fixed on the way |
-| this one | (4/n) the explicit calibration import (D-i1), the self-contained v0.7 draft, this package, the suite report |
+| `d905c15` | (4/5) the explicit calibration import (D-i1), the self-contained v0.7 draft, this package, the suite report |
+| this one | (5/5) the correction batch after the owner's HOLD: the global bad-frame bound (B1), the import's version pairing and verbatim evidence (B2), D-n1 as ruled — the faster arm sizes N (B3), the draft's remaining drift with a draft-specific guard (B4), and the proof narrative tightened (B5) |
 
 ## 1. What each owner requirement became, and the test that holds it
 
@@ -29,13 +30,15 @@ v0.7 re-freeze).
 |---|---|---|
 | a malformed `P3L5` line is recorded **exactly once** by the Timeline as `BAD_FRAME`, not acknowledged, not signed, advances no seq, and is **not** handed to the collector | `host/l6_console.py`: `bad_frame_policy` ∈ {`crash` (v0.6, default), `ledger` (v0.7)}, `bad_frame_budget` | `test_l6_s2_host_batch.S2RecordedBytes::test_under_the_ledger_policy_the_host_survives_the_merged_line`, `ModelledRecResend::test_a_malformed_line_does_not_refresh_liveness_or_sign_or_advance` |
 | S #2's raw bytes prove only that the host survives the line (the recording ends at the port close) | the replay drives the REAL reader / ConsoleSession / Collector / NotaryRelay over `evidence/l6_17A6_2026-09-03-03-S/console.log` | `S2RecordedBytes::test_under_v06_the_replay_reproduces_the_days_crash` (the control: the day's `CRASHED: unparseable frame`, `last_seq 144`), `…::test_under_the_ledger_policy_the_host_survives_the_merged_line` |
-| then a **modelled byte-identical `REC 145` resend**: accepted once, `RECACK`, normal progress | the firmware's REC twin `l6_rec.RecBoard` continues from the replay's state | `ModelledRecResend::test_a_byte_identical_resend_after_the_bound_is_accepted_once_and_acknowledged` |
+| then a **modelled byte-identical `REC 145` resend**: accepted once, `RECACK`, normal progress | the PYTHON twin `l6_rec.RecBoard` — the board's transaction as modelled on the host, cross-verified against the image's own C unit (`firmware/p3_rectx.c`) by the wire-contract tests, never the firmware itself — continues from the replay's state | `ModelledRecResend::test_a_byte_identical_resend_after_the_bound_is_accepted_once_and_acknowledged` |
 | negatives: no resend, wrong resend, conflicting resend, the malformed line repeated, budget exhaustion | — | `…::test_no_resend_is_the_collectors_silence_end_not_a_silent_continuation`, `…::test_a_wrong_resend_another_seq_is_protocol_rec`, `…::test_a_conflicting_resend_same_seq_other_bytes_is_protocol_rec`, `…::test_a_second_identical_resend_is_re_acknowledged_never_appended`, `…::test_the_malformed_line_again_and_again_is_bounded_by_the_budget` |
-| a non-fatal bad frame needs an explicit **terminal bound** in S — never unbounded tolerance | the console ends the epoch `PROTOCOL_BAD_FRAME_BUDGET` at the first past the budget; `l6_checks.soak_findings` names the total in the adjudication either way | `…::test_the_malformed_line_again_and_again_is_bounded_by_the_budget`, `…::test_the_ledger_policy_refuses_to_run_unbounded` (a ledger policy without a budget is refused at construction), `test_l6_v07_rules.SoakBadFrameBound` (3) |
+| a non-fatal bad frame needs an explicit **terminal bound** in S — never unbounded tolerance, and the bound must be **global**: every malformed shape, the transaction-shaped and in-pull ones included | the budget is checked BEFORE the transaction routing in `host/l6_console.py`; past it the global reason wins, no transaction advances, no re-request is sent, and a pull in flight is failed with that reason and aborted exactly once | `test_l6_s2_host_batch.BadFrameBudgetIsGlobal` (6): the six shapes (REC / IDENT / SIGNREQ / TERM / non-transaction / in-pull) at `bad_frame_budget=0`, the ledger keeping the line that crossed the bound, within-budget recovery unchanged, a non-integer / bool / negative budget refused, and v0.6 untouched; `…::test_the_malformed_line_again_and_again_is_bounded_by_the_budget`; `test_l6_v07_rules.SoakBadFrameBound` (3) |
 | opening baseline always; the closing baseline only on `COMPLETED` | `host/l6_checks.py:82` `baseline_findings` | `test_l6_v07_rules.BaselineGate` (3): S #2's artefact reproduced on a COMPLETED fixture and absent on the real CRASHED log; C1 #6 unchanged |
 | v0.7 must **rule the heartbeat rule explicitly** (per-record cap kept or dropped for an aggregate budget + index completeness + the 20 s liveness) | `host/l6_rel.heartbeat_findings_v07` beside the unchanged `heartbeat_findings_rel`; `l6_checks.structural_findings(..., hb_rule=)`; §3 D-h1 and §6.11 of the draft state the choice | `test_l6_v07_rules.HeartbeatRuleV07` (6), including the S #2 shape under both rules and an unknown rule refused |
-| the soak's N: keep wall ≥ 0.9 T, compute a policy-matched rate from the pinned calibrations' immutable timing inputs, publish unrounded intermediates and the single final floor, and use a recorded pace only as a post-hoc gate | `host/l6_soak_plan.py` (4 named rules, fixed point on the audit fraction), `l6_runner.plan_session` under `sessions.S.n_rule` | `test_l6_v07_rules.SoakPlanLocked` (6) and `RuleSelection` (5) |
-| reusing the v0.6 calibrations must be an **explicit import** by report and the three input hashes, never a pretence that they bind the new prereg | `manifests/…` `calibration.<k>.imported`, enforced in `l6_runner.plan_session`; §3 D-i1 | `test_l6_v07_import.ExplicitImport` (7): refused without it, the import relaxes the prereg hash and nothing else, a wrong hash / other report / other inputs / no justification each refused |
+| the soak's N: keep wall ≥ 0.9 T, compute a policy-matched rate from the pinned calibrations' immutable timing inputs, publish unrounded intermediates and the single final floor, use a recorded pace only as a post-hoc gate — and size N from the **faster** arm while the timeout keeps the slower one | `host/l6_soak_plan.py` (4 named rules, `ARM_FOR_RULE`, fixed point on the audit fraction), `l6_runner.plan_session` under `sessions.S.n_rule` | `test_l6_v07_rules.SoakPlanLocked` (8) and `RuleSelection` (5) |
+| the post-hoc gate excludes seq 1's forced controls and normalises the pace to the final sampled-audit fraction | `lsp.observed_interval_s(exclude_seqs=(1,))` and `validation_gate(target_audit_fraction=…)` | `SoakPlanLocked::test_the_post_hoc_pace_excludes_the_seq_1_controls_and_is_normalised` |
+| the v0.7 draft must not inherit v0.6's present tense | `docs/l6_soak_prereg_v0.7_draft.md` regenerated from the frozen text | `test_l6_v07_rules.V07DraftDrift` (5) |
+| reusing the v0.6 calibrations must be an **explicit import** by report and the three input hashes, never a pretence that they bind the new prereg; honoured under v0.7 only; the version paired with the hash; the evidence verbatim | `manifests/…` `calibration.<k>.imported`, enforced in `l6_runner.plan_session` against the manifest's own `prereg.supersedes` chain; §3 D-i1 | `test_l6_v07_import.ExplicitImport` (9): refused without it; refused under any version but v0.7; `from_prereg_version` mandatory and paired with the hash through the supersedes chain; a wrong hash / other report / other inputs / no justification each refused; the import relaxes the prereg hash and nothing else; the plan's evidence carries the three input hashes verbatim, no placeholder |
 | nothing of v0.7 may run under v0.6 | `l6_runner.rules_for` keyed on `prereg.version` | `RuleSelection::test_under_v06_nothing_of_v07_runs`, `…::test_under_v07_the_ledger_policy…`, `ExplicitImport::test_under_v06_nothing_of_this_runs…` |
 | a full modelled-channel soak | `host/l6_session_soak.py` | `test_l6_session_soak` (13) |
 
@@ -49,12 +52,20 @@ stack in random poll-sized pieces:
 | `crash` (v0.6) | `CRASHED: unparseable frame`, `last_seq 144` — the day's outcome, reproduced exactly; `bad_frames 1`, `crc_dropped 2` = `{SIGNREQ 1, REC 1}` (the two controls) |
 | `ledger` (v0.7) | the epoch stays OPEN. `bad_frames 1`, the same two CRC drops, 144 records, `relay.last_seq 145`, seq 145 pending, **nothing sent for the merged line** (`RECACK` 144, `RECGET` 1 = the control only, `SIGNOK` 145, `SIGNGET` 1 = the control only), no fragment |
 
+The replay CONSUMES the merged line from the recording, so the modelled continuation does
+not deliver it again: `RecBoard.start()` establishes the state the recording ends in —
+attempt 1 sent, and mangled on the way — and only the bound's resend is delivered. (Two
+tests do deliver a malformed line again on purpose, and say so: the repeated-line budget
+case and the policy unit check.)
+
 **What the recording cannot show**, because it stops 0.2 s later at the port close: whether
 the board really resent. So the modelled continuation, using the firmware's own REC twin
 (`l6_rec.RecBoard`, the C twin of `firmware/p3_rectx.c`): attempt 1 delivered as the
 recorded merged line → the bound elapses → **the same bytes** resent → accepted once, one
 `RECACK 145`, record 145 appended once, ledger `["ok"]`, the twin `acked` after 2 attempts,
-and the next `SIGNREQ 146` proceeds. This is a model of the board, not a measurement of it.
+and the next `SIGNREQ 146` proceeds. This is a model of the board, not a measurement of it:
+`RecBoard` is the Python twin, cross-verified against the image's C unit by the
+wire-contract tests, and the clock is virtual.
 
 ## 3. The modelled session soak
 
@@ -79,14 +90,23 @@ both policies, `p_fault` 0.004 per board→host line:
 | `ledger` | **`COMPLETED` 302/302 records, all 12 seeds, zero unrecovered faults.** 268 faults in all: 115 crossed a frame boundary, 64 ran into a `REC`; 71 malformed lines absorbed, 106 CRC drops (within a budget of 23 per session — the controls plus recovered corruption), 74 fragments. The REC transaction did the recovering: 48 records of 3624 needed a second transmission, **none a third** |
 | `crash` (control) | `CRASHED: unparseable frame` at the **first** malformed line, all 12 seeds, 2–137 records in |
 
+**Which gates the model runs, exactly.** The soak drives the PROTOCOL gates over the
+artefacts each session leaves: `structural_findings` under both heartbeat rules, REC
+closure and control, rel-v4 closure and control, and the baseline gate. It does NOT run
+`l6_checks.soak_findings` — that needs a rate report and a real duration — so the
+heartbeat GAP, the CRC and bad-frame budgets, the wall fraction and the settle bound are
+not claimed here; the bad-frame bound is exercised directly in
+`tests/test_l6_s2_host_batch.py`, and a test asserts the soak's own gate set so the claim
+cannot drift.
+
 `evidence/l6_session_soak/rel_v4_soak_sized_2026-09-03.json` — 3 sessions at the soak's own
-size (N = 12511, the `policy_matched_wall` candidate) at ≈ 6× the recorded line fault rate:
-`COMPLETED` 12513/12513 every time, zero unrecovered, every gate empty **except** the
-heartbeat rule, and there the two rules part:
+size (N = 12568, the `policy_matched_wall` candidate under D-n1 as ruled) at ≈ 6× the
+recorded line fault rate: `COMPLETED` 12570/12570 every time, zero unrecovered, every
+protocol gate empty **except** the heartbeat rule, and there the two rules part:
 
 | seed | records that lost heartbeats | v0.7 (record budget 12) | v0.6 (one per record) |
 |---|---|---|---|
-| 101 | 2 | clean | HOLD — `seq 10711: 8 heartbeats missing` |
+| 101 | 2 | clean | HOLD — 1 record named |
 | 102 | 6 | clean | HOLD — 4 records named + the aggregate |
 | 103 | 4 | clean | HOLD — 2 records named + the aggregate |
 
@@ -101,28 +121,48 @@ intermediate unrounded, one floor at the end. The gate is post-hoc: N × S #2's 
 SIGNREQ→SIGNREQ interval (0.545067… s, from `evidence/l6_17A6_2026-09-03-03-S/run_log.json`,
 hash-checked) must lie in [6480 s, timeout).
 
-| rule | rate C1 | rate C2 | unrounded product | **N** | sampled audits | predicted wall at S #2's pace | gate |
-|---|---|---|---|---|---|---|---|
-| `planning` (v0.6, what S #2 ran) | 3381.372371 | 3367.753097 | 6061.955574 | 6061 | 382 | 3304 s | **FAIL** |
-| `policy_matched_period` | 6223.142350 | 6200.113435 | 11160.204184 | 11160 | 701 | 6083 s | FAIL |
-| **`policy_matched_wall`** | 6982.535019 | 6950.711806 | 12511.281251 | **12511** | 785 | **6819 s** | **PASS** (margin 339 s; timeout 8702 s) |
-| `policy_matched_span` | 5870.958375 | 5851.647270 | 10532.965085 | 10532 | 662 | 5741 s | FAIL |
+**The arm that sizes N (owner's ruling 2026-09-03).** `min()` is right for a timeout — the
+slow arm must fit — and wrong for a wall-time floor: a soak running near the faster arm
+finishes a min-sized N too early and fails `wall ≥ 0.9 T` by construction. So every
+policy-matched rule sizes N from **max(rate_A, rate_B)** while the timeout keeps
+`min(rate)`; `planning` stays on `min` because it reproduces v0.6 exactly, which is what
+S #2 ran. The gate's input excludes seq 1 (its two forced retry controls are not the loop's
+pace) and is normalised to the candidate's own sampled-audit fraction:
+`interval − (f_planned(S #2) − f_target) × mean_audit_s`, with both fractions the PLANNED
+ones — a prefix of a soak over-samples audits, because seq 1 and seq 2 are both on the
+sampled schedule.
+
+| rule | arm | rate C1 | rate C2 | unrounded product | **N** | sampled audits | predicted wall at S #2's pace | gate |
+|---|---|---|---|---|---|---|---|---|
+| `planning` (v0.6, what S #2 ran) | min | 3381.372371 | 3367.753097 | 6061.955574 | 6061 | 382 | 3274 s | **FAIL** |
+| `policy_matched_period` | max | 6222.945767 | 6199.917170 | 11201.302380 | 11201 | 704 | 6049 s | FAIL |
+| **`policy_matched_wall`** | max | 6982.314889 | 6950.492576 | 12568.166801 | **12568** | 789 | **6787 s** | **PASS** (floor 6480 s, margin 307 s; timeout 8739 s) |
+| `policy_matched_span` | max | 5871.045460 | 5851.734220 | 10567.881829 | 10567 | 664 | 5707 s | FAIL |
+
+Against the owner's own regression targets: N 12568, 789 sampled audits, 233 364 expected
+inbound frames, CRC and bad-frame budget 934 and timeout 8739 s reproduce exactly. The
+normalised interval is 0.536946 s here against the owner's ≈ 0.539812 s, so the predicted
+wall is 6787 s against ≈ 6784 s — a 0.05 % difference in the normalisation's own arithmetic,
+with the verdict and the margin unchanged. The formula used is the one stated above and
+implemented in `validation_gate`; if the owner intends a different normalisation, it is a
+one-line change and the table regenerates.
 
 The owner's two candidate estimators are both here and their difference is identified:
 `policy_matched_period` (≈ the "6197" figure) works from the inter-proposal period, which
 includes the gap between one record and the next SIGNREQ; `policy_matched_wall` (≈ "6952")
 works from the candidate's own SIGNREQ→REC wall time. The difference is exactly that gap,
-0.0627 s per record in C1. **Neither is pre-approved: the owner picks the rule at the
-freeze.** The rounded-label counterexample is locked as a test: `floor(0.9 × 6952 × 2)`
-= 12513 while the unrounded 6952.2375 gives 12514 and this batch's own unrounded
-6950.711806 gives 12511 — N is never derived from a displayed value. S #1's pace is
-computed and reported but does not gate: it ran pull-v2, another protocol.
+0.0627 s per record in C1. **`policy_matched_wall` is the rule the owner ruled for v0.7**;
+the other three are computed and published beside it so the choice stays auditable. The
+rounded-label counterexample is locked as a test: `floor(0.9 × 6952 × 2)` = 12513 while the
+unrounded 6952.2375 gives 12514 — N is the floor of the unrounded product, taken once, and
+never the floor of a displayed value. S #1's pace is computed and reported but does not
+gate: it ran pull-v2, another protocol.
 
 ## 5. Candidate artefacts and hashes
 
 | artefact | sha256 |
 |---|---|
-| `docs/l6_soak_prereg_v0.7_draft.md` (the freeze candidate, 740 lines, self-contained) | `96ca3acb9a25ba909fca9e2bc316053685ac4d2d1e5481fecdf0842c6a84d0b5` |
+| `docs/l6_soak_prereg_v0.7_draft.md` (the freeze candidate, 746 lines, self-contained) | `a4ca8e03d30efccc817884402d987d29a71f094616f3361fd807ddf5374960bb` |
 | `manifests/l6_manifest.json` (UNCHANGED — still the pushed one) | `54583314c16295c24f083efe402ec0cf98a54da5ca8d30afbfd5851c5eedfc68` |
 | the frozen preregistration in force (`docs/l6_soak_prereg.md`, v0.6) | `bfd69d1037c4d2715759befef766d353b99741c8ff6ef6cb0ca30bbd325a620a` |
 | the pinned image (unchanged, no rebuild) | `5deee74c44785ebe88168ccffaa5f399f26a7c5a567fccb3d430cf4eb14cdc7c` |
@@ -135,19 +175,32 @@ already — `rules_for()` turns nothing on until `prereg.version` says v0.7.
 
 ## 6. Suite
 
-`bash host/run_tests.sh` — 1074 tests, 1 skip, rc 0 (`evidence/tests/test_report_2026-09-03T181348Z.json`). New: `tests/test_l6_s2_host_batch.py`
-(11), `tests/test_l6_v07_rules.py` (22), `tests/test_l6_session_soak.py` (13),
-`tests/test_l6_v07_import.py` (7). The rule-version guard in `tests/test_l6_transport.py`
-and the import manifest are updated; every pre-existing test is unchanged and green,
-which is the point: under v0.6 nothing of this batch runs.
+`bash host/run_tests.sh` — 1090 tests, 1 skip, rc 0 (`evidence/tests/test_report_2026-09-03T184325Z.json`). New: `tests/test_l6_s2_host_batch.py`
+(17), `tests/test_l6_v07_rules.py` (29), `tests/test_l6_session_soak.py` (14),
+`tests/test_l6_v07_import.py` (9). The rule-version guard in `tests/test_l6_transport.py`,
+the withdrawn-hash allowance for the draft and the import manifest are updated; every
+pre-existing test is unchanged and green, which is the point: under v0.6 nothing of this
+batch runs.
 
 ## 7. Asked of the owner
 
 1. Review this batch (host-only, no board, nothing pinned).
-2. Rule **D-b1** (the malformed-line policy and its bound), **D-h1** (the heartbeat rule —
-   the per-record cap kept or replaced by the record budget), **D-n1** (the N rule by name,
-   with the wall floor kept at 0.9 T), **D-i1** (the explicit import of C1 #6 / C2 #2, or
-   re-calibration under v0.7).
+2. Confirm the corrections of §8 close the HOLD.
 3. On PASS: the push, then the v0.7 freeze (its sha into the manifest, v0.6 superseded in
-   history, `sessions.S.n_rule` and the imports written), and only then the ruling on the
-   next board session.
+   history, `sessions.S.n_rule = policy_matched_wall` and the two import declarations
+   written), and only then the ruling on the next board session.
+
+## 8. The owner's HOLD of 2026-09-03, and what each blocker became
+
+The owner's review of `d905c15` accepted the direction and the four decisions in principle
+(**D-h1 PASS**; **D-b1** policy accepted, implementation HOLD; **D-n1** `policy_matched_wall`
+chosen but with the sizing arm corrected; **D-i1** the import accepted, enforcement HOLD)
+and named five blockers. Each is closed here, with the test that would have caught it:
+
+| # | the blocker, as the owner reproduced it | the correction |
+|---|---|---|
+| **B1** | the bad-frame bound sat AFTER the transaction routing, so a REC/IDENT/SIGNREQ/TERM-shaped or in-pull malformed line returned before it — with `bad_frame_budget=0` the epoch stayed open and a `RECGET` still went out | the bound is checked FIRST and is global: past it the epoch ends `PROTOCOL_BAD_FRAME_BUDGET`, no transaction advances, nothing is sent, and a pull in flight is failed with the global reason and aborted exactly once (its attempt still ledgered). The constructor now also refuses a bool or negative budget. `BadFrameBudgetIsGlobal` (6) covers the six shapes |
+| **B2** | dropping `from_prereg_version` still imported; a v0.8 target still imported; the plan's evidence replaced the three input hashes with `"(the report's)"` | the import is honoured only under v0.7; `from_prereg_version` is mandatory and is verified as a PAIR with the hash against the manifest's own `prereg.supersedes` chain; the evidence keeps the declaration verbatim. Four new negatives in `ExplicitImport` |
+| **B3** | N was still `min(rate_C1, rate_C2)`, which cannot guarantee a wall-time floor | `ARM_FOR_RULE`: every policy-matched rule sizes N from the faster arm, `planning` keeps `min` as the v0.6 control, and the timeout always uses the slower arm. The gate now excludes seq 1's forced controls and normalises the pace to the target audit fraction. The regression targets reproduce (N 12568 / 789 / 233 364 / 934 / 8739 s) |
+| **B4** | the draft still said the calibrations were null and the image had not run, D-p1 contradicted D-h1, the three-rate rule omitted v0.7, §9 re-ran C1 → C2 → S under v0.6, and §6 item 14 printed before 13 | the draft is regenerated from the frozen text with each of those corrected, and `V07DraftDrift` (5) refuses the stale phrasings, requires the present ones, and checks the item order |
+| **B5** | the continuation test re-delivered the merged line the replay had already consumed; the package called the Python `RecBoard` a C twin; the session soak claimed gates it did not run; the tracked red report had no explanation | the continuation starts from `RecBoard.start()` and delivers only the resend (the two tests that do repeat a malformed line say why); the package names `RecBoard` as the Python twin cross-verified against the C unit; the soak's gate set is named and asserted; `docs/decisions.md` records what the red report was |

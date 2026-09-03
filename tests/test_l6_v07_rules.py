@@ -13,7 +13,9 @@
     (report bytes + the run logs their `inputs` hash) and locked to the values in
     `evidence/l6_soak_plan/n_vs_t_2026-09-03.json`; the post-hoc gate: only
     `policy_matched_wall` passes at S #2's pace; S #1's pace is informational (another
-    protocol); the rounded-label counterexample (6952 → 12513, unrounded → 12511).
+    protocol); the rounded-label counterexample; and D-n1 as RULED 2026-09-03 — the faster
+    arm sizes N, the slower one the timeout, and the post-hoc pace excludes seq 1's forced
+    controls and is normalised to the candidate's own sampled-audit fraction.
 """
 from __future__ import annotations
 
@@ -200,6 +202,8 @@ class RuleSelection(unittest.TestCase):
             p = l6.plan_session(manifest_v07(rule), "S", None, 7200.0, reports, None, calibration_logs=logs)
             want = TABLE["rules"][rule]
             self.assertEqual(p["n"], want["n"], rule)
+            if rule != "planning":
+                self.assertEqual(p["inputs"]["n_rule_trace"]["sizing_arm"], "max", rule)
             self.assertEqual(p["inputs"]["n_rule"], rule)
             self.assertEqual(len(p["audit_seqs"]), want["sampled_audits"])
             self.assertEqual(p["session_timeout_s"], ls.session_timeout_s(want["n"], want["rate_C1"], want["rate_C2"]))
@@ -235,11 +239,26 @@ class SoakPlanLocked(unittest.TestCase):
             self.assertEqual(got["n"], math.floor(got["unrounded"]))
             self.assertLess(abs(got["audit_fraction"] - lsp.audit_fraction(got["n"])), 1e-12, "the fixed point closed")
 
+    def test_the_faster_arm_sizes_n_and_the_slower_one_the_timeout(self):
+        """D-n1 as ruled 2026-09-03: min() is right for a timeout and wrong for a wall-time
+        floor — a soak running near the faster arm finishes a min-sized N too early."""
+        self.assertEqual(lsp.ARM_FOR_RULE["planning"], "min", "the v0.6 control reproduces what S #2 ran")
+        for rule in ("policy_matched_period", "policy_matched_wall", "policy_matched_span"):
+            plan = TABLE["rules"][rule]
+            self.assertEqual(plan["sizing_arm"], "max", rule)
+            self.assertEqual(plan["sizing_rate"], max(plan["rate_C1"], plan["rate_C2"]), rule)
+            self.assertAlmostEqual(plan["unrounded"], 0.9 * plan["sizing_rate"] * 7200 / 3600, places=9)
+            g = plan["gates"]["l6_17A6_2026-09-03-03-S"]
+            self.assertEqual(g["timeout_s"], ls.session_timeout_s(plan["n"], plan["rate_C1"], plan["rate_C2"]), rule)
+        wall = TABLE["rules"]["policy_matched_wall"]
+        self.assertEqual((wall["n"], wall["sampled_audits"]), (12568, 789), "the owner's regression target")
+        self.assertEqual(wall["gates"]["l6_17A6_2026-09-03-03-S"]["timeout_s"], 8739)
+
     def test_the_two_estimators_the_owner_named_are_both_here_and_differ_by_the_stated_amount(self):
         t = TABLE["rules"]
-        self.assertAlmostEqual(t["policy_matched_period"]["rate_C2"], 6200.113435, places=5)   # ≈ "6197" (the period estimator)
-        self.assertAlmostEqual(t["policy_matched_wall"]["rate_C2"], 6950.711806, places=5)     # ≈ "6952" (the wall estimator)
-        self.assertEqual((t["policy_matched_period"]["n"], t["policy_matched_wall"]["n"], t["planning"]["n"]), (11160, 12511, 6061))
+        self.assertAlmostEqual(t["policy_matched_period"]["rate_C2"], 6199.917170, places=5)   # ≈ "6197" (the period estimator)
+        self.assertAlmostEqual(t["policy_matched_wall"]["rate_C2"], 6950.492576, places=5)     # ≈ "6952" (the wall estimator)
+        self.assertEqual((t["policy_matched_period"]["n"], t["policy_matched_wall"]["n"], t["planning"]["n"]), (11201, 12568, 6061))
         # the difference is the inter-record gap: period − wall (≈ 0.06 s per record in the calibrations)
         c1 = t["policy_matched_wall"]["per_calibration"]["C1"]
         self.assertAlmostEqual(c1["mean_period_s"] - c1["mean_wall_s"], 0.0627, places=3)
@@ -247,7 +266,28 @@ class SoakPlanLocked(unittest.TestCase):
     def test_the_rounded_label_counterexample(self):
         self.assertEqual(math.floor(0.9 * 6952 * 2), 12513)
         self.assertEqual(math.floor(0.9 * 6952.2375 * 2), 12514)
-        self.assertEqual(TABLE["rules"]["policy_matched_wall"]["n"], 12511, "this batch's unrounded 6950.711806… gives 12511")
+        wall = TABLE["rules"]["policy_matched_wall"]
+        self.assertEqual(wall["n"], math.floor(wall["unrounded"]), "N is the floor of the unrounded product, once")
+        self.assertNotEqual(wall["n"], math.floor(0.9 * round(wall["sizing_rate"]) * 2),
+                            "…and never the floor of a displayed, rounded rate")
+
+    def test_the_post_hoc_pace_excludes_the_seq_1_controls_and_is_normalised(self):
+        """The gate's input is the loop's pace, not seq 1's: §2.6c and §2.6k corrupt the
+        first transmission of seq 1's REC and SIGNREQ on purpose. And it is normalised to
+        the candidate's own sampled-audit fraction before it is compared."""
+        obs = lsp.observed_interval_s(S2_LOG)
+        self.assertEqual(obs["excluded_seqs"], [1]); self.assertEqual(obs["records_used"], 143)
+        self.assertEqual(obs["planned_n"], 6061)
+        self.assertAlmostEqual(obs["planned_audit_fraction"], 382 / 6063, places=12)
+        raw_all = lsp.observed_interval_s(S2_LOG, exclude_seqs=())["interval_s"]
+        self.assertNotAlmostEqual(obs["interval_s"], raw_all, places=6, msg="seq 1 really did cost time")
+        g = TABLE["rules"]["policy_matched_wall"]["gates"]["l6_17A6_2026-09-03-03-S"]
+        self.assertAlmostEqual(g["observed_interval_s"], obs["interval_s"], places=12)
+        self.assertAlmostEqual(g["normalised_interval_s"],
+                               obs["interval_s"] - (obs["planned_audit_fraction"] - g["target_audit_fraction"]) * obs["mean_audit_s"],
+                               places=12)
+        self.assertAlmostEqual(g["predicted_wall_s"], 12568 * g["normalised_interval_s"], places=9)
+        self.assertGreater(g["margin_over_floor_s"], 250)     # the owner's estimate was ≈ 304 s
 
     def test_the_post_hoc_gate_only_the_wall_rule_passes_at_s2s_pace_and_s1_is_informational(self):
         self.assertEqual(TABLE["protocol"], "rel-v4")
@@ -257,15 +297,15 @@ class SoakPlanLocked(unittest.TestCase):
             self.assertEqual(TABLE["rules"][rule]["gating_soaks"], ["l6_17A6_2026-09-03-03-S"])
             self.assertFalse(g["l6_17A6_2026-09-01-11-S"]["gates"], "S #1 ran another protocol: informational only")
         w = TABLE["rules"]["policy_matched_wall"]["gates"]["l6_17A6_2026-09-03-03-S"]
-        self.assertTrue(w["wall_ok"] and w["timeout_ok"]); self.assertGreater(w["margin_over_floor_s"], 300)
-        self.assertEqual(w["wall_floor_s"], 6480.0); self.assertEqual(w["timeout_s"], 8702)
+        self.assertTrue(w["wall_ok"] and w["timeout_ok"])
+        self.assertEqual(w["wall_floor_s"], 6480.0); self.assertEqual(w["timeout_s"], 8739)
         # the observed pace is recomputed from the evidence, not typed
         obs = lsp.observed_interval_s(S2_LOG)
         self.assertAlmostEqual(obs["interval_s"], w["observed_interval_s"], places=12)
-        # 144 timed records (seq 145 has no record); the interval is SIGNREQ→SIGNREQ over the 143
-        # intervals between them — the findings' 0.5519 s is t_signreq(1)→t_rec(144) / 143
-        self.assertEqual((obs["records"], obs["intervals"], obs["protocol"]), (144, 143, "rel-v4"))
-        self.assertAlmostEqual(obs["interval_s"], 0.5451, places=3)
+        # 144 timed records (seq 145 has no record); seq 1 is excluded (its forced controls),
+        # so 143 records and 142 SIGNREQ→SIGNREQ intervals
+        self.assertEqual((obs["records"], obs["records_used"], obs["protocol"]), (144, 143, "rel-v4"))
+        self.assertAlmostEqual(obs["interval_s"], 0.5402, places=3)
         self.assertEqual(_sha(S2 / "run_log.json"), TABLE["observed"]["l6_17A6_2026-09-03-03-S"]["run_log_sha256"])
 
     def test_the_observed_pace_never_enters_the_formula(self):
@@ -276,3 +316,53 @@ class SoakPlanLocked(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class V07DraftDrift(unittest.TestCase):
+    """The v0.7 freeze candidate must speak in its own present tense (owner's review
+    2026-09-03, blocker 4: the first draft inherited v0.6's "calibration.C1/C2 are null",
+    "it has not run on hardware", D-p1's per-record heartbeat cap that D-h1 replaces, a
+    three-rate rule that did not list v0.7, an order of work that re-ran C1 → C2 → S under
+    v0.6, and §6 item 14 printed before item 13)."""
+
+    DRAFT = (R / "docs/l6_soak_prereg_v0.7_draft.md").read_text()
+
+    STALE = ("`calibration.C1`/`C2` are null", "No PASS calibration", "it has not run on hardware",
+             "It has not run on hardware.", "`calibration.C1` stays null",
+             "never two missing in one record.", "`prereg.version` is v0.5 or v0.6**",
+             "ONE C1 → C2 → S under v0.6", "v0.6, FROZEN 2026-09-03")
+
+    PRESENT = ("preregistration v0.7, DRAFT", "Both v0.6 calibrations are pinned and ACTIVE",
+               "`08222f85…`", "`959790d0…`", "6q.", "6r.", "D-b1", "D-h1", "D-n1", "D-i1",
+               "PROTOCOL_BAD_FRAME_BUDGET", "⌊R/1000⌋ SCORED records", "only when the epoch COMPLETED",
+               "the same way twice", "v0.5, v0.6 or v0.7", "ONE soak under v0.7",
+               "C1 #6 (PASS), C2 #2 (PASS) and S #2 (HOLD")
+
+    def test_the_draft_carries_none_of_v06s_stale_present_tense(self):
+        for stale in self.STALE:
+            self.assertNotIn(stale, self.DRAFT, f"the v0.7 draft still says {stale!r}")
+
+    def test_the_draft_says_what_is_true_now(self):
+        for present in self.PRESENT:
+            self.assertIn(present, self.DRAFT, present)
+
+    def test_the_pass_conditions_are_in_order(self):
+        for a, b in zip(range(1, 14), range(2, 15)):
+            if f"\n{a}. " in self.DRAFT and f"\n{b}. " in self.DRAFT:
+                self.assertLess(self.DRAFT.index(f"\n{a}. **") if f"\n{a}. **" in self.DRAFT else self.DRAFT.index(f"\n{a}. "),
+                                self.DRAFT.index(f"\n{b}. **") if f"\n{b}. **" in self.DRAFT else self.DRAFT.index(f"\n{b}. "),
+                                f"§6 item {b} is printed before item {a}")
+        self.assertLess(self.DRAFT.index("13. the recovery indicators of 3b"),
+                        self.DRAFT.index("14. **bad frames bounded"), "item 14 follows item 13")
+
+    def test_the_draft_is_not_marked_frozen_and_the_manifest_still_pins_v06(self):
+        self.assertIn("DRAFT, NOT FROZEN", self.DRAFT)
+        self.assertIn("That is not yet the case for v0.7", self.DRAFT)
+        self.assertEqual(L6M["prereg"]["version"], "v0.6", "the manifest is the owner's to change at the freeze")
+        self.assertEqual(hashlib.sha256((R / "docs/l6_soak_prereg.md").read_bytes()).hexdigest(),
+                         L6M["prereg"]["sha256"], "…and the frozen text on disk is still the one it pins")
+
+    def test_the_draft_states_the_ruled_n_rule_and_arm(self):
+        self.assertIn("policy_matched_wall", self.DRAFT)
+        self.assertIn("faster arm", self.DRAFT.replace("FASTER arm", "faster arm"))
+        self.assertIn("0.9 T", self.DRAFT)

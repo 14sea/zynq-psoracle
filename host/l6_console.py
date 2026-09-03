@@ -69,9 +69,12 @@ class ConsoleSession:
         self.audit_seqs, self.crc_budget, self.send = audit_seqs, crc_budget, send
         if bad_frame_policy not in BAD_FRAME_POLICIES:
             raise ValueError(f"bad_frame_policy {bad_frame_policy!r} is not one of {BAD_FRAME_POLICIES}")
-        if bad_frame_policy == BAD_FRAME_LEDGER and not isinstance(bad_frame_budget, int):
-            raise ValueError("bad_frame_policy 'ledger' needs an integer bad_frame_budget (the terminal bound); "
-                             "unbounded tolerance of malformed lines is refused")
+        if bad_frame_policy == BAD_FRAME_LEDGER:
+            if isinstance(bad_frame_budget, bool) or not isinstance(bad_frame_budget, int):
+                raise ValueError("bad_frame_policy 'ledger' needs an integer bad_frame_budget (the terminal bound); "
+                                 "unbounded tolerance of malformed lines is refused")
+            if bad_frame_budget < 0:
+                raise ValueError(f"bad_frame_budget {bad_frame_budget} is negative: the terminal bound must be >= 0")
         self.bad_frame_policy, self.bad_frame_budget = bad_frame_policy, bad_frame_budget
         # the protocol switch (owner 2026-09-02): rec-v3 is exactly what ran C1 #5; rel-v4
         # (host/l6_rel.py) adds the IDENT handshake, the SIGNREQ transaction with the
@@ -348,9 +351,46 @@ class ConsoleSession:
             self._on_broken_line(line, "crc", t_mono)     # rec-v3: a broken REC is asked for again
             return
         except n.FrameError:
+            # v0.7 candidate (S #2, 2026-09-03-03: an HB-shaped line glued to the tail of
+            # REC 145 ended the epoch here, 0.2 s before the port closed, and the board's own
+            # REC resend was never seen). The line is already in the ledger, ONCE
+            # (`timeline.bad_frames`, counted by `Timeline.observe` for every shape). Under
+            # the ledger policy it is not acknowledged, not signed, advances no seq and does
+            # not refresh the collector's liveness; the transactions' own bounds recover.
+            #
+            # The budget is GLOBAL and immediate, exactly as the D-s4 CRC budget above is
+            # (owner's review 2026-09-03, blocker 1: it used to sit AFTER the transaction
+            # routing, so a REC/IDENT/SIGNREQ/TERM-shaped or in-pull malformed line escaped
+            # it and a budget of 0 still drew a RECGET). Past the budget the global reason
+            # wins: no transaction is advanced, no re-request is sent, and the failing line
+            # stays in the ledgers that already hold it.
+            over = (self.bad_frame_policy == BAD_FRAME_LEDGER
+                    and self.timeline.bad_frames > self.bad_frame_budget)
+            reason = f"PROTOCOL_BAD_FRAME_BUDGET: {self.timeline.bad_frames} > {self.bad_frame_budget}"
             if pulling:
+                # the failing line is an ATTEMPT of the pull first — recorded and kept
+                # verbatim in the pull's own ledger — before any budget consequence. Past
+                # the bound the pull may still LEDGER it but must not ask again: the epoch
+                # is over, and a retry after it would be exactly the misleading recovery
+                # the owner refused, so the puller's sender is silenced for this line.
+                if over:
+                    outbound, self.puller.send = self.puller.send, lambda *_a, **_k: None
+                    try:
+                        self.puller.on_line(line)
+                    finally:
+                        self.puller.send = outbound
+                    if self.puller.failed:
+                        self.puller.fail_reason = reason
+                    else:
+                        self.puller._fail(reason)
+                    self._pull_settle()
+                    self._protocol_end(reason)
+                    return
                 self.puller.on_line(line)           # during a pull a malformed line is a retry, not CRASHED
                 self._pull_settle()
+                return
+            if over:
+                self._protocol_end(reason)          # the epoch is over: nothing after it is evidence
                 return
             if rx.head_fields(line)[0] == n.T_REC and (
                     self.pending_rec_seq is not None or rx.head_fields(line)[1] == self.collector.last_rec_seq):
@@ -360,15 +400,7 @@ class ConsoleSession:
                              or self.termhost.on_broken_line(line, "malformed")):
                 return                              # rel-v4: a torn/merged IDENT/SIGNREQ/TERM is not the collector's CRASHED
             if self.bad_frame_policy == BAD_FRAME_LEDGER:
-                # v0.7 candidate (S #2, 2026-09-03-03: an HB-shaped line glued to the tail of
-                # REC 145 ended the epoch here, 0.2 s before the port closed, and the board's
-                # own REC resend was never seen). The line is already in the ledger, once
-                # (`timeline.bad_frames`); it is not acknowledged, not signed, advances no
-                # seq and does not refresh the collector's liveness. The transactions' bounds
-                # recover — and the budget is the terminal bound, as the CRC budget is.
-                if self.timeline.bad_frames > self.bad_frame_budget:
-                    self._protocol_end(f"PROTOCOL_BAD_FRAME_BUDGET: {self.timeline.bad_frames} > {self.bad_frame_budget}")
-                return
+                return                              # ledgered, within the budget, and no transaction's
             self.collector.on_line(line)            # v0.6 and earlier: a malformed frame is CRASHED
             return
         if f["token"] != self.token:
