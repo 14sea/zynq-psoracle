@@ -127,9 +127,13 @@ def recovery_by_seq(tim: dict[int, dict], seqs: list[int], audits: dict | None, 
     sign_list = (audits or {}).get("signs") or []
     signs: dict[int, dict] = {}
     for x in sign_list:
-        if int(x["seq"]) in signs:
-            raise RateError(f"more than one sign ledger for seq {x['seq']}: refused, never last-wins")
-        signs[int(x["seq"])] = x
+        try:
+            q = int(x["seq"])
+        except (KeyError, TypeError, ValueError):
+            raise RateError("a sign ledger without an integer seq") from None
+        if q in signs:
+            raise RateError(f"more than one sign ledger for seq {q}: refused, never last-wins")
+        signs[q] = x
     hb_seen: dict[int, set] = {}
     for f in frames or []:
         if f.get("dir") == "rx" and f.get("type") == "HB" and isinstance(f.get("hb_i"), int) and f.get("seq") is not None:
@@ -206,7 +210,7 @@ def recovery_by_seq(tim: dict[int, dict], seqs: list[int], audits: dict | None, 
 SHA_HEX = 64
 
 
-def _check_ledgers(records: dict, audits, frames) -> bool:
+def _check_ledgers(records: dict, audits, frames, protocol: str | None = None) -> bool:
     """BOTH ledgers or neither (v0.5 blocker 1): one half alone would count the other
     half's faults as zero. Returns False for neither (the v0.4 path: no nominal), True for
     both valid; anything else is refused."""
@@ -221,12 +225,18 @@ def _check_ledgers(records: dict, audits, frames) -> bool:
             isinstance(f, dict) and "dir" in f and "type" in f and "t_mono" in f for f in frames):
         raise RateError("timeline frames invalid: expected a non-empty list of {dir, type, t_mono, ...} (timeline.json)")
     seqs = set(records)
+
+    def _seq(entry: dict, what: str) -> int:
+        try:
+            return int(entry["seq"])
+        except (KeyError, TypeError, ValueError):
+            raise RateError(f"audits ledger invalid: a {what} ledger without an integer seq") from None
     # exactly ONE REC ledger per record and at most ONE pull ledger per seq, no extra seqs
     # (review 2026-09-02, D-t2: a set comparison let a duplicate ledger through and the
     # dict built later would have kept the last one)
-    rec_list = [int(r["seq"]) for r in audits["recs"] if isinstance(r, dict) and "seq" in r]
-    if len(rec_list) != len(audits["recs"]):
-        raise RateError("audits ledger invalid: a REC ledger without a seq")
+    if not all(isinstance(r, dict) for r in audits["recs"]):
+        raise RateError("audits ledger invalid: a REC ledger that is not an object")
+    rec_list = [_seq(r, "REC") for r in audits["recs"]]
     dup_rec = sorted({s for s in rec_list if rec_list.count(s) > 1})
     if dup_rec:
         raise RateError(f"audits ledger has more than one REC ledger for seq {dup_rec[:8]}: refused, never last-wins")
@@ -234,22 +244,33 @@ def _check_ledgers(records: dict, audits, frames) -> bool:
     if rec_seqs != seqs:
         raise RateError(f"audits ledger does not cover the records: REC ledgers for {sorted(rec_seqs)[:8]}…, "
                         f"records {sorted(seqs)[:8]}… (rec-v3 closure: one ledger per record)")
-    pull_list = [int(p["seq"]) for p in audits["pulls"] if isinstance(p, dict) and "seq" in p]
-    if len(pull_list) != len(audits["pulls"]):
-        raise RateError("audits ledger invalid: a pull ledger without a seq")
+    if not all(isinstance(p, dict) for p in audits["pulls"]):
+        raise RateError("audits ledger invalid: a pull ledger that is not an object")
+    pull_list = [_seq(p, "pull") for p in audits["pulls"]]
     dup_pull = sorted({s for s in pull_list if pull_list.count(s) > 1})
     if dup_pull:
         raise RateError(f"audits ledger has more than one pull ledger for seq {dup_pull[:8]}: refused")
     extra = sorted(set(pull_list) - seqs)
     if extra:
         raise RateError(f"audits ledger has pull ledgers for seqs that are not records: {extra[:8]}")
-    if audits.get("signs") is not None:
-        # rel-v4: exactly one sign ledger per record and none besides (item 1)
+    if protocol == "rel-v4":
+        # rel-v4 (review 2026-09-02, the last blocker): the sign ledgers are NOT optional —
+        # a missing or null `signs` would make every sign recovery count as zero
+        if "signs" not in audits or "ident" not in audits or "term" not in audits:
+            raise RateError("rel-v4 audits ledger must carry signs, ident and term (a missing key is not zero faults)")
         if not isinstance(audits["signs"], list):
-            raise RateError("audits ledger invalid: signs is not a list")
-        sign_list = [int(s["seq"]) for s in audits["signs"] if isinstance(s, dict) and "seq" in s]
-        if len(sign_list) != len(audits["signs"]):
-            raise RateError("audits ledger invalid: a sign ledger without a seq")
+            raise RateError("rel-v4 audits ledger invalid: signs is not a list (null is refused)")
+        if not isinstance(audits["ident"], dict):
+            raise RateError("rel-v4 audits ledger invalid: ident is not an object")
+        if audits["term"] is not None and not isinstance(audits["term"], dict):
+            raise RateError("rel-v4 audits ledger invalid: term is neither an object nor null")
+    elif audits.get("signs") is not None and not isinstance(audits["signs"], list):
+        raise RateError("audits ledger invalid: signs is not a list")
+    if audits.get("signs") is not None:
+        # exactly one sign ledger per record and none besides (item 1)
+        if not all(isinstance(s, dict) for s in audits["signs"]):
+            raise RateError("audits ledger invalid: a sign ledger that is not an object")
+        sign_list = [_seq(s, "sign") for s in audits["signs"]]
         dup_sign = sorted({s for s in sign_list if sign_list.count(s) > 1})
         if dup_sign:
             raise RateError(f"audits ledger has more than one sign ledger for seq {dup_sign[:8]}: refused, never last-wins")
@@ -305,7 +326,7 @@ def rate_report(run_log: dict, session: str | None = None, run_log_sha256: str |
     steady = {s: per[s] for s in candidates if (s + 1) in interior and per.get(s) is not None}
     transitions = {"opening_to_first_s": per.get(first) if candidates and candidates[0] == first + 1 else None,
                    "last_to_closing_s": per.get(candidates[-1]) if candidates and kind == "COMPLETED" else None}
-    ledgers_supplied = _check_ledgers(records, audits, frames)
+    ledgers_supplied = _check_ledgers(records, audits, frames, (run_log.get("app_identity") or {}).get("protocol"))
     inputs = None
     if ledgers_supplied:
         inputs = _check_inputs(inputs_sha256)

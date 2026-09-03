@@ -154,3 +154,19 @@ WAIT ≤ 3, replay/re-ack ≤ 3 — and the third WAIT is not a final failure. D
 2. Push of `866bc5b`, `e2c0caf` and this commit, if it passes.
 3. The start of the firmware batch — with the bound contract (§10 item 4) and the IDENT
    1.3.0 echo (§10 item 3) as two of its deliverables.
+
+## 12. Owner's third review (2026-09-02): HOLD on one narrow blocker — closed
+
+| item (owner) | closed by | proof |
+|---|---|---|
+| `_check_ledgers` checked the sign ledgers only when `audits.signs` was present: with the key missing or null a rel-v4 calibration was accepted with `sign_retries` 0 (reproduced on C1 #5's evidence with the identity set to rel-v4) | `_check_ledgers(records, audits, frames, protocol)` takes the run log's `app_identity.protocol`; under rel-v4 `signs`, `ident` and `term` keys must exist, `signs` must be a list (null refused), `ident` an object, `term` an object or null; the exactly-one-per-seq / seq-sets-equal checks stay; rec-v3 still needs no `signs`; any non-integer seq in recs / pulls / signs is a `RateError` ("without an integer seq"), never a bare `ValueError` | `tests/test_l6_rel_correction2.py::RelReportNeedsTheSignLedgers` (3), through the real `rate_report_from_evidence_dir()` on a copy of C1 #5's evidence: key deleted, null, one missing, one duplicated, a non-integer seq, `ident` missing — each refused by name; rec-v3 without the key passes exactly as C1 #5 does; the committed C1 #5 evidence still yields the same report |
+
+Package §10's claim "the rate refuses missing sign ledgers" now holds for the missing KEY
+as well as for a missing seq.
+
+## 13. Asked of the owner (third correction)
+
+1. Shortest review of §12.
+2. Push of `866bc5b`, `e2c0caf`, `e61e994` and this commit.
+3. The start of the firmware batch with the IDENT 1.3.0 echo and the board-bound contract
+   proof as mandatory deliverables.

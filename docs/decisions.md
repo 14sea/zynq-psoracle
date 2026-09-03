@@ -1501,3 +1501,22 @@ stating it as an unverified contract until the firmware batch; refused-repeat co
 bytes; the heartbeat docstring corrected. `tests/test_l6_rel_correction2.py` (11), the
 v0.6 draft (§2.6d/6o/6p, §6.10, §4.22), design revision 4 (● marks). No firmware, no
 image, no board, no ruling, no freeze.
+
+## 2026-09-02 — owner's third review of the rel-v4 batch: HOLD on one narrow blocker (the rate accepted a rel-v4 report without sign ledgers) — closed host-only
+
+The six second-batch corrections confirmed. The remaining gap: `l6_rate._check_ledgers`
+checked sign ledgers only when `audits.signs` was present, so a rel-v4 calibration with
+the key missing or null was accepted with `sign_retries` 0 (reproduced on C1 #5's
+evidence with the identity set to rel-v4) — a tampered input set could re-hash itself
+consistent and drop the SIGN recovery. Rulings: package §10 HOLD on that gap only; no
+push; no firmware; a minimal host/test/docs correction, then the shortest review, then
+push and the firmware batch with the IDENT 1.3.0 echo and the board-bound contract proof
+as mandatory deliverables.
+
+Delivered: `_check_ledgers` takes the session protocol from the run log; under rel-v4
+`signs`/`ident`/`term` must exist (signs a list, null refused; ident an object; term an
+object or null) with the one-per-seq and seq-set checks unchanged; rec-v3 needs no
+`signs`; non-integer seqs anywhere are `RateError`s. Tests through the real
+`rate_report_from_evidence_dir()` on a copy of C1 #5's evidence: key deleted, null, one
+missing, one duplicated, a non-integer seq, `ident` missing — refused; rec-v3 without the
+key passes (`docs/l6_rel_batch_package.md` §12).

@@ -97,10 +97,80 @@ class SignLedgersNeverLastWins(unittest.TestCase):
                          ([copy.deepcopy(signs[3])] + signs, "more than one sign ledger for seq [4]"),
                          (signs[1:], "do not match the records"),
                          (signs + [dict(signs[0], seq=99)], "do not match the records"),
-                         (signs[:-1] + [{"attempts": []}], "a sign ledger without a seq")):
+                         (signs[:-1] + [{"attempts": []}], "a sign ledger without an integer seq")):
             with self.assertRaises(lr.RateError) as cm:
                 lr.rate_report(log, "C1", None, audits=dict(audits, signs=bad), frames=frames, inputs_sha256=inputs)
             self.assertIn(msg, str(cm.exception), msg)
+
+
+class RelReportNeedsTheSignLedgers(unittest.TestCase):
+    """The last blocker (owner's third review): with `signs` missing or null a rel-v4
+    calibration was accepted with sign_retries 0. Through the REAL entry point on a copy of
+    C1 #5's evidence with the identity set to rel-v4."""
+
+    def _dir(self, td, protocol="rel-v4", signs="keep", ident=True, term=True):
+        import shutil
+        d = Path(td) / "ev"; shutil.copytree(R / "evidence/l6_17A6_2026-09-02-01-C1", d, ignore=shutil.ignore_patterns("rate_report.json"))
+        log = json.loads((d / "run_log.json").read_text()); log["app_identity"]["protocol"] = protocol
+        (d / "run_log.json").write_text(json.dumps(log))
+        a = json.loads((d / "audits.json").read_text())
+        good = [{"seq": s, "attempts": [{"outcome": "ok"}], "gets_sent": 0, "replays": 0, "accepted": True} for s in range(1, 67)]
+        if signs == "keep":
+            a["signs"] = good
+        elif signs == "null":
+            a["signs"] = None
+        elif signs == "missing_one":
+            a["signs"] = good[1:]
+        elif signs == "duplicate":
+            a["signs"] = good + [copy.deepcopy(good[4])]
+        elif signs == "bad_seq":
+            a["signs"] = good[:-1] + [dict(good[-1], seq="sixty-six")]
+        elif signs == "absent":
+            a.pop("signs", None)
+        if ident:
+            a["ident"] = {"seq": 0, "attempts": [{"outcome": "ok"}], "acks_sent": 1, "accepted": True}
+        if term:
+            a["term"] = {"seq": 67, "attempts": [{"outcome": "ok"}], "acks_sent": 1, "accepted": True}
+        (d / "audits.json").write_text(json.dumps(a))
+        return d
+
+    def test_1_rel_v4_without_sign_ledgers_is_refused_through_the_real_entry_point(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            rep = lr.rate_report_from_evidence_dir(self._dir(td), "C1")
+            self.assertEqual(rep["recovery"]["sign_retries"], 0); self.assertIsNotNone(rep["nominal"])
+        for signs, msg in (("absent", "must carry signs, ident and term"), ("null", "signs is not a list (null is refused)"),
+                           ("missing_one", "do not match the records"), ("duplicate", "more than one sign ledger for seq [5]"),
+                           ("bad_seq", "sign ledger without an integer seq")):
+            with tempfile.TemporaryDirectory() as td:
+                with self.assertRaises(lr.RateError) as cm:
+                    lr.rate_report_from_evidence_dir(self._dir(td, signs=signs), "C1")
+                self.assertIn(msg, str(cm.exception), signs)
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaises(lr.RateError) as cm:
+                lr.rate_report_from_evidence_dir(self._dir(td, ident=False), "C1")
+            self.assertIn("must carry signs, ident and term", str(cm.exception))
+
+    def test_1_rec_v3_without_the_sign_key_still_passes_as_c1_5_did(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            rep = lr.rate_report_from_evidence_dir(self._dir(td, protocol="rec-v3", signs="absent", ident=False, term=False), "C1")
+            self.assertEqual(rep["nominal"]["excluded_seqs"], [39]); self.assertEqual(rep["recovery"]["sign_retries"], 0)
+        rep = lr.rate_report_from_evidence_dir(R / "evidence/l6_17A6_2026-09-02-01-C1", "C1")
+        self.assertEqual(rep["inclusive"]["n"], 63)
+
+    def test_1_a_non_integer_seq_anywhere_is_a_rate_error_not_a_bare_value_error(self):
+        c15 = R / "evidence/l6_17A6_2026-09-02-01-C1"
+        log = json.loads((c15 / "run_log.json").read_text()); audits = json.loads((c15 / "audits.json").read_text())
+        frames = json.loads((c15 / "timeline.json").read_text())["frames"]
+        inputs = {k: "0" * 64 for k in ("run_log", "audits", "timeline")}
+        for key in ("recs", "pulls"):
+            a = copy.deepcopy(audits); a[key][0]["seq"] = "one"
+            with self.assertRaises(lr.RateError) as cm:
+                lr.rate_report(log, "C1", None, audits=a, frames=frames, inputs_sha256=inputs)
+            self.assertIn("without an integer seq", str(cm.exception))
+        with self.assertRaises(lr.RateError):
+            lr.recovery_by_seq({1: {"t_signreq": 0.0}}, [1], {"pulls": [], "recs": [], "signs": [{"seq": "x"}]}, [])
 
 
 class ClosingControlIsMandatory(unittest.TestCase):
