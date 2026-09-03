@@ -1765,3 +1765,35 @@ with `calibration.C1` pinned, none of `status`, the standing, the calibration no
 C1 #6 history note may say "candidate for calibration.C1", "pinned only by the owner",
 "awaiting the owner" or "C1/C2 are null", and each must say PINNED. The manifest hash
 changes with this commit; the C2 ruling pair binds it.
+
+## 2026-09-03 — owner opens exactly ONE rel-v4 C2 (ruling pair 2026-09-03-02 bound to manifest `154a7525…`); C2 #2 = PASS (runner outcome); two real AUDIT-chunk recoveries on the board; nothing pinned
+
+Owner (2026-09-03): after the narrative-drift fix `23477a7` was pushed, the C2 ruling pair
+`2026-09-03-02` (whole-of-probe P3-L6, C2, seed 1278624577; provisioning P3-K; both bound
+to prereg `bfd69d10…`, image `5deee74c…`, manifest `154a7525…`) issued for exactly one
+rel-v4 C2; consumed by any outcome; a non-PASS not re-run; a PASS not auto-pinned —
+independent review first; S and Claim B closed; the old `cdc61223…` not to be used. The
+pair as sent lacked the runner's three required fields (`boardid`, `granted_by`, `date`,
+`scripts/pcap_probe_runner.py:74`); the owner confirmed the standing values (17A6, 14sea,
+2026-09-03-02) before the files were written.
+
+Executed in order: pins re-checked (HEAD = origin = `23477a7`, clean) → the pair written →
+power cycle (owner; UART re-enumerated 17:47) → boundary verifier R1–R5 PASS
+(`evidence/boundary/principal_boundary_2026-09-03-02.json`) → `host/l6_runner.py
+--session C2` in the background (pid 27185, waited on by pid, no shell timeout). **C2 #2 =
+PASS (runner outcome, 17:53), `findings: []`:** IDENT 1.3.0 rel-v4 with both controls
+echoed, one IDENTACK; 66 SCORED (1 + 64 + 1), every candidate `map_guided`, baselines
+exact, closing control fault 13 in TERM and CLOSE agreeing, TERM COMPLETED / budget; 66/66
+audits verified; 1785 inbound frames = expected; CRC drops 4 of 8 = the SIGNREQ and REC
+controls (`[crc, ok]` each) plus two AUDIT chunks (seq 35 chunk 7, seq 50 chunk 5) that
+arrived as complete lines with a bad CRC and were re-requested once each, recovered in
+≈ 42 ms with no timeout — the sixth and seventh console corruption events of the L6 line,
+the first under rel-v4, the first recovered without the chunk deadline;
+`candidates_with_recovery 2` ≤ 3, 0 bad frames, 0 fragments, every other indicator 0;
+rate report `959790d0e17401936ddd9636f79b9f79e9d45f4fc106de1482f2c8aa969db191` = 3479.6
+evals/h inclusive (CoV 0.0193), nominal 3484.7 (CoV 0.0175 over 61 clean), planning
+3367.8 evals/h, bound to the pins and its three input files. Both rulings consumed
+(PASS). Archived: `docs/l6_c2_session2_findings.md`, manifest `hardware_history`
+(66/1/64/1) + standing + status, `docs/status.md`, import manifest. `calibration.C2`
+stays null: the owner reviews independently and pins by hash; S is not opened by
+anything here. Not pushed.

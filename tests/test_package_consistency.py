@@ -289,7 +289,10 @@ class PinnedL6Image(unittest.TestCase):
         narrative = {"status": L6["status"], "standing": L6_PINNED["standing"], "calibration.note": L6["calibration"]["note"],
                      "history note": next(h for h in L6_PINNED["hardware_history"] if h["session"] == "C1 #6")["note"]}
         for where, text in narrative.items():
-            for stale in ("candidate for calibration.C1", "pinned only by the owner", "awaiting the owner",
+            # C1-specific words: a later session (C2 #2) may truthfully be "awaiting the owner's
+            # independent review" while C1 stays pinned
+            for stale in ("candidate for calibration.C1", "pinned only by the owner",
+                          "awaiting the owner's adjudication and the calibration.C1 pin",
                           "calibration.C1/C2 are null", "C1/C2 are null"):
                 self.assertNotIn(stale, text, f"{where} still says {stale!r} with calibration.C1 pinned")
         self.assertIn("PINNED", L6["status"]); self.assertIn("PINNED", narrative["standing"]); self.assertIn("PINNED", narrative["history note"])
