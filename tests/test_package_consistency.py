@@ -101,23 +101,32 @@ class PinnedL6Image(unittest.TestCase):
         authority: pinned_at_build, board_ready, pull-v2, with the promotion recorded; a
         candidate, when one exists again, is next_image with board_ready false."""
         nxt = L6.get("next_image")
+        # the history's exact sets hold whether or not a candidate exists (review
+        # 2026-09-03, evidence closure: these guards used to sit in the no-candidate
+        # branch and did not run while a next_image was pinned)
+        self.assertTrue(L6_PINNED["board_ready"])
+        self.assertEqual(L6_PINNED["protocol"], "rec-v3")           # promotion 2026-09-02
+        self.assertEqual(L6["prereg"]["protocol"], "rec-v3")
+        self.assertIn("promoted", L6_PINNED["promoted_note"])
+        sup = L6_PINNED["superseded_images"]
+        self.assertEqual([s["sha256"][:8] for s in sup], ["bd1454cd", "e19e1b12"])
+        for s in sup:
+            self.assertIn("NOT defective", s["why"])
+        self.assertEqual([w["sha256"][:8] for w in L6_PINNED["withdrawn_images"]], ["47b8fa09", "cd8360dc", "734d6c04"])
+        for w in L6_PINNED["withdrawn_images"]:
+            self.assertIn("DEFECTIVE", w["why"]); self.assertIn("must not run", w["why"])
+        e = json.loads((R / "evidence/l6_next_build/build_evidence.json").read_text())
         if nxt is None:
-            self.assertTrue(L6_PINNED["board_ready"])
-            self.assertEqual(L6_PINNED["protocol"], "rec-v3")           # promotion 2026-09-02
-            self.assertEqual(L6["prereg"]["protocol"], "rec-v3")
-            self.assertIn("promoted", L6_PINNED["promoted_note"])
-            sup = L6_PINNED["superseded_images"]
-            self.assertEqual([s["sha256"][:8] for s in sup], ["bd1454cd", "e19e1b12"])
-            for s in sup:
-                self.assertIn("NOT defective", s["why"])
-            self.assertEqual([w["sha256"][:8] for w in L6_PINNED["withdrawn_images"]], ["47b8fa09", "cd8360dc", "734d6c04"])
-            e = json.loads((R / "evidence/l6_next_build/build_evidence.json").read_text())
             self.assertEqual(e["image"]["bin_sha256"], L6_PINNED["app_image_sha256"],
                              "the promoted pin is the candidate the review passed")
             return
         self.assertFalse(nxt["board_ready"])
         self.assertNotEqual(nxt["app_image_sha256"], L6_PINNED["app_image_sha256"],
                             "the candidate must never silently replace the board-ready pin")
+        self.assertNotIn(nxt["app_image_sha256"], L6_WITHDRAWN, "a withdrawn image can never be the candidate")
+        self.assertEqual(e["image"]["bin_sha256"], nxt["app_image_sha256"],
+                         "the live next-build evidence is the candidate's")
+        self.assertEqual(e["image"]["elf_sha256"], nxt["elf_sha256"])
 
     def test_the_l6_build_evidence_agrees_with_the_manifest(self):
         ev = json.loads(L6_EVIDENCE.read_text())
@@ -209,6 +218,84 @@ class PinnedL6Image(unittest.TestCase):
         self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), ev["report_sha256"])
         rep = json.loads(path.read_text())
         self.assertEqual(rep["exit_status"], 0); self.assertNotIn("FAILED", rep["result_line"])
+
+
+class BuildEvidenceClosure(unittest.TestCase):
+    """Every build-evidence record under evidence/ (the live ones and the archived
+    `build_evidence_<hash>.json` of superseded / withdrawn images) must close on disk: a
+    non-empty artifact path resolves to a file whose sha256 is the one recorded, or says
+    explicitly that the artifact is unavailable (hash-only). Review 2026-09-03 (evidence
+    closure): the archived records carried the LIVE paths of their build, which resolved to
+    a later image's map and binary — a record that names a path with different content is
+    worse than one that names no path."""
+
+    HASH_ONLY = "historical artifact unavailable — hash-only"
+    RECORDS = sorted(R.glob("evidence/*/build_evidence*.json"))
+
+    @staticmethod
+    def _sha(path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def test_there_are_records_to_check(self):
+        self.assertGreaterEqual(len(self.RECORDS), 8, [str(r) for r in self.RECORDS])
+        self.assertTrue(any(r.name != "build_evidence.json" for r in self.RECORDS), "archived records exist")
+
+    def test_every_linker_map_path_exists_and_hashes(self):
+        for rec in self.RECORDS:
+            with self.subTest(record=str(rec.relative_to(R))):
+                e = json.loads(rec.read_text())
+                lm = e["linker_map"]
+                self.assertTrue(lm.get("path"), "a linker map path is recorded")
+                p = R / lm["path"]
+                self.assertTrue(p.is_file(), f"{lm['path']} is absent")
+                self.assertEqual(self._sha(p), lm["sha256"], f"{lm['path']} is not the map this record hashed")
+
+    def test_every_cited_test_report_exists_and_hashes(self):
+        for rec in self.RECORDS:
+            with self.subTest(record=str(rec.relative_to(R))):
+                e = json.loads(rec.read_text())
+                t = e.get("tests") or {}
+                if not t.get("report"):
+                    self.assertNotEqual(rec.name, "build_evidence.json", "a live record cites its green report")
+                    continue
+                p = R / t["report"]
+                self.assertTrue(p.is_file(), f"{t['report']} is absent")
+                if "report_sha256" in t:
+                    self.assertEqual(self._sha(p), t["report_sha256"], f"{t['report']} is not the report this record hashed")
+
+    def test_every_binary_path_hashes_or_is_declared_unavailable(self):
+        for rec in self.RECORDS:
+            with self.subTest(record=str(rec.relative_to(R))):
+                e = json.loads(rec.read_text())
+                b = e["image"]["bin"]
+                self.assertTrue(b, "the binary is named, or declared unavailable")
+                archived = rec.name != "build_evidence.json"
+                if b.startswith(self.HASH_ONLY):
+                    note = e.get("archived") or e.get("binary_unavailable")
+                    self.assertIsNotNone(note, "a hash-only record says why")
+                    self.assertTrue(note["why"].strip()); self.assertTrue(note["hashes_unchanged"])
+                    continue
+                p = R / b
+                if archived:
+                    self.fail(f"an archived record names a live path ({b}) that would resolve to another image")
+                if not p.is_file():
+                    continue                                # out/ is gitignored; the live record's build may be absent here
+                self.assertEqual(self._sha(p), e["image"]["bin_sha256"],
+                                 f"{b} is not the image this record hashed — a live path must resolve to the "
+                                 "recorded content or be replaced by the hash-only marker")
+
+    def test_archived_records_keep_their_hashes_and_name_the_archived_map(self):
+        for rec in self.RECORDS:
+            if rec.name == "build_evidence.json":
+                continue
+            with self.subTest(record=str(rec.relative_to(R))):
+                e = json.loads(rec.read_text())
+                tag = rec.stem.split("_")[-1]
+                self.assertTrue(e["image"]["bin_sha256"].startswith(tag), "the file is named by the image it records")
+                self.assertEqual(Path(e["linker_map"]["path"]).name, f"p3_app_l6_{tag}.map")
+                a = e["archived"]
+                self.assertTrue(a["hashes_unchanged"]); self.assertTrue(a["why"].strip())
+                self.assertEqual(a["original_paths"]["linker_map.path"], f"{rec.parent.relative_to(R)}/p3_app_l6.map")
 
 
 class HardwareHistoryIsConsistent(unittest.TestCase):

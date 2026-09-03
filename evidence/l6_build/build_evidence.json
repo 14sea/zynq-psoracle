@@ -20,7 +20,7 @@
     "count": 65
   },
   "image": {
-    "bin": "firmware/bsp/out/p3_app_l6.bin",
+    "bin": "historical artifact unavailable — hash-only: the board-ready rec-v3 image 403f4ab5… was firmware/bsp/out/p3_app_l6.bin at its build (commit of the promotion); out/ is gitignored and HEAD now builds the rel-v4 candidate, so the path would resolve to another image; the runner refuses a session unless the file on disk hashes to the pin (host/l6_runner.py), which means rebuilding it from the promoted commit",
     "bin_bytes": 98324,
     "bin_sha256": "403f4ab5e8073e13cde74168636e35b8721505f4b73d2da579d2e36788ee28cd",
     "elf_sha256": "8687ef8dfb80da3b53d4bc82130e9e9b52eb8e8b520848868038cfa85bed6ae1",
@@ -40,5 +40,11 @@
     "head_at_run": "2b2096f75a3cee1c999f92725514543d4a144ae1",
     "result_line": "OK (skipped=1)",
     "note": "the fail-closed test evidence (count / skipped / boundary / head_at_run) is this report, cited explicitly and verified green by the generator; run host/run_tests.sh in a staged state so it covers the new files."
+  },
+  "binary_unavailable": {
+    "at": "2026-09-03",
+    "why": "evidence-closure review (owner 2026-09-03): a live path in a build record must resolve to the content it hashes; with a next_image pinned, HEAD's build is the candidate, not this pinned image",
+    "original_path": "firmware/bsp/out/p3_app_l6.bin",
+    "hashes_unchanged": true
   }
 }

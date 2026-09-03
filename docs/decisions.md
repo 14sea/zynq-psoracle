@@ -1593,3 +1593,34 @@ appended to `withdrawn_images` with the three findings; its build record preserv
 `next_prereg.status` sentence rewritten; `bound_contract.whole_line` pinned. Not run on
 hardware; the short re-review is the owner's; no push, no freeze, no ruling, no board.
 
+## 2026-09-03 — short re-review of the rel-v4 firmware §7: three fixes PASS, HOLD on one evidence-closure blocker; archived build records closed
+
+Owner (2026-09-03): B1 / B2 / C PASS at the source and on the twin (`gets 9 served 8
+mask 255` reproduced); image and live evidence PASS (bin `5deee74c…`, ELF `ebe97ce6…`,
+map `a0dab213…`); suite 1014 OK. HOLD: `evidence/l6_next_build/build_evidence_734d6c04.json`
+pointed its map at the live `p3_app_l6.map` (`a0dab213…`, not the recorded `4d07230f…`)
+and its binary at the live `out/p3_app_l6.bin`, which can no longer verify to `734d6c04…`;
+package §7's "preserved" claim therefore substantive; and the withdrawn-list exact guard
+sat in the `next_image is None` branch and did not run. Required: archived map paths →
+archived maps; the old binary archived or declared hash-only, never a live path; a
+fail-closed test that every archived record's non-empty artifact path exists and hashes;
+the exact-set guard on both branches. No firmware change, no rebuild; then an extremely
+short evidence-closure review; no push / promotion / freeze / ruling / board before it.
+
+Delivered (package §8): the defect was in all five archived records (`l6_next_build`
+`734d6c04`, `cd8360dc`, `e19e1b12`; `l6_build` `bd1454cd`, `e19e1b12`) — each now names its
+archived map, declares its binary "historical artifact unavailable — hash-only" (the
+binaries were never preserved; out/ is gitignored and rebuilt) and carries an `archived`
+block (date, why, the original paths, `hashes_unchanged: true`); no hash changed.
+`tests/test_package_consistency.py`: `BuildEvidenceClosure` (5 tests over the 8 records:
+map path exists and hashes; cited report exists and hashes when a hash is recorded;
+binary hashes or is the marker with an `archived` block — a live path in an archived
+record fails; archived records named by their image and naming their archived map);
+`test_one_image_one_authority` asserts the exact superseded/withdrawn sets and the pin on
+both branches, and with a candidate that it is not withdrawn and the live next-build
+evidence is its. The closure test also caught the live record of the board-ready pin
+(`evidence/l6_build/build_evidence.json`, `403f4ab5…`): its binary path resolved to the
+candidate HEAD builds; no `403f4ab5…` binary exists on disk, so it is hash-only with a
+`binary_unavailable` block. Image, manifest and `next_image` unchanged. No push, no
+freeze, no ruling, no board.
+

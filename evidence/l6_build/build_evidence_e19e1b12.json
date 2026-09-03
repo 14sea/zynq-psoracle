@@ -20,7 +20,7 @@
     "count": 65
   },
   "image": {
-    "bin": "firmware/bsp/out/p3_app_l6.bin",
+    "bin": "historical artifact unavailable — hash-only: the binary at bin_sha256 was firmware/bsp/out/p3_app_l6.bin at build time (out/ is gitignored and rebuilt by every build) and is not preserved; only its sha256/elf_sha256 and the archived linker map remain",
     "bin_bytes": 98324,
     "bin_sha256": "e19e1b1289ddd9e04bb68f52a42af39d1ec2053055a190a2f2493d8f0447b7de",
     "elf_sha256": "2951cd58aede9b63dcf716b2d274dbc25ae854fa25d741671ab1bc04ceb76977",
@@ -28,7 +28,7 @@
     "expected_bin_sha256": "e19e1b1289ddd9e04bb68f52a42af39d1ec2053055a190a2f2493d8f0447b7de"
   },
   "linker_map": {
-    "path": "evidence/l6_build/p3_app_l6.map",
+    "path": "evidence/l6_build/p3_app_l6_e19e1b12.map",
     "sha256": "628dbacea41fc1dbab92e0f635afa673fd312b5e17a0922f9cc9aebfa6e6b1e8"
   },
   "tests": {
@@ -40,5 +40,16 @@
     "head_at_run": "fa898c3fbfeed0fdd3b285e5bd0da32575823485",
     "result_line": "OK (skipped=1)",
     "note": "the fail-closed test evidence (count / skipped / boundary / head_at_run) is this report, cited explicitly and verified green by the generator; run host/run_tests.sh in a staged state so it covers the new files."
+  },
+  "archived": {
+    "at": "2026-09-03",
+    "why": "evidence-closure review (owner 2026-09-03): the archived record kept the LIVE paths of its build (image.bin → firmware/bsp/out/p3_app_l6.bin, linker_map.path → the directory's live p3_app_l6.map), which resolve to a later image's content; a path in an archived record must resolve to the artifact it hashes or say the artifact is unavailable",
+    "original_paths": {
+      "image.bin": "firmware/bsp/out/p3_app_l6.bin",
+      "linker_map.path": "evidence/l6_build/p3_app_l6.map"
+    },
+    "archived_map": "evidence/l6_build/p3_app_l6_e19e1b12.map",
+    "bin": "hash-only (not preserved)",
+    "hashes_unchanged": true
   }
 }

@@ -115,3 +115,37 @@ Two from-scratch builds byte-identical: bin
 `board_ready: false`; `evidence/l6_next_build/build_evidence.json` regenerated for it and
 cites the green report. Not run on hardware. The stop-loss stays triggered; C1 #5 stays HOLD
 under v0.4; no push, no freeze, no ruling, no board.
+
+## 8. Evidence-closure record (2026-09-03): the short re-review of §7
+
+The owner's short re-review of §7: the three technical fixes **PASS** (B1 at `p3_pull.c`
+`all_served`, and `PullBoard`; B2 `line_ticks = idle_ticks`, ≈ 8 s idle and whole-line on
+the pinned timer, the `!trickle 60` / `!trickle 10` discrimination confirmed; C `served` =
+popcount — `gets 9 served 8 mask 255` reproduced); the image and the live build evidence
+**PASS** (bin `5deee74c…`, ELF `ebe97ce6…`, map `a0dab213…` on disk = manifest = evidence;
+1014 OK in the owner's environment with one more boundary skip, an environment difference).
+Still **HOLD** on one narrow evidence-closure blocker — no push, no promotion, no freeze,
+no ruling, no board; no firmware change, no rebuild.
+
+| finding (owner) | correction |
+|---|---|
+| `build_evidence_734d6c04.json` recorded the map hash `4d07230f…` but pointed `linker_map.path` at the directory's LIVE `p3_app_l6.map` (now `a0dab213…`, the new image's); the archived map `p3_app_l6_734d6c04.map` is the one that hashes `4d07230f…` | every archived record's `linker_map.path` now names its archived map — not only `734d6c04`'s: the same defect was in **all five** archived records (`l6_next_build`: `734d6c04`, `cd8360dc`, `e19e1b12`; `l6_build`: `bd1454cd`, `e19e1b12`), each pointing at the live map of its directory |
+| the same record's `image.bin` pointed at `firmware/bsp/out/p3_app_l6.bin`, which every build overwrites and which cannot verify back to `734d6c04…` | the withdrawn/superseded binaries are not preserved (out/ is gitignored and rebuilt), so `image.bin` in every archived record is now the explicit marker `historical artifact unavailable — hash-only: …` and never a live path; `bin_sha256` / `elf_sha256` unchanged. Each archived record gained an `archived` block: the date, why, the original two paths, the archived map, `hashes_unchanged: true` |
+| §7 claimed the old build record and map were "preserved", so the live path was a substantive defect, not wording | §7's claim now holds by construction: the record names the archived map and says the binary is hash-only |
+| `tests/test_package_consistency.py` checked the exact withdrawn list only inside the `next_image is None` branch — with a candidate pinned, the guard did not run | `test_one_image_one_authority`: the exact superseded and withdrawn sets, `board_ready`, the rec-v3 pin and the promotion note are asserted on BOTH branches; with a candidate it additionally asserts the candidate is not withdrawn and that the live next-build evidence (bin and ELF) is the candidate's |
+| (requested) a fail-closed test: every archived record's non-empty artifact path exists and hashes | new `BuildEvidenceClosure` (5 tests) over every `evidence/*/build_evidence*.json` (8 records: 3 live, 5 archived): `linker_map.path` exists and hashes; a cited test report exists and hashes (when a `report_sha256` is recorded — `l5_build`'s older schema has none); `image.bin` either hashes on disk (live records; absent `out/` is tolerated for the live record only, as before) or is the hash-only marker with an `archived` block — an archived record naming a live path FAILS; archived records are named by their image and name their archived map |
+
+The closure test also caught the LIVE record of the board-ready pin,
+`evidence/l6_build/build_evidence.json` (`403f4ab5…`): its `image.bin` pointed at
+`firmware/bsp/out/p3_app_l6.bin`, which HEAD now builds as the candidate `5deee74c…` — the
+same class of defect. No `403f4ab5…` binary exists on disk (searched by size and hash), so
+that record's `image.bin` is now the hash-only marker with a `binary_unavailable` block
+(date, why, the original path, `hashes_unchanged: true`); its map path was already the
+directory's own `p3_app_l6.map` (`963dcd0f…`, verified). Nothing about the pin changed:
+`pinned_at_build` is `403f4ab5…`, `board_ready: true`; a rec-v3 session would need the
+binary rebuilt from the promoted commit, which the runner enforces by hash before loading.
+
+`evidence/` edits are limited to the six JSON records' path fields plus the added
+`archived` / `binary_unavailable` blocks; no hash changed, no map or report was touched. The manifest and
+the image are unchanged (`next_image` `5deee74c…`, `board_ready: false`).
+
