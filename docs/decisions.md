@@ -1837,3 +1837,23 @@ disk, binding = report = current pins, the three input files hash, a PASS sessio
 plan from the two pinned reports through `host/l6_runner.plan_session`, asserting the
 owner's numbers (6061 / 382 / 112575 / 451 / 8702 / 1278628687 / abba); `docs/status.md`.
 Nothing about S is created here.
+
+## 2026-09-03 — owner's pre-S check: the two-pin / S-plan guard depended on test order (blocker); fixed before any S ruling
+
+Owner (2026-09-03): git/pins PASS (GitHub main = HEAD = origin/main = `580da1b`, clean;
+manifest `d39b339b…`; both pins, bindings, inputs, rates, history and ACTIVE standings
+match; the S plan re-derived = 6061 / 382 / 112575 / 451 / 8702 / 1278628687 / abba); the
+staged report `…170536Z` = 1021 / 1 skip / rc 0 with the signer boundary available. Blocker:
+`tests/test_package_consistency.py` imported `l6_runner` for the S-plan guard while only
+the repository root was on `sys.path` — `python3 -m unittest discover -s tests -p
+'test_package_consistency.py'` failed with `ModuleNotFoundError: No module named
+'l6_runner'`; the full suite passed only because earlier test modules had left `host/` on
+the global path. A guard that passes by test order is not fail-closed. Required: add
+`host/` to the module's `sys.path`, then the single test, the module alone under discover,
+and the full staged fail-closed suite all green; record, commit, push; manifest bytes
+unchanged, so the S pair still binds `d39b339b…`. No S ruling, no board, Claim B closed.
+
+Delivered: the failure reproduced (`ModuleNotFoundError`, 32 tests / 1 error), then
+`sys.path.insert(0, str(R / "host"))` at the module top; the single test OK, the module
+alone under discover 32 / OK / 1 skip, the full suite green (the report below). Manifest
+bytes unchanged.

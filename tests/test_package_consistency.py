@@ -22,6 +22,7 @@ from pathlib import Path
 
 R = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(R))
+sys.path.insert(0, str(R / "host"))     # the S-plan guard imports l6_runner; the module must not depend on test order (owner 2026-09-03)
 
 L5 = json.loads((R / "manifests/l5_manifest.json").read_text())
 PINNED = L5["pinned_at_build"]
