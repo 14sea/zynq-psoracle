@@ -1857,3 +1857,70 @@ Delivered: the failure reproduced (`ModuleNotFoundError`, 32 tests / 1 error), t
 `sys.path.insert(0, str(R / "host"))` at the module top; the single test OK, the module
 alone under discover 32 / OK / 1 skip, the full suite green (the report below). Manifest
 bytes unchanged.
+
+## 2026-09-03 — owner opens exactly ONE rel-v4 S (ruling pair 2026-09-03-03 bound to manifest `d39b339b…`); S #2 = HOLD (transport + host collector rule) at go + 79.6 s; archived, not re-run
+
+Owner (2026-09-03), final release check PASS (GitHub main = HEAD = origin/main =
+`7f28cc1`, clean, manifest `d39b339b…`, the guard alone / module alone / staged report all
+green): the S ruling pair `2026-09-03-03` (whole-of-probe P3-L6, S, seed 1278628687;
+provisioning P3-K; boardid / granted_by / date included; both bound to prereg
+`bfd69d10…`, image `5deee74c…`, manifest `d39b339b…`) for exactly one rel-v4 S:
+`--session S --duration-s 7200` with the two pinned calibration reports, the runner
+deriving N 6061 / 382 audits / 112 575 frames / budget 451 / timeout 8702 s; PID wait, no
+shell timeout; consumed by any outcome; a non-PASS archived and not re-run; a PASS
+reviewed independently before anything opens; push of the archive commit reported first;
+Claim B closed.
+
+Executed: pins re-checked → the pair written verbatim → power cycle (owner; UART 18:12)
+→ boundary R1–R5 PASS (`evidence/boundary/principal_boundary_2026-09-03-03.json`) →
+`host/l6_runner.py --session S` in the background (pid 34194). The plan the runner
+derived = the owner's numbers. **S #2 = HOLD (18:18): `CRASHED: unparseable frame` at
+go + 79.6 s.** 144 SCORED records in 78.9 s (opening baseline + 143 candidates), 11/11 due
+sampled audits verified with zero retries, both controls exact (the session's only two
+CRC drops of 451), then one contiguous console loss of ≈ 850 bytes: the CRC + newline of `HB 145 #12`
+(9), heartbeats #13–#15 whole (201), the whole head of `REC 145` (46) and ≈ 590
+characters of its body: the merged line is HB-shaped with a malformed CRC
+field, not REC-shaped, so the REC transaction's RECGET path did not apply; it reached the
+collector, whose rule for a malformed non-transaction frame — `CRASHED` — the frame
+reliability design had explicitly left unchanged; the runner closed the port 0.2 s later,
+so the board's rel-v4 REC resend (≤ 8 s bound, ≤ 3 transmissions) was never observed.
+The runner's `closing baseline scores [18, 22, 20, 20, 20, 21]` finding is a crash-path
+reporting artefact (the last SCORED record, candidate 144, taken as the closing baseline).
+Prereg-level observation: under the sampled policy the soak ran at 143 inter-record
+intervals / 78.928 s = 6522.4 evals/h (0.552 s per interval; S #1 the same), so a
+COMPLETED N 6061 soak would take ≈ 3345 s ≈ 55.8 min and fail §6 item 4's wall time ≥
+0.9 T — N is derived from all-self-reporting calibrations while
+most soak records carry no audit stage. Archived: `docs/l6_s_session2_findings.md`,
+manifest `hardware_history` (144/1/143/0), standing, status; `docs/status.md`; import
+manifest. Both rulings consumed (HOLD). S failure #2 under §7. Not re-run.
+calibration.C1/C2 stay pinned and ACTIVE; Claim B stays closed; C1 #5 stays HOLD.
+
+**Owner's rulings (2026-09-03) on this archive:** (1) the HOLD stands as stated. (2) The
+archive's first narrative had verifiable drift and was corrected before the push (this
+amended commit): the loss is ≈ 850 B, not ≈ 650 (9 + 201 + 46 + ≈ 590); the session has
+exactly one bad frame — the merged line — and 0 fragments; it is the eighth console
+corruption event and the second into a REC; the pace is 143 inter-record intervals /
+78.928 s = 6522.4 evals/h and N 6061 needs ≈ 3345 s / 55.8 min; the host change is not
+"start counting bad frames" (the timeline already does) but "record it and do not hand it
+to the collector". (3) §7: S #1 and S #2 are "the same way twice" — contiguous byte
+deletion on the same console path running into a REC frame, losing the REC within
+minutes (no claim of a proven common physical root cause; C1 #6 / C2 #2 do not reset the
+soak-specific rule): no third v0.6 soak; targeted host fix → host-only proof →
+independent review → v0.7 re-freeze; no new ruling and no board before. (4) Host-only
+batch authorised, local commits only, no push and no board before review: a malformed
+`P3L5` line recorded exactly once as `BAD_FRAME`, not acknowledged, not signed, seq not
+advanced, and no longer handed to the collector; the S #2 byte replay proves only
+survival (the recording ends at the port close) and must be followed by a modelled,
+byte-identical `REC 145` resend accepted once with `RECACK` and normal progress, plus
+no-resend, wrong resend, conflicting resend, repeated malformed line and budget
+exhaustion; the opening baseline always checked, the closing baseline only on COMPLETED
+(`host/l6_checks.py:82`); v0.7 must rule the heartbeat rule explicitly (v0.6's one-missing-
+per-record cap would HOLD seq 145's four missing even with the REC recovered); a non-fatal
+bad frame needs an explicit terminal bound in S. (5) N versus T: wall time ≥ 0.9 T is
+kept; v0.7's preferred route is a policy-matched planning rate from the two pinned
+calibrations' immutable timing inputs under the sampled policy, then the 0.9 margin
+(owner's design check ≈ C1 6984 / C2 6952 evals/h, N ≈ 12 514 — not a pin, not a final
+formula); S #2's 6522 evals/h is post-hoc validation only; reuse of v0.6 calibration
+evidence must be an explicit import by report hash and the three input hashes, or v0.7
+re-calibrates. The corrected archive is pushed on a green suite without a further ask;
+the host batch is a separate commit line.

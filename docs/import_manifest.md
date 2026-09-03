@@ -352,6 +352,8 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-03T173546Z.json` |
+| `evidence/tests/test_report_2026-09-03T172329Z.json` |
 | `evidence/tests/test_report_2026-09-03T171033Z.json` |
 | `evidence/tests/test_report_2026-09-03T170536Z.json` |
 | `evidence/tests/test_report_2026-09-03T165710Z.json` |
@@ -675,6 +677,18 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l6_17A6_2026-09-03-02-C2/ymodem.log` |
 | `evidence/l6_17A6_2026-09-03-02-C2/ymodem_app.log` |
 | `docs/l6_c2_session2_findings.md` |
+| `evidence/boundary/principal_boundary_2026-09-03-03.json` |
+| `evidence/l6_17A6_2026-09-03-03-S/L6_0_preflight.json` |
+| `evidence/l6_17A6_2026-09-03-03-S/L6_1_identity_page.json` |
+| `evidence/l6_17A6_2026-09-03-03-S/audits.json` |
+| `evidence/l6_17A6_2026-09-03-03-S/console.log` |
+| `evidence/l6_17A6_2026-09-03-03-S/console.ts.log` |
+| `evidence/l6_17A6_2026-09-03-03-S/run_log.json` |
+| `evidence/l6_17A6_2026-09-03-03-S/summary.json` |
+| `evidence/l6_17A6_2026-09-03-03-S/timeline.json` |
+| `evidence/l6_17A6_2026-09-03-03-S/ymodem.log` |
+| `evidence/l6_17A6_2026-09-03-03-S/ymodem_app.log` |
+| `docs/l6_s_session2_findings.md` |
 | `docs/l6_transport_batch_package.md` |
 | `docs/l6_frame_reliability_design.md` |
 | `docs/l6_rel_batch_package.md` |
