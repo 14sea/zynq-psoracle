@@ -266,37 +266,48 @@ class PinnedL6Image(unittest.TestCase):
         self.assertEqual(L6_PINNED["superseded_images"][-1]["build_evidence"], "evidence/l6_build/build_evidence_403f4ab5.json")
 
     def test_the_v0_3_calibrations_are_historical_and_unpinned(self):
-        """Promotion/freeze batch 2026-09-02: under rec-v3 the active C1/C2 pins are null;
+        """Promotion/freeze batch 2026-09-02: under rec-v3 the active C1/C2 pins were null;
         the pull-v2 reports stay on record as historical and are refused for S by the
-        runner (tests/test_l6_runner.py checks the real files)."""
-        # owner 2026-09-03: C1 #6 (rel-v4, v0.6) PASS adjudicated and pinned; C2 still null
-        self.assertIsNone(L6["calibration"]["C2"]["rate_report_sha256"], "C2 is pinned only after a rel-v4 C2 PASS")
-        c1 = L6["calibration"]["C1"]
-        self.assertEqual(c1["rate_report_sha256"][:8], "08222f85"); self.assertEqual((c1["session"], c1["ruling"]), ("C1 #6", "2026-09-03-01"))
-        path = R / c1["evidence"]
-        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), c1["rate_report_sha256"], "the pin is the bytes on disk")
-        rep = json.loads(path.read_text())
-        self.assertEqual(rep["binding"], c1["binding"]); self.assertEqual(rep["inputs"], c1["inputs"])
-        self.assertEqual(c1["binding"], {"image_sha256": L6_PINNED["app_image_sha256"], "prereg_sha256": L6["prereg"]["sha256"],
-                                         "protocol": "rel-v4", "session": "C1", "schedule_mode": "random_safe_forced",
-                                         "master_seed": L6["sessions"]["C1"]["master_seed"]}, "the pin binds the current pins")
-        for name, sha in c1["inputs"].items():                       # D-t2: the three input files still hash to the report's inputs
-            self.assertEqual(hashlib.sha256((path.parent / f"{name}.json").read_bytes()).hexdigest(), sha, name)
-        self.assertTrue(any(h["session"] == "C1 #6" and h["outcome"].startswith("PASS") for h in L6_PINNED["hardware_history"]))
-        self.assertIn("C1 #5", c1["note"]); self.assertIn("HOLD", c1["note"])
-        # owner's check 2026-09-03: the structured pin was right while three narrative strings
-        # still called the report a candidate awaiting the pin — the words must follow the pin
-        narrative = {"status": L6["status"], "standing": L6_PINNED["standing"], "calibration.note": L6["calibration"]["note"],
-                     "history note": next(h for h in L6_PINNED["hardware_history"] if h["session"] == "C1 #6")["note"]}
-        for where, text in narrative.items():
-            # C1-specific words: a later session (C2 #2) may truthfully be "awaiting the owner's
-            # independent review" while C1 stays pinned
-            for stale in ("candidate for calibration.C1", "pinned only by the owner",
-                          "awaiting the owner's adjudication and the calibration.C1 pin",
-                          "calibration.C1/C2 are null", "C1/C2 are null"):
-                self.assertNotIn(stale, text, f"{where} still says {stale!r} with calibration.C1 pinned")
-        self.assertIn("PINNED", L6["status"]); self.assertIn("PINNED", narrative["standing"]); self.assertIn("PINNED", narrative["history note"])
-        self.assertIn("calibration.C2 is null", L6["status"])
+        runner (tests/test_l6_runner.py checks the real files). Owner 2026-09-03: C1 #6 and
+        C2 #2 (rel-v4, v0.6) PASS adjudicated and pinned — each pin is the bytes on disk,
+        binds the current pins, its three input files hash, and the words follow the pin."""
+        expected = {"C1": ("08222f85", "C1 #6", "2026-09-03-01", "random_safe_forced"),
+                    "C2": ("959790d0", "C2 #2", "2026-09-03-02", "map_guided_forced")}
+        for k, (sha8, session, ruling, mode) in expected.items():
+            c = L6["calibration"][k]
+            self.assertEqual(c["rate_report_sha256"][:8], sha8, k); self.assertEqual((c["session"], c["ruling"]), (session, ruling))
+            path = R / c["evidence"]
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), c["rate_report_sha256"], f"{k}: the pin is the bytes on disk")
+            rep = json.loads(path.read_text())
+            self.assertEqual(rep["binding"], c["binding"]); self.assertEqual(rep["inputs"], c["inputs"])
+            self.assertEqual(c["binding"], {"image_sha256": L6_PINNED["app_image_sha256"], "prereg_sha256": L6["prereg"]["sha256"],
+                                            "protocol": "rel-v4", "session": k, "schedule_mode": mode,
+                                            "master_seed": L6["sessions"][k]["master_seed"]}, f"{k}: the pin binds the current pins")
+            for name, sha in c["inputs"].items():                    # D-t2: the three input files still hash to the report's inputs
+                self.assertEqual(hashlib.sha256((path.parent / f"{name}.json").read_bytes()).hexdigest(), sha, name)
+            self.assertTrue(any(h["session"] == session and h["outcome"].startswith("PASS") for h in L6_PINNED["hardware_history"]))
+            self.assertIn("C1 #5", c["note"]); self.assertIn("HOLD", c["note"]); self.assertIn("ACTIVE", c["standing"])
+            # owner's check 2026-09-03: the structured pin was right while three narrative strings
+            # still called the C1 report a candidate awaiting the pin — the words must follow the pin
+            narrative = {"status": L6["status"], "standing": L6_PINNED["standing"], "calibration.note": L6["calibration"]["note"],
+                         "history note": next(h for h in L6_PINNED["hardware_history"] if h["session"] == session)["note"]}
+            for where, text in narrative.items():
+                for stale in (f"candidate for calibration.{k}", "pinned only by the owner",
+                              f"awaiting the owner's adjudication and the calibration.{k} pin",
+                              f"awaiting the owner's independent review before any calibration.{k} pin",
+                              f"calibration.{k} is null", "calibration.C1/C2 are null", "C1/C2 are null"):
+                    self.assertNotIn(stale, text, f"{where} still says {stale!r} with calibration.{k} pinned")
+            self.assertIn("PINNED", narrative["standing"]); self.assertIn("PINNED", narrative["history note"])
+        self.assertIn("PINNED", L6["status"]); self.assertIn("Both v0.6 calibrations are pinned", L6["status"])
+        # with both pins the S plan is derived by the runner from the two PLANNING rates (D-t1) —
+        # the owner's independently derived numbers (2026-09-03), never typed into a ruling
+        import l6_runner as l6
+        reps = {k: json.loads((R / L6["calibration"][k]["evidence"]).read_text()) for k in ("C1", "C2")}
+        plan = l6.plan_session(L6, "S", None, 7200.0, reps, None)
+        self.assertEqual((plan["n"], len(plan["audit_seqs"]), plan["expected_frames"]["total"], plan["crc_budget"],
+                          plan["session_timeout_s"], plan["master_seed"], plan["mode"]),
+                         (6061, 382, 112575, 451, 8702, 1278628687, "abba"))
+        self.assertTrue(plan["inputs"]["rate_source"].startswith("planning"))
         hist = L6["calibration"]["historical_pull_v2"]
         self.assertEqual(hist["C1"]["rate_report_sha256"][:8], "786dc3ec")
         self.assertEqual(hist["C2"]["rate_report_sha256"][:8], "a13e301f")

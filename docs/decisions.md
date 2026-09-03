@@ -1797,3 +1797,43 @@ evals/h inclusive (CoV 0.0193), nominal 3484.7 (CoV 0.0175 over 61 clean), plann
 (66/1/64/1) + standing + status, `docs/status.md`, import manifest. `calibration.C2`
 stays null: the owner reviews independently and pins by hash; S is not opened by
 anything here. Not pushed.
+
+## 2026-09-03 — owner adjudication: C2 #2 = PASS; `f38e263` pushed; `calibration.C2` pinned = `959790d0…`; S conditionally open — its ruling pair binds the C2-pin commit's manifest sha256
+
+Owner (2026-09-03), step by step from the raw files: the ruling chain (manifest
+`154a7525…`, the pair completed with 17A6 / 14sea / 2026-09-03-02 before the run, L6 ruling
+claimed 17:48 by pid 27185 and PASS at 17:53, P3-K rc 0 and consumed, boundary R1–R5
+PASS); the validator re-run (scored 66, audited 66, chain_length 67; 66 × 3 audit hashes
+recomputed equal; 64 candidate schedule/genomes match `map_guided_forced`; identity,
+baselines, closing control, REC and rel-v4 closure and both controls without finding;
+every v0.6 gate merged: `findings []`); the two real recoveries (seq 35 chunk 7 and seq 50
+chunk 5: the re-request ≈ 0.2–0.3 ms after the CRC_DROP, the clean AUDIT ≈ 42.2 ms later;
+no timeout, duplicate, AUDITWAIT or fragment; `candidates_with_recovery 2` ≤ 3; CRC drops
+4/8 = SIGNREQ 1, REC 1, AUDIT 2) are recoveries the prereg allows — not a session loss
+and not a re-trigger of the consecutive-failure stop-loss; the rate report regenerated
+from the three inputs field-identical (inclusive 3479.5751 evals/h CoV 0.019270; nominal
+61/63 clean excluding [35, 50], CoV 0.017500; planning 3367.7531 evals/h; binding, input
+hashes and operator contract match). Rulings: C2 #2 = PASS; push of `f38e263` approved
+and done; `calibration.C2` = the report at
+`evidence/l6_17A6_2026-09-03-02-C2/rate_report.json`, sha
+`959790d0e17401936ddd9636f79b9f79e9d45f4fc106de1482f2c8aa969db191`, standing ACTIVE; C1 #5
+stays HOLD under v0.4, permanently. **S:** conditionally open — advances to "awaiting the
+ruling pair" only after (1) `f38e263` pushed, (2) the C2 pin written with the C2
+status/standing/history note synchronised and a C2 pin guard, (3) the staged fail-closed
+suite, (4) the pin commit committed and pushed, (5) the new committed manifest sha256
+reported; the S budget is the runner's floor, not 6062: N 6061, sampled audits 382,
+expected inbound frames 112 575, CRC budget 451, runner timeout 8702 s, seed 1278628687,
+abba. No S ruling and no board before the new manifest is pushed; the owner then issues
+the S pair with boardid / granted_by / date; Claim B stays closed.
+
+Delivered: `manifests/l6_manifest.json` `calibration.C2` (sha, evidence path, session,
+ruling, pinned_by/at, the owner's note, image/prereg/protocol, the report's `binding` and
+`inputs` verbatim, the three rates, standing ACTIVE), `status` (both calibrations pinned,
+the owner-verified S numbers, S conditionally open), the standing and the C2 #2 history
+note say ADJUDICATED PASS / PINNED, the calibration note says C2 filled;
+`tests/test_package_consistency.py`: the pin guard now runs over BOTH pins (bytes on
+disk, binding = report = current pins, the three input files hash, a PASS session in
+`hardware_history`, no stale "candidate / awaiting / null" words per pin) and derives the S
+plan from the two pinned reports through `host/l6_runner.plan_session`, asserting the
+owner's numbers (6061 / 382 / 112575 / 451 / 8702 / 1278628687 / abba); `docs/status.md`.
+Nothing about S is created here.
