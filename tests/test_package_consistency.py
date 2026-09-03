@@ -284,6 +284,16 @@ class PinnedL6Image(unittest.TestCase):
             self.assertEqual(hashlib.sha256((path.parent / f"{name}.json").read_bytes()).hexdigest(), sha, name)
         self.assertTrue(any(h["session"] == "C1 #6" and h["outcome"].startswith("PASS") for h in L6_PINNED["hardware_history"]))
         self.assertIn("C1 #5", c1["note"]); self.assertIn("HOLD", c1["note"])
+        # owner's check 2026-09-03: the structured pin was right while three narrative strings
+        # still called the report a candidate awaiting the pin — the words must follow the pin
+        narrative = {"status": L6["status"], "standing": L6_PINNED["standing"], "calibration.note": L6["calibration"]["note"],
+                     "history note": next(h for h in L6_PINNED["hardware_history"] if h["session"] == "C1 #6")["note"]}
+        for where, text in narrative.items():
+            for stale in ("candidate for calibration.C1", "pinned only by the owner", "awaiting the owner",
+                          "calibration.C1/C2 are null", "C1/C2 are null"):
+                self.assertNotIn(stale, text, f"{where} still says {stale!r} with calibration.C1 pinned")
+        self.assertIn("PINNED", L6["status"]); self.assertIn("PINNED", narrative["standing"]); self.assertIn("PINNED", narrative["history note"])
+        self.assertIn("calibration.C2 is null", L6["status"])
         hist = L6["calibration"]["historical_pull_v2"]
         self.assertEqual(hist["C1"]["rate_report_sha256"][:8], "786dc3ec")
         self.assertEqual(hist["C2"]["rate_report_sha256"][:8], "a13e301f")

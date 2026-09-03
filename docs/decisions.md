@@ -1744,3 +1744,24 @@ ruling, pinned_by/at, the owner's note, image/prereg/protocol, the report's `bin
 equals the report's and the current pins, the three input files hash to the report's
 `inputs`, a C1 PASS session stands in `hardware_history`, C2 still null; `docs/status.md`.
 Nothing about C2 is created here.
+
+## 2026-09-03 — owner's pre-C2 check: manifest narrative drift corrected before any C2 ruling; the C2 pair binds the NEW committed manifest sha256
+
+Owner (2026-09-03): the structured state of `56c5380` is right (C1 pin = report bytes =
+binding = inputs; C2 null; no C2 evidence or ruling; 1021 / 2 skips in the sandbox, the
+extra skip = no-new-privileges blocking the live signer rehearsal), but three manifest
+strings still spoke the pre-pin present: `status` called the C1 report "a candidate …
+pinned only by the owner" and said "calibration.C1/C2 are null"; `pinned_at_build.standing`
+said "awaiting the owner's adjudication and the calibration.C1 pin"; the C1 #6
+hardware-history note called it a candidate. The structured guard did not catch words.
+Ruling: no C2 ruling on `cdc61223…`; fix the words, re-run the staged fail-closed suite,
+commit and push, then bind the C2 pair to the new committed sha256; no board before that.
+
+Delivered: `status` rewritten as one present-tense narrative (C1 PINNED, C2 null, the
+one-C2 exception, the history folded in), the standing and the history note say
+ADJUDICATED PASS / PINNED, the calibration note says C1 filled; guard added to
+`tests/test_package_consistency.py::test_the_v0_3_calibrations_are_historical_and_unpinned`:
+with `calibration.C1` pinned, none of `status`, the standing, the calibration note or the
+C1 #6 history note may say "candidate for calibration.C1", "pinned only by the owner",
+"awaiting the owner" or "C1/C2 are null", and each must say PINNED. The manifest hash
+changes with this commit; the C2 ruling pair binds it.
