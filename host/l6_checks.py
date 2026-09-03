@@ -22,8 +22,11 @@ import l6_timing as lt  # noqa: E402
 BASELINE_SCORES = [18, 22, 20, 20, 20, 18]
 
 
+HB_RULES = ("v06", "v07")   # rel-v4 heartbeat rule: v0.6 (one missing per record) or the v0.7 candidate (records budgeted)
+
+
 def structural_findings(log: dict, chunks: list[dict], requested_audit_seqs: set[int],
-                        frames: list[dict], protocol: str = "rec-v3") -> list[str]:
+                        frames: list[dict], protocol: str = "rec-v3", hb_rule: str = "v06") -> list[str]:
     """D-s4's independent rule: a missing AUDIT, REC or TERM is a structural defect whatever
     the CRC total. REC: every SIGNREQ the host answered has a loop record. AUDIT: every seq
     the host requested (and is SCORED) and every non-SCORED self-report has its chunks,
@@ -51,7 +54,9 @@ def structural_findings(log: dict, chunks: list[dict], requested_audit_seqs: set
         out.append("missing TERM: the session summary was not the application's")
     if protocol == "rel-v4":
         import l6_rel as rel                        # indexed heartbeats, a budgeted loss
-        out += rel.heartbeat_findings_rel(log, frames)
+        if hb_rule not in HB_RULES:
+            raise ValueError(f"hb_rule {hb_rule!r} is not one of {HB_RULES}")
+        out += rel.heartbeat_findings_v07(log, frames) if hb_rule == "v07" else rel.heartbeat_findings_rel(log, frames)
     else:
         out += heartbeat_completeness_findings(log, frames)
     return out
@@ -80,15 +85,26 @@ def heartbeat_completeness_findings(log: dict, frames: list[dict]) -> list[str]:
 
 
 def baseline_findings(log: dict) -> list[str]:
-    """Both baselines exactly the pinned train scores (L5 §5, kept by L6 §6.1)."""
+    """Both baselines exactly the pinned train scores (L5 §5, kept by L6 §6.1). The opening
+    baseline (the first SCORED record) is always checked; the LAST SCORED record is the
+    closing baseline only when the epoch COMPLETED — on a CRASHED/PROTOCOL/STOPPED end it
+    is whatever candidate ran last (S #2, 2026-09-03-03: candidate 144's scores were
+    reported as "closing baseline scores … != pinned", a crash-path artefact; the epoch's
+    own end already says the closing baseline was not reached)."""
     scored = [r for r in log["loop_records"] if r["outcome"] == "SCORED"]
     if not scored:
         return ["no SCORED record: no baseline to check"]
+    completed = ((log.get("session_summary") or {}).get("epoch_end") or {}).get("kind") == "COMPLETED"
+    checks = [("opening", scored[0])]
+    if completed:
+        checks.append(("closing", scored[-1]))
     out = []
-    for name, r in (("opening", scored[0]), ("closing", scored[-1])):
+    for name, r in checks:
         got = r["evidence"].get("score", {}).get("scores")
         if got != BASELINE_SCORES:
             out.append(f"{name} baseline scores {got} != pinned {BASELINE_SCORES}")
+    if completed and len(scored) < 2:
+        out.append("COMPLETED with a single SCORED record: no closing baseline")
     return out
 
 
@@ -298,12 +314,21 @@ def rel_recovery_findings(recovery: dict, pc: dict) -> list[str]:
 
 def soak_findings(log: dict, frames: list[dict], crc_dropped: int, crc_budget: int,
                   span_s: float, duration_s: float, hb_gap_max_s: float,
-                  settle_median_calib: float, settle_bound_factor: int, wall_fraction_min: float) -> list[str]:
+                  settle_median_calib: float, settle_bound_factor: int, wall_fraction_min: float,
+                  bad_frames: int | None = None, bad_frame_budget: int | None = None) -> list[str]:
     """S (§6.4): no gap > hb_gap_max_s between consecutive HB frames (HB only; at least two
     HB frames or the invariant is unchecked and that is a HOLD), CRC drops within the
     closed-formula budget, wall time ≥ wall_fraction_min × T, every settle.polls within
-    [1, settle_bound_factor × the C1/C2 median]."""
+    [1, settle_bound_factor × the C1/C2 median]. v0.7 candidate: bad frames (malformed lines
+    the ledger policy tolerated) within `bad_frame_budget` — the same closed formula as the
+    CRC budget, applied to the ledger's count; the console ends the epoch at the first past
+    it, and this check names the total even when it did (never unbounded tolerance)."""
     out = []
+    if bad_frame_budget is not None:
+        if bad_frames is None:
+            out.append("bad frames not counted: the ledger's bad_frames must be supplied under the v0.7 rule")
+        elif bad_frames > bad_frame_budget:
+            out.append(f"bad frames {bad_frames} exceed the budget {bad_frame_budget} (v0.7: the D-s4 formula applied to malformed lines)")
     n_hb = lt.heartbeat_count(frames)
     if n_hb < 2:
         out.append(f"heartbeat invariant not checkable: {n_hb} HB frame(s) received (an empty set is not a pass)")

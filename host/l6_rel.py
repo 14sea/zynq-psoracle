@@ -585,6 +585,52 @@ def heartbeat_findings_rel(log: dict, frames: list[dict]) -> list[str]:
     return out
 
 
+def heartbeat_findings_v07(log: dict, frames: list[dict]) -> list[str]:
+    """The v0.7 CANDIDATE heartbeat rule (after S #2, 2026-09-03-03 — owner's item: v0.7 must
+    rule the heartbeat rule explicitly, never let it slip): the per-record cap of v0.6
+    ("at most one missing per record") is replaced by a budget on RECORDS — over a
+    session at most floor(R / 1000) SCORED records may miss any heartbeat at all (R =
+    SCORED records; 0 for a 64-candidate calibration, 6 for a 2 h soak), every index seen
+    is in 0..15, duplicates are reported never a finding, an HB without an index is a
+    protocol finding, and the total missing is reported. Rationale: a contiguous console
+    loss that crosses into a REC takes several heartbeats of ONE record (S #2: #12–#15 of
+    seq 145) — under v0.6 that record is a structural HOLD even when the REC transaction
+    recovers it, so the recovery is worthless; under this rule the event costs one record
+    of the budget and is otherwise judged by the REC transaction and the bad-frame bound.
+    The 20 s liveness gap (soak_findings) is untouched. NOT in force: v0.6 is frozen with
+    `heartbeat_findings_rel`; this function runs only when the manifest's prereg version
+    selects it (host/l6_runner.py)."""
+    seen: dict[int, list[int]] = {}
+    unindexed = 0
+    for f in frames:
+        if f.get("dir") == "rx" and f.get("type") == n.T_HB and f.get("seq") is not None:
+            i = hb_index_of(f)
+            if i is None:
+                unindexed += 1
+            else:
+                seen.setdefault(f["seq"], []).append(i)
+    out = []
+    if unindexed:
+        out.append(f"{unindexed} HB frames carry no index: not a rel-v4 image")
+    scored = [r for r in log["loop_records"] if r["outcome"] == "SCORED"]
+    records_missing, total_missing = [], 0
+    for r in scored:
+        idx = seen.get(r["seq"], [])
+        bad = [i for i in idx if not 0 <= i < HB_PER_RECORD]
+        if bad:
+            out.append(f"seq {r['seq']}: HB index out of range {bad}")
+        distinct = {i for i in idx if 0 <= i < HB_PER_RECORD}
+        missing = HB_PER_RECORD - len(distinct)
+        if missing:
+            records_missing.append((r["seq"], missing))
+            total_missing += missing
+    budget = hb_missing_budget(len(scored))
+    if len(records_missing) > budget:
+        out.append(f"{len(records_missing)} SCORED records miss heartbeats ({total_missing} in all: "
+                   f"{records_missing[:8]}{'…' if len(records_missing) > 8 else ''}) > the record budget floor(R/1000) = {budget}")
+    return out
+
+
 # ------------------------------------------------------------------ the channel
 
 

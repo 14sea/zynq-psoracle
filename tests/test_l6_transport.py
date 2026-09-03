@@ -487,7 +487,7 @@ class V05Findings(unittest.TestCase):
         src = inspect.getsource(l6.run_l6)
         self.assertIn('if str(l6m["prereg"].get("version")) in V05_RULE_VERSIONS:', src)
         import l6_runner as l6r
-        self.assertEqual(l6r.V05_RULE_VERSIONS, ("v0.5", "v0.6"))
+        self.assertEqual(l6r.V05_RULE_VERSIONS, ("v0.5", "v0.6", "v0.7"))   # the three-rate rule carries into the v0.7 candidate
         self.assertIn("lc.calibration_findings_v05(rep, pc)", src)
         self.assertIn('lc.calibration_findings(rep, pc["cov_max"])', src)
 

@@ -64,7 +64,23 @@ TOOL_VERSION = "l6_runner.py/0.2.0"
 # image never transacts.
 HOST_PROTOCOL = "rec-v3"
 HOST_PROTOCOLS = ("rec-v3", "rel-v4")
-V05_RULE_VERSIONS = ("v0.5", "v0.6")     # the three-rate rule (nominal CoV + clean minimum + recovery bounds + planning)    # rel-v4: host/l6_rel.py, selected by the pinned image's protocol
+V05_RULE_VERSIONS = ("v0.5", "v0.6", "v0.7")     # the three-rate rule (nominal CoV + clean minimum + recovery bounds + planning)    # rel-v4: host/l6_rel.py, selected by the pinned image's protocol
+# v0.7 CANDIDATE rules (the host batch after S #2, 2026-09-03-03) — in force only when the
+# manifest's prereg.version is v0.7, i.e. after the owner freezes v0.7; under v0.6 nothing
+# of them runs: a malformed non-transaction line is ledgered and bounded instead of the
+# collector's CRASHED, the heartbeat rule budgets RECORDS (l6_rel.heartbeat_findings_v07),
+# the soak's bad frames are bounded, and S's N follows `sessions.S.n_rule` (host/l6_soak_plan.py)
+V07_RULE_VERSIONS = ("v0.7",)
+
+
+def rules_for(l6m: dict) -> dict:
+    """The rule set the manifest's frozen (or candidate) prereg version selects."""
+    import l6_console as lcs
+    v = str(l6m["prereg"].get("version"))
+    v07 = v in V07_RULE_VERSIONS
+    return {"version": v, "three_rate": v in V05_RULE_VERSIONS, "v07": v07,
+            "hb_rule": "v07" if v07 else "v06",
+            "bad_frame_policy": lcs.BAD_FRAME_LEDGER if v07 else lcs.BAD_FRAME_CRASH}
 RULING_TEXT = "whole-of-probe P3-L6"
 PROVISION_RULING_TEXT = "provisioning P3-K"       # host/sign_arm.py's text; the signer re-checks it
 SESSIONS = ("C1", "C2", "S")
@@ -120,7 +136,8 @@ def session_loop_continues(collector, console, now: float, deadline: float) -> b
 
 
 def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: float,
-                 calibration: dict | None, session_timeout_s: float | None) -> dict:
+                 calibration: dict | None, session_timeout_s: float | None,
+                 calibration_logs: dict | None = None) -> dict:
     """Everything derived BEFORE the session, pure: mode, N, the schedule, the audit seqs,
     the expected frames and CRC budget, the timeout, the flags word. `calibration` (S only)
     is {"C1": report dict, "C2": report dict} already hash-checked by the caller."""
@@ -183,13 +200,32 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
                 if not isinstance(rep.get("evals_per_hour"), (int, float)):
                     raise ValueError(f"calibration report {k} carries no evals_per_hour")
                 rates[k] = float(rep["evals_per_hour"])
+        rules = rules_for(l6m)
+        n_rule = "planning"
+        if rules["v07"]:
+            # v0.7 candidate: the manifest must NAME the rule (owner 2026-09-03: no formula is
+            # pre-approved; S #2's pace validates a candidate N and never feeds it)
+            import l6_soak_plan as lsp
+            n_rule = l6m["sessions"]["S"].get("n_rule")
+            if n_rule not in lsp.RULES:
+                raise ValueError(f"v0.7: manifests sessions.S.n_rule must name one of {lsp.RULES}, not {n_rule!r}")
+            if n_rule != "planning":
+                if not calibration_logs or set(calibration_logs) != {"C1", "C2"}:
+                    raise ValueError(f"v0.7 n_rule {n_rule!r} needs both calibration run logs (the report's inputs.run_log)")
+                pm = lsp.soak_n_for_rule(n_rule, calibration_logs, duration_s)
+                rates = {"C1": pm["rate_C1"], "C2": pm["rate_C2"]}
+                inputs["n_rule_trace"] = {"unrounded": pm["unrounded"], "audit_fraction": pm["audit_fraction"],
+                                          "fixed_point_rounds": pm["fixed_point_rounds"]}
+        inputs["n_rule"] = n_rule
         n = ls.soak_n(rates["C1"], rates["C2"], duration_s)
         timeout = ls.session_timeout_s(n, rates["C1"], rates["C2"])
         audit_policy = "sampled"
         audit_seqs = ls.sampled_audit_seqs(n, l6m["audit"]["every"])
         settle_med = [lc.median_settle_polls_from_report(calibration[k]) for k in ("C1", "C2")]
         inputs.update({"rate_C1_per_h": rates["C1"], "rate_C2_per_h": rates["C2"], "duration_s": duration_s,
-                       "rate_source": "planning (D-t1)" if str(l6m["prereg"].get("version")) in V05_RULE_VERSIONS else "evals_per_hour (v0.4)",
+                       "rate_source": (f"{n_rule} (v0.7 candidate, host/l6_soak_plan.py)" if n_rule != "planning"
+                                       else "planning (D-t1)" if str(l6m["prereg"].get("version")) in V05_RULE_VERSIONS
+                                       else "evals_per_hour (v0.4)"),
                        "soak_fraction": ls.SOAK_FRACTION, "n_formula": "floor(0.9 × min(rate) × T)",
                        "timeout_formula": "1.25 × (N+2) × 3600/min(rate) + 600",
                        "settle_polls_median_calibration": settle_med})
@@ -202,12 +238,17 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
     sched = ls.schedule(master_seed, n, mode)
     expected = ls.expected_frames(n, audit_seqs, l6m["pinned_at_build"].get("protocol", "push-v1"))
     budget = ls.crc_budget(expected["total"])
+    rules = rules_for(l6m)
     # rec-v3 (prereg v0.4): the forced REC-retry control is armed in EVERY session — the
     # opening baseline's record proves the real wire retry within seconds, preregistered
     return {"session": session, "mode": mode, "master_seed": master_seed, "n": n, "schedule": sched,
             "audit_policy": audit_policy, "audit_seqs": audit_seqs, "expected_frames": expected,
             "crc_budget": budget, "crc_formula": "ceil(4 × expected_total / 1000)",
             "session_timeout_s": timeout, "inputs": inputs,
+            # v0.7 candidate rules, selected by the prereg version (rules_for): under v0.6 the
+            # policy is "crash", the budget None, the heartbeat rule v06 — exactly as frozen
+            "rules_version": rules["version"], "bad_frame_policy": rules["bad_frame_policy"],
+            "bad_frame_budget": budget if rules["v07"] else None, "hb_rule": rules["hb_rule"],
             "protocol": l6m["pinned_at_build"].get("protocol", HOST_PROTOCOL), "rec_retry_control": True,
             "flags": ls.flags_for(mode, watchdog=bool(l6m["pinned_at_build"]["watchdog_enabled"]), rec_control=True,
                                   sign_control=l6m["pinned_at_build"].get("protocol") == "rel-v4")}
@@ -303,7 +344,9 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
             return []
         console = lcs.ConsoleSession(token, collector, relay, timeline, plan["audit_seqs"], plan["crc_budget"], send,
                                      reader=reader, clock=time.monotonic, protocol=plan["protocol"],
-                                     identity_check=identity_check)
+                                     identity_check=identity_check,
+                                     bad_frame_policy=plan.get("bad_frame_policy", lcs.BAD_FRAME_CRASH),
+                                     bad_frame_budget=plan.get("bad_frame_budget"))
         while session_loop_continues(collector, console, time.monotonic(), deadline):
             for line, t_mono, t_wall in reader.poll():
                 console.on_line(line, t_mono, t_wall)
@@ -361,7 +404,7 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
                 protocol=plan["protocol"], rec_retry_control=bool(plan["flags"] & ls.FLAG_REC_CONTROL),
                 sign_retry_control=_sign_control_expectation(plan))
             findings += lc.structural_findings(log, collector.audits, plan["audit_seqs"], timeline.frames,
-                                               protocol=plan["protocol"])
+                                               protocol=plan["protocol"], hb_rule=plan.get("hb_rule", "v06"))
             findings += lc.baseline_findings(log)
             findings += lc.rec_closure_findings(log, console.rec_ledgers_json())      # v0.4 PASS condition 7
             findings += lc.rec_control_findings(console.rec_ledgers_json(), bool(plan["flags"] & ls.FLAG_REC_CONTROL))
@@ -394,7 +437,9 @@ def run_l6(session: bsn.BoardSession, out_dir: Path, ruling: dict, cfg: dict) ->
                     findings += lc.soak_findings(
                         log, timeline.frames, console.crc_dropped, plan["crc_budget"], rep["session_span_s"],
                         plan["inputs"]["duration_s"], pc["hb_gap_max_s"], med, pc["settle_bound_factor"],
-                        pc["wall_fraction_min"])
+                        pc["wall_fraction_min"],
+                        bad_frames=timeline.bad_frames if plan.get("bad_frame_budget") is not None else None,
+                        bad_frame_budget=plan.get("bad_frame_budget"))
             except lr.RateError as exc:
                 findings.append(f"no rate report: {exc}")
             summary["findings"] = findings
@@ -481,8 +526,9 @@ def preflight(a) -> dict:
     if not a.bitstream.is_file() or _sha(a.bitstream) != car["bitstream_sha256"]:
         raise bsn.SessionRefusal(f"the bitstream {a.bitstream} does not hash to the frozen carrier {car['bitstream_sha256'][:16]}…")
     calibration = None
+    calibration_logs = None
     if a.session == "S":
-        calibration = {}
+        calibration, calibration_logs = {}, {}
         for k, path in (("C1", a.calibration_c1), ("C2", a.calibration_c2)):
             pin = l6m["calibration"][k]["rate_report_sha256"]
             if not pin:
@@ -496,6 +542,14 @@ def preflight(a) -> dict:
             bad = lc.calibration_inputs_findings(path, calibration[k], required=str(l6m["prereg"].get("version")) in V05_RULE_VERSIONS)
             if bad:
                 raise bsn.SessionRefusal(f"D-s3: {k} calibration inputs: " + "; ".join(bad))
+            if rules_for(l6m)["v07"]:
+                # v0.7: the policy-matched N reads the calibration's timing records from the
+                # run log beside the report — the file the report's `inputs.run_log` hashes
+                lp = path.parent / "run_log.json"
+                want = (calibration[k].get("inputs") or {}).get("run_log")
+                if not lp.is_file() or _sha(lp) != want:
+                    raise bsn.SessionRefusal(f"v0.7: {k}'s run_log.json beside the report is missing or does not hash to the report's inputs.run_log")
+                calibration_logs[k] = json.loads(lp.read_text())
     if shutil.which("sb") is None:
         raise bsn.SessionRefusal("`sb` is not installed")
     manifest = json.loads(a.manifest.read_text()); records.validate(manifest)
@@ -513,7 +567,8 @@ def preflight(a) -> dict:
         raise bsn.SessionRefusal(f"principal boundary: --key {a.key} is not the record's key store's {want_key}")
     if a.out.exists():
         raise bsn.SessionRefusal(f"{a.out} exists; evidence is never replaced")
-    plan = plan_session(l6m, a.session, a.master_seed, a.duration_s, calibration, a.session_timeout_s)
+    plan = plan_session(l6m, a.session, a.master_seed, a.duration_s, calibration, a.session_timeout_s,
+                        calibration_logs=calibration_logs)
     # prereg v0.4: the run log and its rate report carry the pins the session ran under, so
     # a calibration can never be reused for another image, preregistration or protocol
     plan["binding"] = {"image_sha256": image_sha, "prereg_sha256": pinned_prereg, "protocol": plan["protocol"],

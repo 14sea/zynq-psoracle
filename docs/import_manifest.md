@@ -689,6 +689,10 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l6_17A6_2026-09-03-03-S/ymodem.log` |
 | `evidence/l6_17A6_2026-09-03-03-S/ymodem_app.log` |
 | `docs/l6_s_session2_findings.md` |
+| `tests/test_l6_s2_host_batch.py` |
+| `host/l6_soak_plan.py` |
+| `evidence/l6_soak_plan/n_vs_t_2026-09-03.json` |
+| `tests/test_l6_v07_rules.py` |
 | `docs/l6_transport_batch_package.md` |
 | `docs/l6_frame_reliability_design.md` |
 | `docs/l6_rel_batch_package.md` |
