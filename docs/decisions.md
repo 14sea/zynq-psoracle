@@ -1712,3 +1712,35 @@ session's pins and its three input files. Both rulings consumed (PASS). Archived
 (5deee74c… RAN ON 17A6) + status, `docs/status.md` row, import manifest. Nothing pinned
 here: `calibration.C1` stays null until the owner adjudicates and pins the report by hash;
 C2 needs its own ruling pair bound to the post-pin manifest and a power cycle. No push.
+
+## 2026-09-03 — owner adjudication: C1 #6 = PASS; `9c6772d` pushed; `calibration.C1` pinned = `08222f85…`; the stop-loss exception advances to exactly ONE rel-v4 C2 (ruled only after the pin commit is pushed)
+
+Owner (2026-09-03), independent re-check: the ruling pair verbatim, the consumed records,
+boundary R1–R5 and the three frozen pins all match; the validator re-run gives scored 66 /
+audited 66 / chain_length 67; audit policy, arm schedule, identity, baseline, REC and
+rel-v4 closure, both controls and the recovery gates without finding; the 66 × 3 audit
+hashes recomputed from the raw words equal; `rate_report.json` regenerated from the three
+input files on disk field-identical and the three input hashes match; nominal CoV 0.0151,
+63/63 clean, planning 3381.37 evals/h — v0.6 satisfied; independent suite 1021 OK (the
+extra skip is the review environment's boundary skip); `git diff --check` flags only the
+raw YMODEM terminal records' control characters, not data or code. Rulings: C1 #6 = PASS;
+push of `9c6772d` approved and done; `calibration.C1` = the report at
+`evidence/l6_17A6_2026-09-03-01-C1/rate_report.json`, sha
+`08222f85799fa3d18012cdd26a5cc047527995b682bfd5679a668014ea03251c`, session C1 #6, ruling
+`2026-09-03-01`, protocol / image / prereg recorded as the report's own binding; C1 #5
+stays HOLD under v0.4, permanently. The pin commit may be pushed after the staged
+fail-closed suite; its committed manifest sha256 is reported back. **Stop-loss:** the
+operational exception advances to exactly ONE rel-v4 C2 — no ruling is built before the
+pin commit is committed and pushed; the C2 ruling pair then binds the new committed
+manifest sha256; a non-PASS C2 is not re-run; S and Claim B stay closed. **Scope of the
+PASS:** a normal complete epoch plus the forced SIGNREQ and REC retry controls actually
+completed on the board; the untriggered 8 s timeout, READY resend, AUDITWAIT and TERMGET
+are not within this session's evidence.
+
+Delivered: `manifests/l6_manifest.json` `calibration.C1` (sha, evidence path, session,
+ruling, pinned_by/at, the owner's note, image/prereg/protocol, the report's `binding` and
+`inputs` verbatim, the three rates, standing ACTIVE) and `status`;
+`tests/test_package_consistency.py` — the pin hashes to the bytes on disk, its binding
+equals the report's and the current pins, the three input files hash to the report's
+`inputs`, a C1 PASS session stands in `hardware_history`, C2 still null; `docs/status.md`.
+Nothing about C2 is created here.

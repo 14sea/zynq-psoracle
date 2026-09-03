@@ -269,8 +269,21 @@ class PinnedL6Image(unittest.TestCase):
         """Promotion/freeze batch 2026-09-02: under rec-v3 the active C1/C2 pins are null;
         the pull-v2 reports stay on record as historical and are refused for S by the
         runner (tests/test_l6_runner.py checks the real files)."""
-        for k in ("C1", "C2"):
-            self.assertIsNone(L6["calibration"][k]["rate_report_sha256"], k)
+        # owner 2026-09-03: C1 #6 (rel-v4, v0.6) PASS adjudicated and pinned; C2 still null
+        self.assertIsNone(L6["calibration"]["C2"]["rate_report_sha256"], "C2 is pinned only after a rel-v4 C2 PASS")
+        c1 = L6["calibration"]["C1"]
+        self.assertEqual(c1["rate_report_sha256"][:8], "08222f85"); self.assertEqual((c1["session"], c1["ruling"]), ("C1 #6", "2026-09-03-01"))
+        path = R / c1["evidence"]
+        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), c1["rate_report_sha256"], "the pin is the bytes on disk")
+        rep = json.loads(path.read_text())
+        self.assertEqual(rep["binding"], c1["binding"]); self.assertEqual(rep["inputs"], c1["inputs"])
+        self.assertEqual(c1["binding"], {"image_sha256": L6_PINNED["app_image_sha256"], "prereg_sha256": L6["prereg"]["sha256"],
+                                         "protocol": "rel-v4", "session": "C1", "schedule_mode": "random_safe_forced",
+                                         "master_seed": L6["sessions"]["C1"]["master_seed"]}, "the pin binds the current pins")
+        for name, sha in c1["inputs"].items():                       # D-t2: the three input files still hash to the report's inputs
+            self.assertEqual(hashlib.sha256((path.parent / f"{name}.json").read_bytes()).hexdigest(), sha, name)
+        self.assertTrue(any(h["session"] == "C1 #6" and h["outcome"].startswith("PASS") for h in L6_PINNED["hardware_history"]))
+        self.assertIn("C1 #5", c1["note"]); self.assertIn("HOLD", c1["note"])
         hist = L6["calibration"]["historical_pull_v2"]
         self.assertEqual(hist["C1"]["rate_report_sha256"][:8], "786dc3ec")
         self.assertEqual(hist["C2"]["rate_report_sha256"][:8], "a13e301f")

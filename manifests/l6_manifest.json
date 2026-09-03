@@ -1,7 +1,7 @@
 {
   "schema": "l6_manifest",
   "schema_version": "0.1.0",
-  "status": "C1 #6 (ruling 2026-09-03-01, rel-v4 image 5deee74c…, prereg v0.6) = PASS as the runner adjudicated it — the ONE session the owner's conditional stop-loss lift authorised (2026-09-03, after the frozen-artifact short review PASS); rate_report.json 08222f85… is a candidate for calibration.C1, pinned only by the owner; C2, S and Claim B stay closed until the owner rules; C1 #5 stays HOLD. FROZEN preregistration v0.6 (rel-v4) + board-ready rel-v4 image 5deee74c… (promoted 2026-09-03 in the owner's promotion/freeze batch, host-only; 403f4ab5… superseded, NOT defective — it ran C1 #5, HOLD, permanent under v0.4; 734d6c04… withdrawn DEFECTIVE; cd8360dc… and 47b8fa09… withdrawn DEFECTIVE). This manifest still authorises no ruling and no board contact: each session needs its own bound ruling pair (whole-of-probe P3-L6 + provisioning P3-K, binding THIS file's committed sha256), a power cycle and a fresh boundary record; calibration.C1/C2 are null until the rel-v4 C1 and C2 have run under v0.6 (the pull-v2 calibrations are historical and refused; no rec-v3 calibration was ever pinned). Order: frozen-artifact/hash short review → the owner's stop-loss ruling → C1 ruling pair → C2 ruling pair → owner pins the bound records → S ruling pair, ONE C1 → C2 → S under v0.6. OWNER 2026-09-02/03: the §7 STOP-LOSS is TRIGGERED (S #1 + C1 #5, the same transport failure class) and stays TRIGGERED through this promotion/freeze batch; a conditional lifting may be considered only after the frozen-artifact short review passes, and it opens at most ONE rel-v4 C1 — C2, S and Claim B are not opened in advance; C1 #5 (2026-09-02-01, rec-v3, v0.4) = HOLD, permanent, not re-judged. History: the byte-loss stop-loss lifted for pull-v2 (owner 2026-09-01) stood for v0.3; S #1 counted as S failure #1 under §7; the transport fix (docs/l6_transport_batch_package.md) REVIEWED PASS scoped, the correction line REVIEWED PASS, the rel-v4 host batch REVIEWED PASS over three corrections and pushed (a8c950d), the rel-v4 firmware batch: full P3 compatibility review HOLD (734d6c04…) → short re-review of package §7 PASS → evidence-closure review of §8 PASS (57cc22b pushed); v0.5 was never frozen; D-t3 pinned 2.0 s.",
+  "status": "OWNER 2026-09-03: C1 #6 = PASS adjudicated after independent re-check; calibration.C1 PINNED = 08222f85… (this manifest's hash changes with the pin: the C2 ruling pair binds the NEW committed sha256). The stop-loss operational exception advances to exactly ONE rel-v4 C2, whose ruling pair may be issued only after this pin commit is pushed; a non-PASS C2 is not re-run; S and Claim B stay closed. C1 #6 (ruling 2026-09-03-01, rel-v4 image 5deee74c…, prereg v0.6) = PASS as the runner adjudicated it — the ONE session the owner's conditional stop-loss lift authorised (2026-09-03, after the frozen-artifact short review PASS); rate_report.json 08222f85… is a candidate for calibration.C1, pinned only by the owner; C2, S and Claim B stay closed until the owner rules; C1 #5 stays HOLD. FROZEN preregistration v0.6 (rel-v4) + board-ready rel-v4 image 5deee74c… (promoted 2026-09-03 in the owner's promotion/freeze batch, host-only; 403f4ab5… superseded, NOT defective — it ran C1 #5, HOLD, permanent under v0.4; 734d6c04… withdrawn DEFECTIVE; cd8360dc… and 47b8fa09… withdrawn DEFECTIVE). This manifest still authorises no ruling and no board contact: each session needs its own bound ruling pair (whole-of-probe P3-L6 + provisioning P3-K, binding THIS file's committed sha256), a power cycle and a fresh boundary record; calibration.C1/C2 are null until the rel-v4 C1 and C2 have run under v0.6 (the pull-v2 calibrations are historical and refused; no rec-v3 calibration was ever pinned). Order: frozen-artifact/hash short review → the owner's stop-loss ruling → C1 ruling pair → C2 ruling pair → owner pins the bound records → S ruling pair, ONE C1 → C2 → S under v0.6. OWNER 2026-09-02/03: the §7 STOP-LOSS is TRIGGERED (S #1 + C1 #5, the same transport failure class) and stays TRIGGERED through this promotion/freeze batch; a conditional lifting may be considered only after the frozen-artifact short review passes, and it opens at most ONE rel-v4 C1 — C2, S and Claim B are not opened in advance; C1 #5 (2026-09-02-01, rec-v3, v0.4) = HOLD, permanent, not re-judged. History: the byte-loss stop-loss lifted for pull-v2 (owner 2026-09-01) stood for v0.3; S #1 counted as S failure #1 under §7; the transport fix (docs/l6_transport_batch_package.md) REVIEWED PASS scoped, the correction line REVIEWED PASS, the rel-v4 host batch REVIEWED PASS over three corrections and pushed (a8c950d), the rel-v4 firmware batch: full P3 compatibility review HOLD (734d6c04…) → short re-review of package §7 PASS → evidence-closure review of §8 PASS (57cc22b pushed); v0.5 was never frozen; D-t3 pinned 2.0 s.",
   "prereg": {
     "path": "docs/l6_soak_prereg.md",
     "version": "v0.6",
@@ -371,8 +371,37 @@
   },
   "calibration": {
     "C1": {
-      "rate_report_sha256": null,
-      "evidence": null
+      "rate_report_sha256": "08222f85799fa3d18012cdd26a5cc047527995b682bfd5679a668014ea03251c",
+      "evidence": "evidence/l6_17A6_2026-09-03-01-C1/rate_report.json",
+      "session": "C1 #6",
+      "ruling": "2026-09-03-01",
+      "pinned_by": "14sea",
+      "pinned_at": "2026-09-03",
+      "note": "owner adjudication 2026-09-03 after independent re-check (ruling pair verbatim, consumed records, boundary R1–R5 and the three frozen pins all match; the validator re-run: scored 66 / audited 66 / chain_length 67; audit policy, arm schedule, identity, baseline, REC and rel-v4 closure, both controls and the recovery gates without finding; 66 × 3 audit hashes recomputed from the raw words equal; rate_report.json regenerated from the three input files on disk field-identical, the three input hashes matching; nominal CoV 0.0151 over 63/63 clean periods, planning 3381.37 evals/h; independent suite 1021 OK). The S runner imports rate_A ONLY from bytes hashing to this pin, with this binding and these three input files (D-s3, D-r5, D-t2), taking the PLANNING rate (D-t1). C1 #5 (2026-09-02-01, v0.4) stays HOLD, permanently, not re-judged.",
+      "image_sha256": "5deee74c44785ebe88168ccffaa5f399f26a7c5a567fccb3d430cf4eb14cdc7c",
+      "prereg": "v0.6 bfd69d10…",
+      "prereg_sha256": "bfd69d1037c4d2715759befef766d353b99741c8ff6ef6cb0ca30bbd325a620a",
+      "protocol": "rel-v4",
+      "binding": {
+        "image_sha256": "5deee74c44785ebe88168ccffaa5f399f26a7c5a567fccb3d430cf4eb14cdc7c",
+        "prereg_sha256": "bfd69d1037c4d2715759befef766d353b99741c8ff6ef6cb0ca30bbd325a620a",
+        "protocol": "rel-v4",
+        "session": "C1",
+        "schedule_mode": "random_safe_forced",
+        "master_seed": 1278624577
+      },
+      "inputs": {
+        "run_log": "9cb4ebdbe6bd9e8fcbd15697063a360d25db54471bbdcfa3be2977f65cc0dd00",
+        "audits": "3444e389831059a3d8c6bb405ff40548b8a1b108292921234e1e91bae47cb3c5",
+        "timeline": "130446bcb8664054f4bb983ee95cd5ed2a3b9f15e18cc1240d5fb519e1b9cc00"
+      },
+      "rates": {
+        "inclusive_evals_per_hour": 3495.701532350995,
+        "nominal_cov": 0.015120098207822535,
+        "nominal_clean_periods": 63,
+        "planning_evals_per_hour": 3381.372371494145
+      },
+      "standing": "ACTIVE — the v0.6 / rel-v4 C1 calibration (C1 #6 PASS, adjudicated and pinned by the owner 2026-09-03); reusable for a v0.6 S only while image/prereg/protocol stay these pins"
     },
     "C2": {
       "rate_report_sha256": null,
