@@ -84,6 +84,7 @@ class PullBoard:
         self.armed = False
         self.idle_s = 0.0
         self.served: dict[int, int] = {}
+        self.why = ""
 
     @property
     def needs_audit(self) -> bool:
@@ -128,6 +129,13 @@ class PullBoard:
                 return [self.serve(c)]
             return []
         if f["type"] == T_DONE:
+            # review 2026-09-03, blocker 1 (the C unit and this twin agreed on the wrong
+            # thing): a DONE before every chunk was served is not the host's — abort
+            chunks = au.sparse_chunk_count(len(self.words))
+            if any(c not in self.served for c in range(chunks)):
+                self.why = "AUDITDONE before every chunk was served: the audit is not complete"
+                self._abort()
+                return []
             self.audited, self.state = True, "DONE"
             return []
         if f["type"] == T_ABORT:

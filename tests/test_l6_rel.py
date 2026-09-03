@@ -249,6 +249,13 @@ class ReadyAndDone(unittest.TestCase):
         dones = [l for l in res["host_sent"] if n.parse_line(l)["type"] == ap.T_DONE]
         self.assertEqual(len(dones), 2); self.assertEqual(dones[0], dones[1])
 
+    def test_a_done_before_every_chunk_is_refused_by_the_twin(self):
+        board = rel.ReadyBoard(TOKEN, 1, "streams+readback", self.WORDS, requested=True)
+        board.start()
+        board.on_host_line(n.build_line(ap.T_DONE, 1, TOKEN, n.encode_payload({"seq": 1})))
+        self.assertEqual(board.state, "ABORTED"); self.assertFalse(board.audited)
+        self.assertEqual(board.finish()["outcome"], "STOP_AUDIT")
+
     def test_done_lost_four_times_is_visible_on_both_sides(self):
         board, host, sim, res = self.run_pull([rel.Fault("h2b", ap.T_DONE, k, "drop") for k in range(4)])
         self.assertTrue(host.done, "the host verified every chunk")

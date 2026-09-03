@@ -1485,17 +1485,17 @@ Linker script and memory map
                 0x02006c50       0x64 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
                 0x02006c50                p3_wire_audit_wait
  .text.p3_rectx_recv_line_timed
-                0x02006cb4      0x21c /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
+                0x02006cb4      0x240 /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
                 0x02006cb4                p3_rectx_recv_line_timed
  .text.p3_tx_run
-                0x02006ed0      0x3c0 /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
-                0x02006ed0                p3_tx_run
+                0x02006ef4      0x3c0 /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
+                0x02006ef4                p3_tx_run
  .text.p3_rectx_run
-                0x02007290       0x6c /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
-                0x02007290                p3_rectx_run
+                0x020072b4       0x6c /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
+                0x020072b4                p3_rectx_run
  .text.p3_pull_run
-                0x020072fc      0x300 /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
-                0x020072fc                p3_pull_run
+                0x02007320      0x2dc /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
+                0x02007320                p3_pull_run
  .text.__udivmoddi4
                 0x020075fc      0x108 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/libgcc.a(_udivmoddi4.o)
                 0x020075fc                __udivmoddi4
@@ -1759,268 +1759,267 @@ Linker script and memory map
                 0x0200e9b8                _fini
  .fini          0x0200e9bc        0x8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtn.o
 
-.rodata         0x0200e9c8     0x3ae0
+.rodata         0x0200e9c8     0x3a98
                 0x0200e9c8                        __rodata_start = .
  *(.rodata)
  *(.rodata.*)
  .rodata.XScuWdt_CfgInitialize.str1.4
-                0x0200e9c8     0x17fb /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt.c.o
+                0x0200e9c8     0x17b7 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt.c.o
                                  0x60 (size before relaxing)
  .rodata.devcfg_dma.str1.4
-                0x020101c3       0x8f /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201017f       0x8f /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.parse_frame_any.str1.4
-                0x020101c3       0x13 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201017f       0x13 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.pull_payload_fields_cb.str1.4
-                0x020101c3       0x11 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201017f       0x11 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.build_payload_frame.constprop.0.str1.4
-                0x020101c3       0x53 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201017f       0x53 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.emit_summary.str1.4
-                0x020101c3       0x5c /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201017f       0x5c /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.emit_record.str1.4
-                0x020101c3        0x4 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201017f        0x4 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.pull_serve_chunk_cb.str1.4
-                0x020101c3        0x6 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201017f        0x6 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.audit_pull.str1.4
-                0x020101c3       0x48 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201017f       0x48 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.heartbeat.part.0.str1.4
-                0x020101c3        0x3 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201017f        0x3 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.pull_send_wait_cb.str1.4
-                0x020101c3        0xa /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201017f        0xa /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.arm_attempt.str1.4
-                0x020101c3       0x23 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201017f       0x23 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.run_candidate.str1.4
-                0x020101c3      0x37b /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201017f      0x37b /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.main.str1.4
-                0x020101c3      0x323 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- *fill*         0x020101c3        0x1 
+                0x0201017f      0x323 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ *fill*         0x0201017f        0x1 
  .rodata.zero_tag.0
-                0x020101c4       0x21 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- *fill*         0x020101e5        0x3 
- .rodata.key.1  0x020101e8       0x14 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x02010180       0x21 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ *fill*         0x020101a1        0x3 
+ .rodata.key.1  0x020101a4       0x14 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.str1.4
-                0x020101fc       0x35 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x020101b8       0x35 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.refused_kind.2
-                0x020101fc        0x4 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x020101b8        0x4 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.END_NAME
-                0x02010200       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x020101bc       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.DMA_READ_CLEANUP
-                0x02010210       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x020101cc       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.DMA_READ_FRAME
-                0x02010220       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x020101dc       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.DMA_READ_COMMAND
-                0x02010230       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x020101ec       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.DMA_WRITE_ENVELOPE
-                0x02010240       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x020101fc       0x10 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.P3_ENVELOPE
-                0x02010250       0x48 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x0201020c       0x48 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.P3_TARGET_FARS
-                0x02010298       0x30 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+                0x02010254       0x30 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
  .rodata.p3_parse_stream
-                0x020102c8        0xc /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- .rodata.abc.0  0x020102d4       0x41 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- *fill*         0x02010315        0x3 
+                0x02010284        0xc /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ .rodata.abc.0  0x02010290       0x41 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ *fill*         0x020102d1        0x3 
  .rodata.digits.2
-                0x02010318       0x11 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- *fill*         0x02010329        0x3 
- .rodata.iv.3   0x0201032c       0x20 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- .rodata.K256   0x0201034c      0x100 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x020102d4       0x11 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ *fill*         0x020102e5        0x3 
+ .rodata.iv.3   0x020102e8       0x20 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ .rodata.K256   0x02010308      0x100 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .rodata.P3_BASE_FLUSH
-                0x0201044c      0x4bc /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02010408      0x4bc /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .rodata.P3_BASE_TARGET
-                0x02010908     0x12f0 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x020108c4     0x12f0 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .rodata.P3_WHITELIST
-                0x02011bf8      0x36c /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- *fill*         0x02011f64        0x4 
+                0x02011bb4      0x36c /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .rodata.P3_ENVELOPE
-                0x02011f68       0x48 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02011f20       0x48 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .rodata.P3_TARGET_FARS
-                0x02011fb0       0x30 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+                0x02011f68       0x30 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .rodata.str1.4
-                0x02011fe0       0x47 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+                0x02011f98       0x47 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
  .rodata.P3_MODE_NAME
-                0x02011fe0        0xc /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
-                0x02011fe0                P3_MODE_NAME
+                0x02011f98        0xc /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+                0x02011f98                P3_MODE_NAME
  .rodata.P3_ARM_NAME
-                0x02011fec        0x8 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
-                0x02011fec                P3_ARM_NAME
+                0x02011fa4        0x8 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+                0x02011fa4                P3_ARM_NAME
  .rodata.P3_LUT_BITS
-                0x02011ff4      0x264 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+                0x02011fac      0x264 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
  .rodata.P3_LUT_LEN
-                0x02012258        0xc /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+                0x02012210        0xc /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
  .rodata.w_str.part.0.str1.4
-                0x02012264        0x7 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0201221c        0x7 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.w_tables.str1.4
-                0x02012264        0xa /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0201221c        0xa /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_line.str1.4
-                0x02012264       0x20 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0201221c       0x20 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_identity.str1.4
-                0x02012264      0x198 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0201221c      0x198 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_sign_request.str1.4
-                0x02012264       0x76 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0201221c       0x76 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_loop_record.str1.4
-                0x02012264      0x458 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0201221c      0x458 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_audit_ready.str1.4
-                0x02012264       0x74 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0201221c       0x74 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_audit_sparse.str1.4
-                0x02012264       0xb3 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0201221c       0xb3 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_closing.str1.4
-                0x02012264       0x64 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0201221c       0x64 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_summary.str1.4
-                0x02012264      0x1d1 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0201221c      0x1d1 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_hb.str1.4
-                0x02012264        0xa /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0201221c        0xa /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_wire_audit_wait.str1.4
-                0x02012264       0x19 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+                0x0201221c       0x19 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .rodata.p3_tx_run.str1.4
-                0x02012264       0xbb /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
+                0x0201221c       0xbb /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
  .rodata.p3_rectx_run.str1.4
-                0x02012264       0x3b /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
+                0x0201221c       0x3b /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
  .rodata.p3_pull_run.str1.4
-                0x02012264      0x193 /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
+                0x0201221c      0x150 /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
  .rodata._ctype_
-                0x02012264      0x101 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-ctype_.o)
-                0x02012264                _ctype_
+                0x0201221c      0x101 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-ctype_.o)
+                0x0201221c                _ctype_
  .rodata._svfprintf_r.str1.4
-                0x02012365       0x42 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
- *fill*         0x02012365        0x3 
+                0x0201231d       0x42 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
+ *fill*         0x0201231d        0x3 
  .rodata.zeroes.0
-                0x02012368       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
+                0x02012320       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
  .rodata.blanks.1
-                0x02012378       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
+                0x02012330       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-svfprintf.o)
  .rodata.str1.4
-                0x02012388       0x4c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-locale.o)
+                0x02012340       0x4c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-locale.o)
  .rodata._dtoa_r.str1.4
-                0x02012388       0xaa /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-dtoa.o)
+                0x02012340       0xaa /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-dtoa.o)
  .rodata.__multadd.str1.4
-                0x02012388       0x97 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
- .rodata.p05.0  0x02012388        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
- *fill*         0x02012394        0x4 
+                0x02012340       0x97 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+ .rodata.p05.0  0x02012340        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+ *fill*         0x0201234c        0x4 
  .rodata.__mprec_bigtens
-                0x02012398       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x02012398                __mprec_bigtens
+                0x02012350       0x28 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x02012350                __mprec_bigtens
  .rodata.__mprec_tens
-                0x020123c0       0xc8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
-                0x020123c0                __mprec_tens
+                0x02012378       0xc8 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mprec.o)
+                0x02012378                __mprec_tens
  .rodata.__assert_func.str1.4
-                0x02012488       0x43 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-assert.o)
+                0x02012440       0x43 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-assert.o)
  .rodata._vfiprintf_r.str1.4
-                0x02012488       0x2f /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
+                0x02012440       0x2f /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
  .rodata.zeroes.0
-                0x02012488       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
+                0x02012440       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
  .rodata.blanks.1
-                0x02012498       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
+                0x02012450       0x10 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-vfiprintf.o)
  *(.gnu.linkonce.r.*)
-                0x020124a8                        __rodata_end = .
+                0x02012460                        __rodata_end = .
 
-.rodata1        0x020124a8        0x0
-                0x020124a8                        __rodata1_start = .
+.rodata1        0x02012460        0x0
+                0x02012460                        __rodata1_start = .
  *(.rodata1)
  *(.rodata1.*)
-                0x020124a8                        __rodata1_end = .
+                0x02012460                        __rodata1_end = .
 
-.sdata2         0x020124a8        0x0
-                0x020124a8                        __sdata2_start = .
+.sdata2         0x02012460        0x0
+                0x02012460                        __sdata2_start = .
  *(.sdata2)
  *(.sdata2.*)
  *(.gnu.linkonce.s2.*)
-                0x020124a8                        __sdata2_end = .
+                0x02012460                        __sdata2_end = .
 
-.sbss2          0x020124a8        0x0
-                0x020124a8                        __sbss2_start = .
+.sbss2          0x02012460        0x0
+                0x02012460                        __sbss2_start = .
  *(.sbss2)
  *(.sbss2.*)
  *(.gnu.linkonce.sb2.*)
-                0x020124a8                        __sbss2_end = .
+                0x02012460                        __sbss2_end = .
 
-.data           0x020124a8      0x71c
-                0x020124a8                        __data_start = .
+.data           0x02012460      0x71c
+                0x02012460                        __data_start = .
  *(.data)
  *(.data.*)
  .data.XExc_VectorTable
-                0x020124a8       0x38 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
-                0x020124a8                XExc_VectorTable
+                0x02012460       0x38 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
+                0x02012460                XExc_VectorTable
  .data.Xil_AssertWait
-                0x020124e0        0x4 /home/test/zynq_psoracle/firmware/bsp/out/common_xil_assert.c.o
-                0x020124e0                Xil_AssertWait
+                0x02012498        0x4 /home/test/zynq_psoracle/firmware/bsp/out/common_xil_assert.c.o
+                0x02012498                Xil_AssertWait
  .data.XScuWdt_ConfigTable
-                0x020124e4        0x8 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_g.c.o
-                0x020124e4                XScuWdt_ConfigTable
- .data.__sglue  0x020124ec        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
-                0x020124ec                __sglue
+                0x0201249c        0x8 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_g.c.o
+                0x0201249c                XScuWdt_ConfigTable
+ .data.__sglue  0x020124a4        0xc /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-findfp.o)
+                0x020124a4                __sglue
  .data._impure_ptr
-                0x020124f8        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-impure.o)
-                0x020124f8                _impure_ptr
- *fill*         0x020124fc        0x4 
+                0x020124b0        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-impure.o)
+                0x020124b0                _impure_ptr
+ *fill*         0x020124b4        0x4 
  .data._impure_data
-                0x02012500      0x140 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-impure.o)
-                0x02012500                _impure_data
+                0x020124b8      0x140 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-impure.o)
+                0x020124b8                _impure_data
  .data.__atexit_recursive_mutex
-                0x02012640        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__call_atexit.o)
-                0x02012640                __atexit_recursive_mutex
+                0x020125f8        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-__call_atexit.o)
+                0x020125f8                __atexit_recursive_mutex
  .data.__malloc_sbrk_base
-                0x02012644        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
-                0x02012644                __malloc_sbrk_base
+                0x020125fc        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
+                0x020125fc                __malloc_sbrk_base
  .data.__malloc_trim_threshold
-                0x02012648        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
-                0x02012648                __malloc_trim_threshold
- *fill*         0x0201264c        0x4 
+                0x02012600        0x4 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
+                0x02012600                __malloc_trim_threshold
+ *fill*         0x02012604        0x4 
  .data.__malloc_av_
-                0x02012650      0x408 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
-                0x02012650                __malloc_av_
+                0x02012608      0x408 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-mallocr.o)
+                0x02012608                __malloc_av_
  .data.__global_locale
-                0x02012a58      0x16c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-locale.o)
-                0x02012a58                __global_locale
+                0x02012a10      0x16c /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-locale.o)
+                0x02012a10                __global_locale
  *(.gnu.linkonce.d.*)
  *(.jcr)
  *(.got)
  *(.got.plt)
-                0x02012bc4                        __data_end = .
+                0x02012b7c                        __data_end = .
 
-.igot.plt       0x02012bc4        0x0
- .igot.plt      0x02012bc4        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
+.igot.plt       0x02012b7c        0x0
+ .igot.plt      0x02012b7c        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
 
-.data1          0x02012bc4        0x0
-                0x02012bc4                        __data1_start = .
+.data1          0x02012b7c        0x0
+                0x02012b7c                        __data1_start = .
  *(.data1)
  *(.data1.*)
-                0x02012bc4                        __data1_end = .
+                0x02012b7c                        __data1_end = .
 
 .got
  *(.got)
 
-.ctors          0x02012bc4        0x0
-                0x02012bc4                        __CTOR_LIST__ = .
-                0x02012bc4                        ___CTORS_LIST___ = .
+.ctors          0x02012b7c        0x0
+                0x02012b7c                        __CTOR_LIST__ = .
+                0x02012b7c                        ___CTORS_LIST___ = .
  *crtbegin.o(.ctors)
  *(EXCLUDE_FILE(*crtend.o) .ctors)
  *(SORT_BY_NAME(.ctors.*))
  *(.ctors)
-                0x02012bc4                        __CTOR_END__ = .
-                0x02012bc4                        ___CTORS_END___ = .
+                0x02012b7c                        __CTOR_END__ = .
+                0x02012b7c                        ___CTORS_END___ = .
 
-.dtors          0x02012bc4        0x0
-                0x02012bc4                        __DTOR_LIST__ = .
-                0x02012bc4                        ___DTORS_LIST___ = .
+.dtors          0x02012b7c        0x0
+                0x02012b7c                        __DTOR_LIST__ = .
+                0x02012b7c                        ___DTORS_LIST___ = .
  *crtbegin.o(.dtors)
  *(EXCLUDE_FILE(*crtend.o) .dtors)
  *(SORT_BY_NAME(.dtors.*))
  *(.dtors)
-                0x02012bc4                        __DTOR_END__ = .
-                0x02012bc4                        ___DTORS_END___ = .
+                0x02012b7c                        __DTOR_END__ = .
+                0x02012b7c                        ___DTORS_END___ = .
 
-.fixup          0x02012bc4        0x0
-                0x02012bc4                        __fixup_start = .
+.fixup          0x02012b7c        0x0
+                0x02012b7c                        __fixup_start = .
  *(.fixup)
-                0x02012bc4                        __fixup_end = .
+                0x02012b7c                        __fixup_end = .
 
-.eh_frame       0x02012bc4        0x0
+.eh_frame       0x02012b7c        0x0
  *(.eh_frame)
- .eh_frame      0x02012bc4        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
+ .eh_frame      0x02012b7c        0x0 /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/thumb/v7-a+fp/hard/crtbegin.o
 
-.eh_framehdr    0x02012bc4        0x0
-                0x02012bc4                        __eh_framehdr_start = .
+.eh_framehdr    0x02012b7c        0x0
+                0x02012b7c                        __eh_framehdr_start = .
  *(.eh_framehdr)
-                0x02012bc4                        __eh_framehdr_end = .
+                0x02012b7c                        __eh_framehdr_end = .
 
 .gcc_except_table
  *(.gcc_except_table)
@@ -2191,7 +2190,7 @@ Linker script and memory map
                 0x0202aad4                        __bss_end__ = .
                 0x0202aad4                        __bss_end = .
                 0x02018014                        _SDA_BASE_ = (__sdata_start + ((__sbss_end - __sdata_start) / 0x2))
-                0x020124a8                        _SDA2_BASE_ = (__sdata2_start + ((__sbss2_end - __sdata2_start) / 0x2))
+                0x02012460                        _SDA2_BASE_ = (__sdata2_start + ((__sbss2_end - __sdata2_start) / 0x2))
 
 .heap           0x0202aad4   0x10000c
                 0x0202aae0                        . = ALIGN (0x10)
@@ -2596,7 +2595,7 @@ LOAD linker stubs
  .comment       0x00000039       0x3a /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-fstatr.o)
  .comment       0x00000039       0x3a /home/test/zynq_psoracle/toolchain/xpack-arm-none-eabi-gcc-14.2.1-1.1/bin/../lib/gcc/arm-none-eabi/14.2.1/../../../../arm-none-eabi/lib/thumb/v7-a+fp/hard/libc.a(libc_a-isattyr.o)
 
-.debug_line     0x00000000     0xa799
+.debug_line     0x00000000     0xa771
  .debug_line    0x00000000      0x146 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_boot.S.o
  .debug_line    0x00000146       0x57 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_cpu_init.S.o
  .debug_line    0x0000019d       0x6c /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_xil-crt0.S.o
@@ -2624,8 +2623,8 @@ LOAD linker stubs
  .debug_line    0x00006d58     0x1616 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .debug_line    0x0000836e      0x6c5 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
  .debug_line    0x00008a33     0x1228 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
- .debug_line    0x00009c5b      0x73b /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
- .debug_line    0x0000a396      0x403 /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
+ .debug_line    0x00009c5b      0x763 /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
+ .debug_line    0x0000a3be      0x3b3 /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
 
 .debug_line_str
                 0x00000000       0x8c
@@ -2637,7 +2636,7 @@ LOAD linker stubs
  .debug_line_str
                 0x0000008c       0x85 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_xil-crt0.S.o
 
-.debug_info     0x00000000    0x1307e
+.debug_info     0x00000000    0x12fe4
  .debug_info    0x00000000       0x25 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_boot.S.o
  .debug_info    0x00000025       0x24 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_cpu_init.S.o
  .debug_info    0x00000049       0x24 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_xil-crt0.S.o
@@ -2665,10 +2664,10 @@ LOAD linker stubs
  .debug_info    0x0000b579     0x1b9e /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .debug_info    0x0000d117     0x288a /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
  .debug_info    0x0000f9a1     0x261c /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
- .debug_info    0x00011fbd      0xb56 /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
- .debug_info    0x00012b13      0x56b /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
+ .debug_info    0x00011fbd      0xb4f /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
+ .debug_info    0x00012b0c      0x4d8 /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
 
-.debug_abbrev   0x00000000     0x2d5b
+.debug_abbrev   0x00000000     0x2d2e
  .debug_abbrev  0x00000000       0x14 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_boot.S.o
  .debug_abbrev  0x00000014       0x14 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_cpu_init.S.o
  .debug_abbrev  0x00000028       0x14 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_xil-crt0.S.o
@@ -2696,8 +2695,8 @@ LOAD linker stubs
  .debug_abbrev  0x00001c80      0x4b4 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
  .debug_abbrev  0x00002134      0x334 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
  .debug_abbrev  0x00002468      0x415 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
- .debug_abbrev  0x0000287d      0x2b4 /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
- .debug_abbrev  0x00002b31      0x22a /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
+ .debug_abbrev  0x0000287d      0x2c3 /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
+ .debug_abbrev  0x00002b40      0x1ee /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
 
 .debug_aranges  0x00000000      0x7b0
  .debug_aranges
@@ -2759,40 +2758,40 @@ LOAD linker stubs
  .debug_aranges
                 0x00000790       0x20 /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
 
-.debug_str      0x00000000     0x28fc
- .debug_str     0x00000000     0x28fc /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_boot.S.o
+.debug_str      0x00000000     0x28f3
+ .debug_str     0x00000000     0x28f3 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_boot.S.o
                                  0x84 (size before relaxing)
- .debug_str     0x000028fc       0x88 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_cpu_init.S.o
- .debug_str     0x000028fc       0x32 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_xil-crt0.S.o
- .debug_str     0x000028fc      0x53d /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_cache.c.o
- .debug_str     0x000028fc      0x2be /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_mmu.c.o
- .debug_str     0x000028fc      0x249 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xtime_l.c.o
- .debug_str     0x000028fc      0x251 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_vectors.c.o
- .debug_str     0x000028fc      0x32f /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
- .debug_str     0x000028fc      0x26b /home/test/zynq_psoracle/firmware/bsp/out/common_xil_assert.c.o
- .debug_str     0x000028fc      0x215 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc__sbrk.c.o
- .debug_str     0x000028fc      0x1eb /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_write.c.o
- .debug_str     0x000028fc      0x1e9 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_read.c.o
- .debug_str     0x000028fc      0x1c0 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_close.c.o
- .debug_str     0x000028fc      0x30c /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_fstat.c.o
- .debug_str     0x000028fc      0x1be /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_isatty.c.o
- .debug_str     0x000028fc      0x1f1 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_lseek.c.o
- .debug_str     0x000028fc      0x1bb /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc__exit.c.o
- .debug_str     0x000028fc      0x4dd /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_errno.c.o
- .debug_str     0x000028fc      0x1b3 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_abort.c.o
- .debug_str     0x000028fc      0x2fa /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt.c.o
- .debug_str     0x000028fc      0x228 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_g.c.o
- .debug_str     0x000028fc      0x24e /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_sinit.c.o
- .debug_str     0x000028fc      0x21c /home/test/zynq_psoracle/firmware/bsp/out/console.o
- .debug_str     0x000028fc     0x12c1 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
- .debug_str     0x000028fc      0x501 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
- .debug_str     0x000028fc      0x379 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
- .debug_str     0x000028fc      0x7fa /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
- .debug_str     0x000028fc      0x3b7 /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
- .debug_str     0x000028fc      0x2bf /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
+ .debug_str     0x000028f3       0x88 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_cpu_init.S.o
+ .debug_str     0x000028f3       0x32 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_gcc_xil-crt0.S.o
+ .debug_str     0x000028f3      0x53d /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_cache.c.o
+ .debug_str     0x000028f3      0x2be /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_mmu.c.o
+ .debug_str     0x000028f3      0x249 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xtime_l.c.o
+ .debug_str     0x000028f3      0x251 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_vectors.c.o
+ .debug_str     0x000028f3      0x32f /home/test/zynq_psoracle/firmware/bsp/out/arm_common_xil_exception.c.o
+ .debug_str     0x000028f3      0x26b /home/test/zynq_psoracle/firmware/bsp/out/common_xil_assert.c.o
+ .debug_str     0x000028f3      0x215 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc__sbrk.c.o
+ .debug_str     0x000028f3      0x1eb /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_write.c.o
+ .debug_str     0x000028f3      0x1e9 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_read.c.o
+ .debug_str     0x000028f3      0x1c0 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_close.c.o
+ .debug_str     0x000028f3      0x30c /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_fstat.c.o
+ .debug_str     0x000028f3      0x1be /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_isatty.c.o
+ .debug_str     0x000028f3      0x1f1 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_lseek.c.o
+ .debug_str     0x000028f3      0x1bb /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc__exit.c.o
+ .debug_str     0x000028f3      0x4dd /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_errno.c.o
+ .debug_str     0x000028f3      0x1b3 /home/test/zynq_psoracle/firmware/bsp/out/arm_common_gcc_abort.c.o
+ .debug_str     0x000028f3      0x2fa /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt.c.o
+ .debug_str     0x000028f3      0x228 /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_g.c.o
+ .debug_str     0x000028f3      0x24e /home/test/zynq_psoracle/firmware/bsp/out/wd_xscuwdt_sinit.c.o
+ .debug_str     0x000028f3      0x21c /home/test/zynq_psoracle/firmware/bsp/out/console.o
+ .debug_str     0x000028f3     0x12c1 /home/test/zynq_psoracle/firmware/bsp/out/p3_app.c.o
+ .debug_str     0x000028f3      0x501 /home/test/zynq_psoracle/firmware/bsp/out/p3_derive.c.o
+ .debug_str     0x000028f3      0x379 /home/test/zynq_psoracle/firmware/bsp/out/p3_search.c.o
+ .debug_str     0x000028f3      0x7fa /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
+ .debug_str     0x000028f3      0x3b7 /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
+ .debug_str     0x000028f3      0x2b6 /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
 
 .debug_loclists
-                0x00000000     0x892b
+                0x00000000     0x88e4
  .debug_loclists
                 0x00000000      0xa54 /home/test/zynq_psoracle/firmware/bsp/out/arm_cortexa9_xil_cache.c.o
  .debug_loclists
@@ -2834,9 +2833,9 @@ LOAD linker stubs
  .debug_loclists
                 0x000058c9     0x2621 /home/test/zynq_psoracle/firmware/bsp/out/p3_wire.c.o
  .debug_loclists
-                0x00007eea      0x856 /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
+                0x00007eea      0x888 /home/test/zynq_psoracle/firmware/bsp/out/p3_rectx.c.o
  .debug_loclists
-                0x00008740      0x1eb /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
+                0x00008772      0x172 /home/test/zynq_psoracle/firmware/bsp/out/p3_pull.c.o
 
 .debug_rnglists
                 0x00000000     0x1253

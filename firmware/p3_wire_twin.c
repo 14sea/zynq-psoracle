@@ -343,12 +343,24 @@ static int rectx_send(const char *line, size_t n, void *ctx)
 static char g_rx_buf[16384];
 static size_t g_rx_len, g_rx_pos;
 
-static uint64_t g_twin_ticks;   /* the twin's clock: one tick per RX poll, so the timed bound is exercised */
+/* the twin's clock: one tick per EMPTY RX poll (a byte that is waiting costs no time — on
+ * the board a whole line arrives back-to-back in milliseconds against an 8 s bound), so the
+ * timed idle AND whole-line bounds are exercised by the gaps a test injects (`!idle`,
+ * `!trickle N`) and never by a line's length */
+static uint64_t g_twin_ticks;
+static unsigned long g_rx_gap;  /* `!trickle N text`: N empty polls before every byte (a slow, paced line) */
+static unsigned long g_rx_gap_left;
 
 static int twin_rx_ready(void *ctx)
 {
     (void)ctx;
-    g_twin_ticks++;
+    if (g_rx_pos < g_rx_len && g_rx_gap_left > 0ul) {
+        g_rx_gap_left--;
+        g_twin_ticks++;
+        return 0;
+    }
+    if (g_rx_pos >= g_rx_len)
+        g_twin_ticks++;
     return g_rx_pos < g_rx_len;
 }
 
@@ -362,6 +374,7 @@ static uint64_t twin_now_ticks(void *ctx)
 static int twin_rx_byte(void *ctx)
 {
     (void)ctx;
+    g_rx_gap_left = g_rx_gap;
     return (int)(unsigned char)g_rx_buf[g_rx_pos++];
 }
 
@@ -375,10 +388,22 @@ static int rectx_recv(char *out, size_t max, void *ctx)
     rx.now_ticks = twin_now_ticks;
     rx.ctx = NULL;
     g_rx_len = g_rx_pos = 0;
+    g_rx_gap = g_rx_gap_left = 0ul;
     if (fgets(g_rx_buf, (int)sizeof(g_rx_buf), stdin) != NULL) {
         n = strlen(g_rx_buf);
         if (strncmp(g_rx_buf, "!idle", 5) == 0) {
             n = 0; /* nothing arrives: the receiver's idle bound runs out */
+        } else if (strncmp(g_rx_buf, "!trickle ", 9) == 0) {
+            /* `!trickle N text`: every byte of the (newline-terminated) text arrives after N
+             * empty polls — a paced line that never exceeds the idle gap but may exceed the
+             * whole-line bound (review 2026-09-03, blocker 2) */
+            char *end = NULL;
+            g_rx_gap = strtoul(g_rx_buf + 9, &end, 10);
+            g_rx_gap_left = g_rx_gap;
+            if (end != NULL && *end == ' ')
+                end++;
+            n = strlen(end);
+            memmove(g_rx_buf, end, n + 1);
         } else if (strncmp(g_rx_buf, "!raw ", 5) == 0) {
             memmove(g_rx_buf, g_rx_buf + 5, n - 5);
             n -= 5;

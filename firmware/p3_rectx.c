@@ -11,7 +11,10 @@ int p3_rectx_recv_line_timed(const p3_rectx_rx *rx, char *out, size_t max, uint3
     uint32_t idle = 0u, total = 0u;
     const uint32_t line_polls = idle_polls * P3_RECTX_LINE_POLL_FACTOR;
     const int timed = (rx->now_ticks != NULL && idle_ticks != 0u);
-    const uint64_t line_ticks = idle_ticks * P3_RECTX_LINE_POLL_FACTOR;
+    /* review 2026-09-03, blocker 2: the whole-line wall-time bound is the SAME idle_ticks —
+     * a line trickled in below the idle gap can hold the receiver no longer than one bound
+     * in all (the ×4 factor applies to the poll count only, the termination backstop) */
+    const uint64_t line_ticks = idle_ticks;
     uint64_t t_start = 0u, t_last = 0u;
 
     if (max == 0u)

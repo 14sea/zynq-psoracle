@@ -242,6 +242,15 @@ m)" — and says nothing for a waited pull whose record says `audited`. ◆ The 
 the runner writes is rendered from the live objects (`ConsoleSession.pull_ledgers`), so
 replays that follow the settle are in `audits.json`. Tests (`ReadyAndDone`;
 `test_l6_rel_correction::Session::test_1`, `test_2`). **Class (i), host→board.**
+◆ **Firmware review 2026-09-03 (blocker 1, contract defect):** `served` is the number
+of DISTINCT chunks served (popcount of the served set), not transmissions — a re-served
+chunk does not raise it, and after the last chunk it equals the chunk count; and an
+`AUDITDONE` that arrives BEFORE every chunk was served is not a completion — the board
+gives the audit up as on exhaustion (no `verified`, `STOP_AUDIT`, no ARM) and the Python
+twin does the same (`PullBoard` → `ABORTED`). A DONE is the host's word that it verified
+every chunk; one that precedes them is channel misbehaviour or a forged line, and
+fail-closed is the only safe reading. `p3_pull.c`, `l6_audit_pull.PullBoard`;
+`test_firmware_rel_contract::test_1_*`, `test_3_*`; `test_l6_rel::ReadyAndDone`.
 
 ### 3.9 Already covered
 

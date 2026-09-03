@@ -94,7 +94,7 @@ measures nothing about CH340/usbipd.
 |---|---|
 | instrument repositories | `zynq-psmap` `191ab05`; `zynq-psoracle` at the commit that freezes this document; `zynq-fabricmap` artifacts at `71666b02` (link 1, `local_map.json`, certificates), re-verified by hash at session start (fabricmap's falsifier 3) |
 | carrier | `builds/p3/p3.bit` `956379fa…` (unchanged since L1) |
-| application image | **the rel-v4 two-operator image `734d6c04…`** (§2, items 1–6f as `403f4ab5…` plus 6i–6p) — built in the firmware batch 2026-09-03, twice from scratch, byte-identical (ELF `a2a42215…`, 98 324 B), `manifests/l6_manifest.json` `next_image`, **`board_ready: false`, never run on hardware**; promoted to `pinned_at_build` only after the full P3 compatibility review (`docs/l6_rel_firmware_package.md`). `403f4ab5…` (rec-v3) ran C1 #5 and is superseded, not defective, at the promotion. **L6 does not run on `a7c73d1f…`, `bd1454cd…` or `e19e1b12…`**: calibrating one image to budget another would repeat the mistake `zynq-autoehw` caught (a "2 h" derived from the wrong path's rate); `cd8360dc…` is withdrawn DEFECTIVE and must not run |
+| application image | **the rel-v4 two-operator image `5deee74c…`** (§2, items 1–6f as `403f4ab5…` plus 6i–6p) — the firmware batch's corrected candidate (2026-09-03; the first, `734d6c04…`, withdrawn DEFECTIVE after the full P3 compatibility review: early `AUDITDONE` accepted, whole-line bound 32 s, `AUDITWAIT.served` counted transmissions), twice from scratch, byte-identical (ELF `ebe97ce6…`, 98 324 B), `manifests/l6_manifest.json` `next_image`, **`board_ready: false`, never run on hardware**; promoted to `pinned_at_build` only after the short re-review of `docs/l6_rel_firmware_package.md` §7. `403f4ab5…` (rec-v3) ran C1 #5 and is superseded, not defective, at the promotion. **L6 does not run on `a7c73d1f…`, `bd1454cd…` or `e19e1b12…`**: calibrating one image to budget another would repeat the mistake `zynq-autoehw` caught (a "2 h" derived from the wrong path's rate); `cd8360dc…` is withdrawn DEFECTIVE and must not run |
 | board / control plane | EBAZ4203 `17A6`, U-Boot → standalone crossing, D4 principal boundary verified as the runner < 6 h before every session |
 | genome universe | 292 bits over the twelve target FARs, addresses sha256 `895baf85…` (`manifests/l5_manifest.json` `genome`) |
 | host transport | `host/l6_reader.py` (resync + quarantine), `host/l6_audit_pull.py` (`CHUNK_TIMEOUT_S = 2.0`, D-t3; `on_wait`), `host/l6_rel.py` (rel-v4 hosts + twins), `host/l6_console.py` (`protocol="rel-v4"`), `host/l6_timing.py` at the freezing commit |
@@ -177,8 +177,9 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
    asked before the IDENTACK and again at adjudication; under rec-v3 only bit4 is asked).
 6e. **Every wait for a host line is bounded on the whole line.** The application's receiver
    (`p3_rectx_recv_line`, the pure unit) abandons a line as partial when no byte arrives for
-   the idle bound after at least one did, and in any case after four idle bounds in all,
-   so a `RECACK`/`RECGET` (or an `AUDITGET`) cut mid-line, with its newline lost, is
+   the idle bound after at least one did, and in any case when the whole line has taken
+   one bound of wall time (the poll-count backstop allows four idle counts; the tick bound
+   is the same one — §2.6p, review 2026-09-03), so a `RECACK`/`RECGET` (or an `AUDITGET`) cut mid-line, with its newline lost, is
    discarded and the transaction's own bound then runs out — a resend, or `STOP_REC` —
    never a block until the watchdog. (The L5 sign-reply wait is unchanged and remains
    watchdog-covered.) Per wait, at most `P3_RECTX_STALE_LIMIT` (64) lines that are not
@@ -241,7 +242,13 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
 6m. **`AUDITDONE` is a completion handshake.** After the last chunk the application waits
    bounded for `AUDITDONE`/`AUDITABORT`; on the bound it sends `AUDITWAIT {seq, served}`,
    ≤ 3, and the host replays the same `AUDITDONE`/`AUDITABORT` line; exhaustion gives the
-   audit up exactly as §2.6a says (SCORED path: `STOP_AUDIT`, no ARM). The host takes no
+   audit up exactly as §2.6a says (SCORED path: `STOP_AUDIT`, no ARM). **`served` is the
+   number of DISTINCT chunks served (the popcount of the served set), never the number of
+   transmissions; after the last chunk it equals the chunk count. An `AUDITDONE` that
+   arrives before every chunk was served is not a completion: the application gives the
+   audit up exactly as on exhaustion (no `verified`, `STOP_AUDIT` on the SCORED path, no
+   ARM) — a DONE is the host's word that it verified every chunk and cannot precede them
+   (review 2026-09-03, blocker 1).** The host takes no
    verdict from the wait count: whether the board confirmed the audit is read from its
    record (`verified`) by the closure check (§6.10); the pull ledger written to
    `audits.json` carries `waits_seen`/`done_replays`/`waits_exhausted` as rendered at the
@@ -272,7 +279,11 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
    `CPU_CLK_CTRL` before every session) as the idle bound — the first of the clock bound
    and the poll cap to run out ends the wait, so on that clock no wait exceeds 8 s; the
    poll caps are a termination backstop for a timer that does not advance, never the
-   wall-time proof. The proof is source-derived (`tests/test_firmware_rel_audit.py::BoundContract`);
+   wall-time proof. **The whole-line bound of one receive is the SAME tick bound as the
+   idle gap** (`line_ticks = idle_ticks`; review 2026-09-03, blocker 2 — the first candidate
+   had ×4 = 32 s): a host line trickled in below the idle gap is abandoned as partial
+   within the one bound, so idle and whole-line maxima are both 8 s ≤ 10 s; the ×4
+   factor applies to the poll-count backstop only. The proof is source-derived (`tests/test_firmware_rel_audit.py::BoundContract`);
    the C twin drives the timed receiver with an injected clock (logic, not target timing).
    The host's `TERM_LINGER_S` = (MAX_ATTEMPTS − 1) × 10 s + 2 s = 22 s is derived from
    the 10 s contract and from nothing else. The timer is started once at `go`
@@ -459,8 +470,10 @@ type) and `STOP_AUDIT` are §2.6a's.
     `sign_stop`); the C twins driven over a pipe by `tests/test_firmware_rel_contract.py`
     with the real host objects; the source audit `tests/test_firmware_rel_audit.py`; two
     from-scratch byte-identical builds → `next_image` `734d6c04…` (`board_ready: false`);
-    `docs/l6_rel_firmware_package.md` for the full P3 compatibility review; then this text
-    is frozen.
+    `docs/l6_rel_firmware_package.md` for the full P3 compatibility review — **HOLD (owner
+    2026-09-03)**: `734d6c04…` withdrawn DEFECTIVE (early `AUDITDONE` accepted; whole-line
+    bound 32 s; `AUDITWAIT.served` counted transmissions), the corrected image `5deee74c…`
+    is `next_image` pending the short re-review of package §7; then this text is frozen.
 
 ## 5. Sessions — fixed in advance
 

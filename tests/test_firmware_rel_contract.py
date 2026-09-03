@@ -334,6 +334,77 @@ class RelContract(unittest.TestCase):
         self.assertEqual((res["rc"], res["waits"], res["aborted"], res["done"]), ("-1", "3", "1", "0"))
         self.assertIn("no AUDITDONE arrived", res["why"])
 
+    # ------------------------------------------------------------------ review 2026-09-03 (HOLD): the three items
+    def test_1_a_done_before_every_chunk_was_served_gives_the_audit_up(self):
+        """Blocker 1: a DONE with zero chunks served was accepted (rc 0, done 1, mask 0)."""
+        p, host, sent = self._pull()
+        p.read()                                                      # AUDIT_READY, no GET at all
+        p.write(self.ack(ap.T_DONE, 1))
+        res = p.finish("!pull ")
+        self.assertEqual((res["rc"], res["done"], res["aborted"], res["gets"], res["mask"]), ("-1", "0", "1", "0", "0"))
+        self.assertIn("before every chunk was served", res["why"])
+        # seven of eight chunks, then DONE: the same refusal
+        p, host, sent = self._pull()
+        host.on_line(p.read().rstrip("\n"))
+        for _ in range(7):
+            p.write(sent[-1]); host.on_line(p.read().rstrip("\n"))
+        self.assertFalse(host.done)
+        p.write(self.ack(ap.T_DONE, 1))
+        res = p.finish("!pull ")
+        self.assertEqual((res["rc"], res["done"], res["aborted"], res["mask"]), ("-1", "0", "1", "127"))
+        self.assertIn("before every chunk was served", res["why"])
+
+    def test_1_the_python_twin_refuses_the_same_early_done(self):
+        board = rel.ReadyBoard(TOKEN, 1, "streams+readback", [0] * 2814, requested=True)
+        board.start()
+        board.on_host_line(self.ack(ap.T_DONE, 1))
+        self.assertEqual(board.state, "ABORTED"); self.assertIn("before every chunk was served", board.why)
+        self.assertEqual(board.finish()["outcome"], "STOP_AUDIT"); self.assertFalse(board.audited)
+        board = rel.ReadyBoard(TOKEN, 1, "streams+readback", [0] * 2814, requested=True)
+        board.start()
+        for c in range(7):
+            board.on_host_line(n.build_line(ap.T_GET, 1, TOKEN, n.encode_payload({"seq": 1, "chunk": c})))
+        board.on_host_line(self.ack(ap.T_DONE, 1))
+        self.assertEqual(board.state, "ABORTED")
+
+    def test_3_auditwait_served_counts_unique_chunks_not_transmissions(self):
+        """The contract defect: served counted transmissions (a repeated GET made it 9)."""
+        p, host, sent = self._pull()
+        host.on_line(p.read().rstrip("\n"))
+        first_get = sent[-1]
+        p.write(first_get); host.on_line(p.read().rstrip("\n"))
+        p.write(first_get); p.read()                                  # chunk 0 asked for again: served twice
+        while not host.done:
+            p.write(sent[-1]); host.on_line(p.read().rstrip("\n"))
+        p.write("!idle")
+        wait = n.decode_payload(n.parse_line(p.read().rstrip("\n"))["payload"])
+        self.assertEqual(wait["served"], 8, "unique chunks")
+        host.on_wait(); p.write(sent[-1])
+        res = p.finish("!pull ")
+        self.assertEqual((res["rc"], res["gets"], res["served"], res["mask"]), ("0", "9", "9", "255"))
+
+    def test_2_a_trickled_line_is_abandoned_within_the_same_bound_as_the_idle_gap(self):
+        """Blocker 2: with line_ticks = 4 × idle_ticks a line paced below the idle gap could
+        hold the receiver for 32 s. Now the whole line is bounded by the same ticks. The
+        twin's clock ticks once per EMPTY poll: idle bound 300 ticks; `!trickle 60 x…` (11
+        bytes, 60 empty polls before each) = 660 ticks — under the old 1200 it was a line,
+        now it is abandoned as partial at 300; `!trickle 10` (110 ticks) is still a line."""
+        p = Pipe(self.exe, self._ident_cmd())
+        first = p.read()
+        p.write("!trickle 60 aaaaaaaaaa")                                 # 10 chars + the newline
+        p.write("!idle")                                                  # then the wait runs out
+        second = p.read()                                                 # the resend after the partial
+        self.assertEqual(first, second)
+        p.write(self.ack(rel.T_IDENTACK, 0))
+        res = p.finish("!tx ")
+        self.assertEqual((res["rc"], res["attempts"], res["partial"], res["stale"]), ("0", "2", "1", "1"))
+        p = Pipe(self.exe, self._ident_cmd())
+        p.read()
+        p.write("!trickle 10 aaaaaaaaaa")                                 # within the bound: a (stale) line
+        p.write(self.ack(rel.T_IDENTACK, 0))
+        res = p.finish("!tx ")
+        self.assertEqual((res["rc"], res["attempts"], res["partial"], res["stale"]), ("0", "1", "0", "1"))
+
     # ------------------------------------------------------------------ serialiser
     def test_the_indexed_heartbeat_and_the_stop_sign_record_validate(self):
         twin = wc.Twin(self.exe)

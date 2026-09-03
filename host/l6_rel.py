@@ -68,7 +68,7 @@ HOST_MAX_REPLAYS = MAX_ATTEMPTS   # host: cached-reply replays, DONE replays, re
 #   BOARD_BOUND_WALL_MAX_S of wall-clock on the pinned clocks (CPU 6:2:1, the poll loop's
 #   measured cost), pinned as a poll count in the image and shown by a source-audit test and
 #   the C twin's timing; TERM_LINGER_S is derived from it, never the other way round.
-BOARD_BOUND_WALL_MAX_S = 10.0     # contract: the wall-time upper bound of one board bound
+BOARD_BOUND_WALL_MAX_S = 10.0     # contract: the wall-time upper bound of one board wait — idle AND whole line
 BOARD_BOUND_S = BOARD_BOUND_WALL_MAX_S   # the twins model the bound at its upper bound
 LINGER_MARGIN_S = 2.0
 # host: after the first TERM the runner keeps reading for the board's possible resends (our
@@ -77,6 +77,8 @@ TERM_LINGER_S = (MAX_ATTEMPTS - 1) * BOARD_BOUND_WALL_MAX_S + LINGER_MARGIN_S
 FIRMWARE_BOUND_CONTRACT = {
     "poll_bound_wall_max_s": BOARD_BOUND_WALL_MAX_S,
     "applies_to": ("P3_IDENT_IDLE_POLLS", "P3_SIGN_IDLE_POLLS", "P3_PULL_IDLE_POLLS", "P3_REC_IDLE_POLLS", "P3_TERM_IDLE_POLLS"),
+    "whole_line": "the bound covers a whole receive, however the bytes are paced: a line trickled in below the idle gap "
+                  "is abandoned within the same bound (review 2026-09-03, blocker 2)",
     "proof": "firmware batch: the poll count pinned in the image, its wall time on the pinned clocks bounded in a "
              "source-audit test (tests/test_firmware_audit.py) and measured by the C twin; the host derives "
              "TERM_LINGER_S = (MAX_ATTEMPTS - 1) * poll_bound_wall_max_s + LINGER_MARGIN_S",

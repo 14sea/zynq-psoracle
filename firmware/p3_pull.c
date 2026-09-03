@@ -4,6 +4,16 @@
 
 #include <string.h>
 
+static uint32_t popcount(uint32_t x)
+{
+    uint32_t n = 0u;
+    while (x) {
+        n += x & 1u;
+        x >>= 1;
+    }
+    return n;
+}
+
 static int all_served(const p3_pull_result *r, uint32_t chunks)
 {
     uint32_t want = (chunks >= 32u) ? 0xFFFFFFFFu : ((1u << chunks) - 1u);
@@ -60,6 +70,15 @@ int p3_pull_run(uint32_t seq, uint32_t chunks, const p3_pull_io *io, p3_pull_res
                     stale = 0u; /* a valid GET is the host alive: the stale count restarts */
                     continue;
                 } else if (strcmp(type, "AUDITDONE") == 0) {
+                    /* review 2026-09-03, blocker 1: a DONE is the host's word that it verified
+                     * EVERY chunk — it cannot arrive before every chunk was served. One that
+                     * does is channel misbehaviour (or a forged line) and the audit is given
+                     * up, fail-closed: no `audited` mark, no ARM on the SCORED path. */
+                    if (!all_served(r, chunks)) {
+                        r->aborted = 1;
+                        r->why = "AUDITDONE before every chunk was served: the audit is not complete";
+                        return -1;
+                    }
                     r->done = 1;
                     return 0;
                 } else if (strcmp(type, "AUDITABORT") == 0) {
@@ -97,7 +116,7 @@ int p3_pull_run(uint32_t seq, uint32_t chunks, const p3_pull_io *io, p3_pull_res
                 r->why = "every chunk was served but no AUDITDONE arrived: AUDITWAIT announced to its bound";
                 return -1;
             }
-            if (io->send_wait(r->chunks_served, io->ctx) != 0)
+            if (io->send_wait(popcount(r->served_mask), io->ctx) != 0) /* unique chunks, not transmissions */
                 return -2;
             r->waits_sent++;
             continue;

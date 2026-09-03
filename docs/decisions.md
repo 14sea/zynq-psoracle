@@ -1553,3 +1553,43 @@ bin `734d6c04895e81d5fef3196f7b3298d03a7c6c6d3b9fe3f35abc9cc0b1e323b1` (98 324 B
 `board_ready: false`, `bound_contract` pinned; `evidence/l6_next_build/` regenerated (the
 cd8360dc… and e19e1b12… records preserved). Not run on hardware; the full P3
 compatibility review is the owner's; no freeze, no ruling, no board.
+
+## 2026-09-03 — the rel-v4 firmware package: full P3 compatibility review HOLD; `734d6c04…` withdrawn DEFECTIVE; the corrected image `5deee74c…` delivered for a short re-review
+
+The owner's review of `docs/l6_rel_firmware_package.md` (commit `6c72db9`, not pushed):
+HOLD — no push, no promotion, no v0.6 freeze, no ruling, no board. Blocker 1:
+`p3_pull.c` accepted an `AUDITDONE` with zero or partial chunks served (and Python
+`PullBoard` did the same) — an incomplete audit could be marked `audited` and reach ARM;
+required: C and Python negative tests (zero chunk, partial chunk: no success, no `audited`,
+no ARM). Blocker 2: the timed receiver's whole-line wall-time bound was `idle_ticks × 4` =
+32 s (`line_ticks = idle_ticks * P3_RECTX_LINE_POLL_FACTOR`) — the idle AND the whole-line
+maximum must both be ≤ 10 s, with source-derived and injected-clock trickled-line
+counterexamples. Contract defect: `AUDITWAIT.served` counted transmissions
+(`chunks_served`), not unique chunks — it must be the popcount of `served_mask` and equal
+`chunks` in the all-served branch. Also: the contradictory `next_prereg.status` sentence in
+`manifests/l6_manifest.json`. Recommendation adopted: `734d6c04…` DEFECTIVE — must not run;
+rebuild; discrimination tests; package updated; short re-review. The stop-loss stays
+triggered; board and rulings stay forbidden.
+
+Delivered (package §7): `p3_pull.c` — an `AUDITDONE` before every chunk was served aborts
+the pull fail-closed (`why` "AUDITDONE before every chunk was served: the audit is not
+complete"; no `done`, so no `audited`, no ARM), `AUDITWAIT.served` = popcount(served_mask);
+`host/l6_audit_pull.py` `PullBoard` the same refusal (`STOP_AUDIT`); `p3_rectx.c`
+`line_ticks = idle_ticks` (the ×4 factor stays on the poll-count backstop only), so one
+receive ends within one bound however the bytes are paced; the twin's clock now ticks on
+EMPTY polls only (a waiting byte costs no time, as on the board a whole line arrives in
+milliseconds against 8 s) and gained `!trickle N text` (N empty polls before every byte).
+Tests: `tests/test_firmware_rel_contract.py` (21): DONE with zero and with 7/8 chunks →
+`aborted`, `done 0`, the why; the Python twin the same; a repeated GET for chunk 0 → AUDITWAIT
+`served 8` while `gets 9`; `!trickle 60` (660 ticks, accepted as a line under the old 1200)
+abandoned as partial within 300 and resent, `!trickle 10` still a line;
+`tests/test_firmware_rel_audit.py` asserts `line_ticks = idle_ticks`, the absence of the ×4
+tick product, and the worst path ≤ 10 s; `tests/test_l6_rel.py` (39) the Python early DONE.
+Two from-scratch builds byte-identical: bin
+`5deee74c44785ebe88168ccffaa5f399f26a7c5a567fccb3d430cf4eb14cdc7c` (98 324 B), ELF
+`ebe97ce6a591bad6…` → `next_image` (`board_ready: false`); `734d6c04…` (ELF `a2a42215…`)
+appended to `withdrawn_images` with the three findings; its build record preserved as
+`evidence/l6_next_build/build_evidence_734d6c04.json` + `p3_app_l6_734d6c04.map`; the
+`next_prereg.status` sentence rewritten; `bound_contract.whole_line` pinned. Not run on
+hardware; the short re-review is the owner's; no push, no freeze, no ruling, no board.
+

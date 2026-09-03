@@ -61,6 +61,10 @@ class BoundContract(unittest.TestCase):
         counts_per_second = cpu_hz // 2                 # xtime_l.h: the global timer is CPU/2
         bound_s = 8 * counts_per_second / counts_per_second
         self.assertEqual(bound_s, 8.0)
+        # the longest path of one receive: the idle gap and the whole line share the bound,
+        # so a wait — however the bytes are paced — ends within bound_s (review 2026-09-03)
+        line_factor_ticks = 1
+        self.assertLessEqual(max(bound_s, line_factor_ticks * bound_s), rel.BOARD_BOUND_WALL_MAX_S)
         self.assertLessEqual(bound_s, rel.BOARD_BOUND_WALL_MAX_S, "the host's linger derives from ≤ 10 s")
         # the same number the host contract names
         self.assertEqual(rel.FIRMWARE_BOUND_CONTRACT["poll_bound_wall_max_s"], 10.0)
@@ -72,7 +76,10 @@ class BoundContract(unittest.TestCase):
         self.assertIn("if (++idle > idle_polls)", body)
         self.assertIn("if (now - t_last > idle_ticks || now - t_start > line_ticks)", body)
         self.assertIn("return n == 0u ? -2 : -3;", body)
-        self.assertIn("const uint64_t line_ticks = idle_ticks * P3_RECTX_LINE_POLL_FACTOR;", body)
+        # review 2026-09-03, blocker 2: the whole-line tick bound is the SAME bound — never ×4
+        self.assertIn("const uint64_t line_ticks = idle_ticks;", body)
+        self.assertNotIn("idle_ticks * P3_RECTX_LINE_POLL_FACTOR", body)
+        self.assertIn("if (t_last - t_start > line_ticks)", body, "a byte arriving past the line bound ends it too")
         # the count-only form is the timed one with no clock
         self.assertIn("return p3_rectx_recv_line_timed(rx, out, max, idle_polls, 0u);", unit)
 

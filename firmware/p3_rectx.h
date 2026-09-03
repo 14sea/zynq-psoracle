@@ -55,8 +55,10 @@
 #define P3_RECTX_PREV_ACK_LIMIT 8u
 /* p3_rectx_recv_line: a line is abandoned as PARTIAL when no byte arrives for `idle_polls`
  * polls (or `idle_ticks` of the clock) after at least one did, and in any case after
- * P3_RECTX_LINE_POLL_FACTOR × the idle bound in all — so no host line, however it is cut,
- * can hold the application past a bound. */
+ * P3_RECTX_LINE_POLL_FACTOR × idle_polls polls OR `idle_ticks` of the clock in all — the
+ * whole-line WALL-TIME bound equals the idle bound (review 2026-09-03: a ×4 factor on the
+ * ticks made a trickled line worth 32 s), so no host line, however it is cut or paced,
+ * can hold the application past one bound. */
 #define P3_RECTX_LINE_POLL_FACTOR 4u
 
 /* ------------------------------------------------------------ bounded line receive ----- */

@@ -110,7 +110,7 @@ class PinnedL6Image(unittest.TestCase):
             self.assertEqual([s["sha256"][:8] for s in sup], ["bd1454cd", "e19e1b12"])
             for s in sup:
                 self.assertIn("NOT defective", s["why"])
-            self.assertEqual([w["sha256"][:8] for w in L6_PINNED["withdrawn_images"]], ["47b8fa09", "cd8360dc"])
+            self.assertEqual([w["sha256"][:8] for w in L6_PINNED["withdrawn_images"]], ["47b8fa09", "cd8360dc", "734d6c04"])
             e = json.loads((R / "evidence/l6_next_build/build_evidence.json").read_text())
             self.assertEqual(e["image"]["bin_sha256"], L6_PINNED["app_image_sha256"],
                              "the promoted pin is the candidate the review passed")
@@ -332,6 +332,7 @@ class WithdrawnHashesStayInHistory(unittest.TestCase):
                                              "of the withdrawn candidate verbatim (owner: no delta drafts)",
         "docs/l6_soak_prereg_v0.6_draft.md": "§1: the self-contained v0.6 text (v0.5 never frozen, carried verbatim) keeps "
                                              "the frozen text's forbidding of the withdrawn candidate",
+        "docs/l6_rel_firmware_package.md": "names the withdrawn first rel-v4 candidate and the review that withdrew it (§7)",
     }
     # evidence/ is recorded observation: never edited, never scanned
     SKIP_PREFIXES = ("evidence/", "data/", "builds/", "imported/", "gate_runs/", "fixtures/")
