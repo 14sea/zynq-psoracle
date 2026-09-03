@@ -42,6 +42,7 @@ TOKEN = base.TOKEN
 GOOD_LOG = {"app_identity": {"protocol": "rel-v4"},
             "loop_records": [{"seq": 1, "outcome": "SCORED", "verified": "audited"}],
             "session_summary": {"written_by": "app", "epoch_end": {"kind": "COMPLETED", "reason": "budget"},
+                                "closing": {"restore": "done", "baseline": "done", "unsigned_control": "done"},
                                 "closing_control": {"fault": 13, "kind": "unsigned", "status": "0x00000982",
                                                     "nonce_before": "3" * 16, "nonce_after": "4" * 16}}}
 GOOD_LEDGERS = {"ident": {"accepted": True, "acks_sent": 1, "conflict": False, "refused": False},
@@ -187,6 +188,12 @@ class ClosingControlIsMandatory(unittest.TestCase):
         s = self._summary(); s["closing_control"]["nonce_before"] = "ZZ"
         self.assertIn("nonce_before is not 16 lowercase hex", rel.closing_control_findings(s)[0])
         self.assertEqual(rel.closing_control_findings(self._summary()), [])
+        # an epoch stopped before the closing control carries no block — and must not
+        s = self._summary(); s["closing"] = {"restore": "done", "baseline": "not_reached", "unsigned_control": "not_reached"}
+        del s["closing_control"]
+        self.assertEqual(rel.closing_control_findings(s), [])
+        s["closing_control"] = self._summary()["closing_control"]
+        self.assertIn("was not reached", rel.closing_control_findings(s)[0])
 
     def test_2_the_closure_check_holds_an_app_written_term_without_the_complete_control_even_when_close_arrived(self):
         log = copy.deepcopy(GOOD_LOG); del log["session_summary"]["closing_control"]

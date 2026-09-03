@@ -113,9 +113,10 @@ size_t p3_wire_identity(const p3_wire_identity_in *in, char *out, size_t max)
     w_fmt(&w, ",\"pss_idcode\":\"0x%08lx\",\"rec_retry_control\":%s,\"schedule_mode\":",
           (unsigned long)in->pss_idcode, in->rec_retry_control ? "true" : "false");
     w_str(&w, in->schedule_mode);
-    w_fmt(&w, ",\"schema\":\"app_identity\",\"schema_version\":\"1.2.0\",\"status_at_start\":"
-              "\"0x%08lx\",\"token\":",
-          (unsigned long)in->status_at_start);
+    /* 1.3.0: sign_retry_control sorts between schema_version and status_at_start */
+    w_fmt(&w, ",\"schema\":\"app_identity\",\"schema_version\":\"1.3.0\",\"sign_retry_control\":%s,"
+              "\"status_at_start\":\"0x%08lx\",\"token\":",
+          in->sign_retry_control ? "true" : "false", (unsigned long)in->status_at_start);
     w_str(&w, in->token);
     w_fmt(&w, ",\"uboot_epoch\":%lu}", (unsigned long)in->uboot_epoch);
     return w_done(&w);
@@ -280,6 +281,14 @@ size_t p3_wire_loop_record(const p3_wire_record_in *in, char *out, size_t max)
         if (!first)
             w_fmt(&w, ",");
         w_sign_reply(&w, in);
+        first = 0;
+    }
+    if (in->have_sign_stop) { /* rel-v4 STOP_SIGN: this block and nothing else */
+        if (!first)
+            w_fmt(&w, ",");
+        w_fmt(&w, "\"sign_stop\":{\"attempts\":%lu,\"why\":", (unsigned long)in->sign_stop_attempts);
+        w_str(&w, in->sign_stop_why ? in->sign_stop_why : "");
+        w_fmt(&w, "}");
     }
     w_fmt(&w, "},\"genome\":");
     w_str(&w, in->genome);
@@ -424,18 +433,44 @@ size_t p3_wire_summary(const p3_wire_summary_in *in, char *out, size_t max)
 
     w_init(&w, out, max);
     w_fmt(&w, "{\"audit\":{\"audited\":%lu,\"total\":%lu},\"closing\":{\"baseline\":\"%s\","
-              "\"restore\":\"%s\",\"unsigned_control\":\"%s\"},\"counts\":{"
-              "\"refused_by_gate\":%lu,\"scored\":%lu},\"crc_dropped\":%lu,"
-              "\"drop_budget\":%lu,\"epoch_end\":{\"kind\":\"%s\",\"last_seq\":%lu,"
-              "\"reason\":",
+              "\"restore\":\"%s\",\"unsigned_control\":\"%s\"}",
           (unsigned long)in->audited, (unsigned long)in->total,
           done_str(in->closing_baseline), done_str(in->closing_restore),
-          done_str(in->closing_unsigned), (unsigned long)in->refused_by_gate,
-          (unsigned long)in->scored, (unsigned long)in->crc_dropped,
+          done_str(in->closing_unsigned));
+    if (in->have_closing_control) { /* rel-v4: "closing" < "closing_control" < "counts" */
+        w_fmt(&w, ",\"closing_control\":{\"fault\":%lu,\"kind\":\"unsigned\",\"nonce_after\":\"%016llx\","
+                  "\"nonce_before\":\"%016llx\",\"status\":\"0x%08lx\"}",
+              (unsigned long)in->close_fault, (unsigned long long)in->close_nonce_after,
+              (unsigned long long)in->close_nonce_before, (unsigned long)in->close_status);
+    }
+    w_fmt(&w, ",\"counts\":{\"refused_by_gate\":%lu,\"scored\":%lu},\"crc_dropped\":%lu,"
+              "\"drop_budget\":%lu,\"epoch_end\":{\"kind\":\"%s\",\"last_seq\":%lu,"
+              "\"reason\":",
+          (unsigned long)in->refused_by_gate, (unsigned long)in->scored, (unsigned long)in->crc_dropped,
           (unsigned long)in->drop_budget, in->kind, (unsigned long)in->last_seq);
     w_str(&w, in->reason ? in->reason : "");
     w_fmt(&w, "},\"schema\":\"session_summary\",\"schema_version\":\"1.0.0\",\"token\":");
     w_str(&w, in->token);
     w_fmt(&w, ",\"written_by\":\"app\"}");
+    return w_done(&w);
+}
+
+/* ------------------------------------------------------------------ rel-v4 small frames */
+
+size_t p3_wire_hb(uint32_t i, char *out, size_t max)
+{
+    p3_w w;
+
+    w_init(&w, out, max);
+    w_fmt(&w, "{\"i\":%lu}", (unsigned long)i);
+    return w_done(&w);
+}
+
+size_t p3_wire_audit_wait(uint32_t seq, uint32_t served, char *out, size_t max)
+{
+    p3_w w;
+
+    w_init(&w, out, max);
+    w_fmt(&w, "{\"seq\":%lu,\"served\":%lu}", (unsigned long)seq, (unsigned long)served);
     return w_done(&w);
 }

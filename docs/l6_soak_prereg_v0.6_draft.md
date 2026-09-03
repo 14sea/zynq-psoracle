@@ -94,7 +94,7 @@ measures nothing about CH340/usbipd.
 |---|---|
 | instrument repositories | `zynq-psmap` `191ab05`; `zynq-psoracle` at the commit that freezes this document; `zynq-fabricmap` artifacts at `71666b02` (link 1, `local_map.json`, certificates), re-verified by hash at session start (fabricmap's falsifier 3) |
 | carrier | `builds/p3/p3.bit` `956379fa…` (unchanged since L1) |
-| application image | **the rel-v4 two-operator image** (§2, items 1–6f as `403f4ab5…` plus 6i–6o) — to be built in the firmware batch (twice, byte-identical), P3-compatibility-reviewed, then pinned in `manifests/l6_manifest.json` (`next_image` until promoted). Until it exists this text cannot be frozen. `403f4ab5…` (rec-v3) ran C1 #5 and is superseded, not defective, at the promotion. **L6 does not run on `a7c73d1f…`, `bd1454cd…` or `e19e1b12…`**: calibrating one image to budget another would repeat the mistake `zynq-autoehw` caught (a "2 h" derived from the wrong path's rate); `cd8360dc…` is withdrawn DEFECTIVE and must not run |
+| application image | **the rel-v4 two-operator image `734d6c04…`** (§2, items 1–6f as `403f4ab5…` plus 6i–6p) — built in the firmware batch 2026-09-03, twice from scratch, byte-identical (ELF `a2a42215…`, 98 324 B), `manifests/l6_manifest.json` `next_image`, **`board_ready: false`, never run on hardware**; promoted to `pinned_at_build` only after the full P3 compatibility review (`docs/l6_rel_firmware_package.md`). `403f4ab5…` (rec-v3) ran C1 #5 and is superseded, not defective, at the promotion. **L6 does not run on `a7c73d1f…`, `bd1454cd…` or `e19e1b12…`**: calibrating one image to budget another would repeat the mistake `zynq-autoehw` caught (a "2 h" derived from the wrong path's rate); `cd8360dc…` is withdrawn DEFECTIVE and must not run |
 | board / control plane | EBAZ4203 `17A6`, U-Boot → standalone crossing, D4 principal boundary verified as the runner < 6 h before every session |
 | genome universe | 292 bits over the twelve target FARs, addresses sha256 `895baf85…` (`manifests/l5_manifest.json` `genome`) |
 | host transport | `host/l6_reader.py` (resync + quarantine), `host/l6_audit_pull.py` (`CHUNK_TIMEOUT_S = 2.0`, D-t3; `on_wait`), `host/l6_rel.py` (rel-v4 hosts + twins), `host/l6_console.py` (`protocol="rel-v4"`), `host/l6_timing.py` at the freezing commit |
@@ -265,11 +265,18 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
    bound contract**: every rel-v4 idle bound is a poll count in the image
    (`P3_IDENT_IDLE_POLLS`, `P3_SIGN_IDLE_POLLS`, `P3_PULL_IDLE_POLLS`, `P3_REC_IDLE_POLLS`,
    `P3_TERM_IDLE_POLLS`) whose wall time on the pinned clocks is **≤
-   `BOARD_BOUND_WALL_MAX_S` = 10 s** (`host/l6_rel.FIRMWARE_BOUND_CONTRACT`); the firmware
-   batch pins the counts, bounds their wall time in a source-audit test and measures it
-   with the C twin; the host's `TERM_LINGER_S` = (MAX_ATTEMPTS − 1) × 10 s + 2 s = 22 s is
-   derived from that bound and from nothing else. Until the firmware batch proves it, the
-   relation is a stated contract, not a verified fact.
+   `BOARD_BOUND_WALL_MAX_S` = 10 s** (`host/l6_rel.FIRMWARE_BOUND_CONTRACT`). **As built
+   (firmware batch 2026-09-03):** every wait is `p3_rectx_recv_line_timed` with the
+   global timer as its clock and `P3_BOUND_TICKS` = `P3_BOUND_S` (8) × `COUNTS_PER_SECOND`
+   (CPU/2 = 333,333,343 Hz on the pinned 6:2:1 clock, which the runner verifies from
+   `CPU_CLK_CTRL` before every session) as the idle bound — the first of the clock bound
+   and the poll cap to run out ends the wait, so on that clock no wait exceeds 8 s; the
+   poll caps are a termination backstop for a timer that does not advance, never the
+   wall-time proof. The proof is source-derived (`tests/test_firmware_rel_audit.py::BoundContract`);
+   the C twin drives the timed receiver with an injected clock (logic, not target timing).
+   The host's `TERM_LINGER_S` = (MAX_ATTEMPTS − 1) × 10 s + 2 s = 22 s is derived from
+   the 10 s contract and from nothing else. The timer is started once at `go`
+   (`XTime_SetTime(0)`, a private SCU peripheral, not the SLCR) and read-only afterwards.
 7. Review by the owner against this list, item by item, before any L6 ruling; the image
    hash is then pinned in `manifests/l6_manifest.json` and this document is frozen.
    *(Items 1–6f: reviewed and pinned 2026-09-02 for v0.4. Items 6g–6h: the transport
@@ -444,10 +451,16 @@ type) and `STOP_AUDIT` are §2.6a's.
     `tests/test_l6_rel_correction2.py`: sign ledgers never last-wins in both orders, the
     mandatory closing_control in four cases, the bit5 echo, the bound contract, the
     refused-repeat comparison).
-23. **The firmware batch** (opened by the owner 2026-09-02; starts after items 19–22 are
-    reviewed PASS): §2.6i–6p in the firmware, the C twins driven by the wire-contract test
-    against `host/l6_rel.py`, two byte-identical builds, `next_image`, a full P3
-    compatibility review; then this text is frozen.
+23. **The firmware batch** (opened by the owner 2026-09-02, delivered 2026-09-03):
+    §2.6i–6p in the firmware — `firmware/p3_rectx.c` generalised to `p3_tx_run` (IDENT /
+    SIGNREQ / TERM transactions, the strict previous-acknowledgement rule, the timed
+    receiver), `firmware/p3_pull.c` (the pull's READY resend and AUDITWAIT), `p3_app.c`
+    wired to them, `p3_wire.c` (IDENT 1.3.0, HB `{i}`, `closing_control` in the TERM,
+    `sign_stop`); the C twins driven over a pipe by `tests/test_firmware_rel_contract.py`
+    with the real host objects; the source audit `tests/test_firmware_rel_audit.py`; two
+    from-scratch byte-identical builds → `next_image` `734d6c04…` (`board_ready: false`);
+    `docs/l6_rel_firmware_package.md` for the full P3 compatibility review; then this text
+    is frozen.
 
 ## 5. Sessions — fixed in advance
 

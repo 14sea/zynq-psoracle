@@ -164,7 +164,7 @@ class RegisterDiscipline(unittest.TestCase):
         self.assertNotIn("S.page.flags", kick, "the kick must not be gated on the flag alone")
         self.assertEqual(re.findall(r"XScuWdt_\w+", kick), ["XScuWdt_RestartWdt"])
         # IDENT (and its kick) precedes the watchdog block; wdt_started is unset until then
-        i_ident = APP_CODE.index('send_payload("IDENT"')
+        i_ident = APP_CODE.index('build_payload_frame("IDENT"')   # rel-v4: the IDENT transaction
         i_block = APP_CODE.index("if (S.page.flags & 2u) {")
         self.assertLess(i_ident, i_block)
         self.assertNotIn("wdt_started = 1", APP_CODE[:i_block],
@@ -328,15 +328,18 @@ class WireWiring(unittest.TestCase):
 
     def test_identity_is_transmitted(self):
         """validate_standalone_run_log requires app_identity; the first attempt never sent
-        one. It must also be sent when identity is REFUSED — that is still evidence."""
-        self.assertIn('send_payload("IDENT"', APP)
-        ident = APP.index('send_payload("IDENT"')
-        self.assertLess(ident, APP.index('p3_stop(P3_STOPPED, "identity refused")'),
-                        "the identity frame must be sent before the refusal stops the epoch")
+        one. It must also be sent when identity is REFUSED — that is still evidence. rel-v4:
+        it is a transaction (IDENTACK), run BEFORE the refusal stops the epoch."""
+        self.assertIn('build_payload_frame("IDENT"', APP)
+        ident = APP.index('build_payload_frame("IDENT"')
+        tx = APP.index("tx_run_line(n, 0u, &k, 0, P3_IDENT_IDLE_POLLS, &r)")
+        self.assertLess(ident, tx)
+        self.assertLess(tx, APP.index('p3_stop(P3_STOPPED, "identity refused")'),
+                        "the identity transaction runs before the refusal stops the epoch")
 
     def test_heartbeats_are_emitted_in_the_long_silent_stretches(self):
         """The collector calls three heartbeat intervals of silence a CRASH."""
-        self.assertIn('send_frame("HB"', APP)
+        self.assertIn('send_payload("HB", S.seq, p3_wire_hb(', APP)      # rel-v4: indexed heartbeats
         witness = APP[APP.index("static int link3_witness"):]
         self.assertIn("heartbeat();", witness[:witness.index("p3_frames_hash")])
         envelopes = APP[APP.index("static int write_envelopes"):]
@@ -358,13 +361,19 @@ class WireWiring(unittest.TestCase):
         self.assertLessEqual(outcomes, set(LOOP_OUTCOMES))
 
     def test_the_audited_mark_means_words_were_served(self):
-        """Rule (ix): `verified: audited` must mean the raw words were actually served for
-        THAT candidate, never merely that auditing was configured."""
+        """Rule (ix) under the pull: `verified: audited` means the host pulled every chunk
+        AND said AUDITDONE — the mark is set in exactly one place, on the pull unit's
+        success (p3_pull_run returned 0), after the words were served."""
         self.assertIn("rec->audited = (S.audit_served && S.audit_served_seq == rec->seq)", APP)
-        body = serve[:serve.index("\n}\n")]
-        self.assertIn("S.audit_served = 1;", body)
-        self.assertLess(body.index('send_payload("AUDIT"'), body.index("S.audit_served = 1;"),
-                        "the mark must be set after the words are sent, not before")
+        pull = APP_CODE[APP_CODE.index("static int audit_pull"):]
+        pull = pull[:pull.index("\n}\n")]
+        self.assertEqual(APP_CODE.count("S.audit_served = 1;"), 1)
+        self.assertLess(pull.index("rc = p3_pull_run(S.seq, chunks, &io, &pr);"), pull.index("S.audit_served = 1;"))
+        self.assertIn("if (rc == 0) {", pull); self.assertLess(pull.index("if (rc == 0) {"), pull.index("S.audit_served = 1;"))
+        serve = APP_CODE[APP_CODE.index("static void serve_sparse_chunk"):]
+        self.assertIn('send_payload("AUDIT", S.seq,', serve[:serve.index("\n}\n")])
+        unit = CODE["p3_pull.c"]
+        self.assertIn('strcmp(type, "AUDITDONE") == 0', unit); self.assertIn("r->done = 1;", unit)
 
     def test_every_candidate_that_staged_is_auditable(self):
         """§3a item 2 under the PULL protocol: every non-SCORED self-report runs the pull
@@ -397,47 +406,56 @@ class WireWiring(unittest.TestCase):
                          "a SCORED record is pulled only via the request gate above")
 
     def test_the_pull_is_bounded_and_bound_to_the_candidate(self):
-        """The board never waits for the host without a bound (a COUNT of RX polls, like the
-        settle poll), and answers only frames whose payload seq is THIS candidate's."""
+        """The board never waits for the host without a bound (the poll count AND the clock,
+        rel-v4), and answers only frames whose payload seq is THIS candidate's — the state
+        machine is the pure unit p3_pull.c, this file supplies the I/O."""
         pull = APP[APP.index("static int audit_pull"):]
         pull = pull[:pull.index("\n}\n")]
-        self.assertIn("recv_line_bounded(g_line, sizeof(g_line), P3_PULL_IDLE_POLLS)", pull)
-        self.assertIn('S.audit_stop_why = "the host went quiet during the audit pull', pull)
-        self.assertIn('json_uint(g_json, "\\"seq\\":", &seqv) != 0 || seqv != S.seq', pull)
+        self.assertIn("rc = p3_pull_run(S.seq, chunks, &io, &pr);", pull)
+        self.assertIn("io.recv_bounded = pull_recv_cb;", pull)
+        recv = APP_CODE[APP_CODE.index("static int pull_recv_cb"):]
+        self.assertIn("return recv_line_bounded(out, max, P3_PULL_IDLE_POLLS);", recv[:recv.index("\n}")])
         self.assertIn("#define P3_PULL_IDLE_POLLS", APP)
         bounded = APP[APP.index("static int recv_line_bounded"):]
         bounded = bounded[:bounded.index("\n}")]
-        # the bound is the pure receiver's (p3_rectx_recv_line, whole line — review 2026-09-02)
-        self.assertIn("return p3_rectx_recv_line(&rx, out, max, idle_polls);", bounded)
+        # the bound is the pure receiver's, timed by the global timer (rel-v4)
+        self.assertIn("return p3_rectx_recv_line_timed(&rx, out, max, idle_polls, P3_BOUND_TICKS);", bounded)
         self.assertIn("console_rx_ready()", APP[APP.index("static int app_rx_ready"):APP.index("static int app_rx_byte")])
-        # AUDITGET is answered as often as asked; DONE and ABORT are the only exits besides the bound
-        self.assertIn('strcmp(type, "AUDITGET") == 0', pull)
-        self.assertIn('strcmp(type, "AUDITDONE") == 0', pull)
-        self.assertIn('strcmp(type, "AUDITABORT") == 0', pull)
+        unit = CODE["p3_pull.c"]
+        self.assertIn("pseq != seq", unit)                       # bound to THIS candidate
+        self.assertIn('strcmp(type, "AUDITGET") == 0', unit)
+        self.assertIn('strcmp(type, "AUDITDONE") == 0', unit)
+        self.assertIn('strcmp(type, "AUDITABORT") == 0', unit)
+        self.assertIn('"the host went quiet during the audit pull (bounded wait ran out)"', unit)
 
     def test_serving_survives_a_stop_but_not_a_channel_failure(self):
-        """A stop is recorded AFTER its pull, never instead of it: the pull loop exits only
-        on DONE/ABORT/the bound/P3_PROTOCOL — a STOPPED epoch does not end it."""
+        """A stop is recorded AFTER its pull, never instead of it: the pull unit exits only
+        on DONE/ABORT/the bound/a channel failure — a STOPPED epoch does not end it. The
+        channel failure the unit asks about is P3_PROTOCOL and nothing else."""
         pull = APP_CODE[APP_CODE.index("static int audit_pull"):]
         pull = pull[:pull.index("\n}\n")]
-        self.assertIn("if (S.kind == P3_PROTOCOL)", pull)
         self.assertNotIn("S.kind == P3_RUNNING", pull)
         self.assertNotIn("P3_STOPPED", pull)
+        cf = APP_CODE[APP_CODE.index("static int pull_channel_failed_cb"):]
+        self.assertIn("return S.kind == P3_PROTOCOL;", cf[:cf.index("\n}")])
+        unit = CODE["p3_pull.c"]
+        self.assertIn("if (io->channel_failed != NULL && io->channel_failed(io->ctx))", unit)
+        self.assertNotIn("STOPPED", unit); self.assertNotIn("RUNNING", unit)
 
     def test_the_audited_mark_means_words_were_served(self):
         """Rule (ix) under the pull: `verified: audited` means the host pulled every chunk
-        AND said AUDITDONE — the mark is set in exactly one place, on DONE, and an early
-        set is the mutation this exists to catch."""
+        AND said AUDITDONE — the mark is set in exactly one place, on the pull unit's
+        success (p3_pull_run returned 0), after the words were served."""
         self.assertIn("rec->audited = (S.audit_served && S.audit_served_seq == rec->seq)", APP)
         pull = APP_CODE[APP_CODE.index("static int audit_pull"):]
         pull = pull[:pull.index("\n}\n")]
-        done = pull.index('strcmp(type, "AUDITDONE") == 0')
-        set_at = pull.index("S.audit_served = 1;")
-        self.assertGreater(set_at, done, "the mark is set only inside the AUDITDONE branch")
         self.assertEqual(APP_CODE.count("S.audit_served = 1;"), 1)
+        self.assertLess(pull.index("rc = p3_pull_run(S.seq, chunks, &io, &pr);"), pull.index("S.audit_served = 1;"))
+        self.assertIn("if (rc == 0) {", pull); self.assertLess(pull.index("if (rc == 0) {"), pull.index("S.audit_served = 1;"))
         serve = APP_CODE[APP_CODE.index("static void serve_sparse_chunk"):]
-        serve = serve[:serve.index("\n}")]
-        self.assertNotIn("audit_served", serve, "serving a chunk is not being audited")
+        self.assertIn('send_payload("AUDIT", S.seq,', serve[:serve.index("\n}\n")])
+        unit = CODE["p3_pull.c"]
+        self.assertIn('strcmp(type, "AUDITDONE") == 0', unit); self.assertIn("r->done = 1;", unit)
 
     def test_a_short_audit_cannot_be_served_as_a_full_one(self):
         """A link-2 refusal has no readback frames: its pull announces and serves the
@@ -484,11 +502,11 @@ class WireWiring(unittest.TestCase):
         after_link3 = run[run.index("link3_witness(readback)"):run.index('emit_record(&rec, "SCORED")')]
         self.assertNotIn("heartbeat();", after_link3)
         hb = APP[APP.index("static void heartbeat(void)"):]
-        self.assertIn('send_frame("HB", S.seq, "-")', hb[:hb.index("\n}")])   # the candidate's seq
+        self.assertIn('send_payload("HB", S.seq, p3_wire_hb(S.hb_i++', hb[:hb.index("\n}")])   # the candidate's seq, indexed
 
     def test_the_identity_names_the_master_seed_mode_and_operator_data(self):
         ident = APP[APP.index("static int establish_identity"):]
-        ident = ident[:ident.index('send_payload("IDENT"')]
+        ident = ident[:ident.index('build_payload_frame("IDENT"')]
         self.assertIn("in.master_seed = S.page.seed;", ident)
         self.assertIn("in.operator_data_sha256 = P3_OPERATOR_DATA_SHA256;", ident)
         self.assertIn("in.schedule_mode = mode == P3_MODE_UNASSIGNED", ident)
@@ -502,7 +520,7 @@ class WireWiring(unittest.TestCase):
         self.assertIn("p3_search_next(genome, S.page.seed, i, schedule_mode(), &arm)", main)
         self.assertIn("run_candidate(genome, 0, P3_ARM_NAME[arm])", main)
         run = APP[APP.index("static int run_candidate"):]
-        self.assertIn("rec.arm = arm_name;", run[:run.index('send_payload("SIGNREQ"')])
+        self.assertIn("rec.arm = arm_name;", run[:run.index('build_payload_frame("SIGNREQ"')])
 
     def test_the_arm_failure_path_keeps_its_observations(self):
         """Session 1's instrumentation gap: arm_attempt read STATUS and FAULT after the
@@ -690,24 +708,26 @@ class RecTransaction(unittest.TestCase):
         e = self._emit()
         self.assertIn("(S.rec_control && rec->seq == 1u) ? 1 : 0", e)
         ident = APP_CODE[APP_CODE.index("static int establish_identity"):]
-        ident = ident[:ident.index('send_payload("IDENT"')]
+        ident = ident[:ident.index('build_payload_frame("IDENT"')]
         self.assertIn("S.rec_control = (S.page.flags & P3_RECTX_CONTROL_FLAG) ? 1 : 0;", ident)
-        self.assertIn('in.protocol = "rec-v3";', ident); self.assertIn("in.rec_retry_control = S.rec_control;", ident)
+        self.assertIn('in.protocol = "rel-v4";', ident); self.assertIn("in.rec_retry_control = S.rec_control;", ident)
         self.assertEqual(APP_CODE.count("S.rec_control ="), 1)
         rectx = SOURCES["p3_rectx.c"]
         self.assertIn("if (attempt == 1u && corrupt_first)", rectx)
         self.assertIn("#define P3_RECTX_CONTROL_FLAG 16u", SOURCES["p3_rectx.h"])
 
     def test_the_rx_fifo_is_flushed_before_every_signreq_and_the_reply_loop_skips_only_stale_acks(self):
+        """rel-v4: the flush precedes the SIGNREQ transaction; the reply wait is the pure
+        unit's strict rule (a RECACK/RECGET only for the previous record, bounded)."""
         run = APP_CODE[APP_CODE.index("static int run_candidate"):]
-        self.assertLess(run.index("console_rx_flush();"), run.index('send_payload("SIGNREQ"'))
+        self.assertLess(run.index("console_rx_flush();"), run.index('build_payload_frame("SIGNREQ"'))
         self.assertEqual(APP_CODE.count("console_rx_flush();"), 1)
-        loop = run[run.index("S.audit_requested = 0;"):run.index('if (!strcmp(type, "SIGNREF"))')]
-        self.assertIn('strcmp(type, "RECACK") == 0 || strcmp(type, "RECGET") == 0', loop)
-        self.assertIn("++stale > P3_REPLY_STALE_LIMIT", loop)
-        self.assertIn("if (!payload || fseq != S.seq)", loop)
-        self.assertIn('"PROTOCOL: the notary reply did not verify"', loop)
-        self.assertIn("#define P3_REPLY_STALE_LIMIT 8u", APP)
+        self.assertIn("k.prev_seq = S.seq >= 2u ? S.seq - 1u : 0u;", run); self.assertIn("k.prev_strict = 1;", run)
+        unit = CODE["p3_rectx.c"]
+        self.assertIn('strcmp(type, "RECACK") == 0 || strcmp(type, "RECGET") == 0', unit)
+        self.assertIn("if (++prev_acks > P3_RECTX_PREV_ACK_LIMIT)", unit)
+        self.assertIn("#define P3_RECTX_PREV_ACK_LIMIT 8u", SOURCES["p3_rectx.h"])
+        self.assertIn('"PROTOCOL: the reply is not a well-formed sign_reply"', run)
         # the flush is BSP glue: register reads only, no control write
         console = (R / "firmware/bsp/src/console.c").read_text()
         flush = console[console.index("int console_rx_flush(void)\n{"):]
@@ -715,33 +735,32 @@ class RecTransaction(unittest.TestCase):
         self.assertNotIn("Xil_Out32", flush); self.assertIn("UART_FIFO", flush); self.assertIn("n < 4096", flush)
 
     def test_the_whole_line_receive_is_bounded_and_is_the_pure_units(self):
-        """Review 2026-09-02, blocker 1: recv_line_bounded must be p3_rectx_recv_line over
-        the RX primitives — never a first-byte bound followed by the blocking recv_line."""
+        """Review 2026-09-02, blocker 1: recv_line_bounded must be the pure receiver over
+        the RX primitives — never a first-byte bound followed by a blocking read. rel-v4:
+        the receiver is the timed one and the blocking recv_line is gone entirely."""
         rb = APP_CODE[APP_CODE.index("static int recv_line_bounded"):]
         rb = rb[:rb.index("\n}")]
-        self.assertIn("return p3_rectx_recv_line(&rx, out, max, idle_polls);", rb)
+        self.assertIn("return p3_rectx_recv_line_timed(&rx, out, max, idle_polls, P3_BOUND_TICKS);", rb)
         self.assertNotIn("recv_line(out, max)", rb); self.assertNotIn("inbyte()", rb)
         self.assertIn("rx.rx_ready = app_rx_ready;", rb); self.assertIn("rx.rx_byte = app_rx_byte;", rb)
-        # the blocking recv_line is used only for the sign reply (the L5 exchange, unchanged)
-        uses = [m.start() for m in re.finditer(r"recv_line\(g_line", APP_CODE)]
-        run = APP_CODE.index("static int run_candidate")
-        self.assertEqual(len(uses), 1); self.assertGreater(uses[0], run)
+        self.assertEqual(len(re.findall(r"\brecv_line\(", APP_CODE)), 0, "no blocking receive remains")
         recv = SOURCES["p3_rectx.c"]
-        unit = recv[recv.index("int p3_rectx_recv_line"):recv.index("void p3_rectx_corrupt_crc")]
+        unit = recv[recv.index("int p3_rectx_recv_line_timed"):recv.index("void p3_rectx_corrupt_crc")]
         self.assertIn("++idle > idle_polls", unit); self.assertIn("++total > line_polls", unit)
         self.assertIn("return n == 0u ? -2 : -3;", unit)
         self.assertIn("#define P3_RECTX_LINE_POLL_FACTOR 4u", SOURCES["p3_rectx.h"])
 
     def test_a_stale_ack_in_the_reply_wait_must_name_the_previous_transaction(self):
-        """Review 2026-09-02, blocker 4: frame seq AND payload seq == S.seq − 1, else PROTOCOL."""
-        run = APP_CODE[APP_CODE.index("static int run_candidate"):]
-        loop = run[run.index("S.audit_requested = 0;"):run.index('if (!strcmp(type, "SIGNREF"))')]
-        self.assertIn("fseq != S.seq - 1u", loop)
-        self.assertIn("rectx_payload_seq_cb(payload, &pseq, NULL) != 0 || pseq != S.seq - 1u", loop)
-        self.assertIn('"PROTOCOL: an acknowledgement that is not the previous transaction\'s"', loop)
-        self.assertLess(loop.index("fseq != S.seq - 1u"), loop.index("++stale > P3_REPLY_STALE_LIMIT"))
+        """Review 2026-09-02, blocker 4: frame seq AND payload seq == the previous record's,
+        else PROTOCOL — now the pure unit's rule under the SIGNREQ transaction."""
         rectx = CODE["p3_rectx.c"]
+        self.assertIn("fseq != kinds->prev_seq", rectx)
+        self.assertIn("io->payload_seq(payload, &pseq, io->ctx) != 0 || pseq != kinds->prev_seq", rectx)
+        self.assertIn('"PROTOCOL: an acknowledgement that is not the previous transaction\'s"', rectx)
         self.assertIn("if (++stale >= P3_RECTX_STALE_LIMIT)", rectx)
+        run = APP_CODE[APP_CODE.index("static int run_candidate"):]
+        self.assertIn("if (rc == -2 || rc == -3) {", run)
+        self.assertIn("p3_stop(P3_PROTOCOL, r.why", run)
 
     def test_the_transaction_unit_is_pure(self):
         rectx = CODE["p3_rectx.c"]

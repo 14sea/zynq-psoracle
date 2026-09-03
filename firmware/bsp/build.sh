@@ -48,7 +48,7 @@ for s in $WDT_SRCS; do o="$OUT/wd_$s.o"; "$CC" $BSP_CFLAGS -c "$WD/$s" -o "$o"; 
 
 # --- glue + application -----------------------------------------------------------------
 "$CC" $BSP_CFLAGS -c "$BSP/src/console.c" -o "$OUT/console.o"; OBJS+=("$OUT/console.o")
-for s in p3_app.c p3_derive.c p3_search.c p3_wire.c p3_rectx.c; do
+for s in p3_app.c p3_derive.c p3_search.c p3_wire.c p3_rectx.c p3_pull.c; do
   "$CC" $APP_CFLAGS -c "$REPO/firmware/$s" -o "$OUT/$s.o"; OBJS+=("$OUT/$s.o")
 done
 

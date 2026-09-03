@@ -180,6 +180,7 @@ class Session(unittest.TestCase):
         log = {"app_identity": {"protocol": "rel-v4"},
                "loop_records": [{"seq": 1, "outcome": "SCORED", "verified": "audited"}, {"seq": 2, "outcome": "SCORED", "verified": "audited"}],
                "session_summary": {"written_by": "app", "epoch_end": {"kind": "COMPLETED", "reason": "budget"},
+                                   "closing": {"restore": "done", "baseline": "done", "unsigned_control": "done"},
                                    "closing_control": {"fault": 13, "kind": "unsigned", "status": "0x00000982",
                                                        "nonce_before": "3" * 16, "nonce_after": "4" * 16}}}
         good = {"ident": {"accepted": True, "acks_sent": 1, "conflict": False, "refused": False},

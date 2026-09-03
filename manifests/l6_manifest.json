@@ -374,7 +374,7 @@
     "version": "v0.6-draft",
     "protocol": "rel-v4",
     "sha256": null,
-    "status": "DRAFT (self-contained text) — v0.4 stays frozen and in force; owner 2026-09-02: v0.5 is NOT frozen (superseded by this draft, its content carried verbatim), C1 → C2 → S run ONCE under v0.6 and the rel-v4 image; owner 2026-09-02: the rel-v4 host batch reviewed HOLD on seven integration items, closed in its correction batch (§8, main paths confirmed by the owner) and a second correction batch (§10: sign ledgers never last-wins, the typed closing_control mandatory, the bit5 IDENT echo, the bound contract; reviewed: confirmed) and a third correction (§12: a rel-v4 rate report must carry the sign ledgers — missing or null refused; unreviewed); D-p1 bounds accepted (3 transmissions, GET ≤ 2, WAIT ≤ 3, replay ≤ 3; the third WAIT is not a final failure); frozen only after that correction batch is reviewed PASS, the firmware batch has built the rel-v4 image (twice byte-identical) and it passed a full P3 compatibility review. C1 #5 (2026-09-02-01) is and stays HOLD under v0.4. The stop-loss stays TRIGGERED.",
+    "status": "DRAFT (self-contained text) — v0.4 stays frozen and in force; owner 2026-09-02: v0.5 is NOT frozen (superseded by this draft, its content carried verbatim), C1 → C2 → S run ONCE under v0.6 and the rel-v4 image; owner 2026-09-02: the rel-v4 host batch reviewed HOLD on seven integration items, closed in its correction batch (§8, main paths confirmed by the owner) and a second correction batch (§10: sign ledgers never last-wins, the typed closing_control mandatory, the bit5 IDENT echo, the bound contract; reviewed: confirmed) and a third correction (§12: a rel-v4 rate report must carry the sign ledgers — missing or null refused; unreviewed); D-p1 bounds accepted (3 transmissions, GET ≤ 2, WAIT ≤ 3, replay ≤ 3; the third WAIT is not a final failure); the third correction reviewed PASS and pushed (a8c950d); the firmware batch delivered the rel-v4 image as next_image (board_ready false; docs/l6_rel_firmware_package.md), pending the full P3 compatibility review; frozen only after that review passes, the firmware batch has built the rel-v4 image (twice byte-identical) and it passed a full P3 compatibility review. C1 #5 (2026-09-02-01) is and stays HOLD under v0.4. The stop-loss stays TRIGGERED.",
     "pass_conditions_draft": {
       "nominal_cov_max": 0.1,
       "min_clean_periods": 60,
@@ -412,6 +412,34 @@
       ],
       "term_linger_s": 22.0,
       "note": "host/l6_rel.FIRMWARE_BOUND_CONTRACT — a stated contract until the firmware batch pins the poll counts, bounds their wall time in a source-audit test and measures it with the C twin; IDENT 1.3.0 must echo flags.bit5 as sign_retry_control"
+    }
+  },
+  "next_image": {
+    "app_image_sha256": "734d6c04895e81d5fef3196f7b3298d03a7c6c6d3b9fe3f35abc9cc0b1e323b1",
+    "elf_sha256": "a2a422157aaf1f666a46fc8088b2cf54a68fcb77cecf886f2d7bb8bf4c0b8355",
+    "app_image_bytes": 98324,
+    "board_ready": false,
+    "protocol": "rel-v4",
+    "app_image": "firmware/bsp/out/p3_app_l6.bin (raw binary, loaded at 0x02000000, `go`) — IMAGE=p3_app_l6 firmware/bsp/build.sh",
+    "standing": "CANDIDATE, host-only, NOT board-ready, NEVER run on hardware: the rel-v4 image (IDENT/SIGNREQ/TERM transactions, the pull's READY resend + AUDITWAIT, indexed heartbeats, the closing control in the TERM, app_identity 1.3.0 with sign_retry_control, every wait bounded by the global timer at P3_BOUND_S = 8 s on the pinned clock) built in the firmware batch the owner opened 2026-09-02. Two from-scratch builds byte-identical. Promotion to pinned_at_build needs the full P3 compatibility review (docs/l6_rel_firmware_package.md), the v0.6 preregistration frozen, then ONE C1 → C2 → S under it.",
+    "build_evidence": "evidence/l6_next_build/build_evidence.json (the cd8360dc… and e19e1b12… candidate records preserved beside it)",
+    "wire": "app_identity 1.3.0 (+ sign_retry_control); loop_record 1.1.0 (+ STOP_SIGN with sign_stop); session_summary 1.0.0 (+ closing_control when the control was reached); HB carries {i}; IDENT → IDENTACK, SIGNREQ → SIGNOK|SIGNREF (SIGNGET), AUDIT_READY resent, AUDITWAIT, REC → RECACK|RECGET, TERM → TERMACK (TERMGET); no AUDITREQ frame (audit_requested in SIGNOK)",
+    "bound_contract": {
+      "P3_BOUND_S": 8,
+      "P3_BOUND_TICKS": "8 × COUNTS_PER_SECOND",
+      "COUNTS_PER_SECOND": "XPAR_CPU_CORTEXA9_0_CPU_CLK_FREQ_HZ / 2 = 666666687 / 2 = 333333343 Hz (6:2:1, CPU_CLK_CTRL 0x1f000200 verified per session by the runner)",
+      "poll_caps": {
+        "P3_IDENT_IDLE_POLLS": 100000000,
+        "P3_SIGN_IDLE_POLLS": 100000000,
+        "P3_PULL_IDLE_POLLS": 50000000,
+        "P3_REC_IDLE_POLLS": 50000000,
+        "P3_TERM_IDLE_POLLS": 100000000
+      },
+      "wall_time_bound_s": 8.0,
+      "host_contract_s": 10.0,
+      "term_linger_s": 22.0,
+      "proof": "tests/test_firmware_rel_audit.py::BoundContract (source-derived: every wait is p3_rectx_recv_line_timed with the global timer and P3_BOUND_TICKS; the number derived from the pinned CPU clock ≤ the host's 10 s); the poll caps are a termination backstop, not the wall-time proof; the C twin (tests/test_firmware_rel_contract.py) drives the timed receiver with an injected clock — logic, not target timing",
+      "controls": "flags.bit4 (REC) and flags.bit5 (SIGNREQ): the first transmission of seq 1's REC / SIGNREQ has its CRC corrupted; both echoed by IDENT 1.3.0"
     }
   }
 }

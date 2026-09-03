@@ -61,8 +61,11 @@ typedef struct {
     /* app_identity 1.2.0 (rec-v3, L6 prereg v0.4): the wire protocol this image speaks —
      * the host refuses an image that does not declare the one its runner implements —
      * and the identity page's forced REC-retry control flag as the application decoded it */
-    const char *protocol;             /* "rec-v3" */
+    const char *protocol;             /* "rec-v3" | "rel-v4" */
     int rec_retry_control;
+    /* app_identity 1.3.0 (rel-v4, prereg v0.6 draft §2.6d): the page's flags.bit5 — the
+     * forced SIGNREQ-retry control — as the application decoded it */
+    int sign_retry_control;
 } p3_wire_identity_in;
 
 size_t p3_wire_identity(const p3_wire_identity_in *in, char *out, size_t max);
@@ -138,6 +141,12 @@ typedef struct {
     const char *audit_stop_why;
     uint32_t audit_chunks_served;
 
+    /* STOP_SIGN (rel-v4, prereg v0.6 draft §2.6k): the sign exchange was not acknowledged
+     * after the bounded resends — a terminal record carrying this block and nothing else */
+    int have_sign_stop;
+    uint32_t sign_stop_attempts;
+    const char *sign_stop_why;
+
     int have_score;
     const char *hw_candidate_commit;             /* 64 hex */
     const char *readout[P3_WIRE_SCORES];         /* 16 hex each */
@@ -199,9 +208,22 @@ typedef struct {
     int closing_restore, closing_baseline, closing_unsigned; /* -> done | not_reached */
     uint32_t audited, total;
     uint32_t crc_dropped, drop_budget;
+    /* rel-v4 (prereg v0.6 draft §2.6o): the closing unsigned control's fields repeated in
+     * the TERM, so a lost CLOSE is reconstructed from the re-requestable TERM. Present
+     * exactly when the control was reached (closing_unsigned == done). */
+    int have_closing_control;
+    uint64_t close_nonce_before, close_nonce_after;
+    uint32_t close_fault, close_status;
 } p3_wire_summary_in;
 
 size_t p3_wire_summary(const p3_wire_summary_in *in, char *out, size_t max);
+
+/* rel-v4: the heartbeat's index payload {"i":k} (0..15 per record), so a lost heartbeat is
+ * identified and a duplicated one harmless (prereg v0.6 draft §2.6n). */
+size_t p3_wire_hb(uint32_t i, char *out, size_t max);
+/* rel-v4: AUDITWAIT {seq, served} — the board did not see AUDITDONE after the last chunk
+ * (prereg v0.6 draft §2.6m). */
+size_t p3_wire_audit_wait(uint32_t seq, uint32_t served, char *out, size_t max);
 
 /* ------------------------------------------------------------------ tally ----------- */
 

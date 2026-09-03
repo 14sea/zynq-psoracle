@@ -1520,3 +1520,36 @@ object or null) with the one-per-seq and seq-set checks unchanged; rec-v3 needs 
 `rate_report_from_evidence_dir()` on a copy of C1 #5's evidence: key deleted, null, one
 missing, one duplicated, a non-integer seq, `ident` missing — refused; rec-v3 without the
 key passes (`docs/l6_rel_batch_package.md` §12).
+
+## 2026-09-03 — owner's fourth review: package §12 PASS (host-only scoped); push of the four commits approved; the firmware batch opened with mandatory deliverables — delivered host-side: the rel-v4 image as next_image, NOT board-ready
+
+The owner: the rel-v4 rate gap closed through the real disk entry point; missing / null /
+short / duplicate / extra / non-integer sign ledgers all fail closed; ident/term checked;
+rec-v3 evidence unchanged. Rulings: package §12 PASS; push 866bc5b, e2c0caf, e61e994,
+a8c950d (done, origin a8c950d); the firmware batch may start with mandatory deliverables —
+IDENT 1.3.0 + the bit5 echo; the five poll-count bounds pinned with a source audit, the C
+twin and the manifest; proof that every board bound is ≤ 10 s on the pinned clock (host
+timing of the twin is not that proof); C twins for the IDENT refusal, the AUDITWAIT counts
+and the CLOSE/TERM redundancy; two from-scratch byte-identical builds; next_image with
+board_ready false, then the full P3 compatibility review. No freeze, no ruling, no board.
+
+Delivered 2026-09-03 (`docs/l6_rel_firmware_package.md`): `p3_rectx.c` generalised
+(`p3_tx_run` with ack/get kinds, the strict previous-ack rule, `p3_rectx_recv_line_timed`
+bounded by polls AND global-timer ticks — whichever first), `p3_pull.c` (READY resent ≤ 3
+while no GET, AUDITWAIT ≤ 3 after the last chunk), `p3_app.c`: IDENT handshake before any
+SIGNREQ (STOP_IDENT on exhaustion; the SIGNREQ is never sent), the SIGNREQ transaction
+(STOP_SIGN terminal record; audit_requested read from SIGNOK; no AUDITREQ frame; the seq-1
+control on flags.bit5), the pull through the unit, indexed heartbeats, the closing control
+kept for the TERM, the TERM transaction, the global timer started once at go and every
+wait bounded by `P3_BOUND_TICKS` = 8 s × COUNTS_PER_SECOND (333,333,343 Hz on the pinned
+6:2:1 clock; the poll caps a termination backstop); `p3_wire.c`: IDENT 1.3.0
+`sign_retry_control`, HB `{i}`, TERM `closing_control` when reached, `sign_stop`. Twin:
+`identtx`/`signtx`/`termtx`/`pulltx` over a pipe with the injected clock. Tests:
+`tests/test_firmware_rel_contract.py` (17, the real IdentHost/SignHost/TermHost/PullHost
+driving the C code), `tests/test_firmware_rel_audit.py` (12: the source-derived bound proof
+8 s ≤ 10 s, the timed receiver, the transactions, purity, heartbeats, identity); the old
+audit/contract suites updated to the new structure. Two from-scratch builds byte-identical:
+bin `734d6c04895e81d5fef3196f7b3298d03a7c6c6d3b9fe3f35abc9cc0b1e323b1` (98 324 B), ELF `a2a422157aaf1f66…` → `manifests/l6_manifest.json` `next_image`,
+`board_ready: false`, `bound_contract` pinned; `evidence/l6_next_build/` regenerated (the
+cd8360dc… and e19e1b12… records preserved). Not run on hardware; the full P3
+compatibility review is the owner's; no freeze, no ruling, no board.

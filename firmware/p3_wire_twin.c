@@ -34,6 +34,7 @@
 #include "p3_wire.h"
 #include "p3_derive.h"
 #include "p3_rectx.h"
+#include "p3_pull.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -171,10 +172,42 @@ static void cmd_ident(void)
     in.master_seed = (uint32_t)kv_u("master_seed", 0);
     in.schedule_mode = kv_or("schedule_mode", "abba");
     in.operator_data_sha256 = kv_or("operator_sha", "");
-    in.protocol = kv_or("protocol", "rec-v3");
+    in.protocol = kv_or("protocol", "rel-v4");
     in.rec_retry_control = (int)kv_u("rec_control", 0);
+    in.sign_retry_control = (int)kv_u("sign_control", 0);
     emit("IDENT", (uint32_t)kv_u("seq", 0), in.token,
          p3_wire_identity(&in, g_plain, sizeof(g_plain)));
+}
+
+/* the IDENT line into `out` (framed, newline included), for `identtx` */
+static size_t build_ident(char *out, size_t max)
+{
+    p3_wire_identity_in in;
+    const char *findings[8];
+    size_t n;
+
+    memset(&in, 0, sizeof(in));
+    in.pss_idcode = (uint32_t)kv_u("idcode", 0x03722093ul);
+    in.token = kv_or("token", "");
+    in.uboot_epoch = (uint32_t)kv_u("uboot_epoch", 0);
+    in.carrier_sha256 = kv_or("carrier_sha256", "");
+    in.nonce_at_start = kv_x64("nonce");
+    in.status_at_start = (uint32_t)kv_u("status", 0);
+    in.fclk0_hz_decoded = (uint32_t)kv_u("fclk0", 50000000ul);
+    in.app_epoch = (uint32_t)kv_u("app_epoch", 0);
+    in.findings_n = kv_list("findings", findings, 8);
+    in.findings = in.findings_n ? findings : NULL;
+    in.master_seed = (uint32_t)kv_u("master_seed", 0);
+    in.schedule_mode = kv_or("schedule_mode", "abba");
+    in.operator_data_sha256 = kv_or("operator_sha", "");
+    in.protocol = kv_or("protocol", "rel-v4");
+    in.rec_retry_control = (int)kv_u("rec_control", 0);
+    in.sign_retry_control = (int)kv_u("sign_control", 0);
+    n = p3_wire_identity(&in, g_plain, sizeof(g_plain));
+    if (n == 0)
+        return 0;
+    p3_base64url((const uint8_t *)g_plain, n, g_b64);
+    return p3_wire_line("IDENT", 0, in.token, g_b64, out, max);
 }
 
 static void cmd_signreq(void)
@@ -248,6 +281,11 @@ static size_t build_rec(char *out, size_t max)
         in.status_first = kv_has("status_first") ? (uint32_t)kv_u("status_first", 0)
                                                  : in.status_after;
     }
+    if (kv_has("sign_stop_why")) { /* rel-v4 STOP_SIGN */
+        in.have_sign_stop = 1;
+        in.sign_stop_attempts = (uint32_t)kv_u("sign_stop_attempts", 3);
+        in.sign_stop_why = kv("sign_stop_why");
+    }
     if (kv_has("audit_stop_why")) {
         in.have_audit_stop = 1;
         in.audit_stop_why = kv("audit_stop_why");
@@ -305,11 +343,21 @@ static int rectx_send(const char *line, size_t n, void *ctx)
 static char g_rx_buf[16384];
 static size_t g_rx_len, g_rx_pos;
 
+static uint64_t g_twin_ticks;   /* the twin's clock: one tick per RX poll, so the timed bound is exercised */
+
 static int twin_rx_ready(void *ctx)
 {
     (void)ctx;
+    g_twin_ticks++;
     return g_rx_pos < g_rx_len;
 }
+
+static uint64_t twin_now_ticks(void *ctx)
+{
+    (void)ctx;
+    return g_twin_ticks;
+}
+#define TWIN_IDLE_TICKS 300u
 
 static int twin_rx_byte(void *ctx)
 {
@@ -324,6 +372,7 @@ static int rectx_recv(char *out, size_t max, void *ctx)
     (void)ctx;
     rx.rx_ready = twin_rx_ready;
     rx.rx_byte = twin_rx_byte;
+    rx.now_ticks = twin_now_ticks;
     rx.ctx = NULL;
     g_rx_len = g_rx_pos = 0;
     if (fgets(g_rx_buf, (int)sizeof(g_rx_buf), stdin) != NULL) {
@@ -338,7 +387,7 @@ static int rectx_recv(char *out, size_t max, void *ctx)
         }
         g_rx_len = n;
     }
-    return p3_rectx_recv_line(&rx, out, max, TWIN_IDLE_POLLS);
+    return p3_rectx_recv_line_timed(&rx, out, max, TWIN_IDLE_POLLS, TWIN_IDLE_TICKS);
 }
 
 /* the same checks p3_app.c's parse_frame makes: magic, CRC over the body, the full token */
@@ -419,6 +468,213 @@ static void cmd_rectx(void)
     printf("!rectx rc=%d attempts=%lu gets=%lu idle=%lu stale=%lu partial=%lu corrupted_first=%d acked=%d why=%s\n",
            rc, (unsigned long)r.attempts, (unsigned long)r.gets, (unsigned long)r.idle_expiries,
            (unsigned long)r.stale, (unsigned long)r.partial, r.corrupted_first, r.acked, r.why ? r.why : "");
+    fflush(stdout);
+}
+
+/* ---------------------------------------------------------------- rel-v4 transactions --- */
+
+/* identtx / signtx / termtx: the board's IDENT / SIGNREQ / TERM transaction (p3_tx_run, the
+ * same source the image links) over the pipe — the host test plays the runner. Prints
+ * `!tx rc=… attempts=… gets=… idle=… stale=… partial=… prev_acks=… corrupted_first=… acked=…
+ * ack_type=… why=…`. signtx: prev_seq= (the previous record's seq) enables the strict
+ * previous-acknowledgement rule as the board applies it. */
+static void cmd_tx(const char *which)
+{
+    p3_rectx_io io;
+    p3_rectx_result r;
+    p3_tx_kinds k;
+    size_t n;
+    int rc;
+
+    uint32_t tx_seq = (uint32_t)kv_u("seq", 1);
+
+    snprintf(g_rectx_token, sizeof(g_rectx_token), "%s", kv_or("token", ""));
+    if (strcmp(which, "identtx") == 0) {
+        tx_seq = 0u;
+        n = build_ident(g_line, sizeof(g_line));
+        k.ack_a = "IDENTACK"; k.ack_b = NULL; k.get = NULL;
+        k.stop_why = "STOP_IDENT: the identity was not acknowledged after 3 attempts";
+        k.prev_seq = 0u; k.prev_strict = 0;
+    } else if (strcmp(which, "signtx") == 0) {
+        n = p3_wire_sign_request(g_rectx_token, (uint32_t)kv_u("app_epoch", 0), (uint32_t)kv_u("seq", 1),
+                                 kv_or("genome", ""), kv_x64("nonce"), g_plain, sizeof(g_plain));
+        if (n != 0) {
+            p3_base64url((const uint8_t *)g_plain, n, g_b64);
+            n = p3_wire_line("SIGNREQ", (uint32_t)kv_u("seq", 1), g_rectx_token, g_b64, g_line, sizeof(g_line));
+        }
+        k.ack_a = "SIGNOK"; k.ack_b = "SIGNREF"; k.get = "SIGNGET";
+        k.stop_why = "STOP_SIGN: the sign exchange was not acknowledged after 3 attempts";
+        k.prev_seq = (uint32_t)kv_u("prev_seq", 0); k.prev_strict = 1;
+    } else {
+        p3_wire_summary_in in;
+        memset(&in, 0, sizeof(in));
+        in.token = g_rectx_token;
+        in.kind = kv_or("kind", "COMPLETED");
+        in.reason = kv_or("reason", "budget");
+        in.last_seq = (uint32_t)kv_u("last_seq", 0);
+        in.closing_restore = (int)kv_u("closing_restore", 1);
+        in.closing_baseline = (int)kv_u("closing_baseline", 1);
+        in.closing_unsigned = (int)kv_u("closing_unsigned", 1);
+        p3_wire_tally(&in.total, &in.audited);
+        in.drop_budget = 16;
+        in.have_closing_control = in.closing_unsigned;
+        in.close_fault = (uint32_t)kv_u("closing_fault", 13);
+        in.close_status = (uint32_t)kv_u("closing_status", 0x982);
+        in.close_nonce_before = kv_x64("closing_nb");
+        in.close_nonce_after = kv_x64("closing_na");
+        tx_seq = (uint32_t)kv_u("seq", in.last_seq + 1); /* the TERM's seq is last_seq + 1 */
+        n = p3_wire_summary(&in, g_plain, sizeof(g_plain));
+        if (n != 0) {
+            p3_base64url((const uint8_t *)g_plain, n, g_b64);
+            n = p3_wire_line("TERM", tx_seq, g_rectx_token, g_b64, g_line, sizeof(g_line));
+        }
+        k.ack_a = "TERMACK"; k.ack_b = NULL; k.get = "TERMGET";
+        k.stop_why = "TERM_UNACKED: the summary was not acknowledged after 3 attempts";
+        k.prev_seq = 0u; k.prev_strict = 0;
+    }
+    if (n == 0) {
+        printf("!line-overflow\n");
+        return;
+    }
+    io.send = rectx_send;
+    io.recv_bounded = rectx_recv;
+    io.parse = rectx_parse;
+    io.payload_seq = rectx_payload_seq;
+    io.rx = g_rectx_rx;
+    io.rx_max = sizeof(g_rectx_rx);
+    io.ctx = NULL;
+    rc = p3_tx_run(g_line, n, tx_seq, &k,
+                   (int)kv_u("corrupt", 0), &io, g_rectx_scratch, sizeof(g_rectx_scratch), &r);
+    printf("!tx rc=%d attempts=%lu gets=%lu idle=%lu stale=%lu partial=%lu prev_acks=%lu corrupted_first=%d acked=%d ack_type=%s why=%s\n",
+           rc, (unsigned long)r.attempts, (unsigned long)r.gets, (unsigned long)r.idle_expiries,
+           (unsigned long)r.stale, (unsigned long)r.partial, (unsigned long)r.prev_acks, r.corrupted_first,
+           r.acked, r.acked ? r.ack_type : "-", r.why ? r.why : "-");
+    fflush(stdout);
+}
+
+/* pulltx seq= chunks= token=: the board's audit pull (p3_pull_run, the same source the image
+ * links) over the pipe with all-zero windows: AUDIT_READY, then every AUDITGET answered with
+ * the chunk asked for, AUDIT_READY resent on the bound while no GET was seen, AUDITWAIT after
+ * the last chunk, until AUDITDONE / AUDITABORT / exhaustion. Prints `!pull rc=… ready_sent=…
+ * gets=… served=… waits=… idle=… stale=… mask=… done=… aborted=… why=…`. */
+static char g_pull_ready[16384];
+static uint32_t g_pull_seq, g_pull_chunks, g_pull_total;
+static const char *g_pull_span;
+
+static uint32_t pull_zero_word(uint32_t i)
+{
+    (void)i;
+    return 0u;
+}
+
+static int pull_send_ready(void *ctx)
+{
+    (void)ctx;
+    fwrite(g_pull_ready, 1, strlen(g_pull_ready), stdout);
+    fflush(stdout);
+    return 0;
+}
+
+static int pull_serve_chunk(uint32_t chunk, void *ctx)
+{
+    uint32_t lo = chunk * P3_WIRE_SPARSE_WINDOW;
+    uint32_t hi = lo + P3_WIRE_SPARSE_WINDOW < g_pull_total ? lo + P3_WIRE_SPARSE_WINDOW : g_pull_total;
+    static char words_b64[8192];
+    size_t n;
+    (void)ctx;
+    n = p3_wire_sparse_entries(pull_zero_word, lo, hi, words_b64, sizeof(words_b64));
+    if (n == 0u)
+        words_b64[0] = 0;
+    n = p3_wire_audit_sparse(g_pull_seq, chunk, g_pull_chunks, g_pull_span, g_pull_total, lo, hi, words_b64,
+                             g_plain, sizeof(g_plain));
+    if (n == 0)
+        return -1;
+    p3_base64url((const uint8_t *)g_plain, n, g_b64);
+    n = p3_wire_line("AUDIT", g_pull_seq, g_rectx_token, g_b64, g_line, sizeof(g_line));
+    if (n == 0)
+        return -1;
+    fwrite(g_line, 1, n, stdout);
+    fflush(stdout);
+    return 0;
+}
+
+static int pull_send_wait(uint32_t served, void *ctx)
+{
+    size_t n = p3_wire_audit_wait(g_pull_seq, served, g_plain, sizeof(g_plain));
+    (void)ctx;
+    if (n == 0)
+        return -1;
+    p3_base64url((const uint8_t *)g_plain, n, g_b64);
+    n = p3_wire_line("AUDITWAIT", g_pull_seq, g_rectx_token, g_b64, g_line, sizeof(g_line));
+    if (n == 0)
+        return -1;
+    fwrite(g_line, 1, n, stdout);
+    fflush(stdout);
+    return 0;
+}
+
+static int pull_payload_fields(const char *payload_b64, uint32_t *seq_out, uint32_t *chunk_out, int *has_chunk, void *ctx)
+{
+    const char *p;
+    size_t jn = p3_base64url_decode(payload_b64, (uint8_t *)g_rectx_json, sizeof(g_rectx_json) - 1u);
+    (void)ctx;
+    if (jn == 0u)
+        return -1;
+    g_rectx_json[jn] = 0;
+    p = strstr(g_rectx_json, "\"seq\":");
+    if (p == NULL)
+        return -1;
+    *seq_out = (uint32_t)strtoul(p + 6, NULL, 10);
+    p = strstr(g_rectx_json, "\"chunk\":");
+    *has_chunk = (p != NULL);
+    if (p != NULL)
+        *chunk_out = (uint32_t)strtoul(p + 8, NULL, 10);
+    return 0;
+}
+
+static int pull_channel_failed(void *ctx)
+{
+    (void)ctx;
+    return 0;
+}
+
+static void cmd_pulltx(void)
+{
+    p3_pull_io io;
+    p3_pull_result r;
+    size_t n;
+    int rc;
+
+    snprintf(g_rectx_token, sizeof(g_rectx_token), "%s", kv_or("token", ""));
+    g_pull_seq = (uint32_t)kv_u("seq", 1);
+    g_pull_span = kv_or("span", "streams+readback");
+    g_pull_total = (uint32_t)kv_u("total_words", strcmp(g_pull_span, "streams") == 0 ? 1602 : 2814);
+    g_pull_chunks = (g_pull_total + P3_WIRE_SPARSE_WINDOW - 1u) / P3_WIRE_SPARSE_WINDOW;
+    n = p3_wire_audit_ready(g_pull_seq, g_pull_span, g_pull_total, g_pull_chunks, 0, g_plain, sizeof(g_plain));
+    if (n == 0) {
+        printf("!payload-overflow\n");
+        return;
+    }
+    p3_base64url((const uint8_t *)g_plain, n, g_b64);
+    if (p3_wire_line("AUDIT_READY", g_pull_seq, g_rectx_token, g_b64, g_pull_ready, sizeof(g_pull_ready)) == 0) {
+        printf("!line-overflow\n");
+        return;
+    }
+    io.send_ready = pull_send_ready;
+    io.serve_chunk = pull_serve_chunk;
+    io.send_wait = pull_send_wait;
+    io.recv_bounded = rectx_recv;
+    io.parse = rectx_parse;
+    io.payload_fields = pull_payload_fields;
+    io.channel_failed = pull_channel_failed;
+    io.rx = g_rectx_rx;
+    io.rx_max = sizeof(g_rectx_rx);
+    io.ctx = NULL;
+    rc = p3_pull_run(g_pull_seq, g_pull_chunks, &io, &r);
+    printf("!pull rc=%d ready_sent=%lu gets=%lu served=%lu waits=%lu idle=%lu stale=%lu mask=%lu done=%d aborted=%d why=%s\n",
+           rc, (unsigned long)r.ready_sent, (unsigned long)r.gets_seen, (unsigned long)r.chunks_served,
+           (unsigned long)r.waits_sent, (unsigned long)r.idle_expiries, (unsigned long)r.stale,
+           (unsigned long)r.served_mask, r.done, r.aborted, r.why ? r.why : "-");
     fflush(stdout);
 }
 
@@ -515,6 +771,14 @@ static void cmd_term(void)
         in.total = (uint32_t)kv_u("total", 0);
     in.crc_dropped = (uint32_t)kv_u("crc_dropped", 0);
     in.drop_budget = (uint32_t)kv_u("drop_budget", 16);
+    /* rel-v4: the closing control's fields ride in the TERM when the control was reached */
+    if (kv_has("closing_nb")) {
+        in.have_closing_control = 1;
+        in.close_fault = (uint32_t)kv_u("closing_fault", 13);
+        in.close_status = (uint32_t)kv_u("closing_status", 0x982);
+        in.close_nonce_before = kv_x64("closing_nb");
+        in.close_nonce_after = kv_x64("closing_na");
+    }
     emit("TERM", (uint32_t)kv_u("seq", in.last_seq + 1), in.token,
          p3_wire_summary(&in, g_plain, sizeof(g_plain)));
 }
@@ -529,8 +793,15 @@ static void cmd_closing(void)
 
 static void cmd_hb(void)
 {
-    size_t n = p3_wire_line("HB", (uint32_t)kv_u("seq", 0), kv_or("token", ""), "-",
-                            g_line, sizeof(g_line));
+    size_t n;
+    const char *payload = "-";
+    if (kv_has("i")) { /* rel-v4: the indexed heartbeat */
+        size_t pn = p3_wire_hb((uint32_t)kv_u("i", 0), g_plain, sizeof(g_plain));
+        p3_base64url((const uint8_t *)g_plain, pn, g_b64);
+        payload = g_b64;
+    }
+    n = p3_wire_line("HB", (uint32_t)kv_u("seq", 0), kv_or("token", ""), payload,
+                     g_line, sizeof(g_line));
     if (n == 0) {
         printf("!line-overflow\n");
         return;
@@ -583,6 +854,10 @@ int main(void)
             cmd_rec();
         else if (strcmp(cmd, "rectx") == 0)
             cmd_rectx();
+        else if (strcmp(cmd, "identtx") == 0 || strcmp(cmd, "signtx") == 0 || strcmp(cmd, "termtx") == 0)
+            cmd_tx(cmd);
+        else if (strcmp(cmd, "pulltx") == 0)
+            cmd_pulltx();
         else if (strcmp(cmd, "audit") == 0)
             cmd_audit();
         else if (strcmp(cmd, "term") == 0)

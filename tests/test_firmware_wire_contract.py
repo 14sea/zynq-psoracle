@@ -677,15 +677,16 @@ class L6WireContract(WireContract):
 
     def test_identity_1_1_carries_the_three_l6_fields(self):
         ident = n.decode_payload(n.parse_line(self._ident())["payload"])
-        self.assertEqual(ident["schema_version"], "1.2.0")       # 1.1.0's fields + rec-v3's two
+        self.assertEqual(ident["schema_version"], "1.3.0")       # 1.1.0's fields + rec-v3's two + rel-v4's echo
         records.validate(ident)                                   # 1.0.0 consumers still accept it
         out = records.check_l6_identity(ident, self.MASTER, "abba", self.OP_SHA)
         self.assertEqual(out["master_seed"], self.MASTER)
         # rec-v3: the protocol and the control are declared and checked
-        self.assertEqual((ident["protocol"], ident["rec_retry_control"]), ("rec-v3", False))
-        records.check_l6_identity(ident, self.MASTER, "abba", self.OP_SHA, protocol="rec-v3", rec_retry_control=False)
+        self.assertEqual((ident["protocol"], ident["rec_retry_control"], ident["sign_retry_control"]), ("rel-v4", False, False))
+        records.check_l6_identity(ident, self.MASTER, "abba", self.OP_SHA, protocol="rel-v4", rec_retry_control=False,
+                                  sign_retry_control=False)
         with self.assertRaises(records.RecordError) as cm:
-            records.check_l6_identity(ident, self.MASTER, "abba", self.OP_SHA, protocol="rec-v3", rec_retry_control=True)
+            records.check_l6_identity(ident, self.MASTER, "abba", self.OP_SHA, protocol="rel-v4", rec_retry_control=True)
         self.assertIn("rec_retry_control", str(cm.exception))
         with self.assertRaises(records.RecordError) as cm:
             records.check_l6_identity(ident, self.MASTER, "abba", self.OP_SHA, protocol="pull-v2")
@@ -694,9 +695,9 @@ class L6WireContract(WireContract):
                           f"operator_sha={self.OP_SHA} rec_control=1")[0]
         a = n.decode_payload(n.parse_line(armed)["payload"])
         self.assertTrue(a["rec_retry_control"])
-        old = dict(ident); del old["protocol"]; del old["rec_retry_control"]     # a 1.1.0 image
+        old = dict(ident); del old["protocol"]; del old["rec_retry_control"]; del old["sign_retry_control"]   # a 1.1.0 image
         with self.assertRaises(records.RecordError):
-            records.check_l6_identity(old, self.MASTER, "abba", self.OP_SHA, protocol="rec-v3")
+            records.check_l6_identity(old, self.MASTER, "abba", self.OP_SHA, protocol="rel-v4")
         for wrong in ((self.MASTER + 1, "abba", self.OP_SHA), (self.MASTER, "random_safe_forced", self.OP_SHA),
                       (self.MASTER, "abba", "0d" * 32)):
             with self.assertRaises(records.RecordError):

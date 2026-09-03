@@ -502,9 +502,15 @@ class TermHost:
 
 def closing_control_findings(summary: dict) -> list[str]:
     """v0.6 §2.6o: an application-written TERM carries the COMPLETE closing control —
-    all five fields, typed (fault int, kind str, status str, nonces 16 hex). A missing
-    block, a missing field or a wrong type is named (review 2026-09-02, item 2)."""
+    all five fields, typed (fault int, kind str, status str, nonces 16 hex) — exactly
+    when the closing control was reached (`closing.unsigned_control == "done"`); an epoch
+    stopped before it carries NO block (rule viii: no closing ARM after a stop). A missing
+    block, a missing field, a wrong type, or a block where none can exist is named
+    (review 2026-09-02, item 2)."""
     cc = summary.get("closing_control")
+    reached = (summary.get("closing") or {}).get("unsigned_control") == "done"
+    if not reached:
+        return [] if cc is None else ["TERM carries a closing_control block on an epoch whose closing control was not reached"]
     if not isinstance(cc, dict):
         return ["TERM carries no closing_control block (v0.6 §2.6o requires the complete closing control)"]
     out = []
@@ -528,7 +534,7 @@ def closing_from_term(summary: dict) -> dict | None:
     (`closing_control`), so a lost CLOSE is reconstructed from the re-requestable TERM.
     Returns the closing_negative record (marked `source: TERM`) only when the block is
     complete and well-typed, else None (the defect is `closing_control_findings`')."""
-    if closing_control_findings(summary):
+    if closing_control_findings(summary) or not isinstance(summary.get("closing_control"), dict):
         return None
     return dict(summary["closing_control"], source="TERM")
 

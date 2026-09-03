@@ -1,7 +1,7 @@
 /* p3_app — the standalone application: the board half of D1 (`docs/d1_standalone_spec.md`).
  *
  * ─── STANDING OF THIS FILE ────────────────────────────────────────────────────────────
- * COMPILED, NOT BOARD-RUN. As of the L5 build (docs/l5_findings.md) this file is
+ * COMPILED, NOT BOARD-RUN (rel-v4 candidate, prereg v0.6 draft). As of the L5 build (docs/l5_findings.md) this file is
  * cross-compiled for cortex-a9 into firmware/bsp/out/p3_app.elf with the pinned xPack
  * arm-none-eabi-gcc 14.2.1 against a hand-assembled standalone BSP: it links clean with no
  * undefined symbols and compiles -Wall -Wextra clean. It has NEVER been run on the board.
@@ -31,6 +31,7 @@
 /* The REC transaction (rec-v3) is a pure unit too: the same source is compiled on the host
  * and driven over a pipe by tests/test_firmware_wire_contract.py::RecWireContract. */
 #include "p3_rectx.h"
+#include "p3_pull.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +43,7 @@
 #include "xil_mmu.h"
 #include "xparameters.h"
 #include "xscuwdt.h"
+#include "xtime_l.h"
 
 extern void outbyte(char c);
 extern char inbyte(void);
@@ -119,9 +121,21 @@ extern int console_rx_flush(void); /* BSP glue: discard stale RX bytes before a 
  * times in all; without an acknowledgement the epoch stops (STOP_REC) — the next candidate
  * is never proposed on an unconfirmed record. */
 #define P3_REC_IDLE_POLLS 50000000u
-/* Stale host lines tolerated while waiting for a sign reply (a RECACK/RECGET the host sent
- * for the previous record after this application had already moved on), then PROTOCOL. */
-#define P3_REPLY_STALE_LIMIT 8u
+/* rel-v4 (prereg v0.6 draft §2.6p, the board-bound contract): every transaction wait —
+ * IDENT, SIGNREQ, the audit pull, REC, TERM — is bounded by the GLOBAL TIMER as well as by
+ * its poll count; whichever runs out first ends the wait. The tick bound is the wall-time
+ * authority: P3_BOUND_S seconds × COUNTS_PER_SECOND (the global timer runs at CPU/2 =
+ * 333,333,343 Hz on the pinned 6:2:1 clock, which the runner verifies from CPU_CLK_CTRL
+ * before every session), so every bound is ≤ P3_BOUND_S s of wall time on that clock —
+ * below the host's BOARD_BOUND_WALL_MAX_S (10 s) that its 22 s TERM linger derives from.
+ * The poll counts stay as a termination backstop for a timer that does not advance; they
+ * are NOT the wall-time proof (one UART status read is ~100–200 ns, never pinned). */
+#define P3_BOUND_S 8u
+#define P3_BOUND_TICKS ((uint64_t)P3_BOUND_S * (uint64_t)COUNTS_PER_SECOND)
+#define P3_IDENT_IDLE_POLLS 100000000u
+#define P3_SIGN_IDLE_POLLS 100000000u
+#define P3_TERM_IDLE_POLLS 100000000u
+/* (rel-v4: the stale-acknowledgement rule of the sign wait is p3_rectx.h P3_RECTX_PREV_ACK_LIMIT) */
 
 #define SLCR_PSS_IDCODE 0xF8000530u /* READ ONLY — this application writes no SLCR word */
 #define P3_IDCODE_MASK 0x0FFFFFFFu
@@ -180,6 +194,12 @@ static struct {
     uint32_t audit_chunks_served; /* chunk replies sent in this candidate's pull (retries included) */
     const char *audit_stop_why;   /* why the pull ended without AUDITDONE, for the STOP_AUDIT record */
     int rec_control;              /* identity page flags.bit4: the forced REC-retry control (rec-v3) */
+    int sign_control;             /* identity page flags.bit5: the forced SIGNREQ-retry control (rel-v4) */
+    uint32_t hb_i;                /* rel-v4: the heartbeat index within the current record, 0..15 */
+    uint32_t sign_attempts, sign_gets; /* SIGNREQ transmissions and SIGNGETs answered, whole session */
+    int have_closing_control;     /* rel-v4: the closing control's fields, repeated in the TERM */
+    uint64_t close_nb, close_na;
+    uint32_t close_fault, close_status;
     const char *rec_stop_why;     /* set when a record's transaction was not acknowledged */
     uint32_t rec_attempts, rec_gets; /* transmissions and RECGETs answered, whole session */
     uint32_t crc_dropped;
@@ -195,6 +215,9 @@ static struct {
                       * uninitialised instance (BaseAddr 0, IsReady unset) asserts forever
                       * (review 2026-09-01: the first L6 image hung after IDENT) */
 } S;
+
+static int tx_run_line(size_t n, uint32_t seq, const p3_tx_kinds *kinds, int corrupt_first,
+                       uint32_t idle_polls, p3_rectx_result *r);
 
 static void p3_stop(p3_end_kind kind, const char *reason)
 {
@@ -275,6 +298,9 @@ static char g_encoded[6144];/* one outbound payload, b64   */
 static char g_body[7168];   /* one outbound line body      */
 static char g_rec_line[7168];    /* the record's framed line: built ONCE, resent verbatim (rec-v3) */
 static char g_rec_scratch[7168]; /* the control's corrupted copy of attempt 1 */
+static char g_tx_line[7168];     /* rel-v4: the IDENT / SIGNREQ / TERM line of the transaction in flight, built once */
+static char g_ready_line[7168];  /* rel-v4: the AUDIT_READY line, built once, resent verbatim on the bound */
+static uint32_t g_tx_idle_polls; /* the poll cap of the transaction in flight (its clock bound is P3_BOUND_TICKS) */
 
 static void put_str(const char *s)
 {
@@ -299,13 +325,6 @@ static size_t build_frame(const char *type, uint32_t seq, const char *payload, c
     return n;
 }
 
-static void send_frame(const char *type, uint32_t seq, const char *payload)
-{
-    if (build_frame(type, seq, payload, g_body, sizeof(g_body)) == 0u)
-        return;
-    put_str(g_body);
-    kick_watchdog();
-}
 
 /* Encodes `plain_len` bytes of g_payload into a framed line in `out`. A builder that
  * overflowed returns 0 and we refuse to emit a truncated line rather than call it evidence. */
@@ -335,26 +354,14 @@ static void send_payload(const char *type, uint32_t seq, size_t plain_len)
  * pre-board CPU_CLK_CTRL read, and liveness must not depend on an unverified constant. */
 static void heartbeat(void)
 {
+    /* rel-v4: every heartbeat carries its index within the record, so a lost one is
+     * identified and budgeted and a duplicated one is harmless (prereg v0.6 draft §2.6n) */
     if (S.kind == P3_RUNNING)
-        send_frame("HB", S.seq, "-");
+        send_payload("HB", S.seq, p3_wire_hb(S.hb_i++, g_payload, sizeof(g_payload)));
 }
 
-static int recv_line(char *out, size_t max)
-{
-    size_t n = 0;
-    for (;;) {
-        char c = inbyte();
-        if (c == '\n')
-            break;
-        if (c == '\r')
-            continue;
-        if (n + 1 >= max)
-            return -1;
-        out[n++] = c;
-    }
-    out[n] = 0;
-    return (int)n;
-}
+/* (rel-v4: the L5 blocking recv_line is gone — every wait for a host line is the bounded,
+ * timed receiver below; the watchdog is no longer what ends a stalled wait) */
 
 /* Verifies magic, CRC and token; writes the frame's type into `type_out` and its seq into
  * `seq_out`, and returns the payload field (still base64url). Mutates `line`. */
@@ -386,13 +393,6 @@ static const char *parse_frame_any(char *line, char *type_out, size_t type_max, 
     return f[4];
 }
 
-/* As above, and the frame's seq must be `want_seq`. */
-static const char *parse_frame(char *line, uint32_t want_seq, char *type_out, size_t type_max)
-{
-    uint32_t seq = 0u;
-    const char *payload = parse_frame_any(line, type_out, type_max, &seq);
-    return (payload != NULL && seq == want_seq) ? payload : NULL;
-}
 
 /* ─────────────────────────── minimal JSON field extraction ────────────────────────── */
 /* The relay emits canonical compact JSON (sorted keys, no spaces) whose schema is pinned
@@ -530,6 +530,7 @@ static int establish_identity(void)
         return -1;
     }
     S.rec_control = (S.page.flags & P3_RECTX_CONTROL_FLAG) ? 1 : 0; /* rec-v3: the forced REC-retry control */
+    S.sign_control = (S.page.flags & P3_SIGNTX_CONTROL_FLAG) ? 1 : 0; /* rel-v4: the forced SIGNREQ-retry control */
     /* Every check is evaluated and reported, then the epoch stops if any of them fired.
      * The refused identity is still evidence, so IDENT is emitted either way — and it is
      * emitted at all, which the first L5 attempt could not do: validate_standalone_run_log
@@ -573,11 +574,34 @@ static int establish_identity(void)
         in.master_seed = S.page.seed;
         in.schedule_mode = mode == P3_MODE_UNASSIGNED ? "unassigned" : P3_MODE_NAME[mode];
         in.operator_data_sha256 = P3_OPERATOR_DATA_SHA256;
-        /* app_identity 1.2.0 (rec-v3): the wire protocol this image speaks, and the control */
-        in.protocol = "rec-v3";
+        /* app_identity 1.2.0 (rec-v3): the wire protocol this image speaks, and the control;
+         * 1.3.0 (rel-v4): the SIGNREQ control echoed as well */
+        in.protocol = "rel-v4";
         in.rec_retry_control = S.rec_control;
-        send_payload("IDENT", 0, p3_wire_identity(&in, g_payload, sizeof(g_payload)));
-
+        in.sign_retry_control = S.sign_control;
+        /* rel-v4 §2.6j: the IDENT is a handshake — sent, then the host's IDENTACK waited for
+         * with the bound, the same bytes resent on the bound, at most P3_RECTX_ATTEMPTS
+         * transmissions; without an acknowledgement the epoch stops (STOP_IDENT) and no
+         * SIGNREQ is ever sent. A refused identity (the host verifies before it acks) is
+         * exactly the case that exhausts. */
+        {
+            p3_tx_kinds k;
+            p3_rectx_result r;
+            size_t n = build_payload_frame("IDENT", 0, p3_wire_identity(&in, g_payload, sizeof(g_payload)),
+                                           g_tx_line, sizeof(g_tx_line));
+            if (n == 0u)
+                return -1;
+            k.ack_a = "IDENTACK";
+            k.ack_b = NULL;
+            k.get = NULL;
+            k.stop_why = "STOP_IDENT: the identity was not acknowledged after 3 attempts";
+            k.prev_seq = 0u;
+            k.prev_strict = 0;
+            if (tx_run_line(n, 0u, &k, 0, P3_IDENT_IDLE_POLLS, &r) != 0) {
+                if (S.kind == P3_RUNNING)
+                    p3_stop(P3_STOPPED, r.why ? r.why : "STOP_IDENT: the identity was not acknowledged");
+            }
+        }
         if (nf)
             p3_stop(P3_STOPPED, "identity refused");
     }
@@ -854,13 +878,23 @@ static int app_rx_byte(void *ctx)
     return (int)(unsigned char)inbyte();
 }
 
+static uint64_t app_now_ticks(void *ctx)
+{
+    XTime now;
+    (void)ctx;
+    XTime_GetTime(&now); /* the global timer, started once at go (main); reads only */
+    return (uint64_t)now;
+}
+
 static int recv_line_bounded(char *out, size_t max, uint32_t idle_polls)
 {
     p3_rectx_rx rx;
     rx.rx_ready = app_rx_ready;
     rx.rx_byte = app_rx_byte;
+    rx.now_ticks = app_now_ticks;
     rx.ctx = NULL;
-    return p3_rectx_recv_line(&rx, out, max, idle_polls);
+    /* the poll cap AND the clock bound (P3_BOUND_TICKS): the first to run out ends the wait */
+    return p3_rectx_recv_line_timed(&rx, out, max, idle_polls, P3_BOUND_TICKS);
 }
 
 static void serve_sparse_chunk(uint32_t chunk, uint32_t chunks, uint32_t total, const char *span)
@@ -873,7 +907,68 @@ static void serve_sparse_chunk(uint32_t chunk, uint32_t chunks, uint32_t total, 
     send_payload("AUDIT", S.seq,
                  p3_wire_audit_sparse(S.seq, chunk, chunks, span, total, lo, hi, g_words_b64,
                                       g_payload, sizeof(g_payload)));
-    S.audit_chunks_served++;
+}
+
+/* The I/O p3_pull.c is given (rel-v4): the stored READY line resent verbatim, the chunk
+ * service above, the AUDITWAIT frame, the bounded receiver, this file's parser and JSON
+ * scan. The state machine — resends, waits, bounds — is p3_pull.c's, the same source the
+ * host contract test drives with the real host pull. */
+typedef struct {
+    uint32_t chunks, total;
+    const char *span;
+} pull_ctx;
+
+static int pull_send_ready_cb(void *ctx)
+{
+    (void)ctx;
+    put_str(g_ready_line);
+    kick_watchdog();
+    return S.kind == P3_PROTOCOL ? -1 : 0;
+}
+
+static int pull_serve_chunk_cb(uint32_t chunk, void *ctx)
+{
+    const pull_ctx *c = (const pull_ctx *)ctx;
+    serve_sparse_chunk(chunk, c->chunks, c->total, c->span);
+    return S.kind == P3_PROTOCOL ? -1 : 0;
+}
+
+static int pull_send_wait_cb(uint32_t served, void *ctx)
+{
+    (void)ctx;
+    send_payload("AUDITWAIT", S.seq, p3_wire_audit_wait(S.seq, served, g_payload, sizeof(g_payload)));
+    return S.kind == P3_PROTOCOL ? -1 : 0;
+}
+
+static int pull_recv_cb(char *out, size_t max, void *ctx)
+{
+    (void)ctx;
+    return recv_line_bounded(out, max, P3_PULL_IDLE_POLLS);
+}
+
+static const char *pull_parse_cb(char *line, char *type_out, size_t type_max, uint32_t *seq_out, void *ctx)
+{
+    (void)ctx;
+    return parse_frame_any(line, type_out, type_max, seq_out);
+}
+
+static int pull_payload_fields_cb(const char *payload, uint32_t *seq_out, uint32_t *chunk_out, int *has_chunk, void *ctx)
+{
+    size_t jn = p3_base64url_decode(payload, (uint8_t *)g_json, sizeof(g_json) - 1u);
+    (void)ctx;
+    if (jn == 0u)
+        return -1;
+    g_json[jn] = 0;
+    if (json_uint(g_json, "\"seq\":", seq_out) != 0)
+        return -1;
+    *has_chunk = (json_uint(g_json, "\"chunk\":", chunk_out) == 0);
+    return 0;
+}
+
+static int pull_channel_failed_cb(void *ctx)
+{
+    (void)ctx;
+    return S.kind == P3_PROTOCOL;
 }
 
 /* The host-paced audit pull (docs/l6_audit_pull_design.md). Announces the transaction
@@ -888,11 +983,11 @@ static int audit_pull(int with_readback)
     uint32_t total = with_readback ? (uint32_t)P3_AUDIT_WORDS : (uint32_t)P3_AUDIT_STREAM_WORDS;
     const char *span = with_readback ? "streams+readback" : "streams";
     uint32_t chunks = (total + P3_WIRE_SPARSE_WINDOW - 1u) / P3_WIRE_SPARSE_WINDOW;
-    uint32_t nonzero = 0, i, seqv, chunk;
-    char type[16];
-    const char *payload;
-    size_t jn;
-    int n;
+    uint32_t nonzero = 0, i;
+    pull_ctx ctx;
+    p3_pull_io io;
+    p3_pull_result pr;
+    int rc;
 
     if (S.audit_served && S.audit_served_seq == S.seq)
         return 0;
@@ -901,40 +996,35 @@ static int audit_pull(int with_readback)
             nonzero++;
     S.audit_chunks_served = 0;
     S.audit_stop_why = NULL;
-    send_payload("AUDIT_READY", S.seq,
-                 p3_wire_audit_ready(S.seq, span, total, chunks, nonzero, g_payload, sizeof(g_payload)));
-    for (;;) {
-        if (S.kind == P3_PROTOCOL)
-            return -1; /* the channel itself failed while sending */
-        n = recv_line_bounded(g_line, sizeof(g_line), P3_PULL_IDLE_POLLS);
-        if (n == -2) {
-            S.audit_stop_why = "the host went quiet during the audit pull (bounded wait ran out)";
-            return -1;
-        }
-        if (n < 0)
-            continue; /* an over-long line is not a host frame; keep waiting, within the bound */
-        payload = parse_frame(g_line, S.seq, type, sizeof(type));
-        if (!payload)
-            continue; /* a broken host line: ignore it, the host retries on its own timeout */
-        jn = p3_base64url_decode(payload, (uint8_t *)g_json, sizeof(g_json) - 1u);
-        if (jn == 0u)
-            continue;
-        g_json[jn] = 0;
-        if (json_uint(g_json, "\"seq\":", &seqv) != 0 || seqv != S.seq)
-            continue; /* bound to THIS candidate: another seq's frame is not answered */
-        if (strcmp(type, "AUDITGET") == 0) {
-            if (json_uint(g_json, "\"chunk\":", &chunk) == 0 && chunk < chunks)
-                serve_sparse_chunk(chunk, chunks, total, span);
-        } else if (strcmp(type, "AUDITDONE") == 0) {
-            S.audit_served = 1;
-            S.audit_served_seq = S.seq;
-            return 0;
-        } else if (strcmp(type, "AUDITABORT") == 0) {
-            S.audit_stop_why = "the host aborted the audit pull";
-            return -1;
-        }
-        /* any other type during a pull (a stray AUDITREQ, say) is ignored */
+    /* the READY line is built ONCE and resent verbatim on the bound (rel-v4 §2.6l) */
+    if (build_payload_frame("AUDIT_READY", S.seq,
+                            p3_wire_audit_ready(S.seq, span, total, chunks, nonzero, g_payload, sizeof(g_payload)),
+                            g_ready_line, sizeof(g_ready_line)) == 0u)
+        return -1;
+    ctx.chunks = chunks;
+    ctx.total = total;
+    ctx.span = span;
+    io.send_ready = pull_send_ready_cb;
+    io.serve_chunk = pull_serve_chunk_cb;
+    io.send_wait = pull_send_wait_cb;
+    io.recv_bounded = pull_recv_cb;
+    io.parse = pull_parse_cb;
+    io.payload_fields = pull_payload_fields_cb;
+    io.channel_failed = pull_channel_failed_cb;
+    io.rx = g_line;
+    io.rx_max = sizeof(g_line);
+    io.ctx = &ctx;
+    rc = p3_pull_run(S.seq, chunks, &io, &pr);
+    S.audit_chunks_served = pr.chunks_served;
+    if (rc == 0) {
+        S.audit_served = 1;
+        S.audit_served_seq = S.seq;
+        return 0;
     }
+    if (rc == -2)
+        return -1; /* the channel itself failed while sending: PROTOCOL is already set */
+    S.audit_stop_why = pr.why ? pr.why : "the audit pull did not complete";
+    return -1;
 }
 
 /* ───────────────────────────── the REC transaction (rec-v3) ───────────────────────── */
@@ -958,6 +1048,13 @@ static int rectx_recv_cb(char *out, size_t max, void *ctx)
     return recv_line_bounded(out, max, P3_REC_IDLE_POLLS);
 }
 
+/* rel-v4: the same I/O for the IDENT / SIGNREQ / TERM transactions, with their own poll cap */
+static int tx_recv_cb(char *out, size_t max, void *ctx)
+{
+    (void)ctx;
+    return recv_line_bounded(out, max, g_tx_idle_polls);
+}
+
 static const char *rectx_parse_cb(char *line, char *type_out, size_t type_max, uint32_t *seq_out, void *ctx)
 {
     (void)ctx;
@@ -972,6 +1069,25 @@ static int rectx_payload_seq_cb(const char *payload, uint32_t *seq_out, void *ct
         return -1;
     g_json[jn] = 0;
     return json_uint(g_json, "\"seq\":", seq_out);
+}
+
+/* rel-v4: one transaction over the line in g_tx_line (n bytes, newline included) — the
+ * IDENT, the SIGNREQ or the TERM — with this file's I/O and the given poll cap; the clock
+ * bound is P3_BOUND_TICKS through recv_line_bounded. Returns p3_tx_run's code. */
+static int tx_run_line(size_t n, uint32_t seq, const p3_tx_kinds *kinds, int corrupt_first,
+                       uint32_t idle_polls, p3_rectx_result *r)
+{
+    p3_rectx_io io;
+
+    io.send = rectx_send_cb;
+    io.recv_bounded = tx_recv_cb;
+    io.parse = rectx_parse_cb;
+    io.payload_seq = rectx_payload_seq_cb;
+    io.rx = g_line;
+    io.rx_max = sizeof(g_line);
+    io.ctx = NULL;
+    g_tx_idle_polls = idle_polls;
+    return p3_tx_run(g_tx_line, n, seq, kinds, corrupt_first, &io, g_rec_scratch, sizeof(g_rec_scratch), r);
 }
 
 /* One candidate's record, built by p3_wire so it carries `seq`, `verified` and the nested
@@ -1038,9 +1154,10 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
     uint64_t nonce_before, nonce_after;
     uint32_t status, fault, hb_before;
     p3_settle settle;
-    int i, n, armed, writes_issued;
+    int i, armed, writes_issued;
 
     S.seq++;
+    S.hb_i = 0u; /* rel-v4: heartbeat indices restart with every record */
     p3_genome_to_hex(genome, genome_hex);
     memset(&rec, 0, sizeof(rec));
     rec.seq = S.seq;
@@ -1050,58 +1167,52 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
      * FIFO now (a RECACK the host repeated after this application had already moved on)
      * is stale by construction and would otherwise merge with the sign reply. */
     (void)console_rx_flush();
-    send_payload("SIGNREQ", S.seq,
-                 p3_wire_sign_request(S.page.token, 0, S.seq, genome_hex, pl_nonce(),
-                                      g_payload, sizeof(g_payload)));
-    if (S.kind != P3_RUNNING)
-        return -1;
-
-    /* The host may attach `AUDITREQ` to this exchange (§4.7) before answering. It is read
-     * here, BEFORE this candidate is staged, so the raw words it will be asked for do not
-     * yet exist and cannot be fabricated to fit a record; they are served after link 3 and
-     * before the record, which is why `verified` can be truthful at emission.
-     * Honest limitation: because the request arrives in advance, this is weaker than a
-     * surprise post-hoc audit at rates below 100%. Session 1 audits every candidate, so
-     * every record it emits is backed by served words. */
-    S.audit_requested = 0;
+    /* rel-v4 §2.6k: the sign exchange is a transaction. The SIGNREQ line is built ONCE and
+     * handed to p3_tx_run, which sends it, waits — bounded — for SIGNOK or SIGNREF, resends
+     * the SAME bytes on a SIGNGET or when the bound runs out, and gives up after
+     * P3_RECTX_ATTEMPTS: then a terminal STOP_SIGN record and the stop. A RECACK/RECGET
+     * arriving here is tolerated only when it names the previous record (bounded); any
+     * other acknowledgement ends the epoch PROTOCOL (review 2026-09-02, blocker 4b). The
+     * forced SIGNREQ-retry control (flags.bit5) corrupts the CRC of seq 1's first
+     * transmission only. AUDITREQ is no longer a frame: the host's request rides in the
+     * SIGNOK payload (`audit_requested`), read below. */
     {
-        uint32_t stale = 0u;
-        for (;;) {
-            uint32_t fseq = 0u;
-            n = recv_line(g_line, sizeof(g_line));
-            if (n < 0) {
-                p3_stop(P3_PROTOCOL, "PROTOCOL_FRAME: the reply line is too long");
-                return -1;
-            }
-            payload = parse_frame_any(g_line, type, sizeof(type), &fseq);
-            /* rec-v3: a RECACK/RECGET the host sent for the PREVIOUS record after this
-             * application had already been acknowledged and moved on is stale, not a
-             * protocol failure; it is skipped, a bounded number of times — but ONLY when
-             * its frame seq and its payload seq both name the transaction just completed
-             * (review 2026-09-02, blocker 4): any other acknowledgement here is channel
-             * misbehaviour and ends the epoch. */
-            if (payload != NULL && (strcmp(type, "RECACK") == 0 || strcmp(type, "RECGET") == 0)) {
-                uint32_t pseq = 0u;
-                if (S.seq < 2u || fseq != S.seq - 1u ||
-                    rectx_payload_seq_cb(payload, &pseq, NULL) != 0 || pseq != S.seq - 1u) {
-                    p3_stop(P3_PROTOCOL, "PROTOCOL: an acknowledgement that is not the previous transaction's");
-                    return -1;
-                }
-                if (++stale > P3_REPLY_STALE_LIMIT) {
-                    p3_stop(P3_PROTOCOL, "PROTOCOL: too many stale acknowledgements before the reply");
-                    return -1;
-                }
-                continue;
-            }
-            if (!payload || fseq != S.seq) {
-                p3_stop(P3_PROTOCOL, "PROTOCOL: the notary reply did not verify");
-                return -1;
-            }
-            if (strcmp(type, "AUDITREQ") != 0)
-                break;
-            S.audit_requested = 1;
+        p3_tx_kinds k;
+        p3_rectx_result r;
+        int rc;
+        size_t tn = build_payload_frame("SIGNREQ", S.seq,
+                                        p3_wire_sign_request(S.page.token, 0, S.seq, genome_hex, pl_nonce(),
+                                                             g_payload, sizeof(g_payload)),
+                                        g_tx_line, sizeof(g_tx_line));
+        if (tn == 0u || S.kind != P3_RUNNING)
+            return -1;
+        k.ack_a = "SIGNOK";
+        k.ack_b = "SIGNREF";
+        k.get = "SIGNGET";
+        k.stop_why = "STOP_SIGN: the sign exchange was not acknowledged after 3 attempts";
+        k.prev_seq = S.seq >= 2u ? S.seq - 1u : 0u;
+        k.prev_strict = 1;
+        rc = tx_run_line(tn, S.seq, &k, (S.sign_control && S.seq == 1u) ? 1 : 0, P3_SIGN_IDLE_POLLS, &r);
+        S.sign_attempts += r.attempts;
+        S.sign_gets += r.gets;
+        if (rc == -2 || rc == -3) {
+            p3_stop(P3_PROTOCOL, r.why ? r.why : "PROTOCOL: the sign transaction failed");
+            return -1;
         }
+        if (rc != 0) {
+            /* STOP_SIGN: nothing was staged, no ARM, no nonce consumed — a terminal record
+             * carrying the attempt count and nothing else, then the stop (restore, TERM) */
+            rec.have_sign_stop = 1;
+            rec.sign_stop_attempts = r.attempts;
+            rec.sign_stop_why = r.why ? r.why : "STOP_SIGN";
+            (void)emit_record(&rec, "STOP_SIGN");
+            p3_stop(P3_STOPPED, r.why ? r.why : "STOP_SIGN");
+            return -1;
+        }
+        snprintf(type, sizeof(type), "%s", r.ack_type);
+        payload = r.ack_payload;
     }
+    S.audit_requested = 0;
     if (!strcmp(type, "SIGNREF")) {
         /* a gate refusal is DATA, not a channel failure (§3c): the session continues.
          * NOT audited, and deliberately so: nothing was staged, so no raw words exist, and
@@ -1135,6 +1246,8 @@ static int run_candidate(const uint32_t genome[P3_GENOME_WORDS], int is_baseline
         p3_stop(P3_PROTOCOL, "PROTOCOL: the reply is not a well-formed sign_reply");
         return -1;
     }
+    /* rel-v4 §2.6k: the audit request rides in the reply the transaction waited for */
+    S.audit_requested = (strstr(g_json, "\"audit_requested\":true") != NULL) ? 1 : 0;
 
     rec.have_sign_reply = 1;
     rec.commit = commit;
@@ -1317,6 +1430,12 @@ static void closing_unsigned_control(void)
     send_payload("CLOSE", S.seq,
                  p3_wire_closing(nb, na, fault, status, g_payload, sizeof(g_payload)));
     S.closing_unsigned = 1;
+    /* rel-v4 §2.6o: the same fields ride in the TERM, so a lost CLOSE is reconstructed */
+    S.have_closing_control = 1;
+    S.close_nb = nb;
+    S.close_na = na;
+    S.close_fault = fault;
+    S.close_status = status;
 }
 
 static void emit_summary(void)
@@ -1340,7 +1459,29 @@ static void emit_summary(void)
     p3_wire_tally(&in.total, &in.audited);
     in.crc_dropped = S.crc_dropped;
     in.drop_budget = P3_DROP_BUDGET;
-    send_payload("TERM", S.seq + 1u, p3_wire_summary(&in, g_payload, sizeof(g_payload)));
+    in.have_closing_control = S.have_closing_control;
+    in.close_nonce_before = S.close_nb;
+    in.close_nonce_after = S.close_na;
+    in.close_fault = S.close_fault;
+    in.close_status = S.close_status;
+    /* rel-v4 §2.6o: the TERM is a transaction — sent, TERMACK waited for with the bound,
+     * the same bytes resent on a TERMGET or the bound, at most P3_RECTX_ATTEMPTS; then the
+     * application halts either way (nothing follows a TERM). */
+    {
+        p3_tx_kinds k;
+        p3_rectx_result r;
+        size_t n = build_payload_frame("TERM", S.seq + 1u, p3_wire_summary(&in, g_payload, sizeof(g_payload)),
+                                       g_tx_line, sizeof(g_tx_line));
+        if (n == 0u)
+            return;
+        k.ack_a = "TERMACK";
+        k.ack_b = NULL;
+        k.get = "TERMGET";
+        k.stop_why = "TERM_UNACKED: the summary was not acknowledged after 3 attempts";
+        k.prev_seq = 0u;
+        k.prev_strict = 0;
+        (void)tx_run_line(n, S.seq + 1u, &k, 0, P3_TERM_IDLE_POLLS, &r);
+    }
 }
 
 int main(void)
@@ -1363,6 +1504,10 @@ int main(void)
 
     memset(&S, 0, sizeof(S));
     S.kind = P3_RUNNING;
+    /* rel-v4: the global timer is the wall-time authority of every bounded wait
+     * (P3_BOUND_TICKS); started and zeroed once here, read-only afterwards. A private
+     * (SCU) peripheral register, not the SLCR. */
+    XTime_SetTime(0u);
 
     if (establish_identity() != 0) {
         emit_summary();

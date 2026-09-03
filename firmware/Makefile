@@ -25,9 +25,11 @@ $(BUILD)/p3_twin: p3_twin.c p3_derive.c p3_search.c p3_derive.h p3_data.h
 # validator. Same source as the image links; that is the whole point.
 # rec-v3: the REC transaction unit (p3_rectx.c) is linked too, so the twin's `rectx`
 # command runs the board's actual acknowledge/resend state machine over a pipe.
-$(BUILD)/p3_wire_twin: p3_wire_twin.c p3_wire.c p3_derive.c p3_rectx.c p3_wire.h p3_derive.h p3_rectx.h p3_data.h
+# rel-v4: the pull unit (p3_pull.c) too — `identtx`/`signtx`/`termtx`/`pulltx` drive the
+# board's actual transactions over a pipe.
+$(BUILD)/p3_wire_twin: p3_wire_twin.c p3_wire.c p3_derive.c p3_rectx.c p3_pull.c p3_wire.h p3_derive.h p3_rectx.h p3_pull.h p3_data.h
 	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) -o $@ p3_wire_twin.c p3_wire.c p3_derive.c p3_rectx.c
+	$(CC) $(CFLAGS) -o $@ p3_wire_twin.c p3_wire.c p3_derive.c p3_rectx.c p3_pull.c
 
 clean:
 	rm -rf $(BUILD)
