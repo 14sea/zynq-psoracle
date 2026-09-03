@@ -1,13 +1,16 @@
 # L6 rel-v4 firmware batch — delivery package for the full P3 compatibility review (2026-09-03)
 
-> **Standing (2026-09-03): the full P3 compatibility review of this package = HOLD (owner);
-> the first candidate `734d6c04…` is withdrawn DEFECTIVE and must not run; the corrected
-> image `5deee74c…` (§7) is `next_image` in `manifests/l6_manifest.json` with
-> `board_ready: false`; it has NEVER run on hardware. §0–§6 describe the batch as delivered
-> and are kept as the review's object, with the hashes updated to the corrected image; §7 is
-> the re-review record. No push, no promotion, no freeze, no ruling, no board contact.
-> `403f4ab5…` (rec-v3) stays `pinned_at_build`; the pinned rec-v3 image and the frozen v0.4
-> text are untouched.**
+> **Standing (2026-09-03, final): the full P3 compatibility review of this package = HOLD
+> (owner; §7 — the first candidate `734d6c04…` withdrawn DEFECTIVE, must not run); the short
+> re-review of §7 = the three fixes PASS, HOLD on evidence closure (§8, the process record);
+> the evidence-closure review of §8 = PASS (owner 2026-09-03; `6c72db9`, `b3806ad`, `57cc22b`
+> pushed). The corrected image `5deee74c…` (§7) was then PROMOTED to `pinned_at_build` in
+> `manifests/l6_manifest.json` (protocol rel-v4, `board_ready: true`) by the owner's
+> promotion/freeze batch of 2026-09-03, and the v0.6 preregistration frozen with it;
+> `403f4ab5…` (rec-v3) is superseded, NOT defective, its C1 #5 HOLD kept under v0.4. The
+> promoted image has not run on hardware. §0–§6 describe the batch as delivered and are kept
+> as the review's object, with the hashes updated to the corrected image; §7 and §8 are the
+> review records. No ruling, no board contact; the stop-loss stays TRIGGERED.**
 
 ## 0. The owner's mandatory deliverables and where each lands
 
@@ -81,10 +84,13 @@ and in the commit: 1014 tests / 1 skip / rc 0 (`evidence/tests/test_report_2026-
 ## 6. Asked of the owner
 
 1. ~~The full P3 compatibility review of this package~~ — done 2026-09-03: HOLD (§7).
-2. The short re-review of §7 (host-only, scoped: no board).
-3. On PASS: promotion of `5deee74c…` to `pinned_at_build` (rec-v3 `403f4ab5…` superseded,
-   not defective, its C1 #5 evidence kept), the freeze of the v0.6 text, then the ruling
-   on the stop-loss and the first rel-v4 C1 ruling pair.
+2. ~~The short re-review of §7 (host-only, scoped: no board)~~ — done 2026-09-03: the three
+   fixes PASS, HOLD on evidence closure (§8); the evidence-closure review = PASS.
+3. ~~On PASS: promotion of `5deee74c…` to `pinned_at_build` (rec-v3 `403f4ab5…` superseded,
+   not defective, its C1 #5 evidence kept), the freeze of the v0.6 text~~ — done 2026-09-03
+   (the owner's promotion/freeze batch, host-only); still open: the frozen-artifact short
+   review, then the ruling on the stop-loss (TRIGGERED; a conditional lifting opens at most
+   ONE rel-v4 C1) and the first rel-v4 C1 ruling pair.
 
 ## 7. Re-review record (2026-09-03): the three findings and the corrected image
 
@@ -149,3 +155,19 @@ binary rebuilt from the promoted commit, which the runner enforces by hash befor
 `archived` / `binary_unavailable` blocks; no hash changed, no map or report was touched. The manifest and
 the image are unchanged (`next_image` `5deee74c…`, `board_ready: false`).
 
+
+**Final standing of §8 (owner's evidence-closure review, 2026-09-03): PASS.** The five
+archived map hashes recomputed equal; the six JSON records' hash fields unchanged against
+the parent commit; the historical binaries hash-only; the live next-build BIN / ELF / MAP =
+`5deee74c…` / `ebe97ce6…` / `a0dab213…`; the eight closure records closed; the guard on
+both branches; 1019 tests (the owner's independent run: OK with one more boundary skip, an
+environment difference). Non-blocking note kept: the closure test still lets a
+non-archived live record pass when `out/` is absent (the documented exception). The HOLD
+recorded above stays as the process record; `6c72db9`, `b3806ad`, `57cc22b` were pushed
+(`origin/main` = `57cc22b`). The promotion of `5deee74c…` and the v0.6 freeze followed in
+the owner's separate promotion/freeze batch (2026-09-03): `pinned_at_build` = `5deee74c…`
+(rel-v4, `board_ready: true`), `403f4ab5…` superseded NOT defective, its record archived as
+`evidence/l6_build/build_evidence_403f4ab5.json` + `p3_app_l6_403f4ab5.map`,
+`evidence/l6_build/build_evidence.json` regenerated for the promoted image (firmware bytes
+unchanged, no rebuild), `docs/l6_soak_prereg.md` = v0.6 (protocol rel-v4, sha pinned in the
+manifest). No ruling, no board contact; the stop-loss stays TRIGGERED.

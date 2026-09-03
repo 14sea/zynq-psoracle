@@ -41,7 +41,7 @@ from validators import records  # noqa: E402
 
 TOKEN = base.TOKEN
 MANIFEST = json.loads((R / "manifests/l6_manifest.json").read_text())
-REL_PC = {k: v for k, v in MANIFEST["next_prereg"]["rel_pass_conditions_draft"].items() if k != "note"}
+REL_PC = {k: MANIFEST["pass_conditions"][k] for k in lc.REL_RECOVERY_KEYS}     # merged at the v0.6 freeze (2026-09-03)
 
 
 def broken(line: str) -> str:

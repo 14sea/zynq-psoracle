@@ -1,14 +1,20 @@
 {
   "schema": "l6_manifest",
   "schema_version": "0.1.0",
-  "status": "FROZEN preregistration v0.4 (rec-v3) + board-ready rec-v3 image 403f4ab5… (promoted 2026-09-02; e19e1b12… superseded, NOT defective; cd8360dc… withdrawn DEFECTIVE). This manifest still authorises no ruling and no board contact: each session needs its own bound ruling pair (whole-of-probe P3-L6 + provisioning P3-K, binding THIS file's committed sha256), a power cycle and a fresh boundary record; calibration.C1/C2 are null until the rec-v3 C1 and C2 have run under v0.4 (the pull-v2 calibrations are historical and refused). Order: frozen-artifact/hash short review → C1 ruling pair → C2 ruling pair → owner pins the bound records → S ruling pair. The byte-loss stop-loss lifted for pull-v2 (owner 2026-09-01) stands; S #1 counts as S failure #1 under §7. C1 #5 (2026-09-02-01, rec-v3, v0.4) = HOLD (CoV 0.274 after one recovered audit byte loss; epoch otherwise PASS-shaped); calibration.C1 stays null. OWNER 2026-09-02: §7 STOP-LOSS TRIGGERED (S #1 + C1 #5, the same transport failure class) — no board ruling until the host-side fix is proven and the owner lifts it; the transport fix (docs/l6_transport_batch_package.md §1–§4) is REVIEWED PASS scoped (owner 2026-09-02); the correction line is REVIEWED PASS (owner 2026-09-02) with two D-t2 fail-closed fixes delivered; v0.5 is NOT frozen — straight to v0.6 (next_prereg): the rel-v4 host batch (docs/l6_rel_batch_package.md) is delivered host-only, unreviewed; the firmware batch is opened, gated on that review; D-t3 pinned 2.0 s; the stop-loss is NOT lifted; C1 #5 is not re-judged; no C1 ruling, C2/S/Claim B paused; C1 → C2 → S run once under v0.6.",
+  "status": "FROZEN preregistration v0.6 (rel-v4) + board-ready rel-v4 image 5deee74c… (promoted 2026-09-03 in the owner's promotion/freeze batch, host-only; 403f4ab5… superseded, NOT defective — it ran C1 #5, HOLD, permanent under v0.4; 734d6c04… withdrawn DEFECTIVE; cd8360dc… and 47b8fa09… withdrawn DEFECTIVE). This manifest still authorises no ruling and no board contact: each session needs its own bound ruling pair (whole-of-probe P3-L6 + provisioning P3-K, binding THIS file's committed sha256), a power cycle and a fresh boundary record; calibration.C1/C2 are null until the rel-v4 C1 and C2 have run under v0.6 (the pull-v2 calibrations are historical and refused; no rec-v3 calibration was ever pinned). Order: frozen-artifact/hash short review → the owner's stop-loss ruling → C1 ruling pair → C2 ruling pair → owner pins the bound records → S ruling pair, ONE C1 → C2 → S under v0.6. OWNER 2026-09-02/03: the §7 STOP-LOSS is TRIGGERED (S #1 + C1 #5, the same transport failure class) and stays TRIGGERED through this promotion/freeze batch; a conditional lifting may be considered only after the frozen-artifact short review passes, and it opens at most ONE rel-v4 C1 — C2, S and Claim B are not opened in advance; C1 #5 (2026-09-02-01, rec-v3, v0.4) = HOLD, permanent, not re-judged. History: the byte-loss stop-loss lifted for pull-v2 (owner 2026-09-01) stood for v0.3; S #1 counted as S failure #1 under §7; the transport fix (docs/l6_transport_batch_package.md) REVIEWED PASS scoped, the correction line REVIEWED PASS, the rel-v4 host batch REVIEWED PASS over three corrections and pushed (a8c950d), the rel-v4 firmware batch: full P3 compatibility review HOLD (734d6c04…) → short re-review of package §7 PASS → evidence-closure review of §8 PASS (57cc22b pushed); v0.5 was never frozen; D-t3 pinned 2.0 s.",
   "prereg": {
     "path": "docs/l6_soak_prereg.md",
-    "version": "v0.4",
-    "protocol": "rec-v3",
-    "sha256": "12799ef9ea31467fd1f25c16948d26bed47e42015400d7c8e2badcf10da25b39",
-    "frozen": "2026-09-02, host-only, owner's promotion/freeze batch after the rec-v3 correction batch re-review PASS and the full P3 compatibility review PASS; the v0.4 draft merged into the standalone text",
+    "version": "v0.6",
+    "protocol": "rel-v4",
+    "sha256": "bfd69d1037c4d2715759befef766d353b99741c8ff6ef6cb0ca30bbd325a620a",
+    "frozen": "2026-09-03, host-only, the owner's promotion/freeze batch after the rel-v4 firmware batch's short re-review PASS (package §7) and evidence-closure review PASS (package §8); the self-contained v0.6 draft (docs/l6_soak_prereg_v0.6_draft.md) became the standalone text with its present-tense drift corrected at the freeze (design revision 4; firmware batch delivered and reviewed; 5deee74c… promoted; no pending re-review) — the freeze-time guard in tests/test_package_consistency.py refuses those stale phrases",
     "supersedes": [
+      {
+        "version": "v0.4",
+        "sha256": "12799ef9ea31467fd1f25c16948d26bed47e42015400d7c8e2badcf10da25b39",
+        "protocol": "rec-v3",
+        "note": "frozen 2026-09-02, ran C1 #5 (ruling 2026-09-02-01: HOLD, permanent, not re-judged); its text is in git history (docs/l6_soak_prereg.md before the v0.6 freeze) and is not rewritten; the pinned image under it was 403f4ab5… (rec-v3), superseded NOT defective at the v0.6 promotion"
+      },
       {
         "version": "v0.3",
         "sha256": "8daa81f22add85660159e5c2474ecd4bda29d2a815c90fb5fdb8c1ef12c350ae",
@@ -22,7 +28,21 @@
         "note": "frozen 2026-09-01, ran C1 #1–#3; text in git history"
       }
     ],
-    "frozen_when": "sha256 recorded here and every later artifact pins it; host/l6_runner.py refuses a prereg that does not hash to it"
+    "frozen_when": "sha256 recorded here and every later artifact pins it; host/l6_runner.py refuses a prereg that does not hash to it",
+    "never_frozen": [
+      {
+        "version": "v0.5-draft",
+        "path": "docs/l6_soak_prereg_v0.5_draft.md",
+        "note": "never frozen (owner 2026-09-02); its three rates, planning, recovery attribution and input binding were carried verbatim into v0.6"
+      }
+    ],
+    "draft_history": {
+      "path": "docs/l6_soak_prereg_v0.6_draft.md",
+      "note": "HISTORICAL — the draft this text was frozen from (marked MERGED 2026-09-03). Its review chain, past tense: the rel-v4 host batch reviewed HOLD on seven integration items (closed, §8 of docs/l6_rel_batch_package.md), HOLD on two host acceptance blockers + pins + minors (closed, §10), a third correction (§12: sign ledgers mandatory in a rel-v4 rate report) reviewed PASS and pushed a8c950d; D-p1 accepted (3 transmissions, GET ≤ 2, WAIT ≤ 3, replay ≤ 3; the third WAIT not a final failure); the firmware batch delivered the rel-v4 image as a candidate (board_ready false) — full P3 compatibility review HOLD (early AUDITDONE accepted, whole-line bound 32 s, AUDITWAIT.served counted transmissions) → 734d6c04… withdrawn DEFECTIVE, the corrected 5deee74c… (twice byte-identical) re-reviewed PASS (§7), evidence closure PASS (§8, 57cc22b pushed) → promoted to pinned_at_build and this text frozen, 2026-09-03.",
+      "reliability_design": "docs/l6_frame_reliability_design.md revision 4 (reviewed) — every frame re-requestable, reconstructible or budgeted; host side and twins in host/l6_rel.py; firmware in the pinned image",
+      "transport_note": "host-only changes shipped with the drafts, effective for any session under any prereg because they change no PASS rule: reader resync on a frame head + fragment quarantine on a pull timeout (host/l6_reader.py), the pull's monotonic chunk deadline and stale-duplicate handling (host/l6_audit_pull.py), FRAGMENT events in the timeline ledger (host/l6_timing.py), the rate report 1.2.0 with inclusive/nominal/planning/recovery/inputs computed from the evidence files (host/l6_rate.py; the top-level numbers unchanged). D-t3 RULED 2026-09-02: CHUNK_TIMEOUT_S = 2.0 s pinned; 0.5 s not adopted. rel-v4 host side (host/l6_rel.py) is selected only by a pinned image whose protocol is rel-v4; under the pinned rec-v3 image nothing of it runs.",
+      "pass_conditions_note": "C1/C2 under the draft §6.3: nominal CoV (periods of candidates without a transport recovery) ≤ 0.10 AND ≥ 60 of the 63 steady-state periods clean AND the recovery indicators within bounds (candidates with a recovery ≤ 3, pull timeouts ≤ 3, bad frames ≤ 3, fragments ≤ 3; CRC drops by D-s4's budget as before) AND the report derived from both ledgers (exactly one REC ledger per seq, at most one pull ledger per seq) naming its three input files, computed from those files as read back from disk. S's N is derived from the PLANNING rates (candidates over the bracketed span — D-t1, ruled). rel-v4 (§6.10–13): transactions closed, no unconfirmed pull, heartbeat budget floor(R/1000) over R = SCORED records with at most one missing per record, the forced SIGNREQ-retry control exact, the extended recovery indicators ≤ 3 each. host/l6_checks.calibration_findings_v05 + calibration_inputs_findings + l6_rel.heartbeat_findings_rel implement it; host/l6_runner.py selects them when prereg.version is v0.5 or v0.6 (V05_RULE_VERSIONS) and the heartbeat rule by the pinned image's protocol."
+    }
   },
   "instrument": {
     "psmap_commit": "191ab0585332e75ac6f15179dc80eeec2d29f9f9",
@@ -43,13 +63,13 @@
     "genome_addresses_sha256": "895baf85ed31df9beae28a533646182ffb8d0e0735c9849ede9641af81ee7458"
   },
   "pinned_at_build": {
-    "app_image_sha256": "403f4ab5e8073e13cde74168636e35b8721505f4b73d2da579d2e36788ee28cd",
-    "elf_sha256": "8687ef8dfb80da3b53d4bc82130e9e9b52eb8e8b520848868038cfa85bed6ae1",
+    "app_image_sha256": "5deee74c44785ebe88168ccffaa5f399f26a7c5a567fccb3d430cf4eb14cdc7c",
+    "elf_sha256": "ebe97ce6a591bad652f373ea6ac4b8591d189966e725234c43507bf66cf0067c",
     "app_image_bytes": 98324,
     "board_ready": true,
-    "protocol": "rec-v3",
+    "protocol": "rel-v4",
     "app_image": "firmware/bsp/out/p3_app_l6.bin (raw binary, loaded at 0x02000000, `go`) — IMAGE=p3_app_l6 firmware/bsp/build.sh",
-    "standing": "PROMOTED to board-ready 2026-09-02 (owner's promotion/freeze batch) after the rec-v3 correction batch re-review PASS and the full P3 compatibility review PASS (host-only, scoped). Built twice byte-identical. This image (403f4ab5…) RAN ON 17A6 in C1 #5 (2026-09-02-01, v0.4-bound ruling pair): the epoch COMPLETED with 66/66 audited, the forced REC-retry control exercised exactly and REC closure clean — session outcome HOLD on the CoV bound after one recovered audit byte loss (docs/l6_c1_session5_findings.md); no image defect observed. The sessions in hardware_history RAN ON 17A6 under the superseded images: bd1454cd… (push-v1, prereg v0.2: C1 #1–#3) and e19e1b12… (pull-v2, prereg v0.3: C1 #4 PASS, C2 #1 PASS, S #1 HOLD); their evidence stands under those images. The first rec-v3 candidate cd8360dc… was withdrawn DEFECTIVE and never ran.",
+    "standing": "PROMOTED to board-ready 2026-09-03 (the owner's promotion/freeze batch, host-only) after the rel-v4 firmware batch's short re-review PASS (docs/l6_rel_firmware_package.md §7) and evidence-closure review PASS (§8). The rel-v4 image (IDENT/SIGNREQ/TERM transactions, the pull's READY resend + AUDITWAIT with served = unique chunks and an early AUDITDONE refused, indexed heartbeats, the closing control in the TERM, app_identity 1.3.0 with sign_retry_control, every wait bounded by the global timer at P3_BOUND_S = 8 s on the pinned clock, whole-line bound = idle bound), the SECOND candidate of the batch the owner opened 2026-09-02 (the first, 734d6c04…, withdrawn DEFECTIVE — see withdrawn_images). Built twice from scratch byte-identical. This image has not run on hardware: no session has been ruled under it and the stop-loss is TRIGGERED. The sessions in hardware_history RAN ON 17A6 under the superseded images: bd1454cd… (push-v1, prereg v0.2: C1 #1–#3), e19e1b12… (pull-v2, prereg v0.3: C1 #4 PASS, C2 #1 PASS, S #1 HOLD) and 403f4ab5… (rec-v3, prereg v0.4: C1 #5 HOLD — the epoch COMPLETED with 66/66 audited, the forced REC-retry control exercised exactly, REC closure clean; HOLD on the CoV bound after one recovered audit byte loss; no image defect observed); their evidence stands under those images. The rec-v3 candidate cd8360dc… and the rel-v4 candidate 734d6c04… were withdrawn DEFECTIVE and never ran.",
     "watchdog_enabled": true,
     "watchdog_prescaler": 7,
     "watchdog_load_value": 1250000035,
@@ -81,7 +101,7 @@
     },
     "operator_data_sha256_compiled_in": "0c9c82a812be754dbba83c02b24b4321a95af46464a201a6f3c51374f2c80d79",
     "operator_image_note": "§2.1: firmware/p3_data.h carries P3_OPERATOR_DATA_SHA256 = the derivation hash of the map data compiled in (host/gen_firmware_data.py from local_map.json via host/l6_operators.py); the IDENT names it and the host regenerates and compares (tests/test_firmware_twin.py, host/gen_firmware_data.py --check)",
-    "build_evidence": "evidence/l6_build/build_evidence.json (regenerated for this image; the e19e1b12… record preserved as build_evidence_e19e1b12.json, bd1454cd… as build_evidence_bd1454cd.json)",
+    "build_evidence": "evidence/l6_build/build_evidence.json (regenerated for this image at the promotion; the 403f4ab5… record preserved as build_evidence_403f4ab5.json + p3_app_l6_403f4ab5.map, the e19e1b12… record as build_evidence_e19e1b12.json, bd1454cd… as build_evidence_bd1454cd.json — archived-map, hash-only binaries; the candidate phase's record stays in evidence/l6_next_build/)",
     "hardware_history": [
       {
         "session": "C1 #1",
@@ -174,6 +194,14 @@
         "why": "SUPERSEDED by the rec-v3 image, NOT defective: the pull-v2 two-operator image that ran C1 #4 (PASS), C2 #1 (PASS) and S #1 (HOLD: a REC line lost bytes, which pull-v2 could not re-request) on 17A6 under prereg v0.3. Its calibrations are pinned as calibration.historical_pull_v2 and may not budget a rec-v3 soak (D-r5). It stays identifiable because the session evidence belongs to it.",
         "prereg": "v0.3 8daa81f2…",
         "build_evidence": "evidence/l6_build/build_evidence_e19e1b12.json"
+      },
+      {
+        "sha256": "403f4ab5e8073e13cde74168636e35b8721505f4b73d2da579d2e36788ee28cd",
+        "elf_sha256": "8687ef8dfb80da3b53d4bc82130e9e9b52eb8e8b520848868038cfa85bed6ae1",
+        "why": "SUPERSEDED by the rel-v4 image, NOT defective: the rec-v3 two-operator image (promoted 2026-09-02) that ran C1 #5 on 17A6 under prereg v0.4 — the epoch COMPLETED (66/66 audited, the REC transaction and its forced control exact) and the session is HOLD on the CoV bound after one recovered audit byte loss (docs/l6_c1_session5_findings.md); no image defect was observed. C1 #5 stays HOLD under v0.4, permanently, and is not re-judged; no calibration was pinned from it. It stays identifiable because the session evidence belongs to it.",
+        "prereg": "v0.4 12799ef9…",
+        "build_evidence": "evidence/l6_build/build_evidence_403f4ab5.json",
+        "superseded_at": "2026-09-03 (the owner's promotion/freeze batch)"
       }
     ],
     "withdrawn_images": [
@@ -190,10 +218,29 @@
       {
         "sha256": "734d6c04895e81d5fef3196f7b3298d03a7c6c6d3b9fe3f35abc9cc0b1e323b1",
         "elf_sha256": "a2a422157aaf1f666a46fc8088b2cf54a68fcb77cecf886f2d7bb8bf4c0b8355",
-        "why": "DEFECTIVE — must not run. The rel-v4 firmware batch's first candidate (2026-09-03), never run on hardware; the owner's full P3 compatibility review (2026-09-03) found: (1) p3_pull.c accepted an AUDITDONE with zero or partial chunks served (the host's DONE was taken as the audit's completion whatever had been served: `audited` marked, ARM reachable, on an incomplete audit) — fixed: a DONE before every chunk was served aborts the pull fail-closed (no `audited`, no ARM), with C and Python negative tests (zero and 7/8 chunks); (2) the timed receiver's whole-line tick bound was idle_ticks × 4 = 32 s, so a host line trickled in below the idle gap could hold the application 4× the 8 s bound — fixed: line_ticks = idle_ticks (the ×4 factor stays on the poll count backstop only), with a source-derived audit and an injected-clock trickled-line counterexample; (3) AUDITWAIT.served counted transmissions (chunks_served) instead of unique chunks — fixed: popcount(served_mask), equal to `chunks` in the all-served branch, with a repeated-GET counterexample. The corrected image is 5deee74c… (next_image)."
+        "why": "DEFECTIVE — must not run. The rel-v4 firmware batch's first candidate (2026-09-03), never run on hardware; the owner's full P3 compatibility review (2026-09-03) found: (1) p3_pull.c accepted an AUDITDONE with zero or partial chunks served (the host's DONE was taken as the audit's completion whatever had been served: `audited` marked, ARM reachable, on an incomplete audit) — fixed: a DONE before every chunk was served aborts the pull fail-closed (no `audited`, no ARM), with C and Python negative tests (zero and 7/8 chunks); (2) the timed receiver's whole-line tick bound was idle_ticks × 4 = 32 s, so a host line trickled in below the idle gap could hold the application 4× the 8 s bound — fixed: line_ticks = idle_ticks (the ×4 factor stays on the poll count backstop only), with a source-derived audit and an injected-clock trickled-line counterexample; (3) AUDITWAIT.served counted transmissions (chunks_served) instead of unique chunks — fixed: popcount(served_mask), equal to `chunks` in the all-served branch, with a repeated-GET counterexample. The corrected image is 5deee74c… (the candidate entry at the time; promoted to pinned_at_build 2026-09-03)."
       }
     ],
-    "promoted_note": "next_image (403f4ab5…) was promoted here 2026-09-02 and the key removed: one image, one authority. evidence/l6_next_build/ is the candidate phase's record (cd8360dc… withdrawn, 403f4ab5… reviewed)."
+    "promoted_note": "the candidate 5deee74c… was promoted here 2026-09-03 and the candidate key removed: one image, one authority (as 403f4ab5… was promoted 2026-09-02 and e19e1b12… 2026-09-01). evidence/l6_next_build/ is the candidate phase's record (734d6c04… withdrawn, 5deee74c… reviewed).",
+    "wire": "app_identity 1.3.0 (+ sign_retry_control); loop_record 1.1.0 (+ STOP_SIGN with sign_stop); session_summary 1.0.0 (+ closing_control when the control was reached); HB carries {i}; IDENT → IDENTACK, SIGNREQ → SIGNOK|SIGNREF (SIGNGET), AUDIT_READY resent, AUDITWAIT, REC → RECACK|RECGET, TERM → TERMACK (TERMGET); no AUDITREQ frame (audit_requested in SIGNOK)",
+    "bound_contract": {
+      "P3_BOUND_S": 8,
+      "P3_BOUND_TICKS": "8 × COUNTS_PER_SECOND",
+      "COUNTS_PER_SECOND": "XPAR_CPU_CORTEXA9_0_CPU_CLK_FREQ_HZ / 2 = 666666687 / 2 = 333333343 Hz (6:2:1, CPU_CLK_CTRL 0x1f000200 verified per session by the runner)",
+      "poll_caps": {
+        "P3_IDENT_IDLE_POLLS": 100000000,
+        "P3_SIGN_IDLE_POLLS": 100000000,
+        "P3_PULL_IDLE_POLLS": 50000000,
+        "P3_REC_IDLE_POLLS": 50000000,
+        "P3_TERM_IDLE_POLLS": 100000000
+      },
+      "wall_time_bound_s": 8.0,
+      "host_contract_s": 10.0,
+      "term_linger_s": 22.0,
+      "proof": "tests/test_firmware_rel_audit.py::BoundContract (source-derived: every wait is p3_rectx_recv_line_timed with the global timer and P3_BOUND_TICKS; the number derived from the pinned CPU clock ≤ the host's 10 s); the poll caps are a termination backstop, not the wall-time proof; the C twin (tests/test_firmware_rel_contract.py) drives the timed receiver with an injected clock — logic, not target timing; the trickled-line counterexample (`!trickle`) is abandoned as partial within the bound",
+      "controls": "flags.bit4 (REC) and flags.bit5 (SIGNREQ): the first transmission of seq 1's REC / SIGNREQ has its CRC corrupted; both echoed by IDENT 1.3.0",
+      "whole_line": "the whole-line tick bound of one receive equals the idle bound (p3_rectx.c `line_ticks = idle_ticks`; review 2026-09-03 blocker 2 — it was ×4 = 32 s in 734d6c04…): a host line trickled in below the idle gap ends as PARTIAL within P3_BOUND_S, so no wait exceeds 8.0 s on the pinned clock however the bytes are paced; the ×4 factor applies to the poll-count backstop only"
+    }
   },
   "identity_page": {
     "layout": 2,
@@ -207,8 +254,11 @@
         "1": "random_safe_forced",
         "2": "map_guided_forced",
         "3": "unassigned (refused)"
-      }
-    }
+      },
+      "bit4_rec_retry_control": 1,
+      "bit5_sign_retry_control": 1
+    },
+    "flags_note": "bit4 (rec-v3) and bit5 (rel-v4) arm the forced REC-retry / SIGNREQ-retry controls on seq 1; the runner sets both in every rel-v4 session and the IDENT 1.3.0 echoes both"
   },
   "schedule": {
     "rule": "A,B,B,A across successive seed pairs (Claim B prereg §4): candidates 2k and 2k+1 share pair seed k; pair 0 = A,B; pair 1 = B,A; …",
@@ -273,7 +323,7 @@
     },
     "S": {
       "mode": "abba",
-      "n": "floor(0.9 × min(rate_C1, rate_C2) × T), rates over steady-state periods only (interior→interior transitions)",
+      "n": "floor(0.9 × min(planning_C1, planning_C2) × T) — the PLANNING rates of the two v0.6 calibration records (D-t1: candidates over the whole bracketed span, every recovery included), never the inclusive or the nominal rate",
       "duration_s": 7200,
       "audit": "sampled",
       "watchdog": true,
@@ -294,7 +344,19 @@
       20,
       18
     ],
-    "hb_gap_note": "HB frames only (L2's guard); fewer than two HB frames = unchecked = HOLD; any-frame gaps are reported as transport liveness, never as the heartbeat invariant"
+    "hb_gap_note": "HB frames only (L2's guard); fewer than two HB frames = unchecked = HOLD; any-frame gaps are reported as transport liveness, never as the heartbeat invariant",
+    "nominal_cov_max": 0.1,
+    "min_clean_periods": 60,
+    "max_recovered_candidates": 3,
+    "max_pull_timeouts": 3,
+    "max_bad_frames": 3,
+    "max_fragments": 3,
+    "max_sign_retries": 3,
+    "max_ready_resends": 3,
+    "max_ident_repeats": 3,
+    "max_term_retries": 3,
+    "max_done_replays": 3,
+    "v06_note": "v0.6 §6.3a–3b (C1/C2): nominal CoV ≤ nominal_cov_max over the steady-state periods of candidates without a transport recovery AND ≥ min_clean_periods of the 63 clean AND candidates_with_recovery / pull_timeouts / bad_frames / fragments each ≤ their max (host/l6_checks.calibration_findings_v05, selected because prereg.version is v0.6 — host/l6_runner.V05_RULE_VERSIONS); §6.13 (rel-v4): sign_retries / ready_resends / ident_repeats / term_retries / done_replays each ≤ their max (host/l6_checks.rel_recovery_findings); §6.11: hb_missing ≤ l6_rel.hb_missing_budget(R) = floor(R/1000), at most one missing per record. cov_max (0.1 over the inclusive CoV) is v0.4's rule, kept for the record; under v0.6 the inclusive rate is reported and bounded by nothing (§6.3c). Merged from the draft at the freeze 2026-09-03."
   },
   "calibration": {
     "C1": {
@@ -317,7 +379,7 @@
         "image_sha256": "e19e1b1289ddd9e04bb68f52a42af39d1ec2053055a190a2f2493d8f0447b7de",
         "prereg": "v0.3 8daa81f2…",
         "protocol": "pull-v2",
-        "standing": "HISTORICAL — a v0.3/pull-v2 calibration (C1 #4 PASS, pinned by the owner 2026-09-01); NOT reusable under rec-v3 (D-r5): carries no binding and is refused by host/l6_runner.py for any S"
+        "standing": "HISTORICAL — a v0.3/pull-v2 calibration (C1 #4 PASS, pinned by the owner 2026-09-01); NOT reusable under rec-v3 or rel-v4 (D-r5): carries no binding and is refused by host/l6_runner.py for any S"
       },
       "C2": {
         "rate_report_sha256": "a13e301f2f2ee2bbc12751fb883b4e189f0e27122e6899d5aa3c53f514568959",
@@ -330,10 +392,13 @@
         "image_sha256": "e19e1b1289ddd9e04bb68f52a42af39d1ec2053055a190a2f2493d8f0447b7de",
         "prereg": "v0.3 8daa81f2…",
         "protocol": "pull-v2",
-        "standing": "HISTORICAL — a v0.3/pull-v2 calibration (C2 #1 PASS, pinned by the owner 2026-09-01); NOT reusable under rec-v3 (D-r5): carries no binding and is refused by host/l6_runner.py for any S"
+        "standing": "HISTORICAL — a v0.3/pull-v2 calibration (C2 #1 PASS, pinned by the owner 2026-09-01); NOT reusable under rec-v3 or rel-v4 (D-r5): carries no binding and is refused by host/l6_runner.py for any S"
       }
     },
-    "note": "D-s3 + D-r5: filled by the owner after the rec-v3 C1 and C2; the S runner imports rate_A/rate_B ONLY from rate reports whose bytes hash to these pins AND whose binding equals the current image/prereg/protocol/session/mode/seed pins. The pull-v2 pins are kept above as explicit historical records and tests prove they cannot be fed to S."
+    "note": "D-s3 + D-r5 + D-t2: filled by the owner after the rel-v4 C1 and C2 under v0.6; the S runner imports rate_A/rate_B ONLY from rate reports whose bytes hash to these pins AND whose binding equals the current image/prereg/protocol/session/mode/seed pins AND whose three input files hash to the report's `inputs`, taking each report's PLANNING rate (D-t1). The pull-v2 pins are kept above as explicit historical records and tests prove they cannot be fed to S; no rec-v3 pin ever existed (historical_rec_v3).",
+    "historical_rec_v3": {
+      "note": "no rec-v3 calibration exists: C1 #5 (ruling 2026-09-02-01, image 403f4ab5…, prereg v0.4) is HOLD and its rates (3607.8 evals/h inclusive, informational) were never pinned; nothing measured under rec-v3 may budget a v0.6 S (D-r5: the binding names another image/prereg/protocol; D-t2: no planning/inputs)"
+    }
   },
   "rulings_required": [
     "whole-of-probe P3-L6",
@@ -350,7 +415,8 @@
     "run_log": "adds `timing` (host-written: clocks + per-record stage times) and `l6` (schedule, expected frames, budget inputs)",
     "implemented": "firmware/p3_wire.c emits app_identity 1.1.0 and loop_record 1.1.0 (tests/test_firmware_wire_contract.py::L6WireContract feeds the C bytes to the real validator)",
     "audit_transport": "pull-v2: AUDIT_READY/AUDITGET/AUDIT(sparse-v1 2.0.0)/AUDITDONE/AUDITABORT; STOP_AUDIT outcome; docs/l6_audit_pull_design.md",
-    "rec_transaction": "rec-v3 (prereg v0.4 draft): every loop record is a transaction — the board sends REC and waits (bounded) for the host's RECACK (accepted or byte-identical duplicate) or RECGET (arrived broken: resend the same bytes), at most 3 transmissions; unacknowledged → STOP_REC, no next candidate; the host acknowledges only the current candidate (the answered sign exchange whose record is outstanding), refuses a SIGNREQ over an outstanding record and a conflicting duplicate as PROTOCOL; identity page flags.bit4 arms the forced REC-retry control (seq 1's first transmission CRC-corrupted on purpose); app_identity 1.2.0 declares protocol + rec_retry_control; host/l6_rec.py, host/l6_console.py, firmware/p3_rectx.c"
+    "rec_transaction": "rec-v3 (prereg v0.4 draft): every loop record is a transaction — the board sends REC and waits (bounded) for the host's RECACK (accepted or byte-identical duplicate) or RECGET (arrived broken: resend the same bytes), at most 3 transmissions; unacknowledged → STOP_REC, no next candidate; the host acknowledges only the current candidate (the answered sign exchange whose record is outstanding), refuses a SIGNREQ over an outstanding record and a conflicting duplicate as PROTOCOL; identity page flags.bit4 arms the forced REC-retry control (seq 1's first transmission CRC-corrupted on purpose); app_identity 1.2.0 declares protocol + rec_retry_control; host/l6_rec.py, host/l6_console.py, firmware/p3_rectx.c",
+    "rel_transactions": "rel-v4 (prereg v0.6, image 5deee74c…): app_identity 1.3.0 (+ sign_retry_control); loop_record 1.1.0 (+ STOP_SIGN with sign_stop); session_summary 1.0.0 (+ closing_control when the control was reached); HB carries {i}; IDENT → IDENTACK, SIGNREQ → SIGNOK|SIGNREF (SIGNGET), AUDIT_READY resent, AUDITWAIT, REC → RECACK|RECGET, TERM → TERMACK (TERMGET); no AUDITREQ frame (audit_requested in SIGNOK); host/l6_rel.py (hosts + twins), host/l6_console.py protocol=\"rel-v4\", firmware/p3_rectx.c p3_tx_run, firmware/p3_pull.c; validators: STOP_SIGN + rule (vii-b); docs/l6_frame_reliability_design.md revision 4"
   },
   "rulings_binding": {
     "whole-of-probe P3-L6": [
@@ -373,79 +439,5 @@
     "signer_user": "== --signer-user",
     "key": "== <boundary.key_store>/K.bin (== --key)",
     "note": "the D4 boundary record is bound to the invocation, not only to itself (board-phase preflight blocker 3)"
-  },
-  "next_prereg": {
-    "path": "docs/l6_soak_prereg_v0.6_draft.md",
-    "version": "v0.6-draft",
-    "protocol": "rel-v4",
-    "sha256": null,
-    "status": "DRAFT (self-contained text) — v0.4 stays frozen and in force; owner 2026-09-02: v0.5 is NOT frozen (superseded by this draft, its content carried verbatim), C1 → C2 → S run ONCE under v0.6 and the rel-v4 image; owner 2026-09-02: the rel-v4 host batch reviewed HOLD on seven integration items, closed in its correction batch (§8, main paths confirmed by the owner) and a second correction batch (§10: sign ledgers never last-wins, the typed closing_control mandatory, the bit5 IDENT echo, the bound contract; reviewed: confirmed) and a third correction (§12: a rel-v4 rate report must carry the sign ledgers — missing or null refused; unreviewed); D-p1 bounds accepted (3 transmissions, GET ≤ 2, WAIT ≤ 3, replay ≤ 3; the third WAIT is not a final failure); the third correction reviewed PASS and pushed (a8c950d); the firmware batch delivered the rel-v4 image as next_image (board_ready false; docs/l6_rel_firmware_package.md); owner 2026-09-03: its full P3 compatibility review = HOLD (two blockers + one contract defect: early AUDITDONE accepted, whole-line bound 32 s, AUDITWAIT.served counted transmissions) — 734d6c04… withdrawn DEFECTIVE, the corrected image 5deee74c… (twice byte-identical) is next_image, pending the short re-review of package §7; this draft is frozen only after that re-review passes and the image is promoted. C1 #5 (2026-09-02-01) is and stays HOLD under v0.4. The stop-loss stays TRIGGERED.",
-    "pass_conditions_draft": {
-      "nominal_cov_max": 0.1,
-      "min_clean_periods": 60,
-      "max_recovered_candidates": 3,
-      "max_pull_timeouts": 3,
-      "max_bad_frames": 3,
-      "max_fragments": 3
-    },
-    "pass_conditions_note": "C1/C2 under the draft §6.3: nominal CoV (periods of candidates without a transport recovery) ≤ 0.10 AND ≥ 60 of the 63 steady-state periods clean AND the recovery indicators within bounds (candidates with a recovery ≤ 3, pull timeouts ≤ 3, bad frames ≤ 3, fragments ≤ 3; CRC drops by D-s4's budget as before) AND the report derived from both ledgers (exactly one REC ledger per seq, at most one pull ledger per seq) naming its three input files, computed from those files as read back from disk. S's N is derived from the PLANNING rates (candidates over the bracketed span — D-t1, ruled). rel-v4 (§6.10–13): transactions closed, no unconfirmed pull, heartbeat budget floor(R/1000) over R = SCORED records with at most one missing per record, the forced SIGNREQ-retry control exact, the extended recovery indicators ≤ 3 each. host/l6_checks.calibration_findings_v05 + calibration_inputs_findings + l6_rel.heartbeat_findings_rel implement it; host/l6_runner.py selects them when prereg.version is v0.5 or v0.6 (V05_RULE_VERSIONS) and the heartbeat rule by the pinned image's protocol.",
-    "transport_note": "host-only changes shipped with the drafts, effective for any session under any prereg because they change no PASS rule: reader resync on a frame head + fragment quarantine on a pull timeout (host/l6_reader.py), the pull's monotonic chunk deadline and stale-duplicate handling (host/l6_audit_pull.py), FRAGMENT events in the timeline ledger (host/l6_timing.py), the rate report 1.2.0 with inclusive/nominal/planning/recovery/inputs computed from the evidence files (host/l6_rate.py; the top-level numbers unchanged). D-t3 RULED 2026-09-02: CHUNK_TIMEOUT_S = 2.0 s pinned; 0.5 s not adopted. rel-v4 host side (host/l6_rel.py) is selected only by a pinned image whose protocol is rel-v4; under the pinned rec-v3 image nothing of it runs.",
-    "reliability_design": "docs/l6_frame_reliability_design.md revision 2 — every frame re-requestable, reconstructible or budgeted; host side and twins in host/l6_rel.py; the firmware batch (new image, full P3 compatibility review) is opened by the owner and starts after the host batch is reviewed PASS.",
-    "superseded_drafts": [
-      {
-        "path": "docs/l6_soak_prereg_v0.5_draft.md",
-        "version": "v0.5-draft",
-        "note": "never frozen (owner 2026-09-02); its three rates, planning, recovery attribution and input binding are carried into v0.6"
-      }
-    ],
-    "rel_pass_conditions_draft": {
-      "max_sign_retries": 3,
-      "max_ready_resends": 3,
-      "max_ident_repeats": 3,
-      "max_term_retries": 3,
-      "max_done_replays": 3,
-      "note": "v0.6 §6.13 (host/l6_checks.rel_recovery_findings, C1/C2); hb_missing is bounded by l6_rel.hb_missing_budget(R) = floor(R/1000) with at most one missing per record (§6.11); merged into pass_conditions at the freeze"
-    },
-    "firmware_bound_contract": {
-      "poll_bound_wall_max_s": 10.0,
-      "applies_to": [
-        "P3_IDENT_IDLE_POLLS",
-        "P3_SIGN_IDLE_POLLS",
-        "P3_PULL_IDLE_POLLS",
-        "P3_REC_IDLE_POLLS",
-        "P3_TERM_IDLE_POLLS"
-      ],
-      "term_linger_s": 22.0,
-      "note": "host/l6_rel.FIRMWARE_BOUND_CONTRACT — a stated contract until the firmware batch pins the poll counts, bounds their wall time in a source-audit test and measures it with the C twin; IDENT 1.3.0 must echo flags.bit5 as sign_retry_control"
-    }
-  },
-  "next_image": {
-    "app_image_sha256": "5deee74c44785ebe88168ccffaa5f399f26a7c5a567fccb3d430cf4eb14cdc7c",
-    "elf_sha256": "ebe97ce6a591bad652f373ea6ac4b8591d189966e725234c43507bf66cf0067c",
-    "app_image_bytes": 98324,
-    "board_ready": false,
-    "protocol": "rel-v4",
-    "app_image": "firmware/bsp/out/p3_app_l6.bin (raw binary, loaded at 0x02000000, `go`) — IMAGE=p3_app_l6 firmware/bsp/build.sh",
-    "standing": "CANDIDATE, host-only, NOT board-ready, NEVER run on hardware: the rel-v4 image (IDENT/SIGNREQ/TERM transactions, the pull's READY resend + AUDITWAIT, indexed heartbeats, the closing control in the TERM, app_identity 1.3.0 with sign_retry_control, every wait bounded by the global timer at P3_BOUND_S = 8 s on the pinned clock) built in the firmware batch the owner opened 2026-09-02; the SECOND candidate of that batch: the first, 734d6c04…, was withdrawn DEFECTIVE after the owner's full P3 compatibility review (2026-09-03: early AUDITDONE accepted, whole-line bound 32 s, AUDITWAIT.served counted transmissions — see withdrawn_images) and this image carries the three fixes (docs/l6_rel_firmware_package.md §7). Two from-scratch builds byte-identical. Promotion to pinned_at_build needs the short re-review of §7, the v0.6 preregistration frozen, then ONE C1 → C2 → S under it.",
-    "build_evidence": "evidence/l6_next_build/build_evidence.json (the 734d6c04…, cd8360dc… and e19e1b12… candidate records preserved beside it)",
-    "wire": "app_identity 1.3.0 (+ sign_retry_control); loop_record 1.1.0 (+ STOP_SIGN with sign_stop); session_summary 1.0.0 (+ closing_control when the control was reached); HB carries {i}; IDENT → IDENTACK, SIGNREQ → SIGNOK|SIGNREF (SIGNGET), AUDIT_READY resent, AUDITWAIT, REC → RECACK|RECGET, TERM → TERMACK (TERMGET); no AUDITREQ frame (audit_requested in SIGNOK)",
-    "bound_contract": {
-      "P3_BOUND_S": 8,
-      "P3_BOUND_TICKS": "8 × COUNTS_PER_SECOND",
-      "COUNTS_PER_SECOND": "XPAR_CPU_CORTEXA9_0_CPU_CLK_FREQ_HZ / 2 = 666666687 / 2 = 333333343 Hz (6:2:1, CPU_CLK_CTRL 0x1f000200 verified per session by the runner)",
-      "poll_caps": {
-        "P3_IDENT_IDLE_POLLS": 100000000,
-        "P3_SIGN_IDLE_POLLS": 100000000,
-        "P3_PULL_IDLE_POLLS": 50000000,
-        "P3_REC_IDLE_POLLS": 50000000,
-        "P3_TERM_IDLE_POLLS": 100000000
-      },
-      "wall_time_bound_s": 8.0,
-      "host_contract_s": 10.0,
-      "term_linger_s": 22.0,
-      "proof": "tests/test_firmware_rel_audit.py::BoundContract (source-derived: every wait is p3_rectx_recv_line_timed with the global timer and P3_BOUND_TICKS; the number derived from the pinned CPU clock ≤ the host's 10 s); the poll caps are a termination backstop, not the wall-time proof; the C twin (tests/test_firmware_rel_contract.py) drives the timed receiver with an injected clock — logic, not target timing; the trickled-line counterexample (`!trickle`) is abandoned as partial within the bound",
-      "controls": "flags.bit4 (REC) and flags.bit5 (SIGNREQ): the first transmission of seq 1's REC / SIGNREQ has its CRC corrupted; both echoed by IDENT 1.3.0",
-      "whole_line": "the whole-line tick bound of one receive equals the idle bound (p3_rectx.c `line_ticks = idle_ticks`; review 2026-09-03 blocker 2 — it was ×4 = 32 s in 734d6c04…): a host line trickled in below the idle gap ends as PARTIAL within P3_BOUND_S, so no wait exceeds 8.0 s on the pinned clock however the bytes are paced; the ×4 factor applies to the poll-count backstop only"
-    }
   }
 }

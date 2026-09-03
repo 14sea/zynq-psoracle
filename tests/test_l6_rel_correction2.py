@@ -269,8 +269,8 @@ class BoundContract(unittest.TestCase):
         for name in ("P3_IDENT_IDLE_POLLS", "P3_SIGN_IDLE_POLLS", "P3_PULL_IDLE_POLLS", "P3_REC_IDLE_POLLS", "P3_TERM_IDLE_POLLS"):
             self.assertIn(name, c["applies_to"])
         self.assertIn("source-audit test", c["proof"])
-        draft = (R / "docs/l6_soak_prereg_v0.6_draft.md").read_text()
-        self.assertIn("BOARD_BOUND_WALL_MAX_S", draft); self.assertIn("poll count", draft)
+        frozen = (R / "docs/l6_soak_prereg.md").read_text()          # v0.6, frozen 2026-09-03 (was the draft)
+        self.assertIn("BOARD_BOUND_WALL_MAX_S", frozen); self.assertIn("poll count", frozen)
 
 
 class MinorItems(unittest.TestCase):

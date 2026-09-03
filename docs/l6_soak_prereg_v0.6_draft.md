@@ -1,3 +1,15 @@
+# L6 preregistration v0.6 — draft, MERGED INTO THE FROZEN TEXT 2026-09-03 (historical)
+
+> **Standing: HISTORICAL. This self-contained draft became the frozen `docs/l6_soak_prereg.md`
+> v0.6 on 2026-09-03 (the owner's promotion/freeze batch after the rel-v4 firmware batch's
+> short re-review PASS and evidence-closure PASS), with its present-tense drift corrected at
+> the freeze (design revision 4, the firmware batch delivered and reviewed, `5deee74c…`
+> promoted to `pinned_at_build`, no pending re-review). The text below is kept verbatim as
+> the draft stood and is no longer the text a ruling binds. v0.4 (sha `12799ef9…`) is
+> superseded, in git history.**
+
+---
+
 # L6 — calibration and soak of the P3 loop (preregistration v0.6, DRAFT — self-contained text; transport-recovery + rel-v4 reliability revision)
 
 > **Standing: DRAFT, NOT FROZEN. This is the complete text that becomes v0.6 at the

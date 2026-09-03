@@ -97,21 +97,25 @@ class PinnedL6Image(unittest.TestCase):
         self.assertEqual(hashlib.sha256(L6_BUILT.read_bytes()).hexdigest(), want)
 
     def test_one_image_one_authority(self):
-        """After the promotion (freeze batch 2026-09-01) there is exactly one current
-        authority: pinned_at_build, board_ready, pull-v2, with the promotion recorded; a
-        candidate, when one exists again, is next_image with board_ready false."""
+        """After a promotion there is exactly one current authority: pinned_at_build,
+        board_ready, with the promotion recorded; a candidate, when one exists again, is
+        next_image with board_ready false. Promotion 2026-09-03 (owner's batch): 5deee74c…
+        rel-v4 is the pin; 403f4ab5… joins the superseded (NOT defective) with its C1 #5."""
         nxt = L6.get("next_image")
         # the history's exact sets hold whether or not a candidate exists (review
         # 2026-09-03, evidence closure: these guards used to sit in the no-candidate
         # branch and did not run while a next_image was pinned)
         self.assertTrue(L6_PINNED["board_ready"])
-        self.assertEqual(L6_PINNED["protocol"], "rec-v3")           # promotion 2026-09-02
-        self.assertEqual(L6["prereg"]["protocol"], "rec-v3")
+        self.assertEqual(L6_PINNED["protocol"], "rel-v4")           # promotion 2026-09-03
+        self.assertEqual(L6["prereg"]["protocol"], "rel-v4")
+        self.assertEqual(L6_PINNED["app_image_sha256"][:8], "5deee74c")
+        self.assertEqual(L6_PINNED["elf_sha256"][:8], "ebe97ce6"); self.assertEqual(L6_PINNED["app_image_bytes"], 98324)
         self.assertIn("promoted", L6_PINNED["promoted_note"])
         sup = L6_PINNED["superseded_images"]
-        self.assertEqual([s["sha256"][:8] for s in sup], ["bd1454cd", "e19e1b12"])
+        self.assertEqual([s["sha256"][:8] for s in sup], ["bd1454cd", "e19e1b12", "403f4ab5"])
         for s in sup:
             self.assertIn("NOT defective", s["why"])
+        self.assertIn("C1 #5", sup[-1]["why"]); self.assertIn("HOLD", sup[-1]["why"])   # the history is kept, not re-judged
         self.assertEqual([w["sha256"][:8] for w in L6_PINNED["withdrawn_images"]], ["47b8fa09", "cd8360dc", "734d6c04"])
         for w in L6_PINNED["withdrawn_images"]:
             self.assertIn("DEFECTIVE", w["why"]); self.assertIn("must not run", w["why"])
@@ -119,6 +123,7 @@ class PinnedL6Image(unittest.TestCase):
         if nxt is None:
             self.assertEqual(e["image"]["bin_sha256"], L6_PINNED["app_image_sha256"],
                              "the promoted pin is the candidate the review passed")
+            self.assertNotIn("next_prereg", L6, "a frozen prereg leaves no draft entry behind (history lives in prereg.*)")
             return
         self.assertFalse(nxt["board_ready"])
         self.assertNotEqual(nxt["app_image_sha256"], L6_PINNED["app_image_sha256"],
@@ -170,16 +175,95 @@ class PinnedL6Image(unittest.TestCase):
         self.assertNotIn("No P3 session has\n  measured", text)
         self.assertNotIn("the per-candidate rate is unknown", text)
         self.assertNotIn("not implementable under the current wire protocol", text)
-        self.assertIn("No PASS\n  calibration exists to pin", text)
+        self.assertIn("exists to pin", text)
         self.assertIn("v0.2 HISTORICAL — resolved by pull-v2", text)
         self.assertIn("`AUDIT_READY` → (`AUDITGET` → `AUDIT`)×chunks", text)
         self.assertIn("pull-v2", text)
-        # v0.4 (2026-09-02): the frozen text preregisters rec-v3 in the present tense
-        self.assertIn("FROZEN 2026-09-02", text.splitlines()[0]); self.assertIn("v0.4", text.splitlines()[0])
+        # v0.4 (2026-09-02) preregistered rec-v3 in the present tense; v0.6 keeps rec-v3's
+        # record transaction and adds rel-v4 on top
         for present in ("rec-v3", "`RECACK {seq}`", "`RECGET {seq}`", "STOP_REC", "rec_closure_findings",
-                        "rec_control_findings", "D-r5", "403f4ab5", "historical_pull_v2", "may not be reused"):
+                        "rec_control_findings", "D-r5", "403f4ab5", "historical_pull_v2", "None may be reused"):
             self.assertIn(present, text, present)
         self.assertNotIn("cd8360dc… is `next_image`", text)
+        # v0.6 (2026-09-03): rel-v4 in the present tense, the promoted image, no draft residue
+        self.assertIn("FROZEN 2026-09-03", text.splitlines()[0]); self.assertIn("v0.6", text.splitlines()[0])
+        for present in ("rel-v4", "5deee74c", "`pinned_at_build`", "`board_ready: true`", "IDENTACK", "SIGNGET",
+                        "AUDITWAIT", "TERMACK", "STOP_SIGN", "STOP_IDENT", "rel_closure_findings", "rel_control_findings",
+                        "rel_recovery_findings", "hb_missing_budget", "revision 4", "No PASS calibration",
+                        "exists to pin under v0.6", "No rec-v3 calibration was ever pinned", "12799ef9",
+                        "**v0.5 was\n> never frozen**", "TRIGGERED through", "exactly ONE rel-v4 C1",
+                        "not re-judged", "734d6c04", "image has not run on hardware"):
+            self.assertIn(present, text, present)
+
+    # the owner's list (2026-09-03) of the draft's present-tense drift that must never be
+    # frozen as the current state again — plus the draft's own standing words
+    V06_STALE_AS_PRESENT = ("DRAFT, NOT FROZEN", "NOT FROZEN", "becomes v0.6 at the", "not yet started", "not\n   started",
+                            "firmware batch opened", "revision 2", "rev. 2", "next_image", "board_ready: false",
+                            "pending the short re-review", "then this text is frozen", "promoted at the freeze",
+                            "pending review", "the correction batch, pending", "next_prereg", "is the owner's to start",
+                            "proposed, not ruled", "and proposed (D-p1")
+
+    def test_the_frozen_v06_carries_none_of_the_drafts_stale_present_tense(self):
+        """Freeze-time guard (owner 2026-09-03): the v0.6 draft could not be frozen as it
+        stood — it said the reliability design was revision 2 (it is 4), the firmware batch
+        'not yet started' (delivered, reviewed HOLD → PASS → PASS), 5deee74c… 'next_image /
+        board_ready: false' (promoted), and 'pending the short re-review' (done). None of
+        those may appear in the frozen text; the manifest's own standing strings and the
+        firmware package's standing block are held to the same words."""
+        text = (R / "docs/l6_soak_prereg.md").read_text()
+        for stale in self.V06_STALE_AS_PRESENT:
+            self.assertNotIn(stale, text, f"frozen v0.6 still says {stale!r}")
+        self.assertEqual(L6["prereg"]["version"], "v0.6")
+        manifest_present = " ".join([L6["status"], L6["prereg"]["frozen"], L6_PINNED["standing"],
+                                     L6_PINNED["promoted_note"], L6["calibration"]["note"]])
+        for stale in ("revision 2", "not yet started", "board_ready: false", "board_ready false",
+                      "pending the short re-review", "next_prereg", "is next_image", "as next_image", "NEVER run"):
+            self.assertNotIn(stale, manifest_present, f"manifest standing still says {stale!r}")
+        self.assertIn("revision 4", L6["prereg"]["draft_history"]["reliability_design"])
+        # the draft's review chain survives only as history, in the past tense
+        hist = L6["prereg"]["draft_history"]["note"]
+        self.assertIn("HISTORICAL", hist); self.assertIn("past tense", hist); self.assertIn("promoted to pinned_at_build", hist)
+        pkg = (R / "docs/l6_rel_firmware_package.md").read_text()
+        standing = pkg.split("## 0.")[0]
+        for present in ("evidence-closure review of §8 = PASS", "PROMOTED", "`pinned_at_build`", "`board_ready: true`", "57cc22b"):
+            self.assertIn(present, standing, present)
+        for stale in ("is `next_image`", "`board_ready: false`; it has NEVER", "no promotion, no freeze"):
+            self.assertNotIn(stale, standing, stale)
+        self.assertIn("## 8.", pkg)
+        s8 = pkg.split("## 8.")[1]
+        self.assertIn("**Final standing", s8); self.assertIn("PASS", s8.split("**Final standing")[1])
+        self.assertIn("HOLD", s8, "the re-review's HOLD stays in §8 as the process record")
+
+    def test_the_v06_freeze_keeps_the_history_chain_intact(self):
+        """The promotion/freeze batch (owner 2026-09-03): v0.4's entry joins the supersedes
+        chain with its hash and its C1 #5 unchanged; the v0.5 draft is on record as never
+        frozen; the draft's pass-condition bounds are merged into pass_conditions with the
+        values the tests exercised; the pull-v2 calibrations are still refused and no
+        rec-v3 calibration exists to reuse."""
+        chain = L6["prereg"]["supersedes"]
+        self.assertEqual([(s["version"], s["sha256"][:8], s["protocol"]) for s in chain],
+                         [("v0.4", "12799ef9", "rec-v3"), ("v0.3", "8daa81f2", "pull-v2"), ("v0.2", "90f5fa69", "push-v1")])
+        self.assertIn("C1 #5", chain[0]["note"]); self.assertIn("HOLD, permanent", chain[0]["note"])
+        self.assertEqual(L6["prereg"]["never_frozen"][0]["version"], "v0.5-draft")
+        pc = L6["pass_conditions"]
+        self.assertEqual({k: pc[k] for k in ("nominal_cov_max", "min_clean_periods", "max_recovered_candidates",
+                                              "max_pull_timeouts", "max_bad_frames", "max_fragments")},
+                         {"nominal_cov_max": 0.1, "min_clean_periods": 60, "max_recovered_candidates": 3,
+                          "max_pull_timeouts": 3, "max_bad_frames": 3, "max_fragments": 3})
+        self.assertEqual({k: pc[k] for k in ("max_sign_retries", "max_ready_resends", "max_ident_repeats",
+                                              "max_term_retries", "max_done_replays")}, dict.fromkeys(
+                             ("max_sign_retries", "max_ready_resends", "max_ident_repeats", "max_term_retries", "max_done_replays"), 3))
+        self.assertEqual(pc["cov_max"], 0.1, "v0.4's inclusive bound stays on record")
+        self.assertIn("historical_rec_v3", L6["calibration"])
+        self.assertIn("C1 #5", L6["calibration"]["historical_rec_v3"]["note"])
+        for k in ("C1", "C2"):
+            self.assertIn("rel-v4", L6["calibration"]["historical_pull_v2"][k]["standing"])
+        # the archived record of the superseded rec-v3 pin closes on disk under its own name
+        e = json.loads((R / "evidence/l6_build/build_evidence_403f4ab5.json").read_text())
+        self.assertEqual(e["image"]["bin_sha256"][:8], "403f4ab5"); self.assertEqual(e["image"]["elf_sha256"][:8], "8687ef8d")
+        self.assertEqual(e["linker_map"]["path"], "evidence/l6_build/p3_app_l6_403f4ab5.map")
+        self.assertEqual(e["linker_map"]["sha256"][:8], "963dcd0f")
+        self.assertEqual(L6_PINNED["superseded_images"][-1]["build_evidence"], "evidence/l6_build/build_evidence_403f4ab5.json")
 
     def test_the_v0_3_calibrations_are_historical_and_unpinned(self):
         """Promotion/freeze batch 2026-09-02: under rec-v3 the active C1/C2 pins are null;

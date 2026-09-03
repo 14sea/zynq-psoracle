@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "purpose": "Post-build provenance for the pinned P3 L6 application image, regenerated after a clean rebuild (reviewer 2026-08-31).",
   "git": {
-    "head": "2b2096f75a3cee1c999f92725514543d4a144ae1",
+    "head": "57cc22b731794739c818fb0139c09541634dfce6",
     "worktree_dirty": true
   },
   "toolchain": {
@@ -20,31 +20,25 @@
     "count": 65
   },
   "image": {
-    "bin": "historical artifact unavailable — hash-only: the board-ready rec-v3 image 403f4ab5… was firmware/bsp/out/p3_app_l6.bin at its build (commit of the promotion); out/ is gitignored and HEAD now builds the rel-v4 candidate, so the path would resolve to another image; the runner refuses a session unless the file on disk hashes to the pin (host/l6_runner.py), which means rebuilding it from the promoted commit",
+    "bin": "firmware/bsp/out/p3_app_l6.bin",
     "bin_bytes": 98324,
-    "bin_sha256": "403f4ab5e8073e13cde74168636e35b8721505f4b73d2da579d2e36788ee28cd",
-    "elf_sha256": "8687ef8dfb80da3b53d4bc82130e9e9b52eb8e8b520848868038cfa85bed6ae1",
+    "bin_sha256": "5deee74c44785ebe88168ccffaa5f399f26a7c5a567fccb3d430cf4eb14cdc7c",
+    "elf_sha256": "ebe97ce6a591bad652f373ea6ac4b8591d189966e725234c43507bf66cf0067c",
     "reproduced_byte_identical": true,
-    "expected_bin_sha256": "403f4ab5e8073e13cde74168636e35b8721505f4b73d2da579d2e36788ee28cd"
+    "expected_bin_sha256": "5deee74c44785ebe88168ccffaa5f399f26a7c5a567fccb3d430cf4eb14cdc7c"
   },
   "linker_map": {
     "path": "evidence/l6_build/p3_app_l6.map",
-    "sha256": "963dcd0fb3f5b6bcb4c0ea347bb1672a2dd9194bd23b6c4cfb87c60e7f6ed16d"
+    "sha256": "a0dab2132a0267cc8c6ebcab08d0abc65e245eaeb83d3fa8a03a73dd9d1dbc30"
   },
   "tests": {
-    "report": "evidence/tests/test_report_2026-09-02T084227Z.json",
-    "report_sha256": "829984911b9f15833b9f0dec19ff7aca94d764349d3b2706e6326180ac538a40",
+    "report": "evidence/tests/test_report_2026-09-03T142624Z.json",
+    "report_sha256": "543417ecd43c9998f1fa4fc8e3331231ddd0c57f43ff2cfc8fab5fb05044aa2a",
     "status": "cited and verified green by the generator",
-    "ran": 864,
+    "ran": 1021,
     "skipped": 1,
-    "head_at_run": "2b2096f75a3cee1c999f92725514543d4a144ae1",
+    "head_at_run": "57cc22b731794739c818fb0139c09541634dfce6",
     "result_line": "OK (skipped=1)",
     "note": "the fail-closed test evidence (count / skipped / boundary / head_at_run) is this report, cited explicitly and verified green by the generator; run host/run_tests.sh in a staged state so it covers the new files."
-  },
-  "binary_unavailable": {
-    "at": "2026-09-03",
-    "why": "evidence-closure review (owner 2026-09-03): a live path in a build record must resolve to the content it hashes; with a next_image pinned, HEAD's build is the candidate, not this pinned image",
-    "original_path": "firmware/bsp/out/p3_app_l6.bin",
-    "hashes_unchanged": true
   }
 }

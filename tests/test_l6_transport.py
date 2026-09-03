@@ -469,11 +469,14 @@ class V05Findings(unittest.TestCase):
         cls.rep = lr.rate_report(LOG, "C1", None, audits=AUDITS, frames=FRAMES, inputs_sha256=INPUTS)
 
     def test_the_draft_pass_conditions_in_the_manifest_are_these(self):
-        self.assertEqual(MANIFEST["next_prereg"]["pass_conditions_draft"], DRAFT_PC)
-        self.assertEqual(MANIFEST["next_prereg"]["version"], "v0.6-draft"); self.assertIsNone(MANIFEST["next_prereg"]["sha256"])
-        self.assertEqual(MANIFEST["next_prereg"]["protocol"], "rel-v4")
-        self.assertEqual(MANIFEST["next_prereg"]["superseded_drafts"][0]["version"], "v0.5-draft", "v0.5 never frozen (owner)")
-        self.assertEqual(MANIFEST["prereg"]["version"], "v0.4", "the frozen preregistration is still v0.4")
+        # frozen 2026-09-03 as v0.6: the draft bounds were merged into pass_conditions with
+        # exactly these values; the v0.5 draft stays on record as never frozen
+        self.assertEqual({k: MANIFEST["pass_conditions"][k] for k in DRAFT_PC}, DRAFT_PC)
+        self.assertNotIn("next_prereg", MANIFEST)
+        self.assertEqual(MANIFEST["prereg"]["version"], "v0.6"); self.assertRegex(MANIFEST["prereg"]["sha256"], r"^[0-9a-f]{64}$")
+        self.assertEqual(MANIFEST["prereg"]["protocol"], "rel-v4")
+        self.assertEqual(MANIFEST["prereg"]["never_frozen"][0]["version"], "v0.5-draft", "v0.5 never frozen (owner)")
+        self.assertEqual(MANIFEST["prereg"]["supersedes"][0]["version"], "v0.4", "v0.4 superseded in history")
 
     def test_c1_5_is_a_hold_under_v04_and_the_runner_follows_the_manifest_not_the_draft(self):
         self.assertEqual(lc.calibration_findings(self.rep, MANIFEST["pass_conditions"]["cov_max"]),

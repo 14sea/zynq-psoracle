@@ -1624,3 +1624,56 @@ candidate HEAD builds; no `403f4ab5…` binary exists on disk, so it is hash-onl
 `binary_unavailable` block. Image, manifest and `next_image` unchanged. No push, no
 freeze, no ruling, no board.
 
+
+## 2026-09-03 — owner's promotion/freeze batch (host-only): `5deee74c…` promoted to the sole rel-v4 `pinned_at_build`; `403f4ab5…` superseded NOT defective; prereg v0.6 FROZEN; stop-loss stays TRIGGERED
+
+Owner (2026-09-03), after the evidence-closure review PASS and the push of `6c72db9`,
+`b3806ad`, `57cc22b`: a single host-only batch opening promotion and the v0.6 freeze — not a
+board authorisation; the stop-loss stays TRIGGERED. Scope as pinned by the owner: (1) image
+authority — `5deee74c…` the only `pinned_at_build`, protocol rel-v4, `board_ready: true`;
+`403f4ab5…` into `superseded_images` marked NOT defective with its C1 #5 and v0.4 history
+kept; `734d6c04…` stays withdrawn DEFECTIVE; the `next_image` entry removed; build evidence
+and BIN/ELF/MAP hashes still closed, no firmware rebuild. (2) v0.6 frozen — the
+self-contained draft promoted to `docs/l6_soak_prereg.md`, its hash into the manifest with
+`version = v0.6`, `protocol = rel-v4`; v0.4 `12799ef9…` into the supersedes chain, its
+historical text not rewritten; `calibration.C1/C2` null; the pull-v2 and rec-v3
+calibrations history only, never S's input. (3) the draft's present-tense drift corrected
+before freezing: design revision 4 (not 2); the firmware batch delivered with its
+compatibility review / correction / evidence closure all PASS (not "not yet started");
+`5deee74c…` the promoted pin (no longer a candidate with `board_ready: false`); no
+"waiting for the package §7 short re-review"; package §8's final standing = the
+evidence-closure PASS with the HOLD kept as history; the manifest's `next_prereg` review
+state moved into a clear history chain (`prereg.supersedes`, `prereg.never_frozen`,
+`prereg.draft_history`). A freeze-time guard refuses those stale phrases as the present in
+the frozen v0.6. (4) stop-loss — TRIGGERED throughout; a conditional lifting only after the
+frozen-artifact short review passes, opening ONE rel-v4 C1 and nothing else; C2, S and
+Claim B not opened in advance; C1 #5 permanently HOLD under v0.4, not re-judged.
+
+Delivered: `manifests/l6_manifest.json` (`pinned_at_build` = `5deee74c…` / ELF `ebe97ce6…` /
+98 324 B / rel-v4 / board-ready, `wire` + `bound_contract` carried from the candidate entry;
+`403f4ab5…` appended to `superseded_images`; `promoted_note`; `prereg` = v0.6 / rel-v4 / the
+new sha with `supersedes` v0.4 → v0.3 → v0.2, `never_frozen` v0.5, `draft_history`; the
+draft's bounds merged into `pass_conditions`; `calibration.historical_rec_v3`; the two
+control bits on the identity page; `sessions.S.n` in planning rates; `status`).
+`docs/l6_soak_prereg.md` = v0.6 FROZEN (from the draft with the drift replaced; §7 carries
+the freeze-time stop-loss record); `docs/l6_soak_prereg_v0.6_draft.md` marked MERGED /
+HISTORICAL, body verbatim. `evidence/l6_build/`: the `403f4ab5…` record archived as
+`build_evidence_403f4ab5.json` + `p3_app_l6_403f4ab5.map` (archived block, hashes
+unchanged); `build_evidence.json` + `p3_app_l6.map` regenerated for `5deee74c…` from the
+unchanged `out/` build (byte-identical to the pin). `docs/l6_rel_firmware_package.md`
+standing and §8 final standing; `docs/l6_frame_reliability_design.md` standing note;
+`tests/test_package_consistency.py`: the authority guard (rel-v4, three superseded, three
+withdrawn, no `next_image`/`next_prereg`), the v0.6 present-tense guard (`FROZEN
+2026-09-03`, rel-v4, the pin, the history chain), the stale-phrase guard over the frozen
+text, the manifest's standing strings and the package's standing block, the history-chain
+guard (supersedes, never_frozen, merged bounds, the archived 403f4ab5 record);
+`tests/test_l6_transport.py`, `tests/test_l6_rel_correction.py`,
+`tests/test_l6_rel_correction2.py`, `tests/test_l6_rate_v05.py` re-pointed at the frozen state
+(the rate-v05 soak fixture now binds its manifests to the C1 #5 report's own pins). Suite:
+1021 tests / 1 skip / rc 0 twice — A `evidence/tests/test_report_2026-09-03T142624Z.json`
+(cited by the build evidence), B `…142636Z` (final); the run before them, `…142352Z`, failed
+on the two new evidence files not yet tracked and on that fixture, and is kept as recorded.
+Firmware bytes unchanged
+(bin `5deee74c…`, ELF `ebe97ce6…`, map `a0dab213…` on disk = manifest = evidence). No
+ruling, no board contact, not pushed: the frozen-artifact short review comes first, then
+the push decision and the first rel-v4 C1 ruling pair.

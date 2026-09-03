@@ -209,16 +209,23 @@ class SoakSizedByThePlanningRate(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.r1 = full_report()
+        # the reports bind C1 #5's pins (403f4ab5…, v0.4 12799ef9…, rec-v3); the committed
+        # manifest pins the rel-v4 image and v0.6 since 2026-09-03, so the fixture manifests
+        # are built on the reports' own binding — m4 with the v0.4 rule, m5 with the v0.5 one
+        b = cls.r1["binding"]
+        cls.m4 = copy.deepcopy(tr.L6M)
+        cls.m4["pinned_at_build"]["app_image_sha256"] = b["image_sha256"]; cls.m4["pinned_at_build"]["protocol"] = b["protocol"]
+        cls.m4["prereg"]["sha256"] = b["prereg_sha256"]; cls.m4["prereg"]["protocol"] = b["protocol"]; cls.m4["prereg"]["version"] = "v0.4"
         r2 = copy.deepcopy(cls.r1); r2["session"] = "C2"; r2["schedule_mode"] = "map_guided_forced"
-        r2["binding"] = tr.binding("C2"); r2["planning"]["evals_per_hour"] = 3300.0; r2["evals_per_hour"] = 3400.0
+        r2["binding"] = tr.binding("C2", cls.m4); r2["planning"]["evals_per_hour"] = 3300.0; r2["evals_per_hour"] = 3400.0
         cls.r2 = r2
-        cls.m5 = copy.deepcopy(tr.L6M); cls.m5["prereg"]["version"] = "v0.5"
+        cls.m5 = copy.deepcopy(cls.m4); cls.m5["prereg"]["version"] = "v0.5"
 
     def test_under_v05_the_soak_uses_the_planning_rates_under_v04_the_inclusive_ones(self):
         p5 = l6.plan_session(self.m5, "S", None, 7200.0, {"C1": self.r1, "C2": self.r2}, None)
         self.assertEqual(p5["inputs"]["rate_C1_per_h"], self.r1["planning"]["evals_per_hour"])
         self.assertEqual(p5["inputs"]["rate_C2_per_h"], 3300.0); self.assertTrue(p5["inputs"]["rate_source"].startswith("planning"))
-        p4 = l6.plan_session(tr.L6M, "S", None, 7200.0, {"C1": self.r1, "C2": self.r2}, None)
+        p4 = l6.plan_session(self.m4, "S", None, 7200.0, {"C1": self.r1, "C2": self.r2}, None)
         self.assertEqual(p4["inputs"]["rate_C1_per_h"], self.r1["evals_per_hour"]); self.assertEqual(p4["inputs"]["rate_C2_per_h"], 3400.0)
         self.assertLess(p5["n"], p4["n"], "the planning rate is the smaller one: fewer candidates in the soak")
 

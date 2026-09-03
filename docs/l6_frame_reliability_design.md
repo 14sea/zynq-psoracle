@@ -11,7 +11,10 @@
 > opened by the owner (2026-09-02) and starts only after this host/design batch is
 > reviewed PASS; it is a new image, a full P3 compatibility review, and the self-contained
 > v0.6 preregistration (`docs/l6_soak_prereg_v0.6_draft.md`). The owner's D-t3 stands:
-> the pull's chunk timeout is 2.0 s.**
+> the pull's chunk timeout is 2.0 s.** *(2026-09-03: the firmware batch was delivered and
+> reviewed — `docs/l6_rel_firmware_package.md` §7–§8 — and the rel-v4 image `5deee74c…` is
+> `pinned_at_build`; v0.6 is frozen. The sentence "NOTHING here is implemented in firmware"
+> above is the standing as of revision 4 and is history now.)*
 
 ## 1. What the evidence says about the exposure
 
@@ -272,7 +275,7 @@ sets equal — `unique_ledgers_by_seq`, a duplicate named and never last-wins, s
 control check and refused by the rate), `rel_control_findings` (§6.12: seq 1 exactly
 `["crc", "ok"]`, one `SIGNGET`, no replay), `rel_recovery_findings` (§6.13: `sign_retries`,
 `ready_resends`, `ident_repeats`, `term_retries`, `done_replays` each within the pinned
-bound — the manifest's `next_prereg.rel_pass_conditions_draft`) and
+bound — the manifest's `pass_conditions`, merged there at the v0.6 freeze 2026-09-03) and
 `l6_rel.heartbeat_findings_rel` (§6.11) — all called by the runner under rel-v4; the
 indicators are computed by `l6_rate.recovery_by_seq` (per candidate, one per non-ok
 attempt) and `rel_session_totals` (IDENT/TERM), with both controls attributed as controls.

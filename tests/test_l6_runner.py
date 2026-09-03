@@ -53,11 +53,15 @@ def report(session: str, rate: float, median_polls: float = 16.0, contract: str 
             "binding": binding(session, m) if bound is None else bound}
 
 
-# the committed manifest still pins the pull-v2 image and the v0.3 (pull-v2) prereg; the
-# plan tests need a rec-v3 manifest, which is what the fixture manifest below is
+# the committed manifest pins the rel-v4 image and the frozen v0.6 prereg (2026-09-03); the
+# plan tests model the rec-v3 / v0.4 combination with v0.4-style reports (no planning rate,
+# no inputs), which is what the fixture manifest below is — a v0.6 manifest would select the
+# three-rate rule (host/l6_runner.V05_RULE_VERSIONS) and refuse these reports by name
+PREREG_VERSION_OF = {"push-v1": "v0.2", "pull-v2": "v0.3", "rec-v3": "v0.4", "rel-v4": "v0.6"}
 L6M_V4 = copy.deepcopy(L6M)
 L6M_V4["pinned_at_build"]["protocol"] = "rec-v3"
 L6M_V4["prereg"]["protocol"] = "rec-v3"
+L6M_V4["prereg"]["version"] = PREREG_VERSION_OF["rec-v3"]
 
 
 class Plan(unittest.TestCase):
@@ -184,6 +188,7 @@ class Refusals(unittest.TestCase):
         m["pinned_at_build"]["app_image_sha256"] = self.image_sha
         m["pinned_at_build"]["protocol"] = "rec-v3"
         m["prereg"]["sha256"] = self.PREREG_SHA
+        m["prereg"]["version"] = PREREG_VERSION_OF["rec-v3"]
         return report(session, rate, m=m)
 
     def manifest_sha(self, path: Path | None = None) -> str:
@@ -223,6 +228,7 @@ class Refusals(unittest.TestCase):
         m["pinned_at_build"]["board_ready"] = board_ready
         m["pinned_at_build"]["protocol"] = protocol
         m["prereg"]["protocol"] = prereg_protocol
+        m["prereg"]["version"] = PREREG_VERSION_OF.get(prereg_protocol, "v0.6")   # the rule follows the prereg's version
         self.fixture_manifest = m
         if calib:
             for k, sha in calib.items():
