@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""The soak's N against T — the policy-matched planning rate (v0.7 CANDIDATE, after S #2).
+"""The soak's N against T — the policy-matched rate (D-n1, RULED 2026-09-03, in force under
+the frozen v0.7; written after S #2).
 
 What S #1 and S #2 showed. N = ⌊0.9 × min(planning_C1, planning_C2) × T⌋ (D-s3) takes the
 calibrations' planning rates, measured under the ALL-SELF-REPORTING policy where every
@@ -22,15 +23,20 @@ they were derived from (their sha256 are the report's `inputs`), never from a so
     where audit_i = t_done(i) − t_ready(i) (the pull's audit stage on the host clock) and
     f = the fraction of the soak's records that carry an audit stage under the sampled
     policy, |sampled_audit_seqs(N)| / (N + 2), solved by fixed point with N (f ≈ 1/16);
-  * N = ⌊0.9 × min(rate_A, rate_B) × T⌋ with the unrounded product published beside
-    the floor (owner 2026-09-03: 6952.2375… gives 12514, the rounded label 6952 gives
-    12513 — N is never derived from a rounded value);
+  * N = ⌊0.9 × max(rate_A, rate_B) × T⌋ for every policy-matched rule — the FASTER arm
+    sizes N, because a wall-time floor cannot be held by the slower one, while the timeout
+    keeps min(rate); `planning` alone keeps min, because it reproduces v0.6 exactly and is
+    the control. The unrounded product is published beside the floor (owner 2026-09-03:
+    6952.2375… gives 12514, the rounded label 6952 gives 12513 — N is never derived from a
+    rounded value);
   * the POST-HOC validation gate against the recorded soak pace(s): N × interval_obs
     must lie within [0.9 T, timeout) — the pace of S #1 / S #2 is used ONLY to validate a
     candidate N, never as an input to it (owner 2026-09-03).
 
-Nothing here is a frozen rule: v0.6 is frozen with `planning`; the manifest's
-`sessions.S.n_rule` names the rule the runner applies under v0.7, and the owner freezes it.
+The rule in force is the manifest's `sessions.S.n_rule`, which the frozen v0.7 sets to
+`policy_matched_wall` (D-n1, ruled and frozen 2026-09-03). `planning` is kept as v0.6's
+rule and as the control the alternatives are read against; the other two are computed and
+published so the choice stays auditable.
 """
 from __future__ import annotations
 

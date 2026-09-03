@@ -26,21 +26,30 @@ import l6_runner as l6  # noqa: E402
 import l6_soak_plan as lsp  # noqa: E402
 
 L6M = json.loads((R / "manifests/l6_manifest.json").read_text())
-V07_SHA = "07" * 32          # a stand-in for the v0.7 text's hash: v0.7 is NOT frozen here
+V07_SHA = L6M["prereg"]["sha256"]           # the frozen v0.7 text
+V06_ENTRY = next(s for s in L6M["prereg"]["supersedes"] if s["version"] == "v0.6")
 
 
-V06_SHA = L6M["prereg"]["sha256"]           # the frozen v0.6 the reports are bound to
+def without_import(m: dict) -> dict:
+    for k in ("C1", "C2"):
+        m["calibration"][k].pop("imported", None)
+    return m
+
+
+V06_SHA = V06_ENTRY["sha256"]              # the frozen v0.6 the reports are bound to
 
 
 def manifest_v07(with_import: bool = True, n_rule: str = "policy_matched_wall", version: str = "v0.7",
                  supersedes_v06: bool = True, **over) -> dict:
+    """The committed manifest, which has pinned the frozen v0.7 with both imports since
+    2026-09-03; the parameters take pieces away again to exercise the refusals."""
     m = copy.deepcopy(L6M)
     m["prereg"]["version"] = version
     m["prereg"]["sha256"] = V07_SHA
-    if supersedes_v06:                      # what the freeze writes: v0.6 heads the chain
-        m["prereg"]["supersedes"] = [{"version": "v0.6", "sha256": V06_SHA, "protocol": "rel-v4",
-                                      "note": "frozen 2026-09-03; ran C1 #6, C2 #2, S #2"}] + m["prereg"]["supersedes"]
+    if not supersedes_v06:
+        m["prereg"]["supersedes"] = [s for s in m["prereg"]["supersedes"] if s["version"] != "v0.6"]
     m["sessions"]["S"]["n_rule"] = n_rule
+    without_import(m)
     if with_import:
         for k in ("C1", "C2"):
             c = m["calibration"][k]
@@ -147,12 +156,25 @@ class ExplicitImport(unittest.TestCase):
             self.plan(m)
         self.assertIn("must say why", str(cm.exception))
 
-    def test_under_v06_nothing_of_this_runs_and_the_committed_manifest_declares_no_import(self):
+    def test_the_committed_manifest_declares_both_imports_and_plans_with_them(self):
         for k in ("C1", "C2"):
-            self.assertNotIn("imported", L6M["calibration"][k], "the frozen v0.6 needs no import: it IS the pin")
-        p = l6.plan_session(L6M, "S", None, 7200.0, self.reports, None)
+            imp = L6M["calibration"][k]["imported"]
+            self.assertEqual((imp["from_prereg_version"], imp["from_prereg_sha256"]), ("v0.6", V06_SHA))
+            self.assertEqual(imp["report_sha256"], L6M["calibration"][k]["rate_report_sha256"])
+        p = self.plan(copy.deepcopy(L6M))
+        self.assertEqual(sorted(p["inputs"]["calibrations_imported"]), ["C1", "C2"])
+        self.assertEqual(p["n"], 12568)
+
+    def test_a_v06_manifest_neither_needs_nor_honours_an_import(self):
+        """The state before the freeze: v0.6 IS the pin the reports are bound to, so they
+        are accepted with no declaration — and a declaration would be refused there."""
+        m = without_import(copy.deepcopy(L6M))
+        m["prereg"]["version"], m["prereg"]["sha256"] = "v0.6", V06_SHA
+        m["prereg"]["supersedes"] = [s for s in m["prereg"]["supersedes"] if s["version"] != "v0.6"]
+        m["sessions"]["S"].pop("n_rule", None)
+        p = l6.plan_session(m, "S", None, 7200.0, self.reports, None)
         self.assertNotIn("calibrations_imported", p["inputs"])
-        self.assertEqual(p["n"], 6061)
+        self.assertEqual(p["n"], 6061, "v0.6 sized N from the planning rates of the slower arm")
 
 
 if __name__ == "__main__":

@@ -147,8 +147,7 @@ class SoakBadFrameBound(unittest.TestCase):
 
 
 def manifest_v07(n_rule: str | None = "policy_matched_wall") -> dict:
-    m = copy.deepcopy(L6M)
-    m["prereg"]["version"] = "v0.7"
+    m = copy.deepcopy(L6M)                       # the committed manifest already pins v0.7
     if n_rule is None:
         m["sessions"]["S"].pop("n_rule", None)
     else:
@@ -156,13 +155,32 @@ def manifest_v07(n_rule: str | None = "policy_matched_wall") -> dict:
     return m
 
 
+def manifest_v06() -> dict:
+    """The state before the 2026-09-03 freeze, reconstructed: v0.6 pinned, no import, no
+    named N rule — the guard that nothing of v0.7 runs there."""
+    m = copy.deepcopy(L6M)
+    v06 = next(s for s in m["prereg"]["supersedes"] if s["version"] == "v0.6")
+    m["prereg"]["version"], m["prereg"]["sha256"] = "v0.6", v06["sha256"]
+    m["prereg"]["supersedes"] = [s for s in m["prereg"]["supersedes"] if s["version"] != "v0.6"]
+    m["sessions"]["S"].pop("n_rule", None)
+    for k in ("C1", "C2"):
+        m["calibration"][k].pop("imported", None)
+    return m
+
+
 class RuleSelection(unittest.TestCase):
     def test_under_v06_nothing_of_v07_runs(self):
-        self.assertEqual(L6M["prereg"]["version"], "v0.6")
-        r = l6.rules_for(L6M)
+        m = manifest_v06()
+        r = l6.rules_for(m)
         self.assertEqual((r["v07"], r["hb_rule"], r["bad_frame_policy"], r["three_rate"]), (False, "v06", lcs.BAD_FRAME_CRASH, True))
-        p = l6.plan_session(L6M, "C1", None, 7200.0, None, None)
+        p = l6.plan_session(m, "C1", None, 7200.0, None, None)
         self.assertEqual((p["bad_frame_policy"], p["bad_frame_budget"], p["hb_rule"], p["rules_version"]), (lcs.BAD_FRAME_CRASH, None, "v06", "v0.6"))
+
+    def test_the_committed_manifest_now_pins_v07_and_the_rules_are_on(self):
+        self.assertEqual(L6M["prereg"]["version"], "v0.7")
+        r = l6.rules_for(L6M)
+        self.assertEqual((r["v07"], r["hb_rule"], r["bad_frame_policy"]), (True, "v07", lcs.BAD_FRAME_LEDGER))
+        self.assertEqual(L6M["sessions"]["S"]["n_rule"], "policy_matched_wall")
 
     def test_under_v07_the_ledger_policy_the_crc_budget_as_its_bound_and_the_v07_heartbeat_rule(self):
         m = manifest_v07()
@@ -207,7 +225,7 @@ class RuleSelection(unittest.TestCase):
             self.assertEqual(p["inputs"]["n_rule"], rule)
             self.assertEqual(len(p["audit_seqs"]), want["sampled_audits"])
             self.assertEqual(p["session_timeout_s"], ls.session_timeout_s(want["n"], want["rate_C1"], want["rate_C2"]))
-        p6 = l6.plan_session(L6M, "S", None, 7200.0, reports, None)
+        p6 = l6.plan_session(manifest_v06(), "S", None, 7200.0, reports, None)
         self.assertEqual((p6["n"], p6["inputs"]["n_rule"]), (6061, "planning"), "v0.6 is what S #2 ran with")
 
 
@@ -368,12 +386,16 @@ class V07DraftDrift(unittest.TestCase):
         self.assertLess(self.DRAFT.index("13. the recovery indicators of 3b"),
                         self.DRAFT.index("14. **bad frames bounded"), "item 14 follows item 13")
 
-    def test_the_draft_is_not_marked_frozen_and_the_manifest_still_pins_v06(self):
-        self.assertIn("DRAFT, NOT FROZEN", self.DRAFT)
-        self.assertIn("That is not yet the case for v0.7", self.DRAFT)
-        self.assertEqual(L6M["prereg"]["version"], "v0.6", "the manifest is the owner's to change at the freeze")
+    def test_the_draft_is_now_the_frozen_text_and_the_manifest_pins_it(self):
+        """The draft was frozen on 2026-09-03: it carries the MERGED banner, the frozen text
+        says FROZEN, and the manifest pins the frozen text's own hash."""
+        self.assertIn("MERGED INTO THE FROZEN TEXT", self.DRAFT)
+        frozen = (R / "docs/l6_soak_prereg.md").read_text()
+        self.assertIn("v0.7, FROZEN 2026-09-03", frozen.splitlines()[0])
+        self.assertNotIn("DRAFT, NOT FROZEN", frozen)
+        self.assertEqual(L6M["prereg"]["version"], "v0.7")
         self.assertEqual(hashlib.sha256((R / "docs/l6_soak_prereg.md").read_bytes()).hexdigest(),
-                         L6M["prereg"]["sha256"], "…and the frozen text on disk is still the one it pins")
+                         L6M["prereg"]["sha256"], "the frozen text on disk is the one the manifest pins")
 
     def test_the_draft_states_the_ruled_n_rule_and_arm(self):
         self.assertIn("policy_matched_wall", self.DRAFT)
@@ -427,3 +449,78 @@ class PackageCallsTheTwinWhatItIs(unittest.TestCase):
         self.assertTrue(rows, "the commit chain table is there")
         for row in rows:
             self.assertIn("/6)", row, f"every row counts to the same total: {row[:60]}")
+
+
+class PlanEvidenceSaysWhichArmSizedN(unittest.TestCase):
+    """The correction family of 2026-09-03: the plan's own evidence hard-coded
+    `n_formula = floor(0.9 × min(rate) × T)` while D-n1's policy-matched rules size N from
+    max, and called the rule a "v0.7 candidate" after it had been ruled and frozen. A soak's
+    evidence must say which rule ran and which arm sized N, or it contradicts itself."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.reports, cls.logs = lsp.load_pinned(L6M)
+
+    def plan(self, m):
+        return l6.plan_session(m, "S", None, 7200.0, self.reports, None, calibration_logs=self.logs)
+
+    def test_under_v07_the_evidence_names_the_ruled_rule_and_the_faster_arm(self):
+        inp = self.plan(manifest_v07())["inputs"]
+        self.assertEqual(inp["n_rule"], "policy_matched_wall")
+        self.assertEqual(inp["n_sizing_arm"], "max")
+        self.assertIn("max(rate)", inp["n_formula"]); self.assertNotIn("min(rate) × T", inp["n_formula"])
+        self.assertIn("the faster arm sizes N", inp["n_formula"])
+        self.assertTrue(inp["rate_source"].startswith("policy_matched_wall"), inp["rate_source"])
+        self.assertIn("D-n1, ruled 2026-09-03", inp["rate_source"])
+        self.assertNotIn("candidate", inp["rate_source"])
+        self.assertIn("min(rate)", inp["timeout_formula"]); self.assertIn("slower arm", inp["timeout_formula"])
+
+    def test_the_historical_planning_rule_still_says_min(self):
+        inp = self.plan(manifest_v06())["inputs"]
+        self.assertEqual(inp["n_rule"], "planning"); self.assertEqual(inp["n_sizing_arm"], "min")
+        self.assertIn("min(rate)", inp["n_formula"]); self.assertNotIn("max(rate)", inp["n_formula"])
+        self.assertIn("v0.6's rule", inp["n_formula"])
+        self.assertTrue(inp["rate_source"].startswith("planning"), inp["rate_source"])
+
+    def test_the_arm_in_the_evidence_is_the_arm_that_produced_n(self):
+        for rule in lsp.RULES:
+            with self.subTest(rule=rule):
+                inp = self.plan(manifest_v07(rule))["inputs"]
+                sizing = max if inp["n_sizing_arm"] == "max" else min
+                import math
+                self.assertEqual(TABLE["rules"][rule]["n"],
+                                 math.floor(0.9 * sizing(inp["rate_C1_per_h"], inp["rate_C2_per_h"]) * 7200 / 3600))
+
+
+class TheFrozenTextCarriesNoPlanningResidue(unittest.TestCase):
+    """The same family, in the frozen preregistration: §4.18 recorded `rate_source: planning`
+    unconditionally, §6.3c still said the planning rate is what N is derived from, and D-r5
+    stated its binding rule without naming D-i1 as the one exception."""
+
+    TEXT = (R / "docs/l6_soak_prereg.md").read_text()
+    FLAT = " ".join(TEXT.split())            # the document reflows; the sentences are what matter
+
+    def test_the_sizing_sentences_name_d_n1(self):
+        self.assertNotIn("the S plan records `rate_source: planning`.", self.FLAT)
+        self.assertIn("under v0.7 the named rule of D-n1", self.FLAT)
+        self.assertNotIn("planning rate is the calibration value S's N is derived from", self.FLAT)
+        self.assertIn("under v0.7 D-n1 supersedes that", self.FLAT)
+        self.assertIn("policy-matched wall rate of the FASTER arm", self.FLAT)
+        # and the two decision rows keep their v0.6 formulas explicitly as history
+        self.assertIn("v0.6's, and is HISTORY: D-n1 supersedes it", self.FLAT)
+        self.assertIn("history: D-n1 supersedes it for v0.7", self.FLAT)
+
+    def test_d_r5_names_its_one_exception(self):
+        row = next(l for l in self.TEXT.splitlines() if l.startswith("| **D-r5** calibration binding"))  # a table row is one line
+        self.assertIn("The ONE exception, and the only one, is D-i1", row)
+        self.assertIn("relaxes the preregistration hash and NOTHING else", row)
+        self.assertIn("honoured only under v0.7", row)
+
+    def test_the_pin_is_this_text(self):
+        self.assertEqual(hashlib.sha256((R / "docs/l6_soak_prereg.md").read_bytes()).hexdigest(),
+                         L6M["prereg"]["sha256"], "the corrected frozen text is the one the manifest pins")
+
+    def test_the_soak_plan_module_is_not_described_as_a_candidate(self):
+        doc = lsp.__doc__
+        self.assertIn("RULED 2026-09-03", doc); self.assertNotIn("v0.7 CANDIDATE", doc)
+        self.assertIn("⌊0.9 × max(rate_A, rate_B) × T⌋", doc)

@@ -5,8 +5,11 @@
 > C2 #2 / S #2 rewritten, no pin changed: `manifests/l6_manifest.json` is byte-identical to
 > the pushed one (`54583314c16295c24f083efe402ec0cf98a54da5ca8d30afbfd5851c5eedfc68`) and
 > the frozen preregistration is still v0.6 (`bfd69d10…`). `docs/l6_soak_prereg_v0.7_draft.md`
-> is a complete FREEZE CANDIDATE and is NOT marked frozen; the manifest changes at the
-> owner's freeze, not here. `calibration.C1`/`C2` stay pinned and ACTIVE; C1 #5 stays HOLD;
+> was a complete FREEZE CANDIDATE while this batch was under review. **The owner accepted
+> the batch and the four decisions on 2026-09-03 and authorised the freeze, which is the
+> SEPARATE commit that follows this one**: v0.7 is now the frozen text
+> (`docs/l6_soak_prereg.md`) and the manifest pins it. Nothing in this package was changed
+> by that freeze; it stands as the record of the batch the owner reviewed. `calibration.C1`/`C2` stay pinned and ACTIVE; C1 #5 stays HOLD;
 > S #2 stays HOLD and is not re-run; Claim B stays closed.**
 
 Authorised by the owner 2026-09-03 after the §7 ruling (S #1 and S #2 are "the same way

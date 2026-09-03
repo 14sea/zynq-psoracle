@@ -58,7 +58,17 @@ def report(session: str, rate: float, median_polls: float = 16.0, contract: str 
 # no inputs), which is what the fixture manifest below is — a v0.6 manifest would select the
 # three-rate rule (host/l6_runner.V05_RULE_VERSIONS) and refuse these reports by name
 PREREG_VERSION_OF = {"push-v1": "v0.2", "pull-v2": "v0.3", "rec-v3": "v0.4", "rel-v4": "v0.6"}
-L6M_V4 = copy.deepcopy(L6M)
+def without_v07(m: dict) -> dict:
+    """A manifest of an earlier preregistration carries no v0.7 import declaration: the
+    committed one has pinned v0.7 since the freeze (2026-09-03), and an `imported` block
+    under any other version is refused by design (D-i1)."""
+    for k in ("C1", "C2"):
+        m["calibration"][k].pop("imported", None)
+    m["sessions"]["S"].pop("n_rule", None)
+    return m
+
+
+L6M_V4 = without_v07(copy.deepcopy(L6M))
 L6M_V4["pinned_at_build"]["protocol"] = "rec-v3"
 L6M_V4["prereg"]["protocol"] = "rec-v3"
 L6M_V4["prereg"]["version"] = PREREG_VERSION_OF["rec-v3"]
@@ -184,7 +194,7 @@ class Refusals(unittest.TestCase):
 
     def report(self, session: str, rate: float) -> dict:
         """A calibration report bound to THIS fixture's pins (image stand-in, prereg, rec-v3)."""
-        m = copy.deepcopy(L6M)
+        m = without_v07(copy.deepcopy(L6M))
         m["pinned_at_build"]["app_image_sha256"] = self.image_sha
         m["pinned_at_build"]["protocol"] = "rec-v3"
         m["prereg"]["sha256"] = self.PREREG_SHA
@@ -219,7 +229,7 @@ class Refusals(unittest.TestCase):
         """Writes the fixture manifest and, by default, re-binds both rulings to its hash
         (as the owner would issue them against the committed manifest of the time); a
         tamper test passes rebind=False to keep the rulings bound to the earlier file."""
-        m = copy.deepcopy(L6M)
+        m = without_v07(copy.deepcopy(L6M))
         m["prereg"]["sha256"] = self.PREREG_SHA if frozen else None
         # the committed manifest pins the real image; the fixture pins the stand-in or nulls it
         m["pinned_at_build"]["app_image_sha256"] = self.image_sha if image else None

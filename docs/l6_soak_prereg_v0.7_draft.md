@@ -1,3 +1,16 @@
+# L6 preregistration v0.7 — draft, MERGED INTO THE FROZEN TEXT 2026-09-03 (historical)
+
+> **Standing: HISTORICAL. This self-contained draft became the frozen
+> `docs/l6_soak_prereg.md` v0.7 on 2026-09-03, after the owner's review of the host
+> batch after S #2 (two HOLDs, both corrected, then PASS) and the acceptance of D-b1,
+> D-h1, D-n1 and D-i1. At the freeze the standing block became FROZEN, the four
+> decisions moved from PROPOSED to RULED, and §2.7 / §9.3a recorded the review; nothing
+> else changed. The text below is kept verbatim as the draft stood (sha
+> `7958554c21166c924c0e775ee26fbdcac0970377361072b2f8eecd67290f94fd`) and is no longer
+> the text a ruling binds. v0.6 (`bfd69d10…`) is superseded, in git history.**
+
+---
+
 # L6 — calibration and soak of the P3 loop (preregistration v0.7, DRAFT — self-contained text; the soak-survivability revision after S #2)
 
 > **Standing: DRAFT, NOT FROZEN. This is the complete text that becomes v0.7 at the

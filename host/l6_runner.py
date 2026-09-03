@@ -243,7 +243,7 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
                     raise ValueError(f"calibration report {k} carries no evals_per_hour")
                 rates[k] = float(rep["evals_per_hour"])
         rules = rules_for(l6m)
-        n_rule, n_override = "planning", None
+        n_rule, n_override, n_sizing_arm = "planning", None, "min"
         if rules["v07"]:
             # v0.7 candidate: the manifest must NAME the rule (owner 2026-09-03: no formula is
             # pre-approved; S #2's pace validates a candidate N and never feeds it)
@@ -259,7 +259,7 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
                 # D-n1 as ruled 2026-09-03: the FASTER arm sizes N (a wall-time floor needs
                 # the arm the soak may actually run at), the slower one still sizes the
                 # timeout. `l6_soak_plan` is the one place that computes it.
-                n_override = pm["n"]
+                n_override, n_sizing_arm = pm["n"], pm["sizing_arm"]
                 inputs["n_rule_trace"] = {"unrounded": pm["unrounded"], "audit_fraction": pm["audit_fraction"],
                                           "fixed_point_rounds": pm["fixed_point_rounds"],
                                           "sizing_arm": pm["sizing_arm"], "sizing_rate": pm["sizing_rate"]}
@@ -276,11 +276,18 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
             inputs["calibrations_imported"] = {k: dict(l6m["calibration"][k]["imported"])
                                                for k, v in imports.items() if v}
         inputs.update({"rate_C1_per_h": rates["C1"], "rate_C2_per_h": rates["C2"], "duration_s": duration_s,
-                       "rate_source": (f"{n_rule} (v0.7 candidate, host/l6_soak_plan.py)" if n_rule != "planning"
+                       # the evidence must say which rule ran and which arm sized N: the
+                       # formula string used to be hard-coded to min(rate) while D-n1's
+                       # policy-matched rules size from max (owner's review 2026-09-03)
+                       "rate_source": (f"{n_rule} (D-n1, ruled 2026-09-03; host/l6_soak_plan.py)" if n_rule != "planning"
                                        else "planning (D-t1)" if str(l6m["prereg"].get("version")) in V05_RULE_VERSIONS
                                        else "evals_per_hour (v0.4)"),
-                       "soak_fraction": ls.SOAK_FRACTION, "n_formula": "floor(0.9 × min(rate) × T)",
-                       "timeout_formula": "1.25 × (N+2) × 3600/min(rate) + 600",
+                       "soak_fraction": ls.SOAK_FRACTION,
+                       "n_formula": (f"floor(0.9 × max(rate) × T)  [{n_rule}, D-n1: the faster arm sizes N]"
+                                     if n_sizing_arm == "max" else
+                                     "floor(0.9 × min(rate) × T)  [planning, D-s3/D-t1: v0.6's rule]"),
+                       "n_sizing_arm": n_sizing_arm,
+                       "timeout_formula": "1.25 × (N+2) × 3600/min(rate) + 600  [always the slower arm]",
                        "settle_polls_median_calibration": settle_med})
     else:
         n = int(spec["n"])

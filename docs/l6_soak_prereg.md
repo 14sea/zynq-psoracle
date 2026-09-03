@@ -1,35 +1,48 @@
-# L6 — calibration and soak of the P3 loop (preregistration v0.6, FROZEN 2026-09-03; D-s1..D-s4 ruled 2026-09-01; D-r1..D-r5, D-t1..D-t3, D-p1 ruled 2026-09-02; transport-recovery + rel-v4 reliability revision)
+# L6 — calibration and soak of the P3 loop (preregistration v0.7, FROZEN 2026-09-03; D-s1..D-s4 ruled 2026-09-01; D-r1..D-r5, D-t1..D-t3, D-p1 2026-09-02; D-b1, D-h1, D-n1, D-i1 2026-09-03; the soak-survivability revision after S #2)
 
-> **Standing: v0.6, FROZEN 2026-09-03 (host-only, the owner's promotion/freeze batch) — its
-> sha256 is pinned in `manifests/l6_manifest.json` `prereg.sha256` and `host/l6_runner.py`
-> refuses any text that does not hash to it. This text stands on its own and does not refer
-> the reader to v0.4 or to the v0.5 draft for any rule.** v0.6 supersedes the frozen v0.4
-> (`12799ef9…`, rec-v3, frozen 2026-09-02, in git history; it ran C1 #5 — HOLD, permanent),
-> which superseded v0.3 (`8daa81f2…`, pull-v2) and v0.2 (`90f5fa69…`, push-v1). **v0.5 was
-> never frozen** (owner 2026-09-02: not worth a frozen intermediate under a transport known
-> not to survive a long soak); its three rates, planning, recovery attribution and input
-> binding are carried here verbatim, and `docs/l6_soak_prereg_v0.5_draft.md` is superseded
-> by this text. v0.6 additionally preregisters the **rel-v4 wire protocol**
-> (`docs/l6_frame_reliability_design.md` revision 4, reviewed; host side and twins in
-> `host/l6_rel.py`, reviewed PASS over three corrections and pushed `a8c950d`; the firmware
-> batch delivered 2026-09-03 — `docs/l6_rel_firmware_package.md`: full P3 compatibility
-> review HOLD on the first candidate `734d6c04…`, withdrawn DEFECTIVE; the corrected image
-> `5deee74c…` re-reviewed PASS (§7) and its evidence closure PASS (§8) — and `5deee74c…` is
-> the manifest's sole `pinned_at_build`, protocol rel-v4, `board_ready: true`, promoted at
-> this freeze; `403f4ab5…` (rec-v3) is superseded, NOT defective), so that C1 → C2 → S run
-> ONCE under the complete protocol. Freezing authorises nothing by itself: C1, C2 and S each
-> still need their own ruling pair, a power cycle and a fresh boundary record; the pinned
-> image has not run on hardware; the §7 stop-loss the owner declared TRIGGERED on
-> 2026-09-02 (S #1 + C1 #5) stands through this freeze until the owner lifts it (§7's
-> freeze-time record: a conditional lifting is considered only after the frozen-artifact
-> short review and opens at most ONE rel-v4 C1).
+> **Standing: v0.7, FROZEN 2026-09-03 (host-only, the owner's freeze batch after the
+> host batch's review PASS) — its sha256 is pinned in `manifests/l6_manifest.json`
+> `prereg.sha256` and `host/l6_runner.py` refuses any text that does not hash to it.
+> This text stands on its own and does not refer the reader to v0.6 for any rule.**
+> v0.7 supersedes the frozen v0.6 (`bfd69d10…`, rel-v4, frozen 2026-09-03, in git
+> history), which superseded v0.4 (`12799ef9…`), v0.3 (`8daa81f2…`) and v0.2
+> (`90f5fa69…`). Under v0.6 the rel-v4 image
+> `5deee74c…` ran **C1 #6 (PASS, adjudicated, `calibration.C1` = `08222f85…`)**, **C2 #2
+> (PASS, adjudicated, `calibration.C2` = `959790d0…`)** and **S #2 (HOLD)**.
+>
+> **What S #2 showed, and what v0.7 changes.** 79.6 s into the soak the console lost ≈ 850
+> contiguous bytes across `HB 145 #12`'s tail, heartbeats #13–#15 whole, and the head plus
+> ≈ 590 body characters of `REC 145`. What reached the host was ONE malformed line, HB-shaped
+> — not REC-shaped, so the REC transaction's re-request did not apply — and the collector's
+> rule for a malformed frame, which the reliability design had deliberately left unchanged,
+> ended the epoch `CRASHED: unparseable frame`. The port closed 0.2 s later, so the board's
+> own rel-v4 resend of `REC 145` (≤ 8 s bound, ≤ 3 transmissions) was never observed.
+> rel-v4 made every frame re-requestable BY TYPE; a loss that destroys a frame's type
+> escapes that and lands on a rule that ends the session. v0.7 closes exactly that gap and
+> nothing else (§2.6q, §3 D-b1), together with the three items the owner named with it:
+> the heartbeat rule ruled explicitly rather than left to slip (D-h1), the soak's N matched
+> to its own audit policy so that a "2 h soak" is 2 h of wall time (D-n1), and the
+> crash-path baseline artefact (§6.1). **No firmware change: the image stays `5deee74c…`.**
+>
+> **The §7 stop-loss ruling of 2026-09-03 stands** (§7): S #1 and S #2 failed the same way
+> twice — contiguous byte deletion on the same console path running into a REC frame — so
+> there is no third soak under v0.6; the targeted host fix, its host-only proof, an
+> independent review and this re-freeze come first. Freezing authorises nothing by itself:
+> every session still needs its own ruling pair, a power cycle and a fresh boundary record.
+>
+> **History.** v0.2 (`90f5fa69…`, push-v1) ran C1 #1–#3; v0.3 (`8daa81f2…`, pull-v2) ran
+> C1 #4 and C2 #1 (PASS, historical) and S #1 (HOLD: `REC 465` lost ~536 bytes); v0.4
+> (`12799ef9…`, rec-v3) ran C1 #5 (HOLD, permanent, not re-judged); v0.5 was never frozen;
+> v0.6 (`bfd69d10…`, rel-v4) ran C1 #6, C2 #2 and S #2.
 >
 > **C1 #5 (ruling `2026-09-02-01`) is and stays HOLD under v0.4.** Nothing here re-judges
-> it; `calibration.C1` stays null. The owner ruled that a revision which merely excluded
+> it, and nothing measured under v0.4 is a calibration: the pinned `calibration.C1` is C1 #6's
+> record, measured under v0.6. The owner ruled that a revision which merely excluded
 > the retried period to turn C1 #5 into a PASS is not acceptable: the rule below bounds
 > a nominal spread only together with a preregistered minimum clean sample and
 > independent recovery bounds, and sizes S from a rate that includes every recovery.
-> Under v0.6, C1 and C2 are run again — once, under the rel-v4 image; no calibration
+> Under v0.6, C1 and C2 were run again — once each, under the rel-v4 image (C1 #6, C2 #2,
+> both PASS and pinned); no calibration
 > pinned under v0.4 or earlier is reused.
 >
 > **History.** v0.2 (sha `90f5fa69…`, push-v1) ran C1 #1–#3; v0.3 (sha `8daa81f2…`,
@@ -56,11 +69,11 @@
 
 Frozen when: committed with its content sha256 recorded in `manifests/l6_manifest.json`
 (`prereg.sha256`) and every later artifact pinning that hash; `host/l6_runner.py` refuses
-any text that does not hash to the pin. **That is now the case for v0.6** (2026-09-03, the
-owner's promotion/freeze batch after the rel-v4 firmware batch's re-review PASS and
-evidence-closure PASS); v0.4, v0.3 and v0.2 are superseded, not erased — their hashes and
-texts live in git history and in the session evidence that ran under them. Any edit from
-here is a new version with a new hash and a new freeze.
+any text that does not hash to the pin. **That is now the case for v0.7** (2026-09-03,
+after the owner's review of the host batch after S #2 and the acceptance of D-b1, D-h1,
+D-n1 and D-i1). v0.6, v0.4, v0.3 and v0.2 are superseded, not erased — their hashes and texts live in git history and in
+the session evidence that ran under them. Any edit from here is a new version with a new
+hash and a new freeze.
 
 ## 0. The two questions, and what they are not
 
@@ -74,8 +87,9 @@ here is a new version with a new hash and a new freeze.
   of candidates without a transport recovery — the instrument's own spread, bounded only
   together with a minimum clean sample and the recovery bounds), and the **planning** rate
   (every candidate over the whole bracketed span — brackets, transitions and every
-  recovery wherever it fell), which is what S's N is derived from. **No PASS calibration
-  exists to pin under v0.6: `calibration.C1`/`C2` are null.** What exists is historical:
+  recovery wherever it fell), which is what S's N is derived from. **Both v0.6 calibrations are pinned and ACTIVE: `calibration.C1` = C1 #6
+  (`08222f85…`), `calibration.C2` = C2 #2 (`959790d0…`); under v0.7 they are reusable only by
+  the explicit import of D-i1.** Older records are historical:
   C1 #4 (`786dc3ec…`, 3909.9 evaluations/hour, CoV 0.016) and C2 #1 (`a13e301f…`, 3633.0
   evaluations/hour, CoV 0.015), both PASS on 17A6 under v0.3 and the pull-v2 image
   `e19e1b12…`, recorded in the manifest as `calibration.historical_pull_v2`; C1 #5 under
@@ -84,9 +98,13 @@ here is a new version with a new hash and a new freeze.
   the period (v0.4), v0.6 changes what a calibration report is (D-t1, D-t2) and the wire protocol (rel-v4); the
   runner refuses a report whose `binding` is not the current pins (D-r5) or that carries
   no `planning` rate and no `inputs` (D-t2). C1 and C2 under this v0.6 — under the rel-v4
-  image — are what produce the pinnable records. No rec-v3 calibration was ever pinned
-  (C1 #5 = HOLD; its rates are informational only): nothing measured under v0.4 or earlier
-  feeds a v0.6 S.
+  image — are what produced the pinnable records, and under v0.6 they did: **C1 #6
+  (`08222f85…`, 3495.7 evaluations/hour inclusive, nominal CoV 0.0151 over 63/63 clean
+  periods, planning 3381.4) and C2 #2 (`959790d0…`, 3479.6 inclusive, nominal CoV 0.0175
+  over 61/63 clean, planning 3367.8) are pinned and ACTIVE**. Nothing measured under v0.4
+  or earlier feeds a v0.7 S. The two v0.6 records may be reused here only by the EXPLICIT
+  IMPORT of §3 D-i1 — they are bound to v0.6's hash and D-r5 refuses them otherwise; if
+  the owner does not accept that import, v0.7 re-calibrates before its soak.
 - **Q2 (soak).** Does the P3 loop hold every invariant L5 established — heartbeat cadence,
   nonce chain, host-recomputed audits, baseline equality, fail-closed ends — **for hours,
   unattended, under the sampled audit policy and with the watchdog decided**? L5's PASS
@@ -106,10 +124,11 @@ measures nothing about CH340/usbipd.
 |---|---|
 | instrument repositories | `zynq-psmap` `191ab05`; `zynq-psoracle` at the commit that freezes this document; `zynq-fabricmap` artifacts at `71666b02` (link 1, `local_map.json`, certificates), re-verified by hash at session start (fabricmap's falsifier 3) |
 | carrier | `builds/p3/p3.bit` `956379fa…` (unchanged since L1) |
-| application image | **the rel-v4 two-operator image `5deee74c…`** (§2, items 1–6f as `403f4ab5…` plus 6i–6p) — `manifests/l6_manifest.json` `pinned_at_build`, protocol rel-v4, **`board_ready: true`, promoted 2026-09-03** (the owner's promotion/freeze batch after the short re-review of `docs/l6_rel_firmware_package.md` §7 PASS and the evidence-closure review of §8 PASS); twice from scratch, byte-identical (ELF `ebe97ce6…`, 98 324 B); **it has not run on hardware**. It is the firmware batch's corrected candidate (2026-09-03; the first, `734d6c04…`, withdrawn DEFECTIVE after the full P3 compatibility review: early `AUDITDONE` accepted, whole-line bound 32 s, `AUDITWAIT.served` counted transmissions). `403f4ab5…` (rec-v3) ran C1 #5 and is superseded, NOT defective, at this promotion; its C1 #5 evidence stands under v0.4. **L6 does not run on `a7c73d1f…`, `bd1454cd…`, `e19e1b12…` or `403f4ab5…`**: calibrating one image to budget another would repeat the mistake `zynq-autoehw` caught (a "2 h" derived from the wrong path's rate); `cd8360dc…` and `734d6c04…` are withdrawn DEFECTIVE and must not run |
+| application image | **the rel-v4 two-operator image `5deee74c…`** (§2, items 1–6f as `403f4ab5…` plus 6i–6p) — `manifests/l6_manifest.json` `pinned_at_build`, protocol rel-v4, **`board_ready: true`, promoted 2026-09-03** (the owner's promotion/freeze batch after the short re-review of `docs/l6_rel_firmware_package.md` §7 PASS and the evidence-closure review of §8 PASS); twice from scratch, byte-identical (ELF `ebe97ce6…`, 98 324 B); **it RAN under v0.6: C1 #6 (PASS), C2 #2 (PASS) and S #2 (HOLD, transport — §7)**; v0.7 changes nothing in it (§2.6r). It is the firmware batch's corrected candidate (2026-09-03; the first, `734d6c04…`, withdrawn DEFECTIVE after the full P3 compatibility review: early `AUDITDONE` accepted, whole-line bound 32 s, `AUDITWAIT.served` counted transmissions). `403f4ab5…` (rec-v3) ran C1 #5 and is superseded, NOT defective, at this promotion; its C1 #5 evidence stands under v0.4. **L6 does not run on `a7c73d1f…`, `bd1454cd…`, `e19e1b12…` or `403f4ab5…`**: calibrating one image to budget another would repeat the mistake `zynq-autoehw` caught (a "2 h" derived from the wrong path's rate); `cd8360dc…` and `734d6c04…` are withdrawn DEFECTIVE and must not run |
 | board / control plane | EBAZ4203 `17A6`, U-Boot → standalone crossing, D4 principal boundary verified as the runner < 6 h before every session |
 | genome universe | 292 bits over the twelve target FARs, addresses sha256 `895baf85…` (`manifests/l5_manifest.json` `genome`) |
-| host transport | `host/l6_reader.py` (resync + quarantine), `host/l6_audit_pull.py` (`CHUNK_TIMEOUT_S = 2.0`, D-t3; `on_wait`), `host/l6_rel.py` (rel-v4 hosts + twins), `host/l6_console.py` (`protocol="rel-v4"`), `host/l6_timing.py` at the freezing commit |
+| host transport | `host/l6_reader.py` (resync + quarantine), `host/l6_audit_pull.py` (`CHUNK_TIMEOUT_S = 2.0`, D-t3; `on_wait`), `host/l6_rel.py` (rel-v4 hosts + twins), `host/l6_console.py` (`protocol="rel-v4"`, `bad_frame_policy="ledger"` — §2.6q), `host/l6_timing.py`, `host/l6_soak_plan.py` (D-n1) at the freezing commit |
+| calibrations | C1 #6 `08222f85…` and C2 #2 `959790d0…` — the v0.6 records, reusable only by the explicit import of D-i1 (report bytes + binding + the three input files, and the import names v0.6's hash); otherwise re-calibrated under v0.7 |
 
 ## 2. The two-operator image — requirements for its P3 compatibility review
 
@@ -300,6 +319,27 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
    The host's `TERM_LINGER_S` = (MAX_ATTEMPTS − 1) × 10 s + 2 s = 22 s is derived from
    the 10 s contract and from nothing else. The timer is started once at `go`
    (`XTime_SetTime(0)`, a private SCU peripheral, not the SLCR) and read-only afterwards.
+6q. **A malformed `P3L5` line that belongs to no open transaction is ledgered, bounded,
+   and does not end the epoch (host-only; the S #2 gap).** rel-v4 makes every frame
+   re-requestable, reconstructible or budgeted BY TYPE: a broken line whose head still
+   reads `REC`/`IDENT`/`SIGNREQ`/`TERM`, or that arrives inside an open pull, is that
+   transaction's and is asked for again. A contiguous loss that destroys the head — S #2's
+   merged `HB`+`REC` line — matches none of them. Under v0.6 such a line reached the
+   collector, whose rule is `CRASHED`. Under v0.7 it is recorded EXACTLY ONCE as a
+   `BAD_FRAME` in the one inbound ledger (`host/l6_timing.Timeline`, as today), is **not
+   acknowledged, not signed, advances no seq and does not refresh the collector's liveness
+   clock**, and is not handed to the collector; the board's own bounded resend is what
+   recovers the frame (≤ 8 s, ≤ 3 transmissions), and if nothing comes the collector's
+   silence rule ends the epoch as it always did. **It is bounded, never tolerated without
+   limit**: `bad_frame_budget` = D-s4's closed formula applied to the ledger's count, and
+   the first bad frame past it ends the epoch `PROTOCOL_BAD_FRAME_BUDGET`, exactly as the
+   CRC budget does (`host/l6_console.py` `bad_frame_policy`, `bad_frame_budget`). The
+   collector's other ends are untouched: a foreign token, a record seq gap, a U-Boot
+   banner and silence > 3 heartbeat intervals all still end the epoch.
+6r. **Nothing in the image changes.** v0.7 is host-side adjudication only: the pinned
+   application image is `5deee74c…`, the wire protocol is rel-v4 unchanged, and the board's
+   own bounds, controls and transactions are exactly those §2.6a–6p pin. No rebuild, no new
+   P3 compatibility review.
 7. Review by the owner against this list, item by item, before any L6 ruling; the image
    hash is then pinned in `manifests/l6_manifest.json` and this document is frozen.
    *(Items 1–6f: reviewed and pinned 2026-09-02 for v0.4. Items 6g–6h: the transport
@@ -309,25 +349,32 @@ requires the **arm to be chosen per candidate**, so the replacement must be, in 
    (`docs/l6_rel_firmware_package.md`): full P3 compatibility review HOLD on `734d6c04…`
    (withdrawn DEFECTIVE), the corrected `5deee74c…` re-reviewed PASS (§7) and its evidence
    closure PASS (§8); `5deee74c…` is pinned in `manifests/l6_manifest.json`
-   `pinned_at_build` and this document is frozen, 2026-09-03.)*
+   `pinned_at_build`. Items 6q–6r: the host batch after S #2
+   (`docs/l6_s2_host_batch_package.md`), host-only, no image change — reviewed over three
+   rounds (two HOLDs, both corrected) and PASSED 2026-09-03, with D-b1, D-h1, D-n1 and
+   D-i1 accepted; this document is frozen on that review, 2026-09-03.)*
 
-## 3. Decisions — RULED by the owner (D-s1..D-s4 2026-09-01; D-r1..D-r5, D-t1, D-t2, D-t3 and D-p1 — the rel-v4 protocol — 2026-09-02)
+## 3. Decisions — RULED by the owner (D-s1..D-s4 2026-09-01; D-r1..D-r5, D-t1..D-t3, D-p1 2026-09-02; D-b1, D-h1, D-n1, D-i1 2026-09-03, at this freeze)
 
 | id | ruling |
 |---|---|
 | **D-s1** watchdog | **ON.** Prescaler 7, 30 s (`load 1 250 000 035` at PERIPHCLK 333.33 MHz, board-confirmed 2026-09-01-05). Arm and kick are gated by the identity page's `flags.bit1`; the **bit1 = 0 path keeps L5's behaviour exactly**. The build and its tests must pin the **actual** load value written, not the derivation. |
 | **D-s2** audit policy for the soak | **Sampled, accepted in principle, with the timing requirement of §3a as a condition.** (v0.2 history: the v0.1 wording "every non-`SCORED` self-reporting record audited" could not be honoured under the push-era wire protocol; §3a fixed the rule, and the pull transport (§2.6a) is its implementation — the words persist on the board until pulled or the record is emitted.) |
-| **D-s3** soak duration | **2 h, accepted.** N = ⌊0.9 × min(rate_A, rate_B) × T⌋, with rate_A and rate_B imported **only** from the two calibration records (C1, C2) by their hashes **and their bindings (D-r5) and their input files (D-t2)**; **under v0.6 the rate is each record's `planning` rate (D-t1).** |
+| **D-s3** soak duration | **2 h, accepted** — T = 7200 s, and the wall-time floor of §6.4 stays 0.9 T. rate_A and rate_B are imported **only** from the two calibration records (C1, C2) by their hashes **and their bindings (D-r5) and their input files (D-t2)**, under v0.7 through the explicit import of D-i1. *The sizing formula of this row — ⌊0.9 × **min**(rate_A, rate_B) × T⌋ over each record's `planning` rate — is **v0.6's, and is HISTORY: D-n1 supersedes it** (`policy_matched_wall`, the faster arm). It is stated here only because the sessions it sized are on record.* |
 | **D-s4** CRC budget | **Frame-count scaling, with a closed formula:** `budget = ceil(4 × expected_protocol_frames / 1000)`, where `expected_protocol_frames` is derived **before the session starts** from N, the audit schedule and the fixed brackets (`IDENT`×1, `SIGNREQ`×(N+2), `HB`×16 per candidate, `AUDIT_READY`×1 + `AUDIT`×8 per audited candidate — protocol `rec-v3` keeps pull-v2's inbound brackets, `host/l6_schedule.expected_frames`; retransmitted chunks and records arrive on top and are what the budget is FOR; the host's `AUDITGET`/`AUDITDONE`/`AUDITABORT`/`RECACK`/`RECGET` are outbound and not budgeted; the control's deliberately corrupted first `REC` of seq 1 is a CRC drop, not a frame — `REC`×(N+2), `CLOSE`×1, `TERM`×1) — **never from the count actually received**. Independently of the CRC total, **any missing `AUDIT`, `REC` or `TERM`** is the corresponding structural defect and is a HOLD even when the CRC drops are within budget; under rec-v3 a missing `REC` can only mean the transaction was exhausted or the board advanced without acknowledgement, both of which are ends in their own right. A `FRAGMENT` (§2.6g) is neither a frame nor a drop: it is a recovery indicator (§6.3b). |
 | **D-r1** one ledger | Every inbound line that fails CRC or is malformed, of any type, is counted once in the session's inbound ledger (`timeline.json`) and, when it is a REC attempt, also in the per-seq REC ledger (`audits.json` `recs[]`, raw lines verbatim). Retries never remove the original broken line from either. Fragments are in the same inbound ledger (`fragments[]`, `FRAGMENT` events). |
 | **D-r2** content is the validator's | A CRC-valid record is accepted once and judged by `validate_standalone_run_log`; a retry never replaces an accepted record; a same-seq record with other content is a PROTOCOL end; a falsifier cannot be washed out by retransmission. |
 | **D-r3** current-candidate authority | The host acknowledges only the record of the candidate whose sign exchange the relay answered and whose record is outstanding; a `REC` for another seq, and a `SIGNREQ` while a record is outstanding, end the epoch PROTOCOL ("the board advanced without an acknowledgement"). **A byte-identical duplicate of the accepted record is the only thing re-acknowledged**: a broken resend of an accepted record draws a `RECGET`, and the next CRC-valid resend earns the `RECACK` only if it equals the accepted payload — otherwise PROTOCOL. |
 | **D-r4** the crash-path summary | A collector-written (`CRASHED`) `session_summary` carries `audit.audited` = the number of records whose served words the **host audit gate** verified (`validators.audit.verify`), never a pull count and never the firmware's mark; if the gate refuses the chunks the count is 0 with the refusal named. |
-| **D-r5** calibration binding | Every rate report carries `binding` = {image_sha256, prereg_sha256, protocol, session, schedule_mode, master_seed} written by the runner from the pins it verified; the S runner imports rate_A/rate_B only from reports whose bytes hash to the pins **and** whose binding equals the current pins; a report without a binding is refused. A new image, preregistration or protocol therefore needs new C1/C2. |
-| **D-t1** the three rates (RULED 2026-09-02: accepted) | The calibration report carries `inclusive` (every steady-state period, recoveries included), `nominal` (the steady-state periods of candidates **without** a transport recovery; every excluded seq named) and `planning` = candidates × 3600 / (`t_rec`(last record) − `t_signreq`(first record)): every candidate the session scored over **everything** the session took — both brackets, both transitions and every recovery wherever it fell. A steady-state period is interior→interior only, so a recovery on the **last** candidate lands in the last→closing transition and moves neither the inclusive nor the nominal rate; it does move the planning rate (review 2026-09-02; `tests/test_l6_rate_v05.py` is the counterexample). **S's N = ⌊0.9 × min(planning_A, planning_B) × T⌋**, never from the inclusive or the nominal rate. |
+| **D-r5** calibration binding | Every rate report carries `binding` = {image_sha256, prereg_sha256, protocol, session, schedule_mode, master_seed} written by the runner from the pins it verified; the S runner imports rate_A/rate_B only from reports whose bytes hash to the pins **and** whose binding equals the current pins; a report without a binding is refused. A new image or protocol therefore needs new C1/C2. **The ONE exception, and the only one, is D-i1**: a report measured under an EARLIER frozen preregistration may be reused when the manifest declares the import explicitly (`calibration.<k>.imported`, naming that preregistration's version and hash as a pair found in `prereg.supersedes`, the report's own sha256, its three input hashes and why the change cannot move the measured period). The import relaxes the preregistration hash and NOTHING else — image, protocol, session, mode, seed, operator contract and the three input files are still compared to the current pins — and it is honoured only under v0.7 (`host/l6_runner.plan_session`). |
+| **D-t1** the three rates (RULED 2026-09-02: accepted) | The calibration report carries `inclusive` (every steady-state period, recoveries included), `nominal` (the steady-state periods of candidates **without** a transport recovery; every excluded seq named) and `planning` = candidates × 3600 / (`t_rec`(last record) − `t_signreq`(first record)): every candidate the session scored over **everything** the session took — both brackets, both transitions and every recovery wherever it fell. A steady-state period is interior→interior only, so a recovery on the **last** candidate lands in the last→closing transition and moves neither the inclusive nor the nominal rate; it does move the planning rate (review 2026-09-02; `tests/test_l6_rate_v05.py` is the counterexample). *Under v0.6, S's N was ⌊0.9 × min(planning_A, planning_B) × T⌋ — **history: D-n1 supersedes it for v0.7**, which sizes N from the policy-matched wall rate of the FASTER arm. What survives unchanged is that N never comes from the inclusive or the nominal rate.* |
 | **D-t2** recovery attribution and the ledgers (RULED 2026-09-02: accepted, with two fail-closed corrections — exactly one REC ledger per seq and at most one pull ledger per seq, extra seqs refused; the report derived from the three files as read back from disk, `host/l6_rate.rate_report_from_evidence_dir`, the only entry point) | A candidate is *recovered* iff its pull ledger has a non-ok attempt or a timeout, or its REC ledger a retry (`RECGET`), or a `CRC_DROP` / `BAD_FRAME` / `FRAGMENT` event falls inside its window [`t_signreq(seq)`, `t_signreq(seq+1)`). The forced REC-retry control of seq 1 (§2.6c) is attributed as *control*, not as a recovery. Stale duplicates are reported, never a recovery on their own. Attribution is `host/l6_rate.recovery_by_seq`, from the ledgers the runner writes (`audits.json` `pulls[]`/`recs[]`, `timeline.json` frames), never from a received frame count. **Both ledgers must be present and valid or the report carries no nominal/recovery figures** (one without the other is refused). **The report names the sha256 of the three files it was derived from (`inputs`)**; a calibration pin is verified against the report's bytes (D-r5) AND against those three files beside it; under v0.6 a report without `inputs` or without `planning` is refused. |
 | **D-t3** the chunk timeout (RULED 2026-09-02) | **`CHUNK_TIMEOUT_S = 2.0` s, pinned.** ≈0.5 s is NOT adopted: the host soak shows the mechanism works at 0.5 s over a modelled channel, but nothing shows the real CH340/usbipd path is safe at 0.5 s under a host scheduling stall. (C1 #5's 528 clean chunk round trips: median 42.9 ms, p99 83.1 ms, max 83.6 ms — recorded, not acted on.) |
-| **D-p1** the rel-v4 bounds (RULED 2026-09-02: accepted with the exact semantics) | Board transmissions: 3 in all = the first + 2 resends (IDENT, SIGNREQ, AUDIT_READY, TERM); host re-requests (SIGNGET/TERMGET/RECGET): at most 2 per seq; AUDITWAIT: at most 3; host replays / re-acknowledgements: at most 3 per seq. **Seeing the third AUDITWAIT is not a final failure**: the third replay may still reach the board; the verdict is the board's closure evidence (its record's `verified`), never the wait count. The STOP_SIGN evidence contract and rule (vii-b) (`validators/records.py`); the heartbeat budget ⌊R/1000⌋ over R = SCORED records, never two missing in one record. The protocol itself (§2.6i–6p) is the design the owner reviewed (revision 4); the firmware batch was delivered and reviewed 2026-09-03 (`docs/l6_rel_firmware_package.md` §7–§8). |
+| **D-b1** the malformed-line policy (RULED 2026-09-03: accepted) | §2.6q: a malformed `P3L5` line belonging to no open transaction is ledgered once as a `BAD_FRAME`, not acknowledged, not signed, advancing no seq, not refreshing liveness, and is NOT handed to the collector; the board's bounded resend recovers the frame and the collector's silence rule still ends an epoch that goes quiet. **Bounded**: `bad_frame_budget` = D-s4's formula (`ceil(4 × expected_protocol_frames / 1000)`, the same number as the CRC budget) over the ledger's `bad_frames`; the first past it ends the epoch `PROTOCOL_BAD_FRAME_BUDGET`, and §6.14 names the total in the adjudication even when it did not. The bound is GLOBAL and immediate: it covers EVERY malformed shape — REC-, IDENT-, SIGNREQ-, TERM-shaped and the ones that arrive inside an open pull, not only the ones no transaction claims — and past it no transaction advances, no re-request is sent and the epoch's reason is the global one (the pull is failed with that reason and told to abort, exactly once). Proven host-only on S #2's recorded bytes (the host survives the line) plus a modelled byte-identical `REC 145` resend (accepted once, `RECACK`, normal progress) with the negatives — no resend, wrong resend, conflicting resend, the malformed line repeated, budget exhaustion, and the bound tested on each of the six shapes — and a 12-seed session soak (`docs/l6_s2_host_batch_package.md`). |
+| **D-h1** the heartbeat rule (RULED 2026-09-03: the record budget accepted — the owner's item was that v0.7 must rule this explicitly, never let it slip) | v0.6 required *at most one heartbeat missing per SCORED record* with the session total ≤ ⌊R/1000⌋. A contiguous console loss takes SEVERAL heartbeats of ONE record (S #2: #12–#15; the modelled soak: 8–14), so under v0.6 a single such event HOLDs a whole 2 h soak **even when the REC transaction recovered the record** — the recovery is then worth nothing. v0.7 replaces the per-record cap with a budget on RECORDS: **at most ⌊R/1000⌋ SCORED records may miss any heartbeat at all** (R = SCORED records: 0 for a 64-candidate calibration, 12 for the soak of §5), every index still in 0..15, an unindexed HB still a protocol finding, duplicates still harmless, and the total missing still reported. The 20 s liveness gap of §6.4 is untouched, as is the requirement that a record's heartbeats identify it. Demonstrated both ways in the soak-sized runs: the v0.7 rule is clean and the v0.6 rule HOLDs, on sessions where every record was accepted. |
+| **D-n1** the soak's N against T (RULED 2026-09-03: `policy_matched_wall`, the faster arm sizing N and the slower one the timeout) | D-s3 sizes N from calibrations measured under the ALL-SELF-REPORTING policy (every record audited, ≈ 0.48 s of a ≈ 1.03 s period), while the soak runs the SAMPLED policy (382 of 6061 records audited): S #1 and S #2 both ran at ≈ 0.55 s per record, so an N sized that way finishes a "2 h" soak in ≈ 56 min and fails §6.4's wall time ≥ 0.9 T **by construction**. **The wall-time floor stays 0.9 T** — a 2 h soak is not to become 56 min by lowering the fraction. Instead N is derived from a **policy-matched planning rate**: the manifest NAMES the rule (`sessions.S.n_rule`) and `host/l6_soak_plan.py` computes it from the two pinned calibrations' immutable timing inputs (the report bytes and the run logs their `inputs` hash), subtracting the audit stage from the records the sampled policy will not audit, with the audit fraction and N solved together and every intermediate published UNROUNDED before the single final floor. **The FASTER arm sizes N** (owner's ruling 2026-09-03): `min()` is right for a timeout — the slow arm must fit — but wrong for a wall-time floor, because a soak that runs near the faster arm finishes a min-sized N too early and fails §6.4 by construction. So N = ⌊0.9 × max(rate_A, rate_B) × T⌋ while the timeout stays ⌈1.25 × (N+2) × 3600/min(rate) + 600⌉. **The rule ruled for v0.7 is `policy_matched_wall`** (the candidate's own SIGNREQ→REC wall time, adjusted): rates 6982.314889 / 6950.492576 evaluations/hour, unrounded product 12568.166801, **N 12568**, 789 sampled audits, 233 364 expected inbound frames, CRC and bad-frame budget 934, runner timeout 8739 s. The post-hoc gate at S #2's recorded pace — seq 1 EXCLUDED (its two forced controls are not the loop's pace) and the pace normalised by the audited share OF THE INTERVALS that make up its mean (9 of 142; the last record's audit follows the last interval), giving 0.5401501666 s raw → 0.5398581010 s normalised — predicts **6784.94 s** of wall time against the 6480 s floor, a margin of **304.94 s**, inside the 8739 s timeout. The alternatives are computed and published beside it and all fail that gate: `planning` (v0.6, min arm) N 6061 → 3273 s; `policy_matched_period` 11201 → 6047 s; `policy_matched_span` 10567 → 5705 s. **A recorded soak's pace is a post-hoc VALIDATION gate only and never an input to N**; a pace recorded under another wire protocol (S #1, pull-v2) is informational. The rule is `policy_matched_wall`, ruled here; the three alternatives stay published beside it so the choice is auditable. |
+| **D-i1** reusing the v0.6 calibrations (RULED 2026-09-03: the import accepted; no re-calibration) | D-r5 binds a calibration to the image, preregistration and protocol it ran under, so freezing v0.7 would refuse C1 #6 and C2 #2 — both bound to v0.6 `bfd69d10…`. They may be reused only by an **explicit import**: `manifests/l6_manifest.json` `calibration.<k>.imported` names the prereg hash and version the report IS bound to, the report's own sha256, its three input hashes, and **why** the change cannot move the measured period. The import relaxes the preregistration hash and NOTHING else — image, protocol, session, mode, seed, operator contract and the three input files are still compared to the current pins, and a mismatch is refused. It is a **v0.7 device only**: a later preregistration must rule the reuse in its own text, and the runner refuses an import declared under any other version. The version and the hash are verified as a PAIR against this document's own supersedes chain, so naming v0.6 without v0.6's hash — or a hash the chain does not carry under that version — is refused. The plan's evidence records the declaration verbatim, the three input hashes included. The justification offered: v0.7 changes only host-side adjudication (§2.6q, D-h1, D-n1, §6.1) and no firmware, wire protocol, operator, seed or audit policy of C1/C2, so no change of v0.7 is inside the measured period. **Accepted by the owner 2026-09-03: C1 #6 and C2 #2 are imported, and v0.7 does not re-calibrate.** |
+| **D-p1** the rel-v4 bounds (RULED 2026-09-02: accepted with the exact semantics) | Board transmissions: 3 in all = the first + 2 resends (IDENT, SIGNREQ, AUDIT_READY, TERM); host re-requests (SIGNGET/TERMGET/RECGET): at most 2 per seq; AUDITWAIT: at most 3; host replays / re-acknowledgements: at most 3 per seq. **Seeing the third AUDITWAIT is not a final failure**: the third replay may still reach the board; the verdict is the board's closure evidence (its record's `verified`), never the wait count. The STOP_SIGN evidence contract and rule (vii-b) (`validators/records.py`); the heartbeat budget ⌊R/1000⌋ over R = SCORED records — under v0.6 with at most one missing per record, a per-record cap **D-h1 replaces with a budget on RECORDS for v0.7** (§6.11: this row's wording is v0.6's and is history). The protocol itself (§2.6i–6p) is the design the owner reviewed (revision 4); the firmware batch was delivered and reviewed 2026-09-03 (`docs/l6_rel_firmware_package.md` §7–§8). |
 
 ### 3a. The audit timing requirement (D-s2's blocker, and its resolution)
 
@@ -443,12 +490,13 @@ type) and `STOP_AUDIT` are §2.6a's.
     writing the files, so the bytes hashed are the bytes computed on).
 17. **The three-rate PASS rule as code** (`host/l6_checks.calibration_findings_v05`, named
     for the draft that introduced it), selected by the runner **only when the manifest's
-    `prereg.version` is v0.5 or v0.6** (`host/l6_runner.V05_RULE_VERSIONS`); under v0.4
+    `prereg.version` is v0.5, v0.6 or v0.7** (`host/l6_runner.V05_RULE_VERSIONS`); under v0.4
     the runner computes v0.4's rule unchanged (C1 #5 = HOLD is reproduced by test).
 18. **Input verification at the S import** (`host/l6_checks.calibration_inputs_findings`,
     called by the runner's preflight): the three files beside a pinned calibration must
     hash to the report's `inputs`; under v0.5 a report without `inputs` or `planning` is
-    refused; the S plan records `rate_source: planning`.
+    refused; the S plan records its `rate_source` — under v0.7 the named rule of D-n1
+    (`policy_matched_wall`), under v0.6 and v0.5 `planning`.
 19. **The frame reliability design** (`docs/l6_frame_reliability_design.md` revision 4): every
     frame classified, the STOP_SIGN contract, the IDENT handshake before the first
     SIGNREQ, the AUDITDONE handshake, the heartbeat budget with its rounding and
@@ -491,8 +539,9 @@ type) and `STOP_AUDIT` are §2.6a's.
     `AUDITWAIT.served` counted transmissions); the corrected image `5deee74c…` (twice
     byte-identical) passed the short re-review of package §7 and the evidence-closure
     review of §8 (owner 2026-09-03; `6c72db9`, `b3806ad`, `57cc22b` pushed) and is
-    promoted to `pinned_at_build` (protocol rel-v4, `board_ready: true`) at this freeze.
-    It has not run on hardware.
+    promoted to `pinned_at_build` (protocol rel-v4, `board_ready: true`) 2026-09-03, and
+    it then ran C1 #6 (PASS), C2 #2 (PASS) and S #2 (HOLD) under v0.6. v0.7 rebuilds
+    nothing and changes nothing in it (§2.6r).
 
 ## 5. Sessions — fixed in advance
 
@@ -500,10 +549,12 @@ type) and `STOP_AUDIT` are §2.6a's.
 |---|---|---|---|---|---|---|---|
 | **C1** calibration, random-safe schedule forced | rel-v4 two-operator | 64 | all-self-reporting | D-s1 | armed | the three rates + breakdown + failure rate + recovery indicators, arm A | `P3-L6` + `P3-K` |
 | **C2** calibration, map-guided schedule forced | rel-v4 two-operator | 64 | all-self-reporting | D-s1 | armed | same, arm B (operator compute time may differ) | `P3-L6` + `P3-K` |
-| **S** soak, A,B,B,A schedule | rel-v4 two-operator | ⌊0.9 × min(planning_A, planning_B) × T⌋, rates by the **v0.6** C1/C2 record hashes, bindings and input files | sampled per §3a | D-s1 | armed | Q2 | `P3-L6` + `P3-K` |
+| **S** soak, A,B,B,A schedule | rel-v4 two-operator | **⌊0.9 × max(rate_A, rate_B) × T⌋** under `policy_matched_wall`, the rule the manifest NAMES (`sessions.S.n_rule`, D-n1) — the FASTER arm sizes N, the slower one the timeout; rates from the C1/C2 record hashes, bindings and input files (imported per D-i1) | sampled per §3a | D-s1 | armed | Q2 | `P3-L6` + `P3-K` |
 
-**C1 and C2 are run once under v0.6 and the rel-v4 image**; no earlier calibration is
-reused (D-r5 refuses their binding; D-t2 refuses their missing `planning`/`inputs`). Seeds: C1 = C2 =
+**C1 and C2 ran once under v0.6 and the rel-v4 image** (C1 #6, C2 #2, both PASS and
+pinned); under v0.7 they are reused only by the explicit import of D-i1, and re-run under
+v0.7 if the owner does not accept it. No calibration older than v0.6 is reused (D-r5
+refuses their binding; D-t2 refuses their missing `planning`/`inputs`). Seeds: C1 = C2 =
 1278624577 (0x4c364341), S = 1278628687 (0x4c36534f), pinned in the manifest; every L6
 (master_seed, index) tuple is EXCLUDED from any future Claim B schedule. Each session:
 power cycle → boundary verifier as the runner → identity → carrier load (sha-gated) →
@@ -519,7 +570,10 @@ are excluded from Claim B's schedule (recorded in the Claim B preregistration at
 **PASS (L6)** requires, for C1, C2 and S each:
 
 1. every L5 §5 condition — `COMPLETED` with the three closing steps, both baselines exactly
-   `[18, 22, 20, 20, 20, 18]`, (ii)/(iii) for every `SCORED`, the nonce chain over every
+   `[18, 22, 20, 20, 20, 18]` (the OPENING baseline is checked in every epoch; the last
+   SCORED record is the closing baseline **only when the epoch COMPLETED** — on a
+   `CRASHED`/`PROTOCOL`/`STOPPED` end it is whatever candidate ran last, and reporting its
+   scores as a failed closing baseline was a crash-path artefact, S #2), (ii)/(iii) for every `SCORED`, the nonce chain over every
    attempt, the closing unsigned ARM refused `F_ARM_AUTH`, every audited candidate
    recomputing on the host, `validate_standalone_run_log` accepting, zero disruptions;
 2. the sampled policy of §3a (S) or all-self-reporting (C1/C2) satisfied by host-derived marks — every non-`SCORED` self-report auto-audited, every scheduled `SCORED` audited;
@@ -537,14 +591,19 @@ are excluded from Claim B's schedule (recorded in the Claim B preregistration at
    by the bound, so a nominal CoV never hides an unstable link
    (`host/l6_checks.calibration_findings_v05`; the bounds pinned in the manifest's
    `pass_conditions` at this freeze);
-3c. the **inclusive** and **planning** rates are reported and bounded by nothing; the
-   planning rate is the calibration value S's N is derived from (a slower, recovering
-   link — wherever the recovery fell, the last candidate included — gives a smaller N,
-   the conservative direction);
+3c. the **inclusive** and **planning** rates are reported and bounded by nothing. *Under
+   v0.6 the planning rate was the value S's N was derived from; **under v0.7 D-n1 supersedes
+   that**: N comes from the policy-matched wall rate of the FASTER arm
+   (`sessions.S.n_rule = policy_matched_wall`), because a planning rate measured under the
+   all-self-reporting policy sizes a sampled-policy soak too small to meet §6.4's wall-time
+   floor. The planning rate is still computed, published and part of the record;* every
+   recovery is inside all three rates wherever it fell;
 3d. the report was derived with **both ledgers** and names its three **input files**
    (D-t2); a report without them is not a calibration record;
-4. for S: no heartbeat gap > 20 s (L2's guard), CRC drops within D-s4's closed-formula budget (and no missing `AUDIT`/`REC`/`TERM` regardless of it), wall time
-   ≥ 0.9 T, and every `settle.polls` within [1, 10 × the C1/C2 median] — a slower gate is a
+4. for S: no heartbeat gap > 20 s (L2's guard), CRC drops within D-s4's closed-formula budget
+   **and bad frames within the same budget (§6.14)** (and no missing `AUDIT`/`REC`/`TERM`
+   regardless of either), wall time ≥ 0.9 T — with N derived per D-n1, so the floor is a
+   condition the session can meet rather than one its own N contradicts —, and every `settle.polls` within [1, 10 × the C1/C2 median] — a slower gate is a
    finding, not a failure, but it stops the session as `STOP_SETTLE` would if it exceeds the
    bound;
 5. the record's arm equals the schedule's for every index;
@@ -569,10 +628,13 @@ are excluded from Claim B's schedule (recorded in the Claim B preregistration at
    board's record** (`verified: audited` — a waited pull whose record says replayed-only
    is named with its counts); the TERM transaction accepted and acknowledged; CLOSE and
    TERM's `closing_control` in agreement;
-11. **heartbeats**: for every SCORED record the indices 0..15 seen, at most one missing per
-   record, and the session total of missing heartbeats ≤ ⌊R/1000⌋ with R = the number of
-   SCORED records (`host/l6_rel.hb_missing_budget`: 0 for C1/C2, 6 for a 2 h soak);
-   heartbeat losses are a recovery indicator alongside 3b's;
+11. **heartbeats (D-h1)**: for every SCORED record the indices seen are within 0..15 and an
+   `HB` without an index is a protocol finding (the image is not rel-v4); **at most
+   ⌊R/1000⌋ SCORED records may miss any heartbeat at all** (R = SCORED records:
+   0 for a 64-candidate calibration, 12 for the soak of §5 —
+   `host/l6_rel.heartbeat_findings_v07`, `hb_missing_budget`); duplicates are reported and
+   never a finding; the total missing is reported. Heartbeat losses remain a recovery
+   indicator alongside 3b's;
 12. the forced SIGNREQ-retry control exercised on seq 1 exactly as §2.6k states
    (`host/l6_checks.rel_control_findings`), alongside the REC control of item 6;
 13. the recovery indicators of 3b extended with `sign_retries`, `ready_resends`,
@@ -580,7 +642,13 @@ are excluded from Claim B's schedule (recorded in the Claim B preregistration at
    (`host/l6_checks.rel_recovery_findings`; `hb_missing` by item 11) — computed by
    `l6_rate.recovery_by_seq` / `rel_session_totals`, one per non-ok attempt, both
    controls attributed as controls, pinned in the manifest's `pass_conditions` at this
-   freeze.
+   freeze;
+14. **bad frames bounded (D-b1)**: the ledger's `bad_frames` ≤ `bad_frame_budget` (D-s4's
+   formula, the same number as the CRC budget). The console ends the epoch
+   `PROTOCOL_BAD_FRAME_BUDGET` at the first one past it — for EVERY malformed shape, the
+   transaction-shaped and the in-pull ones included — and this condition names the total in
+   the adjudication either way (`host/l6_checks.soak_findings`), so a malformed line is
+   never tolerated without limit.
 
 Read against C1 #5's evidence, items 3a/3b would have raised no finding (nominal CoV 0.056
 over 62 clean periods, 1 recovered candidate, 1 timeout, 1 bad frame, 0 fragments) —
@@ -593,8 +661,8 @@ duplicate, a REC for another seq, a SIGNREQ over an outstanding record —, a lo
 a console fault, a validator rejection that is not a §3 falsifier), the control not
 exercised, a nominal CoV above 0.10, fewer clean periods than 3a's minimum, a recovery
 bound of 3b or 13 crossed, a report without both ledgers or its inputs (3d), a
-`STOP_SIGN`/`STOP_IDENT`, an unconfirmed pull, a heartbeat budget crossed (11), a
-`STOPPED` end at link 2/3 with the refusal correctly recorded. Re-run after the cause is fixed and named.
+`STOP_SIGN`/`STOP_IDENT`, an unconfirmed pull, a heartbeat budget crossed (11), a bad-frame
+budget crossed (14), a `STOPPED` end at link 2/3 with the refusal correctly recorded. Re-run after the cause is fixed and named.
 A `CRASHED` soak after ≥ 1 h is a HOLD whose evidence is kept whole; it may be repeated
 **once** without a change only if the cause is named as transport (dmesg/usbip record),
 otherwise the fix comes first.
@@ -624,6 +692,16 @@ host soak proves the model and the mechanism, not the physical path, and that `S
 2 h soak through the same byte-loss family — hence §4.19. This is a classification, not
 a claim that the two events share a proven physical root cause.
 
+**At the S #2 ruling (owner 2026-09-03), recorded:** S #1 (2026-09-01-11, pull-v2) and
+S #2 (2026-09-03-03, rel-v4) are **the same way twice** — the shared observable failure
+class is contiguous byte deletion on the same console path running into a `REC` frame,
+losing the REC within minutes of the soak. This is a classification, not a claim of a
+proven common physical root cause; and the PASSes of C1 #6 and C2 #2 in between do not
+reset the soak-specific rule of this section. Therefore: **no third soak under v0.6**; the
+next step is the targeted host fix (§2.6q, D-b1, D-h1, D-n1, §6.1), its host-only proof,
+an independent review, and this re-freeze. Only then may an S ruling pair be issued, and
+S #2's own HOLD stands, archived and not re-run.
+
 **At the v0.6 freeze (owner 2026-09-03), recorded:** the stop-loss stays TRIGGERED through
 the promotion/freeze batch — the batch is host-only and is not a board authorisation. A
 conditional lifting may be considered only after the frozen-artifact short review (this
@@ -639,7 +717,11 @@ predicts a longer one (the Claim B budget must sit inside what was soaked, or th
 extended by its own ruling); anything about the physical console path (the host soak and
 the rel-v4 simulations are models of a channel, not measurements of CH340/usbipd); that
 rel-v4 on the board behaves as its twins do until a board session says so (the firmware
-batch's C twins exercise the logic with an injected clock, not the target).
+batch's C twins exercise the logic with an injected clock, not the target); and — added
+for v0.7 — that the console will not lose bytes again. The host batch's replay and its
+modelled channel prove what the HOST does with such a loss and what the board's twins do
+in reply; they measure nothing about CH340/usbipd, and the v0.7 rules are about surviving
+the fault class, never about removing it.
 
 ## 9. Order of work, and the hand-back
 
@@ -652,13 +734,20 @@ batch's C twins exercise the logic with an injected clock, not the target).
    review; the hash promoted to `pinned_at_build` at the freeze. *(Done 2026-09-03:
    `734d6c04…` withdrawn DEFECTIVE at the full review; `5deee74c…` re-reviewed PASS,
    evidence closure PASS, promoted at this freeze.)*
-3. The owner's rulings: D-p1 *(ruled 2026-09-02)*; the freeze of this text as v0.6 *(done
-   2026-09-03: sha into the manifest, v0.4 `12799ef9…` superseded in history, the v0.5
-   draft recorded as never frozen)*; the §7 stop-loss ruling *(open: TRIGGERED stands —
-   §7's freeze-time record)*.
-4. Only then: rulings C1, C2, S issued one session at a time, each with a power cycle —
-   ONE C1 → C2 → S under v0.6; the owner pins the bound C1/C2 records (report bytes,
-   binding and input files) before S.
+3. The owner's rulings: D-p1 *(ruled 2026-09-02)*; the freeze of v0.6 *(done 2026-09-03)*;
+   the §7 stop-loss ruling on S #2 *(ruled 2026-09-03: the same way twice — no third soak
+   under v0.6; the host fix, its proof, a review and this re-freeze first)*.
+3a. **The host batch after S #2** (`docs/l6_s2_host_batch_package.md`, host-only, no image
+   change): §2.6q and the v0.7 rules as code behind the prereg version, the replay of
+   S #2's recorded bytes, the modelled resend and its negatives, the session soak, the N/T
+   comparison. *(Done 2026-09-03: reviewed over three rounds — two HOLDs, one on three
+   fail-closed gaps and one on three interface gaps, both corrected — then PASS, with
+   D-b1, D-h1, D-n1 and D-i1 accepted and this text frozen as v0.7, v0.6 superseded in
+   history.)*
+4. Only then: the S ruling pair, bound to the v0.7 manifest hash, with a power cycle and
+   a fresh boundary record — ONE soak under v0.7, sized by D-n1 from the imported C1 #6 /
+   C2 #2 records (D-i1). C1 and C2 are re-run only if the owner refuses that import, in
+   which case they come first, one session at a time, and are pinned before the soak.
 5. `docs/l6_findings.md`: the measured rates, the soak record, PASS/HOLD/KILL per §6.
 6. The whole L6 package goes to `zynq-fabricmap`'s owner for the separate decision on
    whether Claim B leaves PAUSED (`claimb_resumption_memo.md` §0); Claim B's own

@@ -213,7 +213,7 @@ class SoakSizedByThePlanningRate(unittest.TestCase):
         # manifest pins the rel-v4 image and v0.6 since 2026-09-03, so the fixture manifests
         # are built on the reports' own binding — m4 with the v0.4 rule, m5 with the v0.5 one
         b = cls.r1["binding"]
-        cls.m4 = copy.deepcopy(tr.L6M)
+        cls.m4 = tr.without_v07(copy.deepcopy(tr.L6M))
         cls.m4["pinned_at_build"]["app_image_sha256"] = b["image_sha256"]; cls.m4["pinned_at_build"]["protocol"] = b["protocol"]
         cls.m4["prereg"]["sha256"] = b["prereg_sha256"]; cls.m4["prereg"]["protocol"] = b["protocol"]; cls.m4["prereg"]["version"] = "v0.4"
         r2 = copy.deepcopy(cls.r1); r2["session"] = "C2"; r2["schedule_mode"] = "map_guided_forced"

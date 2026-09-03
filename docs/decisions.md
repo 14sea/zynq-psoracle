@@ -2117,3 +2117,87 @@ findings and the v0.7 draft, and checks the commit chain numbers agree. 1097 tes
 authorised without a further technical review; the v0.7 freeze batch may then be prepared,
 stopping for an overall check before any ruling or board contact. Claim B stays closed
 until v0.7 is frozen, an S completes successfully and that is independently adjudicated.
+
+## 2026-09-03 — the v0.7 freeze (host-only, local): the reviewed text becomes the frozen preregistration, the four decisions are RULED, and the manifest pins it
+
+Owner (2026-09-03), after passing the host batch that followed S #2 and accepting **D-b1**,
+**D-h1**, **D-n1** and **D-i1**: the amended correction commit was pushed (`origin/main` =
+`6f5b5459`) and the v0.7 freeze batch authorised, to be prepared and then checked as a whole
+before any ruling or board contact. Delivered here, host-only:
+
+- `docs/l6_soak_prereg.md` is now **v0.7, FROZEN 2026-09-03** — the reviewed self-contained
+  draft promoted verbatim except for the freeze itself: the standing block turned FROZEN,
+  the "frozen when" paragraph says it is now the case, §2.7 and §9.3a record the review
+  (two HOLDs, both corrected, then PASS), and D-b1 / D-h1 / D-n1 / D-i1 moved from PROPOSED
+  to RULED. `docs/l6_soak_prereg_v0.7_draft.md` is marked MERGED / HISTORICAL with its
+  pre-freeze hash `7958554c…` recorded; its body is untouched.
+- `manifests/l6_manifest.json`: `prereg` = v0.7, rel-v4, the frozen text's sha256; v0.6
+  (`bfd69d10…`) prepended to `supersedes` with its own note and its v0.6 draft history kept
+  inside that entry; `draft_history` now the v0.7 draft with its review chain in the past
+  tense; `sessions.S.n_rule = policy_matched_wall` with the D-n1 derivation and its numbers
+  recorded; `calibration.C1/C2.imported` declared per D-i1 (source version and hash, the
+  report's own sha256, its three input hashes, and why the change cannot move the measured
+  period), with both standings marked IMPORTED; `pass_conditions` gains `hb_rule: v07` and
+  the two rule notes; `status` rewritten.
+- Guards updated for the new frozen state rather than relaxed: the frozen-text present-tense
+  guard now requires v0.7's own statements and refuses v0.6's ("No PASS calibration", "the
+  image has not run on hardware", "calibration.C1/C2 are null"), while allowing §7's dated
+  v0.6 freeze record; the supersedes chain is checked as v0.6 → v0.4 → v0.3 → v0.2 with
+  v0.4's C1 #5 note intact; each calibration pin must carry its import declaration and its
+  binding is compared against the IMPORTED preregistration hash; the S plan derived from the
+  committed manifest must give 12568 / 789 / 233 364 / 934 / 8739 s with the ledger policy,
+  the CRC-sized bad-frame budget and the v07 heartbeat rule. The fixtures that model earlier
+  preregistrations build them explicitly (`without_v07`, `manifest_v06`) instead of
+  inheriting the committed one.
+
+The application image is unchanged and was not rebuilt (`5deee74c…`); no session evidence,
+ruling or boundary record was touched. 1099 tests / 1 skip / rc 0. Not pushed: the owner
+checks the freeze as a whole first. No board contact, no ruling; C1 #5 and S #2 stay HOLD;
+Claim B stays closed until v0.7's soak completes and is independently adjudicated.
+
+## 2026-09-03 — the owner's check of the v0.7 freeze: HOLD on a v0.6 planning-rule residue family; corrected in the amended freeze commit
+
+Owner (2026-09-03), checking the freeze batch: the rule implementations, the import gate,
+the S numbers and the artifact boundary all PASS — the frozen text differs from the reviewed
+draft only by the expected FROZEN / RULED / review-record changes; prereg, manifest and image
+hashes agree; the supersedes chain, both explicit imports and their input hashes are right;
+the plan really derives N 12568, 789 audits, 233 364 frames, budget 934, timeout 8739 s with
+the ledger policy and the v07 heartbeat rule; firmware, rulings, boundary and the C1/C2/S
+evidence are untouched; 193 targeted and 1099 discovered tests green. **HOLD** on one family:
+the v0.6 planning rule survived in strings that would have made a future S's own evidence
+self-contradictory. Corrected here:
+
+- **The plan's evidence.** `n_formula` was hard-coded to `floor(0.9 × min(rate) × T)` while
+  the run actually took `max` (N 12568). It is now derived from the rule: the policy-matched
+  rules print `floor(0.9 × max(rate) × T)  [<rule>, D-n1: the faster arm sizes N]` and
+  `planning` prints the `min` form marked as v0.6's; the plan also records `n_sizing_arm`,
+  and `timeout_formula` says the slower arm. `rate_source` no longer calls the rule a "v0.7
+  candidate" — it names it as ruled 2026-09-03.
+- **The frozen text.** §4.18 said the S plan records `rate_source: planning` unconditionally;
+  §6.3c still said the planning rate is the value N is derived from; D-r5 stated its binding
+  rule with no mention of its one exception. All three corrected: §4.18 names the rule per
+  version, §6.3c marks the planning sizing as v0.6's and points at D-n1, and D-r5 now names
+  **D-i1 as the ONE exception**, relaxing the preregistration hash and nothing else and
+  honoured only under v0.7.
+- **The manifest.** Both calibration standings said "reusable for a v0.6 S only" while also
+  saying IMPORTED; both notes and the calibration note said S takes the PLANNING rate and
+  that the binding must equal the current preregistration. Rewritten: each pin is ACTIVE,
+  measured under v0.6, imported into the frozen v0.7 by D-i1, feeding the v0.7 S; the rate
+  taken is the policy-matched wall rate of `sessions.S.n_rule`; the preregistration hash is
+  the one thing the import may relax.
+- **`host/l6_soak_plan.py`** no longer describes itself as a v0.7 candidate and its header
+  states the `max` formula and why `planning` keeps `min`.
+
+Guards added for the whole family: the plan's `n_formula`/`n_sizing_arm`/`rate_source` under
+v0.7 must be the max form naming D-n1 and under v0.6 the min form naming planning, and the
+arm printed must be the arm that produced N for every rule; the frozen text must carry the
+corrected sentences, D-r5's exception and the two decision rows' history markings, and must
+hash to the manifest's pin; an ACTIVE imported calibration may not say "reusable for a v0.6
+S only" or "taking the PLANNING rate"; the module docstring may not say candidate.
+
+The correction changes the frozen bytes, so the pin moved: `docs/l6_soak_prereg.md`
+`a6276b55…` → `95d177a148e901b0f1ef10716d3468574b01b6864159128dda09bf57713781eb`, and the
+manifest with it. `prereg.frozen` and `prereg.draft_history` record that the freeze carries
+this correction family, so the frozen text's difference from the reviewed draft is stated
+rather than silent. 1106 tests / 1 skip / rc 0. Still not pushed, no board, no S ruling;
+Claim B closed.
