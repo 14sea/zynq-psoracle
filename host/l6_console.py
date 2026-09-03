@@ -370,19 +370,21 @@ class ConsoleSession:
             if pulling:
                 # the failing line is an ATTEMPT of the pull first — recorded and kept
                 # verbatim in the pull's own ledger — before any budget consequence. Past
-                # the bound the pull may still LEDGER it but must not ask again: the epoch
-                # is over, and a retry after it would be exactly the misleading recovery
-                # the owner refused, so the puller's sender is silenced for this line.
+                # the bound the pull LEDGERS it and stops: no retry (the epoch is over, and
+                # a retry after it would be exactly the misleading recovery the owner
+                # refused), and exactly one AUDITABORT carrying the GLOBAL reason.
+                #
+                # The terminal attempt is recorded here and the pull then failed through its
+                # normal sender. Silencing the sender around `on_line` instead was wrong
+                # (owner's review 2026-09-03): when the same line was also the pull's third
+                # failure the pull failed itself inside the silence, so its ABORT never went
+                # out and overwriting `fail_reason` afterwards sent nothing.
                 if over:
-                    outbound, self.puller.send = self.puller.send, lambda *_a, **_k: None
-                    try:
-                        self.puller.on_line(line)
-                    finally:
-                        self.puller.send = outbound
-                    if self.puller.failed:
-                        self.puller.fail_reason = reason
-                    else:
-                        self.puller._fail(reason)
+                    pl = self.puller
+                    pl.ledger.bytes_rx += pl.wire_len(line)
+                    if pl.state == "WAIT_CHUNK":     # in WAIT_READY a malformed line is not an attempt
+                        pl.ledger.note(pl.seq, pl.chunk, pl.attempt, "malformed", line)
+                    pl._fail(reason)                 # one failure, one ABORT, the global reason
                     self._pull_settle()
                     self._protocol_end(reason)
                     return

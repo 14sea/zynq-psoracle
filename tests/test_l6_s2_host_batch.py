@@ -366,3 +366,86 @@ class BadFrameBudgetIsGlobal(unittest.TestCase):
         self.assertIsNone(collector.epoch_end, "v0.6: a REC-shaped malformed line is the transaction's, unbounded")
         feed(MERGED.rstrip("\n"))
         self.assertEqual(collector.epoch_end["kind"], "CRASHED")
+
+
+class BadFrameBoundAndPullExhaustionCollide(unittest.TestCase):
+    """The line that is BOTH the pull's last allowed attempt and the one past the global
+    bad-frame bound (owner's review 2026-09-03): the terminal reason must be the global one,
+    all three attempts stay in the ledger, no fourth AUDITGET goes out, and exactly one
+    AUDITABORT does — carrying that global reason. The first attempt at this silenced the
+    puller's sender, so when the pull failed itself inside the silence its ABORT never went
+    out at all (`AUDITABORT: 0`)."""
+
+    def setUp(self):
+        import l6_audit_pull as ap
+        import l6_rel as rel
+        import l6_timing as lt2
+        self.ap = ap
+        self.now = {"t": 700.0}
+        clock = lambda: self.now["t"]  # noqa: E731
+        self.collector = n.Collector(TOKEN, heartbeat_s=10, clock=clock)
+        relay = n.NotaryRelay(TOKEN, lambda req: dict(SIGN_ANSWER), drop_budget=99, clock=clock)
+        self.tl = lt2.Timeline(); self.sent: list[str] = []
+        self.cs = lcs.ConsoleSession(TOKEN, self.collector, relay, self.tl, {1}, 99,
+                                     send=lambda line, mtype, seq: self.sent.append(line), clock=clock,
+                                     protocol="rel-v4", identity_check=lambda ident: [],
+                                     bad_frame_policy=lcs.BAD_FRAME_LEDGER, bad_frame_budget=2)
+        self.feed(n.build_line(n.T_IDENT, 0, TOKEN, n.encode_payload(
+            {"schema": "app_identity", "schema_version": "1.3.0", "control_plane": "standalone", "token": TOKEN,
+             "protocol": "rel-v4", "master_seed": 7, "schedule_mode": "abba", "operator_data_sha256": "0" * 64,
+             "rec_retry_control": True, "sign_retry_control": True, "pss_idcode": "0x13722093", "uboot_epoch": 0,
+             "carrier_sha256": "1" * 64, "nonce_at_start": "2" * 16, "findings": [], "app_epoch": 0,
+             "status_at_start": "0x0"})))
+        self.feed(n.build_line(n.T_SIGNREQ, 1, TOKEN, n.encode_payload(
+            {"seq": 1, "token": TOKEN, "genome": "0" * 80, "nonce": "0" * 16, "app_epoch": 0,
+             "schema": "sign_request", "schema_version": "1.0.0"})))
+        board = rel.ReadyBoard(TOKEN, 1, "streams+readback", [0] * 2814, requested=True)
+        self.feed(board.start()[0])                       # the pull is open, chunk 0 requested
+
+    def feed(self, line: str) -> None:
+        self.now["t"] += 0.01
+        self.cs.on_line(line.rstrip("\n"), self.now["t"], self.now["t"])
+
+    def types(self) -> list[str]:
+        return [n.parse_line(l)["type"] for l in self.sent]
+
+    def test_the_global_reason_wins_and_exactly_one_abort_goes_out(self):
+        bad = f"{n.MAGIC} {n.T_AUDIT} 1 {TOKEN} eyJjaHVuayI6MH0="        # AUDIT-shaped, 5 fields: malformed
+        gets_at_start = self.types().count(self.ap.T_GET)
+        self.feed(bad)                                    # attempt 0 fails, the pull asks again
+        self.assertIsNone(self.collector.epoch_end); self.assertEqual(self.tl.bad_frames, 1)
+        self.feed(bad)                                    # attempt 1 fails, the pull asks again
+        self.assertIsNone(self.collector.epoch_end); self.assertEqual(self.tl.bad_frames, 2)
+        gets_before_last = self.types().count(self.ap.T_GET)
+        self.assertEqual(gets_before_last, gets_at_start + 2, "two retries so far")
+
+        self.feed(bad)                                    # 3 > 2 AND the pull's third failure
+        self.assertEqual(self.tl.bad_frames, 3)
+        self.assertEqual(self.collector.epoch_end,
+                         {"kind": "PROTOCOL", "last_seq": 0, "reason": "PROTOCOL_BAD_FRAME_BUDGET: 3 > 2"},
+                         "the GLOBAL reason wins over the pull's own retry exhaustion")
+        self.assertEqual(self.types().count(self.ap.T_GET), gets_before_last, "no fourth AUDITGET")
+        aborts = [l for l in self.sent if n.parse_line(l)["type"] == self.ap.T_ABORT]
+        self.assertEqual(len(aborts), 1, "exactly one AUDITABORT — not zero, not two")
+        self.assertEqual(n.decode_payload(n.parse_line(aborts[0])["payload"]),
+                         {"seq": 1, "why": "PROTOCOL_BAD_FRAME_BUDGET: 3 > 2"},
+                         "and it carries the global reason, not the pull's retry exhaustion")
+
+        led = self.cs.pull_ledgers[-1]
+        self.assertEqual([(a["chunk"], a["attempt"], a["outcome"]) for a in led["attempts"]],
+                         [(0, 0, "malformed"), (0, 1, "malformed"), (0, 2, "malformed")],
+                         "all three attempts stay in the ledger, numbered")
+        self.assertEqual(len(led["lines_kept"]), 3, "each failing line kept verbatim")
+        self.assertTrue(led["failed"]); self.assertEqual(led["why"], "PROTOCOL_BAD_FRAME_BUDGET: 3 > 2")
+        self.assertEqual(sum(1 for f in self.tl.frames if f["type"] == "BAD_FRAME"), 3)
+
+    def test_a_pull_that_is_only_over_the_bound_still_aborts_once(self):
+        """The non-collision case: the bound is crossed on the pull's FIRST failure."""
+        self.cs.bad_frame_budget = 0
+        bad = f"{n.MAGIC} {n.T_AUDIT} 1 {TOKEN} eyJjaHVuayI6MH0="
+        self.feed(bad)
+        self.assertEqual(self.collector.epoch_end["reason"], "PROTOCOL_BAD_FRAME_BUDGET: 1 > 0")
+        aborts = [l for l in self.sent if n.parse_line(l)["type"] == self.ap.T_ABORT]
+        self.assertEqual(len(aborts), 1)
+        led = self.cs.pull_ledgers[-1]
+        self.assertEqual([(a["attempt"], a["outcome"]) for a in led["attempts"]], [(0, "malformed")])

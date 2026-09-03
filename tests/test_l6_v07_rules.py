@@ -278,16 +278,29 @@ class SoakPlanLocked(unittest.TestCase):
         obs = lsp.observed_interval_s(S2_LOG)
         self.assertEqual(obs["excluded_seqs"], [1]); self.assertEqual(obs["records_used"], 143)
         self.assertEqual(obs["planned_n"], 6061)
+        # the fraction that normalises this mean is the audited share OF ITS OWN INTERVALS:
+        # 142 intervals (seq 2→3 … 143→144), 9 of them audited (2, 16, 32, …, 128) — seq 1 is
+        # excluded with its controls and seq 144's audit follows the last interval
+        self.assertEqual((obs["intervals"], obs["audited_intervals"]), (142, 9))
+        self.assertAlmostEqual(obs["interval_audit_fraction"], 9 / 142, places=12)
+        self.assertAlmostEqual(obs["mean_audit_s"], 0.4773988638, places=9)
         self.assertAlmostEqual(obs["planned_audit_fraction"], 382 / 6063, places=12)
+        self.assertNotAlmostEqual(obs["interval_audit_fraction"], obs["planned_audit_fraction"], places=4,
+                                  msg="a prefix is not the whole session: the two fractions differ")
         raw_all = lsp.observed_interval_s(S2_LOG, exclude_seqs=())["interval_s"]
         self.assertNotAlmostEqual(obs["interval_s"], raw_all, places=6, msg="seq 1 really did cost time")
         g = TABLE["rules"]["policy_matched_wall"]["gates"]["l6_17A6_2026-09-03-03-S"]
         self.assertAlmostEqual(g["observed_interval_s"], obs["interval_s"], places=12)
+        self.assertEqual((g["soak_intervals"], g["soak_audited_intervals"]), (142, 9))
         self.assertAlmostEqual(g["normalised_interval_s"],
-                               obs["interval_s"] - (obs["planned_audit_fraction"] - g["target_audit_fraction"]) * obs["mean_audit_s"],
+                               obs["interval_s"] - (obs["interval_audit_fraction"] - g["target_audit_fraction"]) * obs["mean_audit_s"],
                                places=12)
         self.assertAlmostEqual(g["predicted_wall_s"], 12568 * g["normalised_interval_s"], places=9)
-        self.assertGreater(g["margin_over_floor_s"], 250)     # the owner's estimate was ≈ 304 s
+        # the owner's independently computed regression values
+        self.assertAlmostEqual(g["observed_interval_s"], 0.5401501666, places=9)
+        self.assertAlmostEqual(g["normalised_interval_s"], 0.5398581010, places=9)
+        self.assertAlmostEqual(g["predicted_wall_s"], 6784.9366, places=3)
+        self.assertAlmostEqual(g["margin_over_floor_s"], 304.9366, places=3)
 
     def test_the_post_hoc_gate_only_the_wall_rule_passes_at_s2s_pace_and_s1_is_informational(self):
         self.assertEqual(TABLE["protocol"], "rel-v4")
@@ -366,3 +379,51 @@ class V07DraftDrift(unittest.TestCase):
         self.assertIn("policy_matched_wall", self.DRAFT)
         self.assertIn("faster arm", self.DRAFT.replace("FASTER arm", "faster arm"))
         self.assertIn("0.9 T", self.DRAFT)
+
+    def test_the_s_session_row_itself_states_the_ruled_formula(self):
+        """Owner's review 2026-09-03: the §5 row still printed the v0.6 min(rate) formula
+        while D-n1 above it said max — two present-tense rules in one document. The guard
+        reads the row, not merely the document."""
+        row = next(l for l in self.DRAFT.splitlines() if l.startswith("| **S** soak"))
+        self.assertIn("max(rate_A, rate_B)", row); self.assertIn("policy_matched_wall", row)
+        self.assertIn("FASTER arm sizes N", row); self.assertNotIn("min(rate_A, rate_B)", row)
+
+    def test_the_two_v06_sizing_rules_are_scoped_as_history(self):
+        """D-s3 and D-t1 keep their v0.6 formulas — they sized the sessions on record — but
+        must say that D-n1 supersedes them, so no two present-tense rules coexist."""
+        for anchor in ("| **D-s3** soak duration", "| **D-t1** the three rates"):
+            row = next(l for l in self.DRAFT.splitlines() if l.startswith(anchor))
+            self.assertIn("min", row, f"{anchor}: the historical formula is still quoted")
+            self.assertIn("D-n1 supersedes it", row, f"{anchor}: …and marked as superseded")
+        self.assertNotIn("**S's N = ⌊0.9 × min(planning_A, planning_B) × T⌋**", self.DRAFT)
+
+
+class PackageCallsTheTwinWhatItIs(unittest.TestCase):
+    """Owner's review 2026-09-03: one paragraph of the delivery package still called
+    `l6_rec.RecBoard` "the firmware's own REC twin / the C twin of firmware/p3_rectx.c",
+    contradicting the rest of the same document. It is a PYTHON twin, cross-verified
+    against the image's C unit by the wire-contract tests — never the firmware, and never
+    a measurement of the board."""
+
+    PACKAGE = (R / "docs/l6_s2_host_batch_package.md").read_text()
+    FINDINGS = (R / "docs/l6_s_session2_findings.md").read_text()
+    DRAFT = (R / "docs/l6_soak_prereg_v0.7_draft.md").read_text()
+
+    FORBIDDEN = ("the firmware's own REC twin", "the firmware's REC twin",
+                 "the C twin of `firmware/p3_rectx.c`", "RecBoard`, the C twin")
+
+    def test_no_document_calls_the_python_twin_the_firmware_or_a_c_twin(self):
+        for name, text in (("package", self.PACKAGE), ("S #2 findings", self.FINDINGS), ("v0.7 draft", self.DRAFT)):
+            for phrase in self.FORBIDDEN:
+                self.assertNotIn(phrase, text, f"{name} still says {phrase!r}")
+
+    def test_the_package_says_what_it_is(self):
+        self.assertIn("PYTHON twin of the REC", self.PACKAGE)
+        self.assertIn("cross-verified against the image's C unit", self.PACKAGE)
+        self.assertIn("`RecBoard` is the Python twin", self.PACKAGE)
+
+    def test_the_commit_chain_is_numbered_consistently(self):
+        rows = [l for l in self.PACKAGE.splitlines() if l.startswith("| `") and "/6)" in l or "/5)" in l]
+        self.assertTrue(rows, "the commit chain table is there")
+        for row in rows:
+            self.assertIn("/6)", row, f"every row counts to the same total: {row[:60]}")

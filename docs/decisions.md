@@ -2061,3 +2061,59 @@ The soak-sized evidence was re-run at the ruled N (12568): COMPLETED 12570/12570
 three seeds, zero unrecovered, the v0.7 heartbeat rule clean and the v0.6 rule HOLDing.
 Still host-only: no board, no ruling, no push, nothing pinned or frozen; the manifest stays
 `54583314…`; C1 #5 and S #2 stay HOLD; Claim B stays closed.
+
+## 2026-09-03 — the owner's second HOLD (three interface gaps) and the correction that closes them; B2 and B5 passed
+
+Owner's review of `e4d6a31`: boundary, hashes and the untouched scope all confirmed; **B2**
+(the import: v0.7-only, the source version/hash pair, the input hashes verbatim) and **B5**
+(the proof narrative: no re-delivered merged line, the Python twin named correctly, the
+model's gate set accurate, the red report explained) **PASS**; the main N formula correct
+(`policy_matched_wall`, the faster arm sizing N and the slower one the timeout) with the
+regression targets 12568 / 789 / 233 364 / 934 / 8739 s all reproducing; 101/101 related
+tests and the full discovery green. **HOLD** on three remaining gaps, each reproduced:
+
+- **B1′ — no `AUDITABORT` when the pull's exhaustion and the global bound collide.** The
+  first fix silenced the puller's sender around `on_line` to suppress a retry; when the same
+  line was also the pull's third failure the pull failed itself inside that silence, so its
+  abort never went out and overwriting `fail_reason` afterwards sent nothing
+  (`bad_frames 3`, `PROTOCOL_BAD_FRAME_BUDGET`, 3 attempts, 3 `AUDITGET`, 0 `AUDITABORT`).
+  Corrected as the owner suggested — record the terminal attempt, then fail through the
+  normal sender: past the bound the attempt is written to the pull's ledger directly (seq,
+  chunk, attempt index, `malformed`, the line kept verbatim) and `_fail(global reason)`
+  sends exactly one abort carrying that reason; no fourth `AUDITGET`.
+  `BadFrameBoundAndPullExhaustionCollide` (2) is the collision test specified, with the
+  non-collision case beside it.
+- **B3′ — the normalisation used the wrong audit fraction.** It corrected a mean built from
+  a 142-interval prefix using the whole session's PLANNED fraction (382/6063). It now uses
+  the audited share of those intervals: an interval is s → s+1, so seq s's audit lies inside
+  it and seq 144's audit lies in none — 142 intervals, 9 audited, mean audit stage
+  0.4773988638 s. Raw 0.5401501666 s → normalised 0.5398581010 s → predicted wall
+  6784.9366 s, margin 304.9366 s: every figure now equals the owner's. `n_vs_t` evidence
+  regenerated; the package's own numbers corrected (they had been mutually inconsistent).
+- **B4′ — the §5 S row still carried v0.6's `min(rate)` formula**, contradicting D-n1 in the
+  same document, and D-s3 / D-t1 stated their `min` formulas as present-tense rules. The S
+  row now states the ruled formula (`max`, `policy_matched_wall`, the faster arm sizing N);
+  D-s3 and D-t1 keep their formulas but are marked as v0.6 history that **D-n1 supersedes**.
+  `V07DraftDrift` now reads the S row and both decision rows rather than searching the file
+  for a phrase. New draft hash
+  `7958554c21166c924c0e775ee26fbdcac0970377361072b2f8eecd67290f94fd`.
+
+N, the audit count, the frame count, the budgets and the timeout are unchanged; no hardware
+was re-run. The manifest stays `54583314…`; v0.6, firmware, rulings and the session evidence
+untouched.
+
+**Owner's third review (2026-09-03): B1′, B3′ and B4′ all PASS**, with the six-commit
+boundary, both hashes and a clean tree confirmed and an independent 1094-test discovery
+green. **The four decisions are ACCEPTED: D-b1** (the malformed-line policy and its global
+bound), **D-h1** (the record-budget heartbeat rule), **D-n1** (`policy_matched_wall`, the
+faster arm sizing N and the slower one the timeout), **D-i1** (the v0.7-only explicit
+calibration import, with no re-calibration required). One documentation residue was left:
+§2 of the package still called `l6_rec.RecBoard` "the firmware's own REC twin / the C twin
+of `firmware/p3_rectx.c`", contradicting §1 and the paragraph below it, and the commit
+table numbered `d905c15` (4/5) instead of (4/6). Both corrected here, with a guard
+(`PackageCallsTheTwinWhatItIs`) that refuses the old phrasings in the package, the S #2
+findings and the v0.7 draft, and checks the commit chain numbers agree. 1097 tests / 1 skip
+/ rc 0 (`evidence/tests/test_report_2026-09-03T190303Z.json`). Push of the amended commit
+authorised without a further technical review; the v0.7 freeze batch may then be prepared,
+stopping for an overall check before any ruling or board contact. Claim B stays closed
+until v0.7 is frozen, an S completes successfully and that is independently adjudicated.

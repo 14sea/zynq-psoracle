@@ -1,4 +1,4 @@
-# The host batch after S #2 — delivery package for the owner's review (host-only, 2026-09-03; revision 2 after the owner's HOLD of the same day)
+# The host batch after S #2 — delivery package for the owner's review (host-only, 2026-09-03; revision 3 after the owner's two HOLDs of the same day)
 
 > **Standing: HOST-ONLY, local commits, NOT pushed. No board contact, no ruling created or
 > consumed, no firmware change (the pinned image stays `5deee74c…`), no evidence of C1 #6 /
@@ -21,8 +21,9 @@ v0.7 re-freeze).
 | `96ffcee` | (1/n) the malformed non-transaction line: ledgered once, bounded, never the collector's `CRASHED`; S #2's recorded bytes replayed both ways; the modelled byte-identical `REC 145` resend and its negatives |
 | `505e178` | (2/n) the v0.7 candidate rules — crash-path baseline gate, the record-budget heartbeat rule, the soak's bad-frame bound, rule selection by prereg version — and the N-versus-T comparison with its post-hoc gate |
 | `52989e1` | (3/n) the modelled-channel SESSION soak: 12 seeds × 300 candidates both policies, and 3 soak-sized sessions; a model defect found and fixed on the way |
-| `d905c15` | (4/5) the explicit calibration import (D-i1), the self-contained v0.7 draft, this package, the suite report |
-| this one | (5/5) the correction batch after the owner's HOLD: the global bad-frame bound (B1), the import's version pairing and verbatim evidence (B2), D-n1 as ruled — the faster arm sizes N (B3), the draft's remaining drift with a draft-specific guard (B4), and the proof narrative tightened (B5) |
+| `d905c15` | (4/6) the explicit calibration import (D-i1), the self-contained v0.7 draft, this package, the suite report |
+| `e4d6a31` | (5/6) the first correction batch: the global bad-frame bound (B1), the import's version pairing and verbatim evidence (B2), D-n1 as ruled — the faster arm sizes N (B3), the draft's drift with a draft-specific guard (B4), and the proof narrative tightened (B5) |
+| this one | (6/6) the second correction batch, closing the three interface gaps the owner then found: the pull-exhaustion collision (B1′), the normalisation's audit fraction (B3′), and the §5 S row with the two superseded sizing rules (B4′) |
 
 ## 1. What each owner requirement became, and the test that holds it
 
@@ -59,8 +60,9 @@ tests do deliver a malformed line again on purpose, and say so: the repeated-lin
 case and the policy unit check.)
 
 **What the recording cannot show**, because it stops 0.2 s later at the port close: whether
-the board really resent. So the modelled continuation, using the firmware's own REC twin
-(`l6_rec.RecBoard`, the C twin of `firmware/p3_rectx.c`): attempt 1 delivered as the
+the board really resent. So the modelled continuation, using the PYTHON twin of the REC
+transaction (`l6_rec.RecBoard`, cross-verified against the image's C unit
+`firmware/p3_rectx.c` by the wire-contract tests): attempt 1 delivered as the
 recorded merged line → the bound elapses → **the same bytes** resent → accepted once, one
 `RECACK 145`, record 145 appended once, ledger `["ok"]`, the twin `acked` after 2 attempts,
 and the next `SIGNREQ 146` proceeds. This is a model of the board, not a measurement of it:
@@ -128,24 +130,25 @@ policy-matched rule sizes N from **max(rate_A, rate_B)** while the timeout keeps
 `min(rate)`; `planning` stays on `min` because it reproduces v0.6 exactly, which is what
 S #2 ran. The gate's input excludes seq 1 (its two forced retry controls are not the loop's
 pace) and is normalised to the candidate's own sampled-audit fraction:
-`interval − (f_planned(S #2) − f_target) × mean_audit_s`, with both fractions the PLANNED
-ones — a prefix of a soak over-samples audits, because seq 1 and seq 2 are both on the
-sampled schedule.
+`interval − (f_intervals(S #2) − f_target) × mean_audit_s`. `f_intervals` is the audited
+share **of the intervals this mean is made of** — an interval is s → s+1, so seq s's audit
+stage lies inside it and the last record's audit lies in no interval: 142 intervals of
+which 9 are audited (seq 2, 16, 32, 48, 64, 80, 96, 112, 128), with `mean_audit_s` taken
+over exactly those nine. Using the whole session's PLANNED fraction here was wrong in the
+other direction (owner's review 2026-09-03): the number being corrected is this prefix's
+mean, so the fraction must be this prefix's.
 
 | rule | arm | rate C1 | rate C2 | unrounded product | **N** | sampled audits | predicted wall at S #2's pace | gate |
 |---|---|---|---|---|---|---|---|---|
-| `planning` (v0.6, what S #2 ran) | min | 3381.372371 | 3367.753097 | 6061.955574 | 6061 | 382 | 3274 s | **FAIL** |
-| `policy_matched_period` | max | 6222.945767 | 6199.917170 | 11201.302380 | 11201 | 704 | 6049 s | FAIL |
-| **`policy_matched_wall`** | max | 6982.314889 | 6950.492576 | 12568.166801 | **12568** | 789 | **6787 s** | **PASS** (floor 6480 s, margin 307 s; timeout 8739 s) |
-| `policy_matched_span` | max | 5871.045460 | 5851.734220 | 10567.881829 | 10567 | 664 | 5707 s | FAIL |
+| `planning` (v0.6, what S #2 ran) | min | 3381.372371 | 3367.753097 | 6061.955574 | 6061 | 382 | 3273 s | **FAIL** |
+| `policy_matched_period` | max | 6222.945767 | 6199.917170 | 11201.302380 | 11201 | 704 | 6047 s | FAIL |
+| **`policy_matched_wall`** | max | 6982.314889 | 6950.492576 | 12568.166801 | **12568** | 789 | **6784.94 s** | **PASS** (floor 6480 s, margin 304.94 s; timeout 8739 s) |
+| `policy_matched_span` | max | 5871.045460 | 5851.734220 | 10567.881829 | 10567 | 664 | 5705 s | FAIL |
 
-Against the owner's own regression targets: N 12568, 789 sampled audits, 233 364 expected
-inbound frames, CRC and bad-frame budget 934 and timeout 8739 s reproduce exactly. The
-normalised interval is 0.536946 s here against the owner's ≈ 0.539812 s, so the predicted
-wall is 6787 s against ≈ 6784 s — a 0.05 % difference in the normalisation's own arithmetic,
-with the verdict and the margin unchanged. The formula used is the one stated above and
-implemented in `validation_gate`; if the owner intends a different normalisation, it is a
-one-line change and the table regenerates.
+Against the owner's own regression targets, every figure now reproduces to the digit:
+N 12568, 789 sampled audits, 233 364 expected inbound frames, CRC and bad-frame budget 934,
+timeout 8739 s; 142 intervals, 9 audited, mean audit stage 0.4773988638 s, raw interval
+0.5401501666 s, normalised 0.5398581010 s, predicted wall 6784.9366 s, margin 304.9366 s.
 
 The owner's two candidate estimators are both here and their difference is identified:
 `policy_matched_period` (≈ the "6197" figure) works from the inter-proposal period, which
@@ -162,7 +165,7 @@ gate: it ran pull-v2, another protocol.
 
 | artefact | sha256 |
 |---|---|
-| `docs/l6_soak_prereg_v0.7_draft.md` (the freeze candidate, 746 lines, self-contained) | `a4ca8e03d30efccc817884402d987d29a71f094616f3361fd807ddf5374960bb` |
+| `docs/l6_soak_prereg_v0.7_draft.md` (the freeze candidate, 746 lines, self-contained) | `7958554c21166c924c0e775ee26fbdcac0970377361072b2f8eecd67290f94fd` |
 | `manifests/l6_manifest.json` (UNCHANGED — still the pushed one) | `54583314c16295c24f083efe402ec0cf98a54da5ca8d30afbfd5851c5eedfc68` |
 | the frozen preregistration in force (`docs/l6_soak_prereg.md`, v0.6) | `bfd69d1037c4d2715759befef766d353b99741c8ff6ef6cb0ca30bbd325a620a` |
 | the pinned image (unchanged, no rebuild) | `5deee74c44785ebe88168ccffaa5f399f26a7c5a567fccb3d430cf4eb14cdc7c` |
@@ -175,8 +178,8 @@ already — `rules_for()` turns nothing on until `prereg.version` says v0.7.
 
 ## 6. Suite
 
-`bash host/run_tests.sh` — 1090 tests, 1 skip, rc 0 (`evidence/tests/test_report_2026-09-03T184325Z.json`). New: `tests/test_l6_s2_host_batch.py`
-(17), `tests/test_l6_v07_rules.py` (29), `tests/test_l6_session_soak.py` (14),
+`bash host/run_tests.sh` — 1097 tests, 1 skip, rc 0 (`evidence/tests/test_report_2026-09-03T190303Z.json`). New: `tests/test_l6_s2_host_batch.py`
+(21), `tests/test_l6_v07_rules.py` (34), `tests/test_l6_session_soak.py` (14),
 `tests/test_l6_v07_import.py` (9). The rule-version guard in `tests/test_l6_transport.py`,
 the withdrawn-hash allowance for the draft and the import manifest are updated; every
 pre-existing test is unchanged and green, which is the point: under v0.6 nothing of this
@@ -204,3 +207,18 @@ and named five blockers. Each is closed here, with the test that would have caug
 | **B3** | N was still `min(rate_C1, rate_C2)`, which cannot guarantee a wall-time floor | `ARM_FOR_RULE`: every policy-matched rule sizes N from the faster arm, `planning` keeps `min` as the v0.6 control, and the timeout always uses the slower arm. The gate now excludes seq 1's forced controls and normalises the pace to the target audit fraction. The regression targets reproduce (N 12568 / 789 / 233 364 / 934 / 8739 s) |
 | **B4** | the draft still said the calibrations were null and the image had not run, D-p1 contradicted D-h1, the three-rate rule omitted v0.7, §9 re-ran C1 → C2 → S under v0.6, and §6 item 14 printed before 13 | the draft is regenerated from the frozen text with each of those corrected, and `V07DraftDrift` (5) refuses the stale phrasings, requires the present ones, and checks the item order |
 | **B5** | the continuation test re-delivered the merged line the replay had already consumed; the package called the Python `RecBoard` a C twin; the session soak claimed gates it did not run; the tracked red report had no explanation | the continuation starts from `RecBoard.start()` and delivers only the resend (the two tests that do repeat a malformed line say why); the package names `RecBoard` as the Python twin cross-verified against the C unit; the soak's gate set is named and asserted; `docs/decisions.md` records what the red report was |
+
+## 9. The owner's second HOLD of 2026-09-03, and the three gaps it closed
+
+The owner passed B2 and B5, and the main N formula (`policy_matched_wall`, the faster arm
+for N and the slower for the timeout, with the regression targets reproducing), and found
+three remaining interface gaps:
+
+| # | the gap, as the owner reproduced it | the correction |
+|---|---|---|
+| **B1′** | when one malformed line was BOTH past the global bound and the pull's third failure, the pull failed itself inside the silenced-sender window, so its `AUDITABORT` never went out: `bad_frames 3`, `PROTOCOL_BAD_FRAME_BUDGET`, 3 attempts, 3 `AUDITGET`, **0 `AUDITABORT`** | the silenced-callback trick is gone. Past the bound the terminal attempt is written to the pull's ledger directly (same seq, chunk, attempt index and `malformed` outcome, the line kept verbatim) and the pull is then failed through its NORMAL sender: no fourth `AUDITGET`, exactly one `AUDITABORT`, and its payload carries the global reason. `BadFrameBoundAndPullExhaustionCollide` (2) is the dedicated collision test the owner specified, with the non-collision case beside it |
+| **B3′** | the normalisation used S #2's whole-session planned audit fraction (382/6063) to correct a mean built from a 142-interval prefix | it now uses the audited share of those intervals — 9/142, with the mean audit stage over exactly those nine, and seq 144's audit correctly counted in no interval. Every figure now equals the owner's: raw 0.5401501666 s, normalised 0.5398581010 s, wall 6784.9366 s, margin 304.9366 s. The `n_vs_t` evidence is regenerated and this package's own numbers corrected |
+| **B4′** | the draft's §5 S row still printed `⌊0.9 × min(rate_A, rate_B) × T⌋`, contradicting D-n1 in the same document; D-s3 and D-t1 stated their v0.6 `min` formulas as present-tense rules | the S row states the ruled formula (`max`, `policy_matched_wall`, the faster arm); D-s3 and D-t1 keep their formulas but are explicitly marked as v0.6 history that **D-n1 supersedes**. `V07DraftDrift` now reads the S row itself and both decision rows, instead of looking for a phrase anywhere in the file |
+
+Nothing else moved: N, the audit count, the frame count, the budgets and the timeout are
+unchanged, no hardware was re-run, and the manifest is still `54583314…`.
