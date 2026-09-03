@@ -164,6 +164,30 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
         pins = {"image_sha256": l6m["pinned_at_build"]["app_image_sha256"], "prereg_sha256": l6m["prereg"]["sha256"],
                 "protocol": l6m["pinned_at_build"].get("protocol")}
         for k, rep in calibration.items():
+            # D-r5 keeps every pin exact. A calibration measured under an EARLIER frozen
+            # preregistration may be reused only by an EXPLICIT import (v0.7 candidate,
+            # owner 2026-09-03): the manifest's calibration.<k>.imported names the prereg
+            # hash and version the report is bound to, its own sha256 and its three input
+            # hashes, and says why the change cannot move the measured period. Image,
+            # protocol, session, mode, seed and the operator contract are still compared
+            # to the CURRENT pins — an import never relaxes those, only the prereg hash,
+            # and only to the one hash it names.
+            imported = (l6m["calibration"].get(k) or {}).get("imported")
+            pins_k = dict(pins)
+            if imported:
+                b_ = rep.get("binding") or {}
+                if not isinstance(imported, dict) or not imported.get("from_prereg_sha256"):
+                    raise ValueError(f"calibration {k}: `imported` must name from_prereg_sha256")
+                if b_.get("prereg_sha256") != imported["from_prereg_sha256"]:
+                    raise ValueError(f"calibration {k}: the import names prereg {str(imported['from_prereg_sha256'])[:16]}… "
+                                     f"but the report is bound to {str(b_.get('prereg_sha256'))[:16]}…")
+                if imported.get("report_sha256") != l6m["calibration"][k].get("rate_report_sha256"):
+                    raise ValueError(f"calibration {k}: the import's report_sha256 is not the pinned one")
+                if imported.get("inputs") != rep.get("inputs"):
+                    raise ValueError(f"calibration {k}: the import's input hashes are not the report's")
+                if not str(imported.get("why", "")).strip():
+                    raise ValueError(f"calibration {k}: an import must say why the change cannot move the measured period")
+                pins_k["prereg_sha256"] = imported["from_prereg_sha256"]
             # prereg v0.4: a calibration is valid only for the image, preregistration and
             # protocol it ran under — a new image or protocol changes the nominal period.
             # The report carries its binding (l6_rate.binding_of); a report without one
@@ -172,7 +196,7 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
             if not isinstance(b, dict):
                 raise ValueError(f"calibration report {k} carries no binding (made before prereg v0.4): "
                                  f"it cannot budget this soak — re-run {k} under the current image and protocol")
-            for key, want in pins.items():
+            for key, want in pins_k.items():
                 if b.get(key) != want:
                     raise ValueError(f"calibration report {k} is bound to {key} {str(b.get(key))[:16]}…, this soak's pin is "
                                      f"{str(want)[:16]}… (a new image/prereg/protocol needs new C1/C2)")
@@ -222,6 +246,10 @@ def plan_session(l6m: dict, session: str, master_seed: int | None, duration_s: f
         audit_policy = "sampled"
         audit_seqs = ls.sampled_audit_seqs(n, l6m["audit"]["every"])
         settle_med = [lc.median_settle_polls_from_report(calibration[k]) for k in ("C1", "C2")]
+        imports = {k: bool((l6m["calibration"].get(k) or {}).get("imported")) for k in ("C1", "C2")}
+        if any(imports.values()):
+            inputs["calibrations_imported"] = {k: (l6m["calibration"][k]["imported"] | {"inputs": "(the report's)"})
+                                               for k, v in imports.items() if v}
         inputs.update({"rate_C1_per_h": rates["C1"], "rate_C2_per_h": rates["C2"], "duration_s": duration_s,
                        "rate_source": (f"{n_rule} (v0.7 candidate, host/l6_soak_plan.py)" if n_rule != "planning"
                                        else "planning (D-t1)" if str(l6m["prereg"].get("version")) in V05_RULE_VERSIONS

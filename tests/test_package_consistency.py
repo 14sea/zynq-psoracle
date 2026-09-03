@@ -541,6 +541,8 @@ class WithdrawnHashesStayInHistory(unittest.TestCase):
                                              "of the withdrawn candidate verbatim (owner: no delta drafts)",
         "docs/l6_soak_prereg_v0.6_draft.md": "§1: the self-contained v0.6 text (v0.5 never frozen, carried verbatim) keeps "
                                              "the frozen text's forbidding of the withdrawn candidate",
+        "docs/l6_soak_prereg_v0.7_draft.md": "§1: the self-contained v0.7 freeze candidate carries the frozen text's "
+                                             "forbidding of the withdrawn candidates verbatim (the image is unchanged)",
         "docs/l6_rel_firmware_package.md": "names the withdrawn first rel-v4 candidate and the review that withdrew it (§7)",
     }
     # evidence/ is recorded observation: never edited, never scanned

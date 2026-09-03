@@ -352,6 +352,9 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-03T181438Z.json` |
+| `evidence/tests/test_report_2026-09-03T181348Z.json` |
+| `evidence/tests/test_report_2026-09-03T181245Z.json` |
 | `evidence/tests/test_report_2026-09-03T173546Z.json` |
 | `evidence/tests/test_report_2026-09-03T172329Z.json` |
 | `evidence/tests/test_report_2026-09-03T171033Z.json` |
@@ -693,6 +696,13 @@ revisions and neither may be silently substituted for the other.
 | `host/l6_soak_plan.py` |
 | `evidence/l6_soak_plan/n_vs_t_2026-09-03.json` |
 | `tests/test_l6_v07_rules.py` |
+| `host/l6_session_soak.py` |
+| `tests/test_l6_session_soak.py` |
+| `evidence/l6_session_soak/rel_v4_session_soak_2026-09-03.json` |
+| `evidence/l6_session_soak/rel_v4_soak_sized_2026-09-03.json` |
+| `docs/l6_soak_prereg_v0.7_draft.md` |
+| `docs/l6_s2_host_batch_package.md` |
+| `tests/test_l6_v07_import.py` |
 | `docs/l6_transport_batch_package.md` |
 | `docs/l6_frame_reliability_design.md` |
 | `docs/l6_rel_batch_package.md` |

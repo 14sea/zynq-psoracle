@@ -1924,3 +1924,70 @@ formula); S #2's 6522 evals/h is post-hoc validation only; reuse of v0.6 calibra
 evidence must be an explicit import by report hash and the three input hashes, or v0.7
 re-calibrates. The corrected archive is pushed on a green suite without a further ask;
 the host batch is a separate commit line.
+
+## 2026-09-03 — the host batch after S #2, delivered host-only (4 commits, not pushed): the malformed-line policy, the v0.7 candidate rules, the modelled session soak, the explicit calibration import, and the self-contained v0.7 freeze candidate
+
+Owner (2026-09-03) authorised the whole batch to run to a complete candidate package before
+a single review, host-only, local commits, no push and no board. Delivered
+(`docs/l6_s2_host_batch_package.md`; `96ffcee`, `505e178`, `52989e1` and this commit):
+
+- **§2.6q / D-b1 — the S #2 gap.** rel-v4 makes every frame re-requestable BY TYPE; a
+  contiguous loss that destroys the head (S #2's merged `HB`+`REC` line) matches no
+  transaction and reached the collector, whose rule is `CRASHED`. Under the v0.7 candidate
+  policy (`host/l6_console.py` `bad_frame_policy="ledger"`) such a line is ledgered exactly
+  once as `BAD_FRAME`, not acknowledged, not signed, advances no seq, does not refresh
+  liveness, and is not handed to the collector; the board's bounded resend recovers the
+  frame and the silence rule still ends a quiet epoch. **Bounded**: `bad_frame_budget` =
+  D-s4's formula; the first past it ends the epoch `PROTOCOL_BAD_FRAME_BUDGET`, and a
+  ledger policy without a budget is refused at construction.
+- **Proof, in the two parts the owner required.** S #2's recorded console bytes through the
+  real stack: under `crash` the day's `CRASHED: unparseable frame` at `last_seq 144`
+  (control), under `ledger` the epoch stays open with `bad_frames 1`, 144 records, seq 145
+  pending and nothing sent for the merged line. Because the recording stops 0.2 s later at
+  the port close, it can only show that the host survives; the modelled continuation with
+  the firmware's own REC twin then resends the SAME bytes on the bound and is accepted once
+  with a `RECACK`, the record appended once, the next SIGNREQ proceeding — with the
+  negatives: no resend → the collector's silence end; a wrong resend → `PROTOCOL_REC`; a
+  conflicting resend → `PROTOCOL_REC` conflict; a second identical resend re-acknowledged
+  never appended; the malformed line repeated → the budget.
+- **§6.1 the crash-path baseline gate**: the opening baseline always, the last SCORED
+  record as the closing baseline only on `COMPLETED` (S #2's artefact reproduced, then gone).
+- **D-h1 the heartbeat rule, ruled explicitly rather than left to slip**: v0.6's "at most
+  one missing per record" HOLDs a whole soak on one contiguous loss (it takes 8–14
+  heartbeats of ONE record) even when the REC transaction recovered it. The candidate rule
+  budgets RECORDS: at most ⌊R/1000⌋ SCORED records may miss any heartbeat (0 for a
+  calibration, 12 for the soak), indices, unindexed HB and duplicates unchanged, the 20 s
+  liveness gap untouched. Both rules run side by side on the same fixtures and on the
+  soak-sized evidence: v0.7 clean in all three, v0.6 HOLDing all three.
+- **D-n1 N against T**: the wall floor stays 0.9 T; N comes from a policy-matched planning
+  rate computed by `host/l6_soak_plan.py` from the two pinned reports and their hashed run
+  logs, the audit fraction and N solved together, every intermediate unrounded and one
+  floor at the end; four named rules with a post-hoc gate at S #2's recorded pace
+  (`planning` 6061 FAIL, `policy_matched_period` 11160 FAIL, `policy_matched_wall` 12511
+  PASS with 339 s of margin, `policy_matched_span` 10532 FAIL). The recorded pace never
+  enters the formula (a source test); S #1's pace is informational (another protocol); the
+  rounded-label counterexample is locked (6952 → 12513, 6952.2375 → 12514, this batch's
+  6950.711806 → 12511). Nothing is pre-approved: the owner names the rule at the freeze.
+- **D-i1 the explicit calibration import**: freezing v0.7 changes the prereg hash, so D-r5
+  would refuse C1 #6 and C2 #2. `calibration.<k>.imported` names the prereg hash and version
+  the report IS bound to, its own sha256, its three input hashes and why the change cannot
+  move the period; it relaxes the prereg hash and nothing else — image, protocol, session,
+  mode, seed, operator contract and the input files are still compared to the current pins.
+  Without the declaration the reports are refused, as before.
+- **The modelled session soak** (`host/l6_session_soak.py`): whole rel-v4 sessions of the
+  board twins against the real host stack over a wire injecting the S #2 fault class. 12
+  seeds × 300 candidates: `ledger` COMPLETED 302/302 every seed with zero unrecovered
+  faults (268 faults, 115 crossing frame boundaries, 64 into a REC, 71 malformed lines
+  absorbed; 48 records needed a second REC transmission, none a third); `crash` CRASHED at
+  the first malformed line every seed. 3 soak-sized sessions (N = 12511) at ≈ 6× the
+  recorded line rate: COMPLETED 12513/12513, every gate empty but the heartbeat rule, where
+  the two rules part. A model defect was found and fixed on the way and is reported: the
+  deletion run's remainder had no time bound and "ate" three AUDIT_READY resends 10 s
+  apart; a run is a burst on the wire and its remainder now expires after 50 ms of
+  transmit-idle.
+- **`docs/l6_soak_prereg_v0.7_draft.md`** — the complete self-contained freeze candidate
+  (740 lines, sha `96ca3acb…`), NOT marked frozen. `manifests/l6_manifest.json` is
+  deliberately untouched (`54583314…`, the pushed bytes): the freeze is the owner's action.
+
+1074 tests / 1 skip / rc 0 (`evidence/tests/test_report_2026-09-03T181348Z.json`). No board,
+no ruling, no push, nothing pinned or frozen; C1 #5 and S #2 stay HOLD; Claim B closed.
