@@ -1677,3 +1677,38 @@ Firmware bytes unchanged
 (bin `5deee74c…`, ELF `ebe97ce6…`, map `a0dab213…` on disk = manifest = evidence). No
 ruling, no board contact, not pushed: the frozen-artifact short review comes first, then
 the push decision and the first rel-v4 C1 ruling pair.
+
+## 2026-09-03 — owner's frozen-artifact short review: PASS; `d836107` pushed; stop-loss conditionally lifted for ONE rel-v4 C1; C1 #6 (ruling 2026-09-03-01) = PASS (runner outcome)
+
+Owner (2026-09-03): the frozen-artifact short review of `d836107` = PASS (prereg
+`bfd69d10…`, manifest `1746cdfa…`, BIN `5deee74c…`, ELF `ebe97ce6…`, MAP `a0dab213…` all
+verified; HEAD = worktree; one board-ready rel-v4 authority; `403f4ab5…` superseded NOT
+defective; the three withdrawn exact; the v0.4 → v0.3 → v0.2 chain, v0.5 never frozen and
+the calibration isolation hold; the frozen v0.6 free of the 19 stale phrases; the runner's
+real pins reach the boundary gate; 1021 tests OK with an environment-only extra skip;
+firmware/host/validators unchanged against `57cc22b`). Non-blocking note: the standing of
+`docs/l6_frame_reliability_design.md` still opens with the old "nothing implemented in
+firmware" sentence before the note that it is history. Push of `d836107` approved and
+done (`origin/main` = `d836107`). **Stop-loss ruling:** conditionally lifted for ONE
+rel-v4 C1 only — C2, S and Claim B not opened; a non-PASS C1 is archived and returns to
+the owner, never re-run; a PASS C1 is reviewed and `calibration.C1` pinned before C2 is
+discussed; C1 #5 not re-judged. Ruling pair `2026-09-03-01` issued (whole-of-probe
+P3-L6, C1, seed 1278624577; provisioning P3-K; both bound to the three hashes above).
+
+Executed in order: push → origin/HEAD/tree/hash check → the pair written verbatim →
+power cycle (owner; UART re-enumerated 15:46) → boundary verifier R1–R5 PASS
+(`evidence/boundary/principal_boundary_2026-09-03-01.json`) → `host/l6_runner.py` in the
+background (pid 13152, waited on by pid). **C1 #6 = PASS (runner outcome, 15:53):**
+IDENT 1.3.0 rel-v4 with both control bits echoed, one transmission, one IDENTACK; 66
+SCORED (1 + 64 + 1), baselines exact, closing control fault 13 carried by TERM and CLOSE in
+agreement, TERM COMPLETED / budget; 66/66 audits pulled and verified, zero pull retries,
+timeouts, waits or replays; 1785 inbound frames = expected; CRC drops 2 of 8 = the SIGNREQ
+and REC controls, each ledger exactly `["crc", "ok"]` with one SIGNGET / one RECGET; 0 bad
+frames, 0 fragments, 0 recoveries; `findings: []`; rate report
+`08222f85799fa3d18012cdd26a5cc047527995b682bfd5679a668014ea03251c` = 3495.7 evals/h
+inclusive (CoV 0.0151 over 63/63 clean periods), planning 3381.4 evals/h, bound to the
+session's pins and its three input files. Both rulings consumed (PASS). Archived:
+`docs/l6_c1_session6_findings.md`, manifest `hardware_history` (66/1/64/1) + standing
+(5deee74c… RAN ON 17A6) + status, `docs/status.md` row, import manifest. Nothing pinned
+here: `calibration.C1` stays null until the owner adjudicates and pins the report by hash;
+C2 needs its own ruling pair bound to the post-pin manifest and a power cycle. No push.
