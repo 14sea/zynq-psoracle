@@ -1,0 +1,39 @@
+{
+ "schema": "l6_policy_counterfactual",
+ "schema_version": "1.0.0",
+ "purpose": "S #3 (2026-09-04-01) proved D-b1 on hardware: its own recorded console bytes, replayed through the real reader/ConsoleSession/Collector/NotaryRelay, COMPLETE under the v0.7 ledger policy and end CRASHED under v0.6's. Same bytes, same code, one policy flag apart.",
+ "session": "evidence/l6_17A6_2026-09-04-01-S",
+ "console_log_sha256": "8b013b235f0f403159f72c6028c56abe669f3f035642541b8e379f2d5ad9294b",
+ "console_log_bytes": 50642507,
+ "crc_budget": 934,
+ "bad_frames_at_go_plus_s": [
+  546.2,
+  1146.3,
+  1354.8,
+  5346.2
+ ],
+ "runs": [
+  {
+   "policy": "crash",
+   "epoch_end": {
+    "kind": "CRASHED",
+    "reason": "unparseable frame",
+    "last_seq": 1011
+   },
+   "records_accepted": 1011,
+   "bad_frames": 1,
+   "crc_dropped": 7
+  },
+  {
+   "policy": "ledger",
+   "epoch_end": {
+    "kind": "COMPLETED",
+    "last_seq": 12570,
+    "reason": "budget"
+   },
+   "records_accepted": 12570,
+   "bad_frames": 4,
+   "crc_dropped": 42
+  }
+ ]
+}

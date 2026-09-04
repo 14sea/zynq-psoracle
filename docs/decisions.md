@@ -2201,3 +2201,56 @@ manifest with it. `prereg.frozen` and `prereg.draft_history` record that the fre
 this correction family, so the frozen text's difference from the reviewed draft is stated
 rather than silent. 1106 tests / 1 skip / rc 0. Still not pushed, no board, no S ruling;
 Claim B closed.
+
+## 2026-09-04 — the v0.7 freeze pushed; S ruling pair 2026-09-04-01 issued; S #3 = PASS (runner outcome) — the first COMPLETED L6 soak
+
+Owner (2026-09-04): the v0.7 freeze batch PASSED (prereg `95d177a1…`, manifest `3fea5c4b…`,
+image `5deee74c…`, the real plan N 12568 / 789 / 233 364 / 934 / 8739 s, the v0.7 evidence
+writing `max` and the historical v0.6 planning keeping `min`, the immutable artifacts equal
+to origin, 1106 tests green). `398c5ce` pushed; the three "v0.7 candidate" mentions left in
+`host/l6_runner.py` comments recorded as a non-blocking minor, deliberately not moving the
+freeze commit. The S ruling pair `2026-09-04-01` was then issued, bound to those three
+hashes, for exactly one soak.
+
+Executed in order: push → the four hashes re-checked against origin and the worktree → the
+pair written verbatim → power cycle (owner; UART re-enumerated 05:35) → boundary R1–R5 PASS
+(`evidence/boundary/principal_boundary_2026-09-04-01.json`) → `host/l6_runner.py --session S
+--duration-s 7200` in the background (pid 71086, waited on by pid, no shell timeout) with
+the two imported calibration reports. `go` 05:40, TERM 07:33, adjudication to 07:41.
+
+**S #3 = PASS (runner outcome), `findings: []` — the first L6 soak to reach COMPLETED.**
+12 570 SCORED records (1 + 12 568 + 1) in **6763.9 s**, above §6.4's 0.9 T floor of 6480 s
+and inside the 8739 s timeout; both baselines exactly `[18, 22, 20, 20, 20, 18]`; 6284
+`random_safe` + 6284 `map_guided` on the A,B,B,A schedule, `arm_check` 12 568/12 568;
+closing control refused with fault 13, CLOSE and TERM agreeing; **789/789 due sampled audits
+pulled and verified** with zero retries, timeouts, waits or replays; nonce chain 12 571;
+validator accepted. Transport: 42 CRC drops of a 934 budget (REC 26, SIGNREQ 7, AUDIT 5,
+HB 4 — two of them the forced seq-1 controls), 4 bad frames, 3 reader fragments, 52 of
+12 568 candidates with a recovery; every sign, REC, pull, IDENT and TERM transaction closed
+and both control ledgers exactly `["crc", "ok"]`. Rates: inclusive 6691.9 evals/h, nominal
+CoV 0.2475 over 12 515 clean periods, planning 6689.2; `rate_report.json` sha
+`8af02b917ca457ccccdbd016976e9c88bfe468f1c5256b469f7f1e5f58542d5b`. A soak pins nothing.
+
+**The three v0.7 decisions were decisive, and it is evidenced rather than argued:**
+
+- **D-b1.** Four malformed lines arrived (go + 546.2, 1146.3, 1354.8, 5346.2 s). This
+  session's own `console.log` replayed through the real reader, ConsoleSession, Collector
+  and NotaryRelay with ONE flag changed ends **`CRASHED: unparseable frame` at record 1011**
+  under v0.6's policy and `COMPLETED` at 12 570 under v0.7's
+  (`evidence/l6_v07_counterfactual/s_2026-09-04-01_policy_replay.json`). The soak that just
+  passed would have been a HOLD nine minutes in.
+- **D-h1.** 14 heartbeats lost over **7** records (max 4 in one), inside the record budget
+  of ⌊12570/1000⌋ = 12; v0.6's per-record cap gives **5 findings** on the same evidence and
+  would have HOLD-ed a soak in which every record was accepted and every audit verified.
+- **D-n1.** N 12568 from `policy_matched_wall` on the faster arm, with C1 #6 and C2 #2
+  imported by D-i1; the post-hoc prediction from S #2's pace was 6784.9 s against a measured
+  6763.9 s — **0.31 %**. Under v0.6's rule N would have been 6061 and the soak ≈ 55 min,
+  below the floor by construction.
+
+Archived: `docs/l6_s_session3_findings.md`, `evidence/l6_17A6_2026-09-04-01-S/`,
+`evidence/boundary/principal_boundary_2026-09-04-01.json`, the counterfactual, manifest
+`hardware_history` (12570/1/12568/1) + standing + status, `docs/status.md`, import manifest.
+Both rulings consumed (PASS). Nothing pinned, no board contact after the session, not
+pushed. Open for the owner: adjudicate S #3; if PASS, Q1 (C1 #6 / C2 #2) and Q2 (this soak)
+are both answered and the L6 package can go to `zynq-fabricmap`'s owner for the separate
+decision on whether Claim B leaves PAUSED. C1 #5, S #1 and S #2 keep their HOLDs.
