@@ -2254,3 +2254,33 @@ Both rulings consumed (PASS). Nothing pinned, no board contact after the session
 pushed. Open for the owner: adjudicate S #3; if PASS, Q1 (C1 #6 / C2 #2) and Q2 (this soak)
 are both answered and the L6 package can go to `zynq-fabricmap`'s owner for the separate
 decision on whether Claim B leaves PAUSED. C1 #5, S #1 and S #2 keep their HOLDs.
+
+## 2026-09-04 — owner adjudication: S #3 = PASS (scoped). L6's Q1 and Q2 are both answered; the package goes to zynq-fabricmap; Claim B stays closed here
+
+Owner (2026-09-04), after an independent re-check of the raw evidence rather than the
+summary: the validator gives 12 570 scored, 789 audited and a nonce chain of 12 571; all
+12 568 arms and genomes match the schedule; structural, baseline, REC and rel-v4 closure
+and control, and the soak gates are all without finding; the rate report regenerated from
+its three inputs is field-identical at
+`8af02b917ca457ccccdbd016976e9c88bfe468f1c5256b469f7f1e5f58542d5b`; and the counterfactual
+replays independently — the same console bytes crash at seq 1011 under the v0.6 policy and
+complete 12 570 records under v0.7's. 1106 tests, rc 0 (one extra skip in the review
+environment for the gitignored `p3_app.bin`, not a blocker). **S #3 = PASS, adjudicated,
+scoped**; `7563321` pushed unchanged.
+
+**What this settles.** L6's two questions are both answered: **Q1** (the calibration) by
+C1 #6 (`08222f85…`) and C2 #2 (`959790d0…`), pinned under v0.6 and imported into the frozen
+v0.7 by D-i1; **Q2** (the soak) by S #3 — 12 570 records over 6763.9 s unattended, every L5
+invariant held, under the sampled audit policy with the watchdog armed.
+
+**What it does not do.** A soak pins nothing: no new calibration is recorded, no further
+ruling is issued, and there is no more board contact. The complete L6 package may now go to
+`zynq-fabricmap`'s owner, who decides **independently** whether Claim B leaves PAUSED — in
+this repository Claim B stays closed and this adjudication does not pre-empt that decision.
+C1 #5, S #1 and S #2 keep their HOLDs permanently and are not re-judged.
+
+Two operational notes. The push of `7563321` drew GitHub's large-file warnings for
+`run_log.json` (59.19 MB) and `console.ts.log` (55.19 MB) — over the 50 MB recommendation,
+under the 100 MB limit, so the push succeeded; a soak's evidence is ~227 MB and a future one
+should be planned for. And on the owner's advice an independent backup of the produced
+artifacts was taken outside the repository, so a mis-operation here cannot destroy them.
