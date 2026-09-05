@@ -352,6 +352,8 @@ revisions and neither may be silently substituted for the other.
 | `docs/l4_findings.md` |
 | `docs/status.md` |
 | `host/run_tests.sh` |
+| `evidence/tests/test_report_2026-09-05T071345Z.json` |
+| `evidence/tests/test_report_2026-09-05T063709Z.json` |
 | `evidence/tests/test_report_2026-09-04T070318Z.json` |
 | `evidence/tests/test_report_2026-09-04T064539Z.json` |
 | `evidence/tests/test_report_2026-09-03T192114Z.json` |

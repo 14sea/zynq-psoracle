@@ -2223,7 +2223,7 @@ the two imported calibration reports. `go` 05:40, TERM 07:33, adjudication to 07
 and inside the 8739 s timeout; both baselines exactly `[18, 22, 20, 20, 20, 18]`; 6284
 `random_safe` + 6284 `map_guided` on the A,B,B,A schedule, `arm_check` 12 568/12 568;
 closing control refused with fault 13, CLOSE and TERM agreeing; **789/789 due sampled audits
-pulled and verified** with zero retries, timeouts, waits or replays; nonce chain 12 571;
+pulled and verified** with zero timeouts, waits or replays [corrected 2026-09-05: NOT "zero retries" — five AUDIT chunks were CRC-broken and re-requested once each, see the entry of that date]; nonce chain 12 571;
 validator accepted. Transport: 42 CRC drops of a 934 budget (REC 26, SIGNREQ 7, AUDIT 5,
 HB 4 — two of them the forced seq-1 controls), 4 bad frames, 3 reader fragments, 52 of
 12 568 candidates with a recovery; every sign, REC, pull, IDENT and TERM transaction closed
@@ -2284,3 +2284,32 @@ Two operational notes. The push of `7563321` drew GitHub's large-file warnings f
 under the 100 MB limit, so the push succeeded; a soak's evidence is ~227 MB and a future one
 should be planned for. And on the owner's advice an independent backup of the produced
 artifacts was taken outside the repository, so a mis-operation here cannot destroy them.
+
+## 2026-09-05 — archive-narrative correction batch (owner HOLD on text precision; doc-only, no ruling, no pin, no board)
+
+The owner's short review of the L6 hand-off found the core package PASS and the wording
+HOLD on three points, corrected here without touching the frozen preregistration, the image,
+the C1/C2 pins, the S #3 evidence or the rulings:
+
+1. **S #3 was not "zero retries".** `audits.json` records five AUDIT chunks that arrived
+   CRC-broken and were each re-requested exactly once (seq 352 chunk 2, 5584 chunk 2, 9312
+   chunk 3, 9744 chunk 6, 10160 chunk 7 — attempt 0 `crc`, attempt 1 `ok`), as
+   `docs/l6_s_session3_findings.md` §3b already said. The manifest's S #3 `hardware_history`
+   outcome, `docs/status.md` and the 2026-09-04 entry above said "zero retries"; they now say
+   789/789 pulls completed and verified, five chunks re-requested once, zero timeouts / zero
+   AUDITWAIT / zero DONE replays / zero failed pulls.
+2. **"2 h of unattended operation" overstated the window.** The measured span is 6763.9 s
+   (≈ 1 h 52 min 44 s). What S #3 met is the registered criterion: T = 7200 s with the wall
+   span ≥ 0.9 T = 6480 s. The manifest `status` now says so, and adds the consequence for a
+   Claim B budget: it must sit inside the observed 6763.9 s, or the soak is extended under
+   its own ruling.
+3. The pin narrative: the S #3 ruling pair bound manifest `3fea5c4b…` (as issued); the
+   adjudication commit `32d1460` pinned `1c31b81d…`; this correction moves the committed
+   manifest sha again (recorded in the commit message), the prereg pin `95d177a1…` and the
+   image `5deee74c…` unchanged.
+
+Also in this batch, from the same review: the README and `docs/status.md` were brought to
+the archived state (they had stopped at "L5 awaiting the D5 batch review"), with the L6
+tally of eleven board sessions — 5 PASS, 6 HOLD. Test suite re-run in sequence after the
+edits. Archive boundary unchanged: no board contact, no ruling, no calibration; Claim B
+closed here.

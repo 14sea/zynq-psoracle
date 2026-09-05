@@ -10,9 +10,15 @@ controls** — they exist to demonstrate that the interlock *refuses* those case
 from any of them is a declared kill criterion, not a goal. Nothing here targets third-party
 hardware, software or services.
 
-Current state is the canonical table in [`docs/status.md`](docs/status.md): L0–L4 PASS (L3
-scoped), L5's firmware built host-side. Statements of state elsewhere in this file and in the
-design documents are historical records of when they were written.
+**ARCHIVED 2026-09-04.** The ladder is complete: L0–L5 PASS (L3 and L5 scoped) and L6's two
+questions are both answered — Q1 (calibration) by the pinned C1 #6 / C2 #2 records, Q2 (soak) by
+S #3, the first COMPLETED L6 soak (12 570 records in 6763.9 s, every gate empty), owner-adjudicated
+PASS (scoped). The canonical table is [`docs/status.md`](docs/status.md). **This repository
+issues nothing further: no board contact, no new ruling, no new calibration; C1 #5, S #1 and S #2
+keep their HOLDs.** The complete L6 package went to `zynq-fabricmap`'s owner
+(`zynq-fabricmap/docs/claimb_l6_package.md`), who decides independently whether Claim B leaves
+PAUSED; in this repository Claim B stays closed. Statements of state elsewhere in this file and
+in the design documents are historical records of when they were written.
 
 | document | what |
 |---|---|
@@ -34,10 +40,9 @@ match bit anywhere that the host must take on trust.
 
 ## Status
 
-**Canonical status table: [`docs/status.md`](docs/status.md)** — L0, D4, L1, L2, L3 (scoped), L4 all
-**PASS** on EBAZ4203 `17A6` as of 2026-08-31, and the **L0–L4 overall review is PASS (scoped)**;
-L5's host-only work is **complete and awaiting the D5 batch review** (`docs/l5_review_package.md`). The per-rung rows below are a summary; where they and
-`docs/status.md` disagree, `docs/status.md` wins.
+**Canonical status table: [`docs/status.md`](docs/status.md)** — every rung adjudicated on EBAZ4203
+`17A6`; L6 closed 2026-09-04 and the repository archived. The per-rung rows below are a summary;
+where they and `docs/status.md` disagree, `docs/status.md` wins.
 
 | rung | state |
 |---|---|
@@ -47,7 +52,8 @@ L5's host-only work is **complete and awaiting the D5 batch review** (`docs/l5_r
 | L2 = P2b | **PASS** on 17A6 (run #3) — `docs/l2_findings.md`; heartbeat pinned [49.5, 50.5] MHz |
 | L3 one gated candidate | **PASS (scoped)** on 17A6 — five sessions, `docs/l3_findings.md` |
 | L4 fault / restore / baseline | **PASS** on 17A6 — `docs/l4_findings.md` |
-| L5 the loop | host-only work complete, awaiting the D5 batch review (`docs/l5_review_package.md`); firmware's pure half bit-exact vs Python over 256 candidates; `p3_app.c` never compiled; no build/board/ruling |
+| L5 the loop | **PASS (scoped)** on 17A6 — session 4 (image `a7c73d1f…`): 10/10 `SCORED`, both baselines exact, 80 audit chunks host-recomputed, unsigned control refused; `docs/l5_session4_findings.md` |
+| L6 calibration + soak | **Q1 and Q2 ANSWERED** (owner 2026-09-04) — prereg v0.7 frozen `95d177a1…`, rel-v4 two-operator image `5deee74c…` (P3 compatibility review PASS); Q1: C1 #6 `08222f85…` + C2 #2 `959790d0…` pinned; Q2: S #3 `COMPLETED`, 12 570 records / 6763.9 s, 789/789 audits, `findings: []`, PASS (scoped); `docs/l6_s_session3_findings.md`, `manifests/l6_manifest.json`. Eleven board sessions: 5 PASS, 6 HOLD (C1 #5, S #1, S #2 permanent). **Archived.** |
 
 Tests: `host/run_tests.sh` (records exit status + environment into `evidence/tests/`); see
 `docs/status.md` for the sandbox/sudo caveat.
