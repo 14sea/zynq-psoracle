@@ -100,3 +100,31 @@ provisioning step is the one new mechanism and it reuses a proven path.
 - the runner user is not in the pod's group (A) / has no port access (B);
 - the RTL never exposes the key words (bench: read → SLVERR; L1 exit review: no path);
 - L3 fake: `unprovisioned` ARM → `F_ARM_NOKEY`, no score (A).
+
+## 5. Workstation deviation (2026-11-11) — the HS3 is no longer in the pod group
+
+The installed `/etc/udev/rules.d/99-p3-signer-jtag.rules` on the owner's workstation no
+longer has the Digilent HS3 line (`0403:6014`); only the FT4232H pod (`0403:6011`) is given
+to `p3jtag`. Reason: the same HS3 is the EBAZ4205 workspace's JTAG cable, which the
+runner user must be able to open. The files in this repo are **unchanged** —
+`host/principal/99-p3-signer-jtag.rules`, `setup_signer_principal.sh` and
+`host/verify_principal_boundary.py` (whose `POD_IDS` still lists both pods) are pinned
+by sha256 in zynq-fabricmap's instrument manifests at `689dde1`, so they stay as they were.
+
+Consequences:
+
+- **R3 fails while the HS3 is attached**: `verify_principal_boundary.py` treats any
+  attached `0403:6014` device as a pod, and the runner can now open it. Before running the
+  verifier (and therefore before any fabricmap run that needs a fresh `principal_boundary`
+  record), detach the HS3 from WSL (`usbipd.exe detach --busid <HS3 busid>`) and keep the
+  FT4232H pod attached; R3 then checks the FT4232H only, as on the boards this boundary
+  protects (the key register is on the EBAZ4203 PL).
+- **Do not re-run `setup_signer_principal.sh` from the `689dde1` checkout** on this
+  workstation: line 30 installs the repo copy of the rules file and would put the HS3 line
+  back. If the setup has to be redone, remove the `6014` line from
+  `/etc/udev/rules.d/99-p3-signer-jtag.rules` afterwards and run
+  `udevadm control --reload && udevadm trigger --subsystem-match=usb`.
+- **New machine**: install as documented, then decide per machine whether the HS3 belongs
+  to the signer (the original policy, which keeps an HS3 connected to a 4203 inside the
+  boundary) or to the runner (this workstation). Removing the line takes that HS3 out of
+  the boundary; it does not change R1, R2, R4 or R5.
