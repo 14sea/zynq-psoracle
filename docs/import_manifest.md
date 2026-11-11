@@ -828,6 +828,7 @@ revisions and neither may be silently substituted for the other.
 | `evidence/l5_17A6_2026-09-01-01/ymodem_app.log` |
 | `tests/test_package_consistency.py` |
 | `docs/l5_post_build_package.md` |
+| `docs/PRIOR_ART.md` |
 
 ## Deliberately NOT imported
 
